@@ -1,0 +1,14 @@
+{
+  "status": "success",
+  "message": "重定位成功，定位回验通过，误差 0.735m",
+  "map_id": 1780139324893,
+  "pixel_x": 332.0,
+  "pixel_y": 203.0,
+  "updated_at": 1780224788.224974,
+  "odom_world_x": 0.7332163080022662,
+  "odom_world_y": -0.0527983738253804,
+  "expected_world_x": 0.0,
+  "expected_world_y": -0.0,
+  "distance_m": 0.7351148363344864,
+  "verify_tolerance_m": 2.0
+}

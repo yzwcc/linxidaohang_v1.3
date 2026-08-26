@@ -1,0 +1,194 @@
+{
+  "schema_version": 1,
+  "kind": "robot_local_nav.map_points",
+  "map_name": "1779436804244",
+  "map_id": 1779436804244,
+  "updated_at": 1780049368.8692973,
+  "points": [
+    {
+      "id": "1779436804244:大门",
+      "name": "大门",
+      "map_name": "1779436804244",
+      "map_id": 1779436804244,
+      "pose": {
+        "position": {
+          "x": -7.973,
+          "y": 0.241,
+          "z": 0.0
+        },
+        "orientation": {
+          "x": 0.0,
+          "y": 0.0,
+          "z": -0.7882058885409673,
+          "w": 0.6154116323805914
+        }
+      },
+      "is_start": false,
+      "aliases": [
+        "大门"
+      ],
+      "navigation": {
+        "target_pose_radius": 0.15,
+        "pnc_mode": 0,
+        "max_forward_speed": 0.3,
+        "task_type": 2
+      },
+      "ui": {
+        "pixel_u": 275.54783379226035,
+        "pixel_v": 1004.188421474986,
+        "heading_pixel_u": 273.3781658096441,
+        "heading_pixel_v": 1012.8670394018764
+      },
+      "voice": {
+        "enabled": true,
+        "display_name": "大门"
+      },
+      "business": {
+        "on_arrival": [
+          {
+            "type": "motion",
+            "motion": "flying_kiss",
+            "area": "right_hand",
+            "interrupt": false
+          },
+          {
+            "type": "emoji",
+            "emotion": "cute2",
+            "mode": "once"
+          },
+          {
+            "type": "tts",
+            "text": "各位领导好，欢迎来到澳门城市大学横琴高等研究院，我是澳门城市大学的一名学生，叫做陈星月"
+          }
+        ]
+      },
+      "tour": {
+        "enabled": false,
+        "order": null,
+        "summary": ""
+      }
+    },
+    {
+      "id": "1779436804244:电梯口A点",
+      "name": "电梯口A点",
+      "map_name": "1779436804244",
+      "map_id": 1779436804244,
+      "pose": {
+        "position": {
+          "x": -7.05,
+          "y": 17.164,
+          "z": 0.0
+        },
+        "orientation": {
+          "x": 0.0,
+          "y": 0.0,
+          "z": -0.7496784292393651,
+          "w": 0.6618022761619955
+        }
+      },
+      "is_start": false,
+      "aliases": [
+        "电梯口A点"
+      ],
+      "navigation": {
+        "target_pose_radius": 0.15,
+        "pnc_mode": 0,
+        "max_forward_speed": 0.3,
+        "task_type": 2
+      },
+      "ui": {
+        "pixel_u": 293.9900116444982,
+        "pixel_v": 665.7223223262629,
+        "heading_pixel_u": 292.9051776531901,
+        "heading_pixel_v": 674.4009402531532
+      },
+      "voice": {
+        "enabled": true,
+        "display_name": "电梯口A点"
+      },
+      "business": {
+        "on_arrival": [
+          {
+            "type": "motion",
+            "motion": "hug",
+            "area": "right_hand",
+            "interrupt": false
+          },
+          {
+            "type": "emoji",
+            "emotion": "eye_open",
+            "mode": "once"
+          },
+          {
+            "type": "tts",
+            "text": "各位领导好，请移步至2楼进行参观"
+          }
+        ]
+      },
+      "tour": {
+        "enabled": false,
+        "order": null,
+        "summary": ""
+      }
+    },
+    {
+      "id": "1779436804244:起点",
+      "name": "起点",
+      "map_name": "1779436804244",
+      "map_id": 1779436804244,
+      "pose": {
+        "position": {
+          "x": -1.958,
+          "y": -0.443,
+          "z": 0.0
+        },
+        "orientation": {
+          "x": 0.0,
+          "y": 0.0,
+          "z": -0.3162256238996607,
+          "w": 0.9486840120868857
+        }
+      },
+      "is_start": true,
+      "aliases": [
+        "起点"
+      ],
+      "navigation": {
+        "target_pose_radius": 0.15,
+        "pnc_mode": 0,
+        "max_forward_speed": 0.3,
+        "task_type": 2
+      },
+      "ui": {
+        "pixel_u": 395.83664652793544,
+        "pixel_v": 1017.8560861604011,
+        "heading_pixel_u": 401.94995381022017,
+        "heading_pixel_v": 1022.441023485448
+      },
+      "voice": {
+        "enabled": true,
+        "display_name": "起点"
+      },
+      "business": {
+        "on_arrival": [
+          {
+            "type": "motion",
+            "motion": "sad",
+            "area": "right_hand",
+            "interrupt": false
+          },
+          {
+            "type": "emoji",
+            "emotion": "extreme_happy",
+            "mode": "once"
+          }
+        ]
+      },
+      "tour": {
+        "enabled": false,
+        "order": null,
+        "summary": ""
+      }
+    }
+  ]
+}

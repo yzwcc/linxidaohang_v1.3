@@ -1,0 +1,187 @@
+{
+  "schema_version": 1,
+  "kind": "robot_local_nav.map_points",
+  "map_name": "1780125989179",
+  "map_id": 1780125989179,
+  "updated_at": 1780130600.0882347,
+  "points": [
+    {
+      "id": "1780125989179:起点",
+      "name": "起点",
+      "map_name": "1780125989179",
+      "map_id": 1780125989179,
+      "pose": {
+        "position": {
+          "x": 0.411,
+          "y": 0.648,
+          "z": 0.0
+        },
+        "orientation": {
+          "x": 0.0,
+          "y": 0.0,
+          "z": 0.0,
+          "w": 1.0
+        }
+      },
+      "is_start": true,
+      "aliases": [
+        "起点"
+      ],
+      "navigation": {
+        "target_pose_radius": 0.15,
+        "pnc_mode": 0,
+        "max_forward_speed": 0.3,
+        "task_type": 2
+      },
+      "ui": {
+        "pixel_u": 551.2295521612622,
+        "pixel_v": 527.0332979700602,
+        "heading_pixel_u": null,
+        "heading_pixel_v": null
+      },
+      "voice": {
+        "enabled": true,
+        "display_name": "起点"
+      },
+      "business": {
+        "on_arrival": [
+          {
+            "type": "tts",
+            "text": "回到起点了"
+          }
+        ]
+      },
+      "tour": {
+        "enabled": false,
+        "order": null,
+        "summary": ""
+      }
+    },
+    {
+      "id": "1780125989179:大门",
+      "name": "大门",
+      "map_name": "1780125989179",
+      "map_id": 1780125989179,
+      "pose": {
+        "position": {
+          "x": 5.892,
+          "y": 5.146,
+          "z": 0.0
+        },
+        "orientation": {
+          "x": 0.0,
+          "y": 0.0,
+          "z": 0.3826830297318562,
+          "w": 0.9238796992873299
+        }
+      },
+      "is_start": false,
+      "aliases": [
+        "大门"
+      ],
+      "navigation": {
+        "target_pose_radius": 0.15,
+        "pnc_mode": 0,
+        "max_forward_speed": 0.3,
+        "task_type": 2
+      },
+      "ui": {
+        "pixel_u": 660.8425778617914,
+        "pixel_v": 437.0811780479911,
+        "heading_pixel_u": 671.2819136427942,
+        "heading_pixel_v": 426.6418604651162
+      },
+      "voice": {
+        "enabled": true,
+        "display_name": "大门"
+      },
+      "business": {
+        "on_arrival": [
+          {
+            "type": "motion",
+            "motion": "sweetheart",
+            "area": "none",
+            "interrupt": false
+          },
+          {
+            "type": "emoji",
+            "emotion": "happy",
+            "mode": "loop"
+          },
+          {
+            "type": "tts",
+            "text": "我已到达大门，欢迎来到数说"
+          }
+        ]
+      },
+      "tour": {
+        "enabled": false,
+        "order": null,
+        "summary": ""
+      }
+    },
+    {
+      "id": "1780125989179:办公室A点",
+      "name": "办公室A点",
+      "map_name": "1780125989179",
+      "map_id": 1780125989179,
+      "pose": {
+        "position": {
+          "x": 22.804,
+          "y": 10.313,
+          "z": 0.0
+        },
+        "orientation": {
+          "x": 0.0,
+          "y": 0.0,
+          "z": -0.3006389943396199,
+          "w": 0.9537380117634308
+        }
+      },
+      "is_start": false,
+      "aliases": [
+        "办公室A点"
+      ],
+      "navigation": {
+        "target_pose_radius": 0.15,
+        "pnc_mode": 0,
+        "max_forward_speed": 0.3,
+        "task_type": 2
+      },
+      "ui": {
+        "pixel_u": 999.0770571662813,
+        "pixel_v": 333.73193397753016,
+        "heading_pixel_u": 1009.5163929472841,
+        "heading_pixel_v": 341.03945628554254
+      },
+      "voice": {
+        "enabled": true,
+        "display_name": "办公室A点"
+      },
+      "business": {
+        "on_arrival": [
+          {
+            "type": "motion",
+            "motion": "salute",
+            "area": "none",
+            "interrupt": false
+          },
+          {
+            "type": "emoji",
+            "emotion": "extreme_happy2",
+            "mode": "once"
+          },
+          {
+            "type": "tts",
+            "text": "我已到达办公室A点"
+          }
+        ]
+      },
+      "tour": {
+        "enabled": false,
+        "order": null,
+        "summary": ""
+      }
+    }
+  ]
+}

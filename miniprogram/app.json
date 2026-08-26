@@ -1,0 +1,28 @@
+{
+  "pages": [
+    "pages/index/index",
+    "pages/maps/maps"
+  ],
+  "window": {
+    "navigationBarTitleText": "灵犀导航",
+    "navigationBarBackgroundColor": "#0f172a",
+    "navigationBarTextStyle": "white",
+    "backgroundColor": "#f6f7fb"
+  },
+  "tabBar": {
+    "color": "#667085",
+    "selectedColor": "#0f766e",
+    "backgroundColor": "#ffffff",
+    "list": [
+      {
+        "pagePath": "pages/index/index",
+        "text": "导航"
+      },
+      {
+        "pagePath": "pages/maps/maps",
+        "text": "地图"
+      }
+    ]
+  },
+  "sitemapLocation": "sitemap.json"
+}

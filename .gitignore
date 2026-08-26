@@ -1,0 +1,72 @@
+# OS/editor noise
+.DS_Store
+Thumbs.db
+
+# Dependencies and build outputs
+node_modules/
+**/node_modules/
+dist/
+**/dist/
+build/
+**/build/
+target/
+**/target/
+**/.build*/
+*.class
+*.tsbuildinfo
+
+# Runtime logs and local process state
+*.log
+logs/
+**/logs/
+pids/
+*.pid
+
+# Python caches
+__pycache__/
+**/__pycache__/
+.pytest_cache/
+
+# Local caches and generated delivery archives
+.cache*
+.compare_known_good/
+.learnings/
+.idea/
+**/.idea/
+.local-ui-server*.log
+*.zip
+*.tgz
+*.tar.gz
+*.7z
+
+# Local/runtime configuration and secrets
+.env
+*.env
+*.env.*
+!*.env.example
+deploy/**/robot-console.env
+**/robot-console.env
+**/secrets.env
+*.pem
+*.key
+*.p12
+*.jks
+id_rsa
+id_ed25519
+
+# Productization private/generated artifacts
+productization/vendor-private/
+productization/dist/
+productization/build/
+productization/reports/
+productization/**/*.pem
+productization/**/*.key
+productization/**/secrets.env
+productization/**/license.json
+productization/**/license.sig
+productization/**/device-claim.json
+
+# Local delivery/reference bundles that are not product source
+META-INF/
+交付代码包/
+灵心平台&交互云SDK二开使用手册/

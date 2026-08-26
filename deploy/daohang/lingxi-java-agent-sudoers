@@ -1,0 +1,5 @@
+run ALL=(root) NOPASSWD: /usr/bin/systemctl start lingxi-java-agent-robot.service
+run ALL=(root) NOPASSWD: /usr/bin/systemctl stop lingxi-java-agent-robot.service
+run ALL=(root) NOPASSWD: /usr/bin/systemctl restart lingxi-java-agent-robot.service
+run ALL=(root) NOPASSWD: /usr/bin/systemctl is-active lingxi-java-agent-robot.service
+run ALL=(root) NOPASSWD: /usr/bin/systemctl show -p MainPID --value lingxi-java-agent-robot.service

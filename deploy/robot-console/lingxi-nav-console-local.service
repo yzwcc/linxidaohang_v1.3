@@ -1,0 +1,19 @@
+[Unit]
+Description=Lingxi robot-local navigation console
+After=network-online.target ssh.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/opt/lingxi-nav-console/server
+EnvironmentFile=/opt/lingxi-nav-console/server/.env
+ExecStart=/opt/lingxi-nav-console/runtime/bin/node /opt/lingxi-nav-console/server/dist/index.js
+Restart=always
+RestartSec=3
+TimeoutStopSec=15
+KillSignal=SIGTERM
+
+[Install]
+WantedBy=multi-user.target

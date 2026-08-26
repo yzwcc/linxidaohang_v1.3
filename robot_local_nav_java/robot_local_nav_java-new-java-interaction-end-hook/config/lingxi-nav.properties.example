@@ -1,0 +1,46 @@
+﻿# LinkSoul / Lingxi AgentSDK metadata from C:/Users/lenovo/Desktop/META-INF.
+# These fields are documentation for the local SDK jar. Runtime code does not read them.
+sdk.maven.groupId=com.agibot.aiem
+sdk.maven.artifactId=linksoul-agentsdk
+sdk.maven.version=1.4.0-SNAPSHOT
+sdk.buildJdkSpec=17
+
+# LinkSoul / Lingxi AgentSDK websocket endpoint from the PDF.
+lingxi.url=wss://open.agibot.com/api/V1/open-portal/app/wss/agent-sdk
+lingxi.appId=APP1780378722916756882
+lingxi.appKey=YOUR_LINGXI_APP_KEY
+lingxi.callbacks=asr2llm,audio2tts
+lingxi.appSecret=YOUR_LINGXI_V140_APP_SECRET
+
+# Doubao / Volc Ark chat-completions endpoint.
+doubao.url=https://ark.cn-beijing.volces.com/api/v3/chat/completions
+doubao.apiKey=YOUR_DOUBAO_API_KEY
+doubao.model=doubao-seed-2-0-mini-260428
+
+# Local Python ROS bridge. Start C:/Users/lenovo/Desktop/robot_python_bridge in the ROS2 environment.
+nav.baseUrl=http://127.0.0.1:18080
+nav.timeoutMs=5000
+
+# TTS mode:
+# robot = call the robot local ROS2 PlayTts service through the Python bridge.
+# lingxi = only return LLM text to Lingxi; use this if Lingxi already speaks it.
+# off = return text only and do not request speech.
+tts.mode=robot
+tts.fixedDialogTest=false
+tts.suppressLingxiText=true
+tts.delayBeforeSpeakMs=800
+
+# Optional local cache for normal question/answer conversations.
+qa.storePath=config/qa-store.json
+
+# Optional local live-comment input. Keep navigation disabled for public comments.
+live.enabled=false
+live.inputMode=websocket
+live.host=127.0.0.1
+live.port=18081
+live.replyMode=ai
+live.allowNavigation=false
+live.allowEntertainment=true
+live.maxQueueSize=20
+live.minIntervalMs=3000
+live.maxTextLength=80

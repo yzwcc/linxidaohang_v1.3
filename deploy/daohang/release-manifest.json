@@ -1,0 +1,8 @@
+{
+  "release": "2026.07.22-v140-tour-control",
+  "agentSdk": "1.4.0-SNAPSHOT",
+  "javaRuntime": "17+",
+  "javaAdapter": "robot-local-navigation-java-0.1.0-v140-tour-control",
+  "navigation": "robot-local-navigation-v3-2026.07.22-tour-control",
+  "server": "lingxi-nav-console-server-0.2.0"
+}

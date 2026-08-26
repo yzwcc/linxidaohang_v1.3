@@ -1,0 +1,3 @@
+.list-item button {
+  min-width: 132rpx;
+}

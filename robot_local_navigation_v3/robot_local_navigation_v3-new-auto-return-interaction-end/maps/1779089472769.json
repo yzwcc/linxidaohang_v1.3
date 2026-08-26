@@ -1,0 +1,109 @@
+{
+  "schema_version": 1,
+  "kind": "robot_local_nav.map_points",
+  "map_name": "1779089472769",
+  "map_id": 1779089472769,
+  "updated_at": 1779970001.2477984,
+  "points": [
+    {
+      "id": "1779089472769:办公室A点",
+      "name": "办公室A点",
+      "map_name": "1779089472769",
+      "map_id": 1779089472769,
+      "pose": {
+        "position": {
+          "x": 3.3,
+          "y": 0.85,
+          "z": 0.0
+        },
+        "orientation": {
+          "x": 0.0,
+          "y": 0.0,
+          "z": -0.6069936549124263,
+          "w": 0.7947066772690754
+        }
+      },
+      "is_start": true,
+      "aliases": [],
+      "navigation": {
+        "target_pose_radius": 0.15,
+        "pnc_mode": 0,
+        "max_forward_speed": 0.3,
+        "task_type": 2
+      },
+      "ui": {
+        "pixel_u": 378.0,
+        "pixel_v": 183.0,
+        "heading_pixel_u": 384.0,
+        "heading_pixel_v": 205.0
+      },
+      "voice": {
+        "enabled": true,
+        "display_name": "办公室A点"
+      },
+      "business": {
+        "on_arrival": [
+          {
+            "type": "tts",
+            "text": "已到达A点"
+          }
+        ]
+      },
+      "tour": {
+        "enabled": false,
+        "order": null,
+        "summary": ""
+      }
+    },
+    {
+      "id": "1779089472769:办公室B点",
+      "name": "办公室B点",
+      "map_name": "1779089472769",
+      "map_id": 1779089472769,
+      "pose": {
+        "position": {
+          "x": 3.6,
+          "y": -0.55,
+          "z": 0.0
+        },
+        "orientation": {
+          "x": 0.0,
+          "y": 0.0,
+          "z": 0.7790047749550166,
+          "w": 0.6270179906488201
+        }
+      },
+      "is_start": false,
+      "aliases": [],
+      "navigation": {
+        "target_pose_radius": 0.15,
+        "pnc_mode": 0,
+        "max_forward_speed": 0.3,
+        "task_type": 2
+      },
+      "ui": {
+        "pixel_u": 384.0,
+        "pixel_v": 211.0,
+        "heading_pixel_u": 377.0,
+        "heading_pixel_v": 179.0
+      },
+      "voice": {
+        "enabled": true,
+        "display_name": "办公室B点"
+      },
+      "business": {
+        "on_arrival": [
+          {
+            "type": "tts",
+            "text": "已到达B点"
+          }
+        ]
+      },
+      "tour": {
+        "enabled": false,
+        "order": null,
+        "summary": ""
+      }
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+daohang.sparkrobot.top {
+	encode gzip zstd
+
+	reverse_proxy 127.0.0.1:3000
+
+	header {
+		X-Content-Type-Options nosniff
+		Referrer-Policy no-referrer-when-downgrade
+	}
+}
+

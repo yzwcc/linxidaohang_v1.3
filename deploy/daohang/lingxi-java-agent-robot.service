@@ -1,0 +1,19 @@
+[Unit]
+Description=Lingxi robot-local Java voice agent
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=run
+Group=run
+WorkingDirectory=/home/run/lingxi_java_agent
+Environment=NAV_BASE_URL=http://127.0.0.1:18083
+ExecStart=/usr/lib/jvm/java-17-openjdk-arm64/bin/java -cp /home/run/lingxi_java_agent/target/robot-local-navigation-java-0.1.0-all.jar:/home/run/lingxi_java_agent/linksoul-agentsdk-1.4.0-SNAPSHOT.jar com.agibot.aiem.nav.LingxiNavAgentApp --config /home/run/lingxi_java_agent/config/lingxi-nav.properties
+Restart=always
+RestartSec=5
+StandardOutput=append:/home/run/lingxi_java_agent/logs/java-agent-managed.log
+StandardError=append:/home/run/lingxi_java_agent/logs/java-agent-managed.log
+
+[Install]
+WantedBy=multi-user.target

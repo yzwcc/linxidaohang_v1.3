@@ -1,0 +1,201 @@
+{
+  "schema_version": 1,
+  "kind": "robot_local_nav.map_points",
+  "map_name": "1780139324893",
+  "map_id": 1780139324893,
+  "updated_at": 1780224825.2635937,
+  "points": [
+    {
+      "id": "1780139324893:起点",
+      "name": "起点",
+      "map_name": "1780139324893",
+      "map_id": 1780139324893,
+      "pose": {
+        "position": {
+          "x": 0.678,
+          "y": -0.06,
+          "z": 0.0
+        },
+        "orientation": {
+          "x": 0.0,
+          "y": 0.0,
+          "z": 0.0,
+          "w": 1.0
+        }
+      },
+      "is_start": true,
+      "aliases": [
+        "起点"
+      ],
+      "navigation": {
+        "target_pose_radius": 0.15,
+        "pnc_mode": 0,
+        "max_forward_speed": 0.3,
+        "task_type": 2
+      },
+      "ui": {
+        "pixel_u": 345.5595123734133,
+        "pixel_v": 204.19341167405125,
+        "heading_pixel_u": null,
+        "heading_pixel_v": null
+      },
+      "voice": {
+        "enabled": true,
+        "display_name": "起点"
+      },
+      "business": {
+        "on_arrival": [
+          {
+            "type": "tts",
+            "text": "我已到达起点"
+          }
+        ]
+      },
+      "tour": {
+        "enabled": false,
+        "order": null,
+        "summary": ""
+      }
+    },
+    {
+      "id": "1780139324893:大门",
+      "name": "大门",
+      "map_name": "1780139324893",
+      "map_id": 1780139324893,
+      "pose": {
+        "position": {
+          "x": 2.974,
+          "y": -7.309,
+          "z": 0.0
+        },
+        "orientation": {
+          "x": 0.0,
+          "y": 0.0,
+          "z": -0.5389528698486498,
+          "w": 0.8423359211632283
+        }
+      },
+      "is_start": false,
+      "aliases": [
+        "大门"
+      ],
+      "navigation": {
+        "target_pose_radius": 0.15,
+        "pnc_mode": 0,
+        "max_forward_speed": 0.3,
+        "task_type": 2
+      },
+      "ui": {
+        "pixel_u": 391.4730140174333,
+        "pixel_v": 349.1828164130225,
+        "heading_pixel_u": 398.72251427701536,
+        "heading_pixel_v": 364.8900019264111
+      },
+      "voice": {
+        "enabled": true,
+        "display_name": "大门"
+      },
+      "business": {
+        "on_arrival": [
+          {
+            "type": "motion",
+            "motion": "nod",
+            "area": "none",
+            "interrupt": false
+          },
+          {
+            "type": "emoji",
+            "emotion": "cute",
+            "mode": "once"
+          },
+          {
+            "type": "tts",
+            "text": "我已到达大门，欢迎来到数说"
+          }
+        ]
+      },
+      "tour": {
+        "enabled": false,
+        "order": null,
+        "summary": ""
+      }
+    },
+    {
+      "id": "1780139324893:办公室A点",
+      "name": "办公室A点",
+      "map_name": "1780139324893",
+      "map_id": 1780139324893,
+      "pose": {
+        "position": {
+          "x": -3.148,
+          "y": -4.351,
+          "z": 0.0
+        },
+        "orientation": {
+          "x": 0.0,
+          "y": 0.0,
+          "z": 0.0,
+          "w": 1.0
+        }
+      },
+      "is_start": false,
+      "aliases": [
+        "办公室A点"
+      ],
+      "navigation": {
+        "target_pose_radius": 0.15,
+        "pnc_mode": 0,
+        "max_forward_speed": 0.3,
+        "task_type": 2
+      },
+      "ui": {
+        "pixel_u": 269.03329656536454,
+        "pixel_v": 290.02180484363856,
+        "heading_pixel_u": null,
+        "heading_pixel_v": null
+      },
+      "voice": {
+        "enabled": true,
+        "display_name": "办公室A点"
+      },
+      "business": {
+        "on_arrival": [
+          {
+            "type": "motion",
+            "motion": "bassdance2",
+            "area": "none",
+            "interrupt": false
+          },
+          {
+            "type": "emoji",
+            "emotion": "extreme_happy2",
+            "mode": "once"
+          },
+          {
+            "type": "tts",
+            "text": "我已到达办公室A点"
+          }
+        ]
+      },
+      "tour": {
+        "enabled": false,
+        "order": null,
+        "summary": ""
+      }
+    }
+  ],
+  "tour_task": {
+    "name": "默认讲解任务",
+    "enabled": true,
+    "steps": [
+      {
+        "point_id": "1780139324893:大门",
+        "enabled": true
+      },
+      {
+        "point_id": "1780139324893:办公室A点",
+        "enabled": true
+      }
+    ]
+  }
+}

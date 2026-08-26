@@ -1,0 +1,205 @@
+{
+  "schema_version": 1,
+  "kind": "robot_local_nav.map_points",
+  "map_name": "1779176267934",
+  "map_id": 1779176267934,
+  "updated_at": 1779423386.7833927,
+  "points": [
+    {
+      "id": "1779176267934:实验室A点",
+      "name": "实验室A点",
+      "map_name": "1779176267934",
+      "map_id": 1779176267934,
+      "pose": {
+        "position": {
+          "x": 4.25,
+          "y": 2.45,
+          "z": 0.0
+        },
+        "orientation": {
+          "x": 0.0,
+          "y": 0.0,
+          "z": -0.033277936710311866,
+          "w": 0.9994461360815321
+        }
+      },
+      "aliases": [
+        "A点"
+      ],
+      "navigation": {
+        "target_pose_radius": 0.15,
+        "pnc_mode": 0,
+        "max_forward_speed": 0.3,
+        "task_type": 2
+      },
+      "ui": {
+        "pixel_u": 285.0,
+        "pixel_v": 335.0,
+        "heading_pixel_u": 300.0,
+        "heading_pixel_v": 336.0
+      },
+      "voice": {
+        "enabled": true,
+        "display_name": "实验室A点"
+      },
+      "business": {
+        "on_arrival": [
+          {
+            "type": "tts",
+            "text": "已到达实验室A点"
+          }
+        ]
+      },
+      "tour": {
+        "enabled": false,
+        "order": null
+      }
+    },
+    {
+      "id": "1779176267934:实验室B点",
+      "name": "实验室B点",
+      "map_name": "1779176267934",
+      "map_id": 1779176267934,
+      "pose": {
+        "position": {
+          "x": 5.6,
+          "y": 1.25,
+          "z": 0.0
+        },
+        "orientation": {
+          "x": 0.0,
+          "y": 0.0,
+          "z": -0.32453642524659204,
+          "w": 0.9458731990537438
+        }
+      },
+      "aliases": [],
+      "navigation": {
+        "target_pose_radius": 0.15,
+        "pnc_mode": 0,
+        "max_forward_speed": 0.3,
+        "task_type": 2
+      },
+      "ui": {
+        "pixel_u": 312.0,
+        "pixel_v": 359.0,
+        "heading_pixel_u": 321.0,
+        "heading_pixel_v": 366.0
+      },
+      "voice": {
+        "enabled": true,
+        "display_name": "实验室B点"
+      },
+      "business": {
+        "on_arrival": [
+          {
+            "type": "tts",
+            "text": "已到达实验室B点"
+          }
+        ]
+      },
+      "tour": {
+        "enabled": false,
+        "order": null
+      }
+    },
+    {
+      "id": "1779176267934:实验室C点",
+      "name": "实验室C点",
+      "map_name": "1779176267934",
+      "map_id": 1779176267934,
+      "pose": {
+        "position": {
+          "x": 3.3,
+          "y": 0.3,
+          "z": 0.0
+        },
+        "orientation": {
+          "x": 0.0,
+          "y": 0.0,
+          "z": -0.5923364782216495,
+          "w": 0.805690695346529
+        }
+      },
+      "aliases": [
+        "C点"
+      ],
+      "navigation": {
+        "target_pose_radius": 0.15,
+        "pnc_mode": 0,
+        "max_forward_speed": 0.3,
+        "task_type": 2
+      },
+      "ui": {
+        "pixel_u": 266.0,
+        "pixel_v": 378.0,
+        "heading_pixel_u": 271.0,
+        "heading_pixel_v": 394.0
+      },
+      "voice": {
+        "enabled": true,
+        "display_name": "实验室C点"
+      },
+      "business": {
+        "on_arrival": [
+          {
+            "type": "tts",
+            "text": "已到达实验室C点"
+          }
+        ]
+      },
+      "tour": {
+        "enabled": false,
+        "order": null
+      }
+    },
+    {
+      "id": "1779176267934:实验室D点",
+      "name": "实验室D点",
+      "map_name": "1779176267934",
+      "map_id": 1779176267934,
+      "pose": {
+        "position": {
+          "x": 3.1,
+          "y": 1.8,
+          "z": 0.0
+        },
+        "orientation": {
+          "x": 0.0,
+          "y": 0.0,
+          "z": 0.64962967394008,
+          "w": 0.760250805153474
+        }
+      },
+      "aliases": [],
+      "navigation": {
+        "target_pose_radius": 0.15,
+        "pnc_mode": 0,
+        "max_forward_speed": 0.3,
+        "task_type": 2
+      },
+      "ui": {
+        "pixel_u": 262.0,
+        "pixel_v": 348.0,
+        "heading_pixel_u": 265.0,
+        "heading_pixel_v": 329.0
+      },
+      "voice": {
+        "enabled": true,
+        "display_name": "实验室D点"
+      },
+      "business": {
+        "on_arrival": [
+          {
+            "type": "tts",
+            "text": "已到达实验室D点"
+          }
+        ]
+      },
+      "tour": {
+        "enabled": false,
+        "order": null
+      }
+    }
+  ]
+}

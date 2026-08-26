@@ -1,0 +1,33 @@
+[Unit]
+Description=SparkRobot Lingxi robot-local Java voice agent
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=run
+Group=run
+WorkingDirectory=/opt/sparkrobot/lingxi-nav/current/java
+Environment=NAV_BASE_URL=http://127.0.0.1:18083
+ExecStartPre=+/usr/local/libexec/sparkrobot-license-verify --quiet --require-feature voice
+ExecStartPre=+/usr/local/libexec/sparkrobot-release-verify --quiet
+ExecStart=/opt/sparkrobot/lingxi-nav/current/runtime/java/bin/java -cp /opt/sparkrobot/lingxi-nav/current/java/robot-local-navigation-java-all.jar:/opt/sparkrobot/lingxi-nav/current/java/linksoul-agentsdk-1.4.0.jar com.agibot.aiem.nav.LingxiNavAgentApp --config /etc/sparkrobot/lingxi-nav/lingxi-nav.properties
+Restart=always
+RestartSec=5
+StandardOutput=append:/var/log/sparkrobot/lingxi-nav/java-agent.log
+StandardError=append:/var/log/sparkrobot/lingxi-nav/java-agent.log
+UMask=0027
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/log/sparkrobot/lingxi-nav /var/lib/sparkrobot/lingxi-nav
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,23 @@
+.picker {
+  color: #101828;
+}
+
+.map-image {
+  background: #f2f4f7;
+  border: 1rpx solid #eaecf0;
+  border-radius: 8rpx;
+  margin-top: 16rpx;
+  width: 100%;
+}
+
+.grid {
+  display: grid;
+  gap: 12rpx;
+  grid-template-columns: 1fr 1fr;
+}
+
+.checkbox {
+  color: #344054;
+  display: block;
+  margin-top: 18rpx;
+}

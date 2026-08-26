@@ -1,0 +1,59 @@
+<view class="page">
+  <view class="panel">
+    <view class="row">
+      <view>
+        <view class="title">灵犀导航控制台</view>
+        <view class="subtitle">当前地图：{{activeMapName || "未连接"}}</view>
+      </view>
+      <view class="status {{bridgeOnline ? 'ok' : 'bad'}}">{{bridgeOnline ? "在线" : "离线"}}</view>
+    </view>
+    <view class="subtitle">导航状态：{{navigationText}}</view>
+    <view class="subtitle">返航状态：{{autoReturnText}}</view>
+    <view wx:if="{{error}}" class="error">{{error}}</view>
+    <view class="btn-row">
+      <button class="ghost" bindtap="refresh">刷新</button>
+      <button class="secondary" bindtap="startBridge" loading="{{busyAction === 'start'}}">启动服务</button>
+      <button class="ghost" bindtap="restartBridge" loading="{{busyAction === 'restart'}}">重启服务</button>
+    </view>
+  </view>
+
+  <view class="panel">
+    <view class="row">
+      <view class="title">点位导航</view>
+      <view class="muted">{{points.length}} 个点位</view>
+    </view>
+    <view wx:if="{{!points.length}}" class="subtitle">暂无点位，或导航服务未连接。</view>
+    <view wx:for="{{points}}" wx:key="name" class="list-item">
+      <view class="row">
+        <view>
+          <view>{{item}}</view>
+          <view class="subtitle">点击后机器人前往该点位</view>
+        </view>
+        <button class="primary" size="mini" data-name="{{item}}" bindtap="goPoint" loading="{{busyAction === item}}">去这里</button>
+      </view>
+    </view>
+    <view class="btn-row">
+      <button class="danger" bindtap="stopNav" loading="{{busyAction === 'stopNav'}}">停止导航</button>
+    </view>
+  </view>
+
+  <view class="panel">
+    <view class="title">讲解任务</view>
+    <view class="subtitle">按当前地图配置的任务顺序依次导航讲解。</view>
+    <view class="btn-row">
+      <button class="primary" bindtap="startTask" loading="{{busyAction === 'taskStart'}}">开始任务</button>
+      <button class="warning" bindtap="pauseTask" loading="{{busyAction === 'taskPause'}}">暂停任务</button>
+      <button bindtap="resumeTask" loading="{{busyAction === 'taskResume'}}">继续任务</button>
+      <button class="danger" bindtap="stopTask" loading="{{busyAction === 'taskStop'}}">结束任务</button>
+    </view>
+  </view>
+
+  <view class="panel">
+    <view class="title">自动重定位</view>
+    <view class="subtitle">使用当前地图起点或待机点作为参考，必要时先停止导航。</view>
+    <view class="subtitle">状态：{{relocalizationText}}</view>
+    <view class="btn-row">
+      <button class="warning" bindtap="autoRelocalize" loading="{{busyAction === 'autoReloc'}}">一键重定位</button>
+    </view>
+  </view>
+</view>

@@ -1,0 +1,17 @@
+[Unit]
+Description=Lingxi Robot Navigation Console
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/lingxi-nav-console/server
+EnvironmentFile=/opt/lingxi-nav-console/server/.env
+ExecStart=/usr/bin/node /opt/lingxi-nav-console/server/dist/index.js
+Restart=always
+RestartSec=3
+User=www-data
+Group=www-data
+
+[Install]
+WantedBy=multi-user.target

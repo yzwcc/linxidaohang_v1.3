@@ -1,0 +1,19 @@
+# Build output
+target/
+
+# Runtime logs
+logs/
+*.log
+
+# Local runtime config and cache
+config/lingxi-nav.properties
+config/qa-store.json
+
+# Python cache
+__pycache__/
+*.pyc
+
+# IDE/editor files
+.idea/
+.vscode/
+*.iml

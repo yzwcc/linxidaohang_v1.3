@@ -1,0 +1,74 @@
+{
+  "schema_version": 2,
+  "kind": "robot_local_nav.unified_config",
+  "app": {
+    "provider": "doubao_multimodal",
+    "doubao_api_key": "YOUR_DOUBAO_API_KEY",
+    "doubao_model": "doubao-seed-2-0-mini-260428",
+    "nav_mode": "execute"
+  },
+  "navigation": {
+    "default_task_type": 2,
+    "default_target_pose_radius": 0.15,
+    "default_max_forward_speed": 0.3,
+    "default_pnc_mode": 0,
+    "arrival_policy": {
+      "position_tolerance_m": 0.15,
+      "yaw_tolerance_rad": 0.1745,
+      "stable_duration_sec": 0.8,
+      "require_low_speed": false,
+      "low_speed_threshold_mps": 0.03
+    },
+    "stop_policy": {
+      "mode": "on_completed",
+      "hold_sec": 1.5
+    },
+    "timeout_sec": 120.0
+  },
+  "maps": [
+    {
+      "map_name": "1779176267934",
+      "map_id": 1779176267934,
+      "map_path": "",
+      "resolution": null,
+      "origin_x": null,
+      "origin_y": null
+    },
+    {
+      "map_name": "1779436804244",
+      "map_id": 1779436804244,
+      "map_path": "",
+      "resolution": null,
+      "origin_x": null,
+      "origin_y": null
+    },
+    {
+      "map_name": "1779089472769",
+      "map_id": 1779089472769,
+      "map_path": "",
+      "resolution": null,
+      "origin_x": null,
+      "origin_y": null
+    },
+    {
+      "map_name": "1780125989179",
+      "map_id": 1780125989179,
+      "map_path": "",
+      "resolution": null,
+      "origin_x": null,
+      "origin_y": null
+    },
+    {
+      "map_name": "1780139324893",
+      "map_id": 1780139324893,
+      "map_path": "",
+      "resolution": null,
+      "origin_x": null,
+      "origin_y": null
+    }
+  ],
+  "points": [],
+  "exports": {},
+  "created_at": 1779268198.5634573,
+  "updated_at": 1780224834.5597167
+}

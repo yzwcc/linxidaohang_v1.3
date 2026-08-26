@@ -1,0 +1,30 @@
+[Unit]
+Description=SparkRobot Lingxi navigation console
+After=network-online.target ssh.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+EnvironmentFile=/etc/sparkrobot/lingxi-nav/console.env
+ExecStartPre=/usr/local/libexec/sparkrobot-license-verify --quiet --require-feature console
+ExecStartPre=/usr/local/libexec/sparkrobot-release-verify --quiet
+WorkingDirectory=/opt/sparkrobot/lingxi-nav/current/console
+ExecStart=/opt/sparkrobot/lingxi-nav/current/runtime/node /opt/sparkrobot/lingxi-nav/current/console/app.mjs
+Restart=always
+RestartSec=3
+TimeoutStopSec=15
+KillSignal=SIGTERM
+UMask=0077
+PrivateTmp=true
+ProtectHome=read-only
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+
+[Install]
+WantedBy=multi-user.target

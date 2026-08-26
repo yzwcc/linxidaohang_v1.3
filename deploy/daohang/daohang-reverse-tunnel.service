@@ -1,0 +1,16 @@
+[Unit]
+Description=Daohang robot reverse SSH tunnel
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=agi
+Group=agi
+ExecStart=/home/agi/daohang_reverse_tunnel.sh
+Restart=always
+RestartSec=5
+StartLimitIntervalSec=0
+
+[Install]
+WantedBy=multi-user.target

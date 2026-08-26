@@ -1,0 +1,97 @@
+<view class="page">
+  <view class="panel">
+    <view class="row">
+      <view>
+        <view class="title">地图配置</view>
+        <view class="subtitle">维护点位、起点、到达播报和讲解任务。</view>
+      </view>
+      <button class="ghost" size="mini" bindtap="loadMaps">刷新</button>
+    </view>
+    <picker mode="selector" range="{{mapNames}}" bindchange="selectMap">
+      <view class="field">
+        <text class="label">当前地图</text>
+        <view class="picker">{{currentMapName || "请选择地图"}}</view>
+      </view>
+    </picker>
+    <view wx:if="{{error}}" class="error">{{error}}</view>
+  </view>
+
+  <view wx:if="{{currentMapName}}" class="panel">
+    <view class="title">地图预览</view>
+    <image class="map-image" mode="widthFix" src="{{mapImageUrl}}"></image>
+  </view>
+
+  <view wx:if="{{currentMapName}}" class="panel">
+    <view class="row">
+      <view class="title">点位</view>
+      <button class="secondary" size="mini" bindtap="newPoint">新增</button>
+    </view>
+    <view wx:for="{{points}}" wx:key="id" class="list-item">
+      <view class="row">
+        <view>
+          <view>{{item.name}}</view>
+          <view class="subtitle">{{item.is_start ? "起点 · " : ""}}{{item.aliasesText}}</view>
+        </view>
+        <view>
+          <button class="ghost" size="mini" data-index="{{index}}" bindtap="editPoint">编辑</button>
+          <button class="danger" size="mini" data-id="{{item.id}}" bindtap="deletePoint">删除</button>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <view wx:if="{{editing}}" class="panel">
+    <view class="title">{{editing.id ? "编辑点位" : "新增点位"}}</view>
+    <view class="field">
+      <text class="label">名称</text>
+      <input value="{{editing.name}}" data-field="name" bindinput="updateEditing" />
+    </view>
+    <view class="field">
+      <text class="label">别名（逗号分隔）</text>
+      <input value="{{editing.aliasesText}}" data-field="aliasesText" bindinput="updateEditing" />
+    </view>
+    <view class="field">
+      <text class="label">X / Y / 朝向Z / 朝向W</text>
+      <view class="grid">
+        <input value="{{editing.x}}" data-field="x" bindinput="updateEditing" />
+        <input value="{{editing.y}}" data-field="y" bindinput="updateEditing" />
+        <input value="{{editing.qz}}" data-field="qz" bindinput="updateEditing" />
+        <input value="{{editing.qw}}" data-field="qw" bindinput="updateEditing" />
+      </view>
+    </view>
+    <view class="field">
+      <text class="label">到达播报</text>
+      <textarea value="{{editing.arrivalText}}" data-field="arrivalText" bindinput="updateEditing"></textarea>
+    </view>
+    <label class="checkbox">
+      <checkbox checked="{{editing.is_start}}" bindtap="toggleStart" /> 设置为起点
+    </label>
+    <view class="btn-row">
+      <button class="primary" bindtap="savePoint" loading="{{busy}}">保存点位</button>
+      <button class="ghost" bindtap="cancelEdit">取消</button>
+    </view>
+  </view>
+
+  <view wx:if="{{currentMapName}}" class="panel">
+    <view class="title">讲解任务</view>
+    <view class="field">
+      <text class="label">任务名称</text>
+      <input value="{{tourTask.name}}" data-field="name" bindinput="updateTask" />
+    </view>
+    <view class="field">
+      <text class="label">添加点位</text>
+      <picker mode="selector" range="{{pointNames}}" bindchange="addTaskStep">
+        <view class="picker">选择点位加入任务</view>
+      </picker>
+    </view>
+    <view wx:for="{{tourTask.steps}}" wx:key="point_id" class="list-item">
+      <view class="row">
+        <view>{{item.name}}</view>
+        <button class="danger" size="mini" data-index="{{index}}" bindtap="removeTaskStep">移除</button>
+      </view>
+    </view>
+    <view class="btn-row">
+      <button class="primary" bindtap="saveTask" loading="{{busy}}">保存任务</button>
+    </view>
+  </view>
+</view>

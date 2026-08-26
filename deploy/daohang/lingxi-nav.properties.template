@@ -1,0 +1,24 @@
+# Lingxi / LinkSoul AgentSDK
+lingxi.url=wss://agentsdk.agibot.com/v1/agentsdk
+lingxi.appId=请填写灵心平台AppId
+lingxi.appSecret=请填写灵心平台AppSecret
+lingxi.callbacks=asr2llm,audio2tts
+
+# Doubao / Volc Ark
+doubao.url=https://ark.cn-beijing.volces.com/api/v3/chat/completions
+doubao.apiKey=请填写豆包Ark API Key
+doubao.model=请填写豆包模型ID
+
+# Cloud tunnel mode: Java Agent talks to the cloud-side forwarded bridge.
+nav.baseUrl=http://127.0.0.1:18080
+nav.timeoutMs=5000
+
+# Robot local TTS. Navigation replies are still returned to Lingxi to avoid
+# platform unsupported-action fallback text.
+tts.mode=robot
+tts.fixedDialogTest=false
+tts.suppressLingxiText=true
+tts.delayBeforeSpeakMs=800
+
+# Optional local cache for normal Q&A.
+qa.storePath=config/qa-store.json

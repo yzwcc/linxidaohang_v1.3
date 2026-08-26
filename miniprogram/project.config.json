@@ -1,0 +1,15 @@
+{
+  "description": "Lingxi robot navigation console",
+  "setting": {
+    "urlCheck": true,
+    "es6": true,
+    "enhance": true,
+    "postcss": true,
+    "minified": true
+  },
+  "compileType": "miniprogram",
+  "libVersion": "latest",
+  "appid": "touristappid",
+  "projectname": "lingxi-nav-console",
+  "miniprogramRoot": "."
+}
