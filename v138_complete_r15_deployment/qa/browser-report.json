@@ -1,0 +1,140 @@
+{
+  "origin": "http://127.0.0.1:57513",
+  "baseline": false,
+  "widths": [
+    {
+      "width": 320,
+      "overflow": false,
+      "imageMetrics": {
+        "loaded": true,
+        "robot": {
+          "left": 154.82663891779396,
+          "right": 227.46097814776275,
+          "top": 112.19999999999999,
+          "bottom": 263.4
+        },
+        "overlaps": [],
+        "fullyVisible": true
+      }
+    },
+    {
+      "width": 390,
+      "overflow": false,
+      "imageMetrics": {
+        "loaded": true,
+        "robot": {
+          "left": 224.82663891779396,
+          "right": 297.4609781477627,
+          "top": 112.19999999999999,
+          "bottom": 263.4
+        },
+        "overlaps": [],
+        "fullyVisible": true
+      }
+    },
+    {
+      "width": 1440,
+      "overflow": false,
+      "imageMetrics": {
+        "loaded": true,
+        "robot": {
+          "left": 1150.4466181061393,
+          "right": 1277.5567117585847,
+          "top": 113.6,
+          "bottom": 378.20000000000005
+        },
+        "overlaps": [],
+        "fullyVisible": true
+      }
+    }
+  ],
+  "errors": [],
+  "externalRequests": [],
+  "writes": [
+    {
+      "path": "/maps/1789696800000/task",
+      "body": {
+        "id": "business",
+        "name": "业务办理",
+        "enabled": true,
+        "command_topic": "办理业务",
+        "start_phrases": [
+          "我要办理业务"
+        ],
+        "steps": [
+          {
+            "point_id": "p1",
+            "enabled": true,
+            "speech_text": "欢迎来到业务办理区。",
+            "wait_sec": 30
+          }
+        ]
+      }
+    },
+    {
+      "path": "/start-all",
+      "body": {}
+    },
+    {
+      "path": "/start-all",
+      "body": {}
+    },
+    {
+      "path": "/maps/1789696800000/task",
+      "body": {
+        "id": "business",
+        "name": "业务办理",
+        "enabled": true,
+        "command_topic": "办理业务",
+        "start_phrases": [
+          "我要办理业务"
+        ],
+        "steps": [
+          {
+            "point_id": "p1",
+            "enabled": true,
+            "speech_text": "欢迎来到业务办理区。",
+            "wait_sec": 30
+          }
+        ]
+      }
+    },
+    {
+      "path": "/start-all",
+      "body": {}
+    },
+    {
+      "path": "/start-all",
+      "body": {}
+    },
+    {
+      "path": "/maps/1789696800000/task",
+      "body": {
+        "id": "business",
+        "name": "业务办理",
+        "enabled": true,
+        "command_topic": "办理业务",
+        "start_phrases": [
+          "我要办理业务"
+        ],
+        "steps": [
+          {
+            "point_id": "p1",
+            "enabled": true,
+            "speech_text": "欢迎来到业务办理区。",
+            "wait_sec": 30
+          }
+        ]
+      }
+    },
+    {
+      "path": "/start-all",
+      "body": {}
+    },
+    {
+      "path": "/start-all",
+      "body": {}
+    }
+  ],
+  "unexpected": []
+}

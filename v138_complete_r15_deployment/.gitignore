@@ -1,0 +1,13 @@
+reference/
+dist/
+qa/work/
+qa/extracted/
+qa/*.log
+qa/server-regression.json
+candidate/source/server/node_modules/
+candidate/source/server/dist/
+candidate/source/server/test/artifacts/
+candidate/source/java/target/
+candidate/source/navigation/relocalization_result.json
+**/__pycache__/
+**/.pytest_cache/

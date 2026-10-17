@@ -1,0 +1,18 @@
+{
+  "baseline_sha256": "ac7f93f20d1ed2155e394b4bf216d8717476925d571582632d84b4081d05f0b0",
+  "archive_sha256": "9d56d4718c4e5d103fa8ececd5110e0fd93cb98bc10a66360f35b4ffa0012b68",
+  "changed_files": [
+    "SHA256SUMS",
+    "docs/V1.3.8-r15-产品验收与修复说明.md",
+    "docs/V1.3.8-r15-完整部署说明.md",
+    "docs/V1.3.8-r15-已编译AIMDK新机完整部署说明.md",
+    "payload-manifest.json",
+    "payload/console/dist/robotClient.js",
+    "release-info.json",
+    "scripts/navigation_control.sh",
+    "scripts/robot_voice_bridge_control.sh",
+    "source/server/src/robotClient.ts",
+    "source/server/test/consoleVisual.mjs",
+    "source/server/test/robotClient.test.ts"
+  ]
+}
