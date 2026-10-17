@@ -1,0 +1,62 @@
+{
+  "status": "passed",
+  "version": "1.3.8-complete-20261017-r14",
+  "tested_archive_sha256": "ac7f93f20d1ed2155e394b4bf216d8717476925d571582632d84b4081d05f0b0",
+  "physical_robot": "not_run",
+  "cloud_auth": "not_run",
+  "acoustic_hardware": "not_run",
+  "java_launch_policy": "..\n----------------------------------------------------------------------\nRan 2 tests in 0.001s\n\nOK",
+  "motion_receipts": "........\n----------------------------------------------------------------------\nRan 8 tests in 0.013s\n\nOK",
+  "motion_confirmation": "....\n----------------------------------------------------------------------\nRan 4 tests in 0.135s\n\nOK",
+  "connection_and_process_orchestration": "..s\n----------------------------------------------------------------------\nRan 3 tests in 0.009s\n\nOK (skipped=1)",
+  "python_regression": "........................................................................ [ 54%]\n.............................................................            [100%]\n133 passed in 6.57s",
+  "java_regression": {
+    "VoiceGateTest": [
+      "VoiceGateTest passed: 1419 assertions"
+    ],
+    "WakeSessionGateTest": [
+      "WakeSessionGateTest passed: 28 assertions"
+    ],
+    "Soc2WakeEvidenceProviderTest": [
+      "Soc2WakeEvidenceProviderTest passed: 8 assertions"
+    ],
+    "AgentSdkInterruptWireTest": [
+      "AgentSdkInterruptWireTest passed: 34 assertions"
+    ],
+    "VoiceRegression": [
+      "VoiceAgentGateRegression passed: 391 assertions",
+      "VoiceRegression passed: 47 assertions plus real Agent gate regression"
+    ],
+    "ModelRecoveryTest": [
+      "ModelRecoveryTest passed: text input, transient retry, auth rejection, malformed intent, bridge outage, next-request recovery"
+    ],
+    "FunctionalControlTest": [
+      "FunctionalControlTest passed: 32 assertions"
+    ],
+    "AgentConnectionStateTest": [
+      "AgentConnectionStateTest passed: early callbacks, auth failure, offline, restart, atomic state"
+    ]
+  },
+  "server_regression": {
+    "numTotalTests": 73,
+    "numPassedTests": 73,
+    "numFailedTests": 0
+  },
+  "integrity": "passed",
+  "source_to_runtime": "passed",
+  "runtime_files": 2763,
+  "runtime_changes": [
+    "console/dist/app.js",
+    "console/dist/asyncCache.js",
+    "console/dist/javaAgentControl.js",
+    "console/dist/public/app.js",
+    "console/dist/public/index.html",
+    "console/dist/robotClient.js",
+    "console/dist/sshControl.js",
+    "console/dist/tunnelDiagnostics.js",
+    "java/robot-local-navigation-java-all.jar",
+    "navigation/robot_local_navigation_v3/sdk_motion_controller.py"
+  ],
+  "unchanged_aimdk_and_kb": "passed",
+  "arm64_runtime": "passed"
+}

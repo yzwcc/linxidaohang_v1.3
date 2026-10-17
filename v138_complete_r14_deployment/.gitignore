@@ -1,0 +1,14 @@
+reference/
+qa/work/
+qa/extracted/
+runtime-r13-r14.diff
+dist/
+candidate/source/server/node_modules/
+candidate/source/server/dist/
+candidate/source/java/target/
+**/__pycache__/
+**/.pytest_cache/
+candidate/source/server/test/artifacts/
+qa/*.log
+qa/server-regression.json
+candidate/source/navigation/relocalization_result.json

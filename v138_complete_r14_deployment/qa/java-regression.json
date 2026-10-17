@@ -1,0 +1,27 @@
+{
+  "VoiceGateTest": [
+    "VoiceGateTest passed: 1419 assertions"
+  ],
+  "WakeSessionGateTest": [
+    "WakeSessionGateTest passed: 28 assertions"
+  ],
+  "Soc2WakeEvidenceProviderTest": [
+    "Soc2WakeEvidenceProviderTest passed: 8 assertions"
+  ],
+  "AgentSdkInterruptWireTest": [
+    "AgentSdkInterruptWireTest passed: 34 assertions"
+  ],
+  "VoiceRegression": [
+    "VoiceAgentGateRegression passed: 391 assertions",
+    "VoiceRegression passed: 47 assertions plus real Agent gate regression"
+  ],
+  "ModelRecoveryTest": [
+    "ModelRecoveryTest passed: text input, transient retry, auth rejection, malformed intent, bridge outage, next-request recovery"
+  ],
+  "FunctionalControlTest": [
+    "FunctionalControlTest passed: 32 assertions"
+  ],
+  "AgentConnectionStateTest": [
+    "AgentConnectionStateTest passed: early callbacks, auth failure, offline, restart, atomic state"
+  ]
+}
