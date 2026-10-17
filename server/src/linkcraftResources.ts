@@ -67,23 +67,39 @@ export async function discoverLocalLinkcraftResources(
 export async function discoverLinkcraftResourcesAsRobotUser(
   configPath = process.env.LINKCRAFT_RESOURCE_CONFIG_PATH || DEFAULT_CONFIG_PATH
 ): Promise<LinkcraftResource[]> {
-  const pythonPath = process.env.ROBOT_NAV_HOME || "/home/agi/robot_local_navigation_v3";
-  const output = await execFileText("runuser", [
-    "-u",
-    process.env.ROBOT_RESOURCE_USER || "run",
-    "--",
-    "/usr/bin/python3",
-    "-m",
-    "robot_local_navigation_v3.linkcraft_resources",
-    "--json",
-    "--config",
-    configPath
-  ], {
-    ...process.env,
-    PYTHONPATH: [pythonPath, process.env.PYTHONPATH || ""].filter(Boolean).join(":"),
-  });
+  const pythonPath = process.env.ROBOT_NAV_PYTHON_PATH || process.env.ROBOT_NAV_HOME || "/home/agi/robot_local_navigation_v3";
+  let output: string;
+  try {
+    output = await execFileText("runuser", [
+      "-u",
+      process.env.ROBOT_RESOURCE_USER || "run",
+      "--",
+      "/usr/bin/python3",
+      "-m",
+      "robot_local_navigation_v3.linkcraft_resources",
+      "--json",
+      "--config",
+      configPath
+    ], {
+      ...process.env,
+      PYTHONPATH: robotPythonPathEntries(pythonPath, process.env.PYTHONPATH),
+    });
+  } catch (error) {
+    if (isResourceConfigAccessDenied(error)) return [];
+    throw error;
+  }
   const payload = JSON.parse(output) as { resources?: unknown };
   return Array.isArray(payload.resources) ? payload.resources as LinkcraftResource[] : [];
+}
+
+export function isResourceConfigAccessDenied(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error || "");
+  return /PermissionError:\s*\[Errno 13\]|EACCES|EPERM|Permission denied/i.test(message);
+}
+
+export function robotPythonPathEntries(navHome: string, inheritedPath = ""): string {
+  const entries = [navHome, path.posix.join(navHome, "navigation"), inheritedPath].filter(Boolean);
+  return [...new Set(entries)].join(":");
 }
 
 async function resolveResourcePath(rawPath: string): Promise<{ path: string; exists: boolean }> {

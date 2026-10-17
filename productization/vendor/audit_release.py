@@ -58,10 +58,19 @@ def audit_archive_modes(archive: Path, top: str, manifest: dict[str, object]) ->
         members = {member.name: member for member in handle.getmembers()}
     for relative, expected in declared_modes.items():
         require(expected & 0o022 == 0, f"发布清单包含组或其他用户可写文件：{relative}")
+        require(expected & 0o007 == 0, f"发布清单包含其他用户可访问文件：{relative}")
         member_name = f"{top}/rootfs/{relative}"
         member = members.get(member_name)
         require(member is not None and member.isfile(), f"归档文件条目缺失：{relative}")
         require(stat.S_IMODE(member.mode) == expected, f"归档权限与签名清单不一致：{relative}")
+    with tarfile.open(archive, "r:gz") as handle:
+        protected_prefix = f"{top}/rootfs/"
+        for member in handle.getmembers():
+            if member.isdir() and member.name.startswith(protected_prefix):
+                require(
+                    stat.S_IMODE(member.mode) & 0o007 == 0,
+                    f"归档保护目录允许其他用户访问：{member.name}",
+                )
 
 
 def audit_sources_and_secrets(release: Path, version_root: Path) -> tuple[int, int]:

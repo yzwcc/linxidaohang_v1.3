@@ -1,0 +1,399 @@
+[
+  {
+    "source": "dense_crowd_nav_deployment\\dist\\sparkrobot-lingxi-v1.3.9-dense-crowd-navigation-1.0.1-20260929.tar.gz",
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "archive_sha256": "aba9e7eb421f63c2f1a5380ee0e3723b703f4a280a8f58d81fa2ce4cb6ce07ce",
+    "bytes": 47456,
+    "payload_comparison": {
+      "arrival_hysteresis.py": {
+        "sha256_lf": "70cf3831ad795bb1859618df41cf4fb386e8079fa82a388251a1f309cddbccce",
+        "current_sha256_lf": "70cf3831ad795bb1859618df41cf4fb386e8079fa82a388251a1f309cddbccce",
+        "matches_current": true
+      },
+      "arrival_policy.py": {
+        "sha256_lf": "c0bfa5d9d447a207f76b5fb3d6f071d6737021e6649893b25e358aae62fe3383",
+        "current_sha256_lf": "c0bfa5d9d447a207f76b5fb3d6f071d6737021e6649893b25e358aae62fe3383",
+        "matches_current": true
+      },
+      "lingxi_nav_bridge.py": {
+        "sha256_lf": "de70eca58f39e1c99603827795d4293f0b54c6a7845db1740529b96dc82ce9ee",
+        "current_sha256_lf": "de70eca58f39e1c99603827795d4293f0b54c6a7845db1740529b96dc82ce9ee",
+        "matches_current": true
+      },
+      "models.py": {
+        "sha256_lf": "9f131d5a31ea939eda2fae51266bc6fc6cc07e24afb0c6997a67b7c91d3697e6",
+        "current_sha256_lf": "9f131d5a31ea939eda2fae51266bc6fc6cc07e24afb0c6997a67b7c91d3697e6",
+        "matches_current": true
+      },
+      "navigation_client.py": {
+        "sha256_lf": "49c8e06ce0865e77a7e02f024b2e18c42be3dcd5e6d36783804afbb4255b1ee2",
+        "current_sha256_lf": "49c8e06ce0865e77a7e02f024b2e18c42be3dcd5e6d36783804afbb4255b1ee2",
+        "matches_current": true
+      }
+    },
+    "metadata": {
+      "manifest.json": "{\n  \"format\": \"sparkrobot-lingxi-v1.3.9-dense-crowd-navigation-v1\",\n  \"version\": \"1.0.1-20260929\",\n  \"payload_count\": 5,\n  \"files\": [\n    {\n      \"path\": \"control.sh\",\n      \"sha256\": \"64a4c6a3102bd97744fbc8622b48682ce5d1217646afe4bd1beb89af7d06175e\",\n      \"size\": 9507,\n      \"mode\": \"0755\"\n    },\n    {\n      \"path\": \"docs/dense-crowd-navigation-deployment.md\",\n      \"sha256\": \"1644122726ca13ce981c311294db4348c60347628d2eb6579ac56593c730bdea\",\n      \"size\": 6008,\n      \"mode\": \"0644\"\n    },\n    {\n      \"path\": \"install.sh\",\n      \"sha256\": \"21b8f4843e65e11d4df74b775603a1f3d89536cf8fe03600ad5c8a6875b7a01a\",\n      \"size\": 5251,\n      \"mode\": \"0755\"\n    },\n    {\n      \"path\": \"payload/arrival_hysteresis.py\",\n      \"sha256\": \"70cf3831ad795bb1859618df41cf4fb386e8079fa82a388251a1f309cddbccce\",\n      \"size\": 5136,\n      \"mode\": \"0644\"\n    },\n    {\n      \"path\": \"payload/arrival_policy.py\",\n      \"sha256\": \"c0bfa5d9d447a207f76b5fb3d6f071d6737021e6649893b25e358aae62fe3383\",\n      \"size\": 3993,\n      \"mode\": \"0644\"\n    },\n    {\n      \"path\": \"payload/lingxi_nav_bridge.py\",\n      \"sha256\": \"de70eca58f39e1c99603827795d4293f0b54c6a7845db1740529b96dc82ce9ee\",\n      \"size\": 138093,\n      \"mode\": \"0644\"\n    },\n    {\n      \"path\": \"payload/models.py\",\n      \"sha256\": \"9f131d5a31ea939eda2fae51266bc6fc6cc07e24afb0c6997a67b7c91d3697e6\",\n      \"size\": 19925,\n      \"mode\": \"0644\"\n    },\n    {\n      \"path\": \"payload/navigation_client.py\",\n      \"sha256\": \"49c8e06ce0865e77a7e02f024b2e18c42be3dcd5e6d36783804afbb4255b1ee2\",\n      \"size\": 36822,\n      \"mode\": \"0644\"\n    },\n    {\n      \"path\": \"README.md\",\n      \"sha256\": \"324d82c2ecce668a00d3e5b72593e8f3da7f05621b9f40584ef18a3adbd747a6\",\n      \"size\": 2019,\n      \"mode\": \"0644\"\n    },\n    {\n      \"path\": \"release-info.txt\",\n      \"sha256\": \"73fe9e798d7b736d7fba92e818fb6ea5d7ccb00cbe46a611b35b4a4ed6069109\",\n      \"size\": 348,\n      \"mode\": \"0644\"\n    }\n  ]\n}\n",
+      "release-info.txt": "version=1.0.1-20260929\npackage=sparkrobot-lingxi-v1.3.9-dense-crowd-navigation\nbaseline=lingxi-v1.3.9 / internal navigation 1.0.20-20260923\nprofile=target-radius-0.45m-arrival-tolerance-0.45m-speed-0.30mps\nfailure-policy=retry-once-then-skip-and-continue-tour\nobstacle-clearance=aimdk-internal-not-exposed\nbuilt_at=2026-09-28T16:22:13.891121+00:00\n"
+    }
+  },
+  {
+    "source": "integrated_deployment\\dist\\lingxi-v1.3.9-complete-20260923-r1-deployment.tar.gz",
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "archive_sha256": "d5118a6d232e9d0cba92a673365777049f3b72bb4e894146606ddfa7d8fa87be",
+    "bytes": 241491121,
+    "payload_comparison": {},
+    "metadata": {}
+  },
+  {
+    "source": "integrated_deployment\\dist\\lingxi-v1.3.9-complete-20260923-r2-deployment.tar.gz",
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "archive_sha256": "1948286ba90161ed90c254c5958bab71ef491aaf37582e3b4c932fafa9d26170",
+    "bytes": 241486375,
+    "payload_comparison": {},
+    "metadata": {}
+  },
+  {
+    "source": "internal_deployment\\dist\\sparkrobot-lingxi-nav-internal-1.0.20-20260923.tar.gz",
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "archive_sha256": "c07fc1fc49a2c9fd4a026da32c86db682081700deed485ab150742d124b86165",
+    "bytes": 105140215,
+    "payload_comparison": {
+      "console/dist/app.js": {
+        "sha256_lf": "18389f29c1f03dafec2eff577963d488442bc7b6fff3e8d3da2e70d80f1242f1",
+        "current_sha256_lf": "94bd89748cd53a97d12672871c3354d17489d166586177f82c93e4985f566306",
+        "matches_current": false
+      },
+      "console/dist/asyncCache.js": {
+        "sha256_lf": "20bb898c3df30173623c71824ce6f909fcab2a96f0a4b8dea8dbf7b08c3a8106",
+        "current_sha256_lf": "20bb898c3df30173623c71824ce6f909fcab2a96f0a4b8dea8dbf7b08c3a8106",
+        "matches_current": true
+      },
+      "console/dist/auth.js": {
+        "sha256_lf": "57b4ca1b1554430b804114a5c67dc50ed3a81942747d059b9d640812aa3a7cc2",
+        "current_sha256_lf": "57b4ca1b1554430b804114a5c67dc50ed3a81942747d059b9d640812aa3a7cc2",
+        "matches_current": true
+      },
+      "console/dist/config.js": {
+        "sha256_lf": "dc66d54812675f84a0a02540e9dafe6e34fe3f8de4701150003cdaa26dabecb1",
+        "current_sha256_lf": "dc66d54812675f84a0a02540e9dafe6e34fe3f8de4701150003cdaa26dabecb1",
+        "matches_current": true
+      },
+      "console/dist/http.js": {
+        "sha256_lf": "f6a75200281fb83adb1257dbc070a4ba3066505ff4e9d2346fd1986d4f9ca72a",
+        "current_sha256_lf": "f6a75200281fb83adb1257dbc070a4ba3066505ff4e9d2346fd1986d4f9ca72a",
+        "matches_current": true
+      },
+      "console/dist/index.js": {
+        "sha256_lf": "d86e08b3da428f90619bd8f6ad8d8d1809ede0288f8bf6df97de73f83e5eef90",
+        "current_sha256_lf": "d86e08b3da428f90619bd8f6ad8d8d1809ede0288f8bf6df97de73f83e5eef90",
+        "matches_current": true
+      },
+      "console/dist/javaAgentControl.js": {
+        "sha256_lf": "d823e9a8f025de6a92d35d851d1ab56d8f60d2d43450a42f9d671c7fd7f19958",
+        "current_sha256_lf": "d823e9a8f025de6a92d35d851d1ab56d8f60d2d43450a42f9d671c7fd7f19958",
+        "matches_current": true
+      },
+      "console/dist/linkcraftResources.js": {
+        "sha256_lf": "9202c322f323876516fcbd11a94cab311c5240e149aebdb2d07f63947f7406f0",
+        "current_sha256_lf": "9202c322f323876516fcbd11a94cab311c5240e149aebdb2d07f63947f7406f0",
+        "matches_current": true
+      },
+      "console/dist/localizationControl.js": {
+        "sha256_lf": "75ec9a9313f7477d798e0a4ec418d5c122a78e4faae70278c38e3f6794e8555c",
+        "current_sha256_lf": "75ec9a9313f7477d798e0a4ec418d5c122a78e4faae70278c38e3f6794e8555c",
+        "matches_current": true
+      },
+      "console/dist/public/apiClient.js": {
+        "sha256_lf": "b7c43e04aa3eb71ea4cf4c2222322d0366375ed7fc8da8991ae8afd1789727b3",
+        "current_sha256_lf": "b7c43e04aa3eb71ea4cf4c2222322d0366375ed7fc8da8991ae8afd1789727b3",
+        "matches_current": true
+      },
+      "console/dist/public/app.js": {
+        "sha256_lf": "155c4901c0dbc08cef661d71e7ca346558d0892c684a91f4f7698ed68ae1af98",
+        "current_sha256_lf": "2b3dcea080043879158b27f37c5b3beae944152fa2dd765a81df23777320244c",
+        "matches_current": false
+      },
+      "console/dist/public/index.html": {
+        "sha256_lf": "053eab0a447a66ece2773343dcf96aa6656565abfbb97a3d15de85e575a48cf1",
+        "current_sha256_lf": "053eab0a447a66ece2773343dcf96aa6656565abfbb97a3d15de85e575a48cf1",
+        "matches_current": true
+      },
+      "console/dist/robotClient.js": {
+        "sha256_lf": "c1c4cccde1080a146ac50d8fd33dca171fe66daa39197cc4f7ad1eae37f9657a",
+        "current_sha256_lf": "c1c4cccde1080a146ac50d8fd33dca171fe66daa39197cc4f7ad1eae37f9657a",
+        "matches_current": true
+      },
+      "console/dist/robotTransportLimiter.js": {
+        "sha256_lf": "4717273deb2cc06e1b1379c5f2e3f8537de40a43c9739f8d272709a4aaaf280a",
+        "current_sha256_lf": "4717273deb2cc06e1b1379c5f2e3f8537de40a43c9739f8d272709a4aaaf280a",
+        "matches_current": true
+      },
+      "console/dist/runtimeConfig.js": {
+        "sha256_lf": "6da16af3c347b001ab07e2b36a67a69e52a7f38598170a5af88f0a40ecca7d66",
+        "current_sha256_lf": "6da16af3c347b001ab07e2b36a67a69e52a7f38598170a5af88f0a40ecca7d66",
+        "matches_current": true
+      },
+      "console/dist/sshControl.js": {
+        "sha256_lf": "f769375f0ca6ce37ee6b180ee3bc910125ad252d79d40e5ab3195a3467a27df3",
+        "current_sha256_lf": "f769375f0ca6ce37ee6b180ee3bc910125ad252d79d40e5ab3195a3467a27df3",
+        "matches_current": true
+      },
+      "console/dist/startupSnapshot.js": {
+        "sha256_lf": "ab7607b9403f1a28efb238fecc054d6827baee73102f4ce2d93335410ae8652f",
+        "current_sha256_lf": "ab7607b9403f1a28efb238fecc054d6827baee73102f4ce2d93335410ae8652f",
+        "matches_current": true
+      },
+      "console/dist/systemControl.js": {
+        "sha256_lf": "2b57ddb1560ac2c0a1aa93e374004dc6009f5cf24cbed5b1933c65ba40cfa3b5",
+        "current_sha256_lf": "2b57ddb1560ac2c0a1aa93e374004dc6009f5cf24cbed5b1933c65ba40cfa3b5",
+        "matches_current": true
+      },
+      "console/dist/tunnelDiagnostics.js": {
+        "sha256_lf": "6bda8b695cd0f3f213442881c0b359b0593f81bb0cac2ba1e3802d68f077fa24",
+        "current_sha256_lf": "6bda8b695cd0f3f213442881c0b359b0593f81bb0cac2ba1e3802d68f077fa24",
+        "matches_current": true
+      },
+      "console/dist/tunnelTarget.js": {
+        "sha256_lf": "5a78722e0d33b962c175b1c8e114c86219e40776ab526e5db0cd6591556f8526",
+        "current_sha256_lf": "5a78722e0d33b962c175b1c8e114c86219e40776ab526e5db0cd6591556f8526",
+        "matches_current": true
+      },
+      "navigation/python_bridge/lingxi_nav_bridge.py": {
+        "sha256_lf": "18e5d31501897745e9f4af9ef13845c62e562b405ff3b00239aad0e1dfa90e62",
+        "current_sha256_lf": "de70eca58f39e1c99603827795d4293f0b54c6a7845db1740529b96dc82ce9ee",
+        "matches_current": false
+      },
+      "navigation/robot_local_navigation_v3/__init__.py": {
+        "sha256_lf": "9f9d7bceaeeb8a07bb1a70ed426ea5de8eecc20bbd593b47f57a7131f1842caa",
+        "current_sha256_lf": "9f9d7bceaeeb8a07bb1a70ed426ea5de8eecc20bbd593b47f57a7131f1842caa",
+        "matches_current": true
+      },
+      "navigation/robot_local_navigation_v3/arrival_hysteresis.py": {
+        "sha256_lf": "3f1dec1a09d990b24e5a5e423eb455e543d3495a1bf7891af67e40e85ffab458",
+        "current_sha256_lf": "70cf3831ad795bb1859618df41cf4fb386e8079fa82a388251a1f309cddbccce",
+        "matches_current": false
+      },
+      "navigation/robot_local_navigation_v3/arrival_policy.py": {
+        "sha256_lf": "c0bfa5d9d447a207f76b5fb3d6f071d6737021e6649893b25e358aae62fe3383",
+        "current_sha256_lf": "c0bfa5d9d447a207f76b5fb3d6f071d6737021e6649893b25e358aae62fe3383",
+        "matches_current": true
+      },
+      "navigation/robot_local_navigation_v3/config_store.py": {
+        "sha256_lf": "0116990185dce7b676e4eba29113cb9ee4f24ff27f4440765f4688084f33666e",
+        "current_sha256_lf": "0116990185dce7b676e4eba29113cb9ee4f24ff27f4440765f4688084f33666e",
+        "matches_current": true
+      },
+      "navigation/robot_local_navigation_v3/lingxi_nav_bridge.py": {
+        "sha256_lf": "59ad108fcdbbb99853a37821b1bda437632fe625a41ec0e8f527a94ed9950c7e",
+        "current_sha256_lf": "de70eca58f39e1c99603827795d4293f0b54c6a7845db1740529b96dc82ce9ee",
+        "matches_current": false
+      },
+      "navigation/robot_local_navigation_v3/linkcraft_resources.py": {
+        "sha256_lf": "2763c0d9973782ab233bfc94680d0465dd639010a495adab138943e82862e45d",
+        "current_sha256_lf": "2763c0d9973782ab233bfc94680d0465dd639010a495adab138943e82862e45d",
+        "matches_current": true
+      },
+      "navigation/robot_local_navigation_v3/map_label_server_v3.py": {
+        "sha256_lf": "a5908ed988b4769aac85236b8f88d92a840a4244e0af5d3e0e82d9920caa4ed4",
+        "current_sha256_lf": "11be950fbc9f0cb879a79b01c73b2c733467c6fb96d8480cc882d845c44e23fe",
+        "matches_current": false
+      },
+      "navigation/robot_local_navigation_v3/map_point_store.py": {
+        "sha256_lf": "f05bc2a02db14e06f2a2467201537f5984351f655bbeb580d72cc021788ed4ac",
+        "current_sha256_lf": "f05bc2a02db14e06f2a2467201537f5984351f655bbeb580d72cc021788ed4ac",
+        "matches_current": true
+      },
+      "navigation/robot_local_navigation_v3/models.py": {
+        "sha256_lf": "d72e50216ae69e6d5f48788bcc680ca3cfc2d309414de6147dc00adcbd677a97",
+        "current_sha256_lf": "9f131d5a31ea939eda2fae51266bc6fc6cc07e24afb0c6997a67b7c91d3697e6",
+        "matches_current": false
+      },
+      "navigation/robot_local_navigation_v3/motion_option_policy.py": {
+        "sha256_lf": "148945a290ae81e3093761a45e79b6ab3193c52f2c4d9ab4eddc370d982cd84f",
+        "current_sha256_lf": "148945a290ae81e3093761a45e79b6ab3193c52f2c4d9ab4eddc370d982cd84f",
+        "matches_current": true
+      },
+      "navigation/robot_local_navigation_v3/navigation_client.py": {
+        "sha256_lf": "0bed9fcab35caa6e62ebfb56c244a6162a3b6926b60226a6e6cf8ea90432f1ff",
+        "current_sha256_lf": "49c8e06ce0865e77a7e02f024b2e18c42be3dcd5e6d36783804afbb4255b1ee2",
+        "matches_current": false
+      },
+      "navigation/robot_local_navigation_v3/navigation_events.py": {
+        "sha256_lf": "8fa32b23797066a7d8af01e6e8608e4d8a20ad3716f4c5e1396b35950bc7b7e0",
+        "current_sha256_lf": "8fa32b23797066a7d8af01e6e8608e4d8a20ad3716f4c5e1396b35950bc7b7e0",
+        "matches_current": true
+      },
+      "navigation/robot_local_navigation_v3/pnc_response.py": {
+        "sha256_lf": "9da06252bdb4e561bf2c959746c010769f93695e15d5bdebe951010a1372a808",
+        "current_sha256_lf": "9da06252bdb4e561bf2c959746c010769f93695e15d5bdebe951010a1372a808",
+        "matches_current": true
+      },
+      "navigation/robot_local_navigation_v3/point_catalog.py": {
+        "sha256_lf": "e059e1781aebabbebd3aa3316e4a7785304ec91f0e47132a4160ce99936d7f7d",
+        "current_sha256_lf": "e059e1781aebabbebd3aa3316e4a7785304ec91f0e47132a4160ce99936d7f7d",
+        "matches_current": true
+      },
+      "navigation/robot_local_navigation_v3/relocalize_once.py": {
+        "sha256_lf": "2e418172398c64a0adbe6a8572f4667e3e82769c391959046c36b86f0e5b6fe8",
+        "current_sha256_lf": "2e418172398c64a0adbe6a8572f4667e3e82769c391959046c36b86f0e5b6fe8",
+        "matches_current": true
+      },
+      "navigation/robot_local_navigation_v3/sdk_motion_controller.py": {
+        "sha256_lf": "93690e1ab490698ab0f3ef9fe88b0aafda5db2ff05ca764e267ac34d8204bae9",
+        "current_sha256_lf": "93690e1ab490698ab0f3ef9fe88b0aafda5db2ff05ca764e267ac34d8204bae9",
+        "matches_current": true
+      },
+      "navigation/robot_local_navigation_v3/tour_commands.py": {
+        "sha256_lf": "99d58a7f5710d357f1d96ebaec35fde851ed268233afce4ee28472eec4f20b90",
+        "current_sha256_lf": "99d58a7f5710d357f1d96ebaec35fde851ed268233afce4ee28472eec4f20b90",
+        "matches_current": true
+      },
+      "navigation/robot_local_navigation_v3/tour_interaction_policy.py": {
+        "sha256_lf": "46ff55b45d4057101a546ddc72ca1a98f1a813752a1c6a3cc0e7b9709afbf6ca",
+        "current_sha256_lf": "46ff55b45d4057101a546ddc72ca1a98f1a813752a1c6a3cc0e7b9709afbf6ca",
+        "matches_current": true
+      },
+      "navigation/robot_local_navigation_v3/tour_step_actions.py": {
+        "sha256_lf": "112fa6774b1b7d9dcc71308bb360ffefaa9365dd98af80ab5f62598eae8fbd6f",
+        "current_sha256_lf": "112fa6774b1b7d9dcc71308bb360ffefaa9365dd98af80ab5f62598eae8fbd6f",
+        "matches_current": true
+      },
+      "navigation/robot_local_navigation_v3/tts_speaker.py": {
+        "sha256_lf": "dc8b01088d4f83492a0cb045f641ad54b498a6a277921cbf4ddf6729c1ec3d4d",
+        "current_sha256_lf": "dc8b01088d4f83492a0cb045f641ad54b498a6a277921cbf4ddf6729c1ec3d4d",
+        "matches_current": true
+      },
+      "navigation/robot_local_navigation_v3/voice_nav_gateway.py": {
+        "sha256_lf": "ee890766a085a34a69565ae20a265e8bb83d090867093fca443471ee7ec91317",
+        "current_sha256_lf": "ee890766a085a34a69565ae20a265e8bb83d090867093fca443471ee7ec91317",
+        "matches_current": true
+      },
+      "navigation/robot_local_navigation_v3/voice_preset_motion.py": {
+        "sha256_lf": "2419c222150f3c7cb2e63aeeb82c21a63831b938234d1d86f52c29042033afd1",
+        "current_sha256_lf": "2419c222150f3c7cb2e63aeeb82c21a63831b938234d1d86f52c29042033afd1",
+        "matches_current": true
+      }
+    },
+    "metadata": {
+      "release-info.json": "{\n  \"architecture\": \"aarch64\",\n  \"created_at\": \"2026-09-27T05:47:19Z\",\n  \"device_bound\": false,\n  \"encrypted\": false,\n  \"format\": \"sparkrobot-internal-plaintext-release-v1\",\n  \"product_id\": \"sparkrobot-lingxi-nav-internal\",\n  \"version\": \"1.0.20-20260923\"\n}\n"
+    }
+  },
+  {
+    "source": "tour_arrival_fix_deployment\\dist\\sparkrobot-lingxi-v1.3.9-tour-arrival-fix-1.0.1-20260927.tar.gz",
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "archive_sha256": "0bf041fb397001f9e1f27d776058da871804886cdb0ea128a9e6bec83d40f096",
+    "bytes": 39248,
+    "payload_comparison": {
+      "arrival_hysteresis.py": {
+        "sha256_lf": "70cf3831ad795bb1859618df41cf4fb386e8079fa82a388251a1f309cddbccce",
+        "current_sha256_lf": "70cf3831ad795bb1859618df41cf4fb386e8079fa82a388251a1f309cddbccce",
+        "matches_current": true
+      },
+      "lingxi_nav_bridge.py": {
+        "sha256_lf": "6235e8cb5c1393236f379fa4ab3b1509044aab0b76d963fe925c4439bd3dee70",
+        "current_sha256_lf": "de70eca58f39e1c99603827795d4293f0b54c6a7845db1740529b96dc82ce9ee",
+        "matches_current": false
+      },
+      "navigation_client.py": {
+        "sha256_lf": "5355d93230bb70329920967a04ee23fdc0c561e4fe096350b8ae08d448d4d9ce",
+        "current_sha256_lf": "49c8e06ce0865e77a7e02f024b2e18c42be3dcd5e6d36783804afbb4255b1ee2",
+        "matches_current": false
+      }
+    },
+    "metadata": {
+      "manifest.json": "{\n  \"format\": \"sparkrobot-lingxi-tour-arrival-fix-v1\",\n  \"version\": \"1.0.1-20260927\",\n  \"files\": [\n    {\n      \"path\": \"control.sh\",\n      \"sha256\": \"fea1af46f26f1a8750e25818d6339cf17670686747fc9d1cdcc0089c45c80760\",\n      \"size\": 6777\n    },\n    {\n      \"path\": \"docs/讲解任务点位到达修复部署说明.md\",\n      \"sha256\": \"7a62319ab693cea4e9e748330017e270d76feed0de0cb3d9ed3e80464f1a2005\",\n      \"size\": 3668\n    },\n    {\n      \"path\": \"install.sh\",\n      \"sha256\": \"ee39ee918e66dc5cc50817721147d01ddab639d2d43042ad0a46f811bca2f5e7\",\n      \"size\": 3324\n    },\n    {\n      \"path\": \"payload/arrival_hysteresis.py\",\n      \"sha256\": \"70cf3831ad795bb1859618df41cf4fb386e8079fa82a388251a1f309cddbccce\",\n      \"size\": 5136\n    },\n    {\n      \"path\": \"payload/lingxi_nav_bridge.py\",\n      \"sha256\": \"6235e8cb5c1393236f379fa4ab3b1509044aab0b76d963fe925c4439bd3dee70\",\n      \"size\": 130402\n    },\n    {\n      \"path\": \"payload/navigation_client.py\",\n      \"sha256\": \"5355d93230bb70329920967a04ee23fdc0c561e4fe096350b8ae08d448d4d9ce\",\n      \"size\": 35222\n    },\n    {\n      \"path\": \"README.md\",\n      \"sha256\": \"6f495f4400b7ea81e3d829c636dcf6029d12e7014b653c118cf4c3cd01675c37\",\n      \"size\": 3012\n    },\n    {\n      \"path\": \"release-info.txt\",\n      \"sha256\": \"0c1e7e963af23eba893d8199ed54a553bbb90f651c21b1252218387818147159\",\n      \"size\": 150\n    }\n  ]\n}\n",
+      "release-info.txt": "name=sparkrobot-lingxi-v1.3.9-tour-arrival-fix\nversion=1.0.1-20260927\nbase_release=1.0.20-20260923\nscope=tour-task-arrival-only\naimdk_reinstall=false\n"
+    }
+  },
+  {
+    "source": "tour_loop_persistence_fix_deployment\\dist\\sparkrobot-lingxi-tour-loop-persistence-fix-1.0.0-20260927.tar.gz",
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "archive_sha256": "25afb725314d0c79188d75213ae2cb7c57120a6dd080595fcc37bd111bf83442",
+    "bytes": 24280,
+    "payload_comparison": {
+      "map_label_server_v3.py": {
+        "sha256_lf": "d73fb394cd3a652740334607ea55582dc17d76c136bba9395e5b50ec8537b9f4",
+        "current_sha256_lf": "11be950fbc9f0cb879a79b01c73b2c733467c6fb96d8480cc882d845c44e23fe",
+        "matches_current": false
+      }
+    },
+    "metadata": {
+      "manifest.json": "{\n  \"format\": \"sparkrobot-lingxi-tour-loop-persistence-fix-v1\",\n  \"version\": \"1.0.0-20260927\",\n  \"base_navigation_version\": \"1.0.20-20260923\",\n  \"architecture\": \"aarch64\",\n  \"files\": [\n    {\n      \"path\": \"control.sh\",\n      \"sha256\": \"f20ffaa393083d0112c0fc4ccf49dccafae4a33ebdb3d1d97415be20e15b88a9\",\n      \"size\": 5051,\n      \"mode\": \"0755\"\n    },\n    {\n      \"path\": \"docs/讲解循环次数保存修复部署说明.md\",\n      \"sha256\": \"0225636c6267b36b48bd21d8aac2fd3216d511a3d80c02e38174cc7a684a7e47\",\n      \"size\": 3483,\n      \"mode\": \"0644\"\n    },\n    {\n      \"path\": \"install.sh\",\n      \"sha256\": \"aa6385f78118123a583fdd69d6e31e2d12506f9c1aa7411e4a86751b132c5a8d\",\n      \"size\": 7558,\n      \"mode\": \"0755\"\n    },\n    {\n      \"path\": \"payload/map_label_server_v3.py\",\n      \"sha256\": \"d73fb394cd3a652740334607ea55582dc17d76c136bba9395e5b50ec8537b9f4\",\n      \"size\": 73306,\n      \"mode\": \"0644\"\n    },\n    {\n      \"path\": \"README.md\",\n      \"sha256\": \"fd55b9684fa7ec660f6cd9abd3647732489797844dff7ee3b3bc191245962327\",\n      \"size\": 2099,\n      \"mode\": \"0644\"\n    },\n    {\n      \"path\": \"release-info.txt\",\n      \"sha256\": \"5959981066b2f07d333834a30a6b87637d4822480e0b47d4e7e3a63a18ead712\",\n      \"size\": 212,\n      \"mode\": \"0644\"\n    }\n  ]\n}\n",
+      "release-info.txt": "version=1.0.0-20260927\npackage=sparkrobot-lingxi-tour-loop-persistence-fix\nbase_navigation_version=1.0.20-20260923\narchitecture=aarch64\nscope=preserve-tour-task-loop-count-on-web-save\ncontains_real_secrets=false\n"
+    }
+  },
+  {
+    "source": "tour_task_save_fix_deployment\\dist\\sparkrobot-lingxi-v1.3.9-tour-task-save-fix-1.0.1-20260929.tar.gz",
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "archive_sha256": "a7dd2a887d60cf9fd925b00847b6fb15f5c88458a3cc1813912f968fc7155076",
+    "bytes": 30007,
+    "payload_comparison": {
+      "console/dist/app.js": {
+        "sha256_lf": "94bd89748cd53a97d12672871c3354d17489d166586177f82c93e4985f566306",
+        "current_sha256_lf": "94bd89748cd53a97d12672871c3354d17489d166586177f82c93e4985f566306",
+        "matches_current": true
+      },
+      "console/dist/public/app.js": {
+        "sha256_lf": "2b3dcea080043879158b27f37c5b3beae944152fa2dd765a81df23777320244c",
+        "current_sha256_lf": "2b3dcea080043879158b27f37c5b3beae944152fa2dd765a81df23777320244c",
+        "matches_current": true
+      }
+    },
+    "metadata": {}
+  },
+  {
+    "source": "tour_task_save_fix_deployment\\dist\\sparkrobot-lingxi-v1.3.9-tour-task-save-fix-1.0.2-20260929.tar.gz",
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "archive_sha256": "15291c75d44601e0f9da486b9ba492806ddaaf7132050865e049189ea197d4bb",
+    "bytes": 30145,
+    "payload_comparison": {
+      "console/dist/app.js": {
+        "sha256_lf": "94bd89748cd53a97d12672871c3354d17489d166586177f82c93e4985f566306",
+        "current_sha256_lf": "94bd89748cd53a97d12672871c3354d17489d166586177f82c93e4985f566306",
+        "matches_current": true
+      },
+      "console/dist/public/app.js": {
+        "sha256_lf": "2b3dcea080043879158b27f37c5b3beae944152fa2dd765a81df23777320244c",
+        "current_sha256_lf": "2b3dcea080043879158b27f37c5b3beae944152fa2dd765a81df23777320244c",
+        "matches_current": true
+      }
+    },
+    "metadata": {}
+  },
+  {
+    "source": "blocked_navigation_reminder_deployment\\dist\\sparkrobot-lingxi-v1.3.9-blocked-reminder-1.0.0-20260929.tar.gz",
+    "worktree": "灵犀导航微信小程序开发",
+    "archive_sha256": "76c094d0732ef11abce77de4ae9fed4d3946f9c2fdb891a870d5cf9d55665b9c",
+    "bytes": 31900,
+    "payload_comparison": {
+      "robot_local_navigation_v3/lingxi_nav_bridge.py": {
+        "sha256_lf": "31c4d21af00c14b07210c636b122d35047ca83965bd1899572f039183f3a3dff",
+        "current_sha256_lf": "de70eca58f39e1c99603827795d4293f0b54c6a7845db1740529b96dc82ce9ee",
+        "matches_current": false
+      },
+      "robot_local_navigation_v3/navigation_client.py": {
+        "sha256_lf": "e14c79811fb6d1846c6f431b204d7330ba74eaa8280eadf594dc6e73f751468e",
+        "current_sha256_lf": "49c8e06ce0865e77a7e02f024b2e18c42be3dcd5e6d36783804afbb4255b1ee2",
+        "matches_current": false
+      },
+      "robot_local_navigation_v3/navigation_events.py": {
+        "sha256_lf": "3efe791150cf67ce79ea8d0c30adc629de6cd6004d8c03e601dee89be1ec7e06",
+        "current_sha256_lf": "8fa32b23797066a7d8af01e6e8608e4d8a20ad3716f4c5e1396b35950bc7b7e0",
+        "matches_current": false
+      }
+    },
+    "metadata": {
+      "manifest.json": "{\n  \"format\": \"sparkrobot-lingxi-blocked-reminder-v1\",\n  \"version\": \"1.0.0-20260929\",\n  \"files\": [\n    {\n      \"path\": \"control.sh\",\n      \"sha256\": \"93e9a86314a1810a80a3164e81f09d54158b55dd753dc05bb9a23194f5abd293\"\n    },\n    {\n      \"path\": \"install.sh\",\n      \"sha256\": \"37e7cb06590342c093ccead61a228d0f7179b563e7b591497ff482ac8d35bb22\"\n    },\n    {\n      \"path\": \"payload/robot_local_navigation_v3/blocked_navigation.py\",\n      \"sha256\": \"a7836868764f4b645a2838f3c78b361df1a831a470de1b21dc3464381df9e62c\"\n    },\n    {\n      \"path\": \"payload/robot_local_navigation_v3/lingxi_nav_bridge.py\",\n      \"sha256\": \"31c4d21af00c14b07210c636b122d35047ca83965bd1899572f039183f3a3dff\"\n    },\n    {\n      \"path\": \"payload/robot_local_navigation_v3/navigation_client.py\",\n      \"sha256\": \"e14c79811fb6d1846c6f431b204d7330ba74eaa8280eadf594dc6e73f751468e\"\n    },\n    {\n      \"path\": \"payload/robot_local_navigation_v3/navigation_events.py\",\n      \"sha256\": \"3efe791150cf67ce79ea8d0c30adc629de6cd6004d8c03e601dee89be1ec7e06\"\n    },\n    {\n      \"path\": \"README.md\",\n      \"sha256\": \"b7881ff741d982b776a1e47bcb5a4327a9ef6523aad703b898a82624d198d288\"\n    }\n  ]\n}\n"
+    }
+  },
+  {
+    "source": "narrow_corridor_policy_deployment\\dist\\sparkrobot-lingxi-v1.3.9-narrow-corridor-policy-1.0.0-20260929.tar.gz",
+    "worktree": "灵犀导航微信小程序开发",
+    "archive_sha256": "d3caee04dfcfa3f9233641706573e986e02f64cacbada59c115e6e2b6da47ab6",
+    "bytes": 7856,
+    "payload_comparison": {},
+    "metadata": {
+      "manifest.json": "{\n  \"format\": \"sparkrobot-lingxi-narrow-corridor-policy-v1\",\n  \"version\": \"1.0.0-20260929\",\n  \"files\": [\n    {\n      \"path\": \"apply_policy.py\",\n      \"sha256\": \"55e6db2a1ec45c09db034be729c570591b683a7b2af305bb43f3825b901b7965\",\n      \"size\": 5849\n    },\n    {\n      \"path\": \"control.sh\",\n      \"sha256\": \"df3d96f0b5bd24ee1df63786d6d30c86b9cec3d58c3dd770694b37e2691e9cf9\",\n      \"size\": 4437\n    },\n    {\n      \"path\": \"install.sh\",\n      \"sha256\": \"48f9c27e3ad5acb520984b16c221a7134b94085c2297bf4347010071b8425777\",\n      \"size\": 4257\n    },\n    {\n      \"path\": \"policy.json\",\n      \"sha256\": \"56848fae13d1fae61d47ca997bdcdb43df52aba23f6d0ae3b62cebbab8421657\",\n      \"size\": 1735\n    },\n    {\n      \"path\": \"README.md\",\n      \"sha256\": \"86ce66152cd93577ebcf029813a3fafd82ef485541e16921bd31a46fccb5774a\",\n      \"size\": 3408\n    }\n  ]\n}\n"
+    }
+  }
+]

@@ -30,6 +30,26 @@ def test_does_not_start_fallback_before_entering_strict_region():
     assert not is_arrival_stability_candidate(False, False, 0.25, 0.15)
 
 
+def test_resume_accepts_robot_already_parked_in_braking_hysteresis():
+    assert is_arrival_stability_candidate(
+        False,
+        False,
+        0.226,
+        0.20,
+        allow_initial_hysteresis=True,
+    )
+
+
+def test_resume_still_rejects_robot_outside_braking_hysteresis():
+    assert not is_arrival_stability_candidate(
+        False,
+        False,
+        0.351,
+        0.20,
+        allow_initial_hysteresis=True,
+    )
+
+
 def test_restarts_stability_after_reentering_braking_hysteresis():
     assert is_arrival_stability_candidate(False, True, 0.327, 0.15)
 

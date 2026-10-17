@@ -9,6 +9,7 @@ SOC2_PRIVATE_KEY=""
 REINSTALL=false
 INSTALL_ROOT="${SPARKROBOT_INSTALL_ROOT:-/}"
 INSTALL_TEST_MODE="${SPARKROBOT_INSTALL_TEST_MODE:-false}"
+RUNTIME_GROUP="${SPARKROBOT_RUNTIME_GROUP:-sparkrobot-nav}"
 
 [[ "${INSTALL_ROOT}" == /* ]] || { echo "SPARKROBOT_INSTALL_ROOT 必须是绝对路径" >&2; exit 2; }
 INSTALL_ROOT="${INSTALL_ROOT%/}"
@@ -36,6 +37,53 @@ PRODUCT_BASE="$(root_path /opt/sparkrobot/lingxi-nav)"
 CONFIG_DIR="$(root_path /etc/sparkrobot/lingxi-nav)"
 STATE_DIR="$(root_path /var/lib/sparkrobot/lingxi-nav)"
 LOG_DIR="$(root_path /var/log/sparkrobot/lingxi-nav)"
+CONFIG_BACKUP_DIR="${CONFIG_DIR}/backups"
+RELEASE_BACKUP_DIR="${PRODUCT_BASE}/reinstall-backups"
+
+[[ "${RUNTIME_GROUP}" =~ ^[a-z_][a-z0-9_-]{0,31}$ ]] || {
+  echo "运行组名称不安全：${RUNTIME_GROUP}" >&2
+  exit 2
+}
+
+prepare_runtime_layout() {
+  install -d -m 0755 "$(root_path /opt/sparkrobot)" "$(root_path /etc/sparkrobot)" \
+    "$(root_path /var/lib/sparkrobot)" "$(root_path /var/log/sparkrobot)"
+  if [[ "${INSTALL_TEST_MODE}" == true ]]; then
+    install -d -m 0750 "${PRODUCT_BASE}" "${PRODUCT_BASE}/releases" \
+      "${CONFIG_DIR}" "${CONFIG_DIR}/releases"
+    install -d -m 0700 "${CONFIG_BACKUP_DIR}" "${RELEASE_BACKUP_DIR}"
+    install -d -m 0770 "${STATE_DIR}" "${STATE_DIR}/maps" "${STATE_DIR}/pids" "${LOG_DIR}"
+    return
+  fi
+
+  for user in agi run; do
+    getent passwd "${user}" >/dev/null || { echo "机器人缺少用户 ${user}" >&2; exit 1; }
+  done
+  getent group "${RUNTIME_GROUP}" >/dev/null || groupadd --system "${RUNTIME_GROUP}"
+  usermod -a -G "${RUNTIME_GROUP}" agi
+  usermod -a -G "${RUNTIME_GROUP}" run
+  install -d -m 0750 -o root -g "${RUNTIME_GROUP}" \
+    "${PRODUCT_BASE}" "${PRODUCT_BASE}/releases" "${CONFIG_DIR}" "${CONFIG_DIR}/releases"
+  install -d -m 0700 -o root -g root "${CONFIG_BACKUP_DIR}" "${RELEASE_BACKUP_DIR}"
+  install -d -m 0770 -o agi -g "${RUNTIME_GROUP}" \
+    "${STATE_DIR}" "${STATE_DIR}/maps" "${STATE_DIR}/pids" "${LOG_DIR}"
+}
+
+migrate_legacy_backups() {
+  local legacy="${STATE_DIR}/backups" destination
+  [[ -d "${legacy}" ]] || return 0
+  if find "${legacy}" -mindepth 1 -print -quit | grep -q .; then
+    destination="${CONFIG_BACKUP_DIR}/legacy-state-backups-$(date -u +%Y%m%dT%H%M%SZ)"
+    install -d -m 0700 "${destination}"
+    cp -a "${legacy}/." "${destination}/"
+    rm -rf -- "${legacy}"
+    [[ "${INSTALL_TEST_MODE}" == true ]] || chown -R root:root "${destination}"
+    find "${destination}" -type d -exec chmod 0700 {} +
+    find "${destination}" -type f -exec chmod 0600 {} +
+  else
+    rmdir "${legacy}"
+  fi
+}
 
 usage() {
   cat <<'EOF'
@@ -127,7 +175,8 @@ fi
 [[ -z "${SECRETS_FILE}" || -f "${SECRETS_FILE}" ]] || { echo "密钥文件不存在" >&2; exit 1; }
 [[ -z "${SOC2_PRIVATE_KEY}" || -f "${SOC2_PRIVATE_KEY}" ]] || { echo "SOC2 私钥不存在" >&2; exit 1; }
 
-mkdir -p "${PRODUCT_BASE}/releases" "${CONFIG_DIR}/releases" "${STATE_DIR}/maps" "${STATE_DIR}/pids" "${STATE_DIR}/backups" "${LOG_DIR}"
+prepare_runtime_layout
+migrate_legacy_backups
 TARGET="${PRODUCT_BASE}/releases/${VERSION}"
 if [[ -e "${TARGET}" && "${REINSTALL}" != true ]]; then
   echo "版本 ${VERSION} 已安装；如需修复安装请显式使用 --reinstall" >&2
@@ -145,21 +194,25 @@ STAGING="${PRODUCT_BASE}/releases/.${VERSION}.installing.$$"
 rm -rf -- "${STAGING}"
 mkdir -p "${STAGING}"
 cp -a "${RELEASE_DIR}/rootfs/${VERSION_ROOT_REL}/." "${STAGING}/"
-chown -R root:root "${STAGING}"
-find "${STAGING}" -type d -exec chmod 0755 {} +
-find "${STAGING}/navigation" -type f -name '*.so' -exec chmod 0555 {} +
+[[ "${INSTALL_TEST_MODE}" == true ]] || chown -R root:"${RUNTIME_GROUP}" "${STAGING}"
+find "${STAGING}" -type d -exec chmod 0750 {} +
 if [[ -e "${TARGET}" ]]; then
-  BACKUP="${STATE_DIR}/backups/${VERSION}-reinstall-$(date -u +%Y%m%dT%H%M%SZ)"
+  BACKUP="${RELEASE_BACKUP_DIR}/${VERSION}-reinstall-$(date -u +%Y%m%dT%H%M%SZ)"
   mv "${TARGET}" "${BACKUP}"
 fi
 mv "${STAGING}" "${TARGET}"
 
 mkdir -p "${CONFIG_DIR}/releases/${VERSION}"
-install -m 0644 "${RELEASE_DIR}/manifest.json" "${CONFIG_DIR}/releases/${VERSION}/manifest.json"
-install -m 0644 "${RELEASE_DIR}/manifest.sig" "${CONFIG_DIR}/releases/${VERSION}/manifest.sig"
-install -m 0644 "${RELEASE_DIR}/vendor-public.pem" "${CONFIG_DIR}/vendor-public.pem"
+chmod 0750 "${CONFIG_DIR}/releases/${VERSION}"
+install -m 0440 "${RELEASE_DIR}/manifest.json" "${CONFIG_DIR}/releases/${VERSION}/manifest.json"
+install -m 0440 "${RELEASE_DIR}/manifest.sig" "${CONFIG_DIR}/releases/${VERSION}/manifest.sig"
+install -m 0440 "${RELEASE_DIR}/vendor-public.pem" "${CONFIG_DIR}/vendor-public.pem"
 install -m 0444 "${RELEASE_DIR}/license/license.json" "${CONFIG_DIR}/license.json"
 install -m 0444 "${RELEASE_DIR}/license/license.sig" "${CONFIG_DIR}/license.sig"
+if [[ "${INSTALL_TEST_MODE}" != true ]]; then
+  chown -R root:"${RUNTIME_GROUP}" "${CONFIG_DIR}/releases" \
+    "${CONFIG_DIR}/vendor-public.pem" "${CONFIG_DIR}/license.json" "${CONFIG_DIR}/license.sig"
+fi
 
 TOKEN_SECRET="$(python3 -c 'import secrets; print(secrets.token_urlsafe(48))')"
 CONSOLE_KEY="${CONFIG_DIR}/console-ed25519"
@@ -170,7 +223,7 @@ chmod 0600 "${CONSOLE_KEY}"
 chmod 0644 "${CONSOLE_KEY}.pub"
 
 authorize_console_key() {
-  local user="$1" home group auth line
+  local user="$1" home group auth line key_blob temporary
   home="$(getent passwd "${user}" | cut -d: -f6)"
   group="$(id -gn "${user}")"
   [[ -n "${home}" && -d "${home}" ]] || { echo "机器人缺少用户 ${user}" >&2; exit 1; }
@@ -179,8 +232,14 @@ authorize_console_key() {
   touch "${auth}"
   chown "${user}:${group}" "${auth}"
   chmod 0600 "${auth}"
-  line="restrict $(<"${CONSOLE_KEY}.pub")"
-  grep -Fq "$(<"${CONSOLE_KEY}.pub")" "${auth}" || printf '%s\n' "${line}" >>"${auth}"
+  key_blob="$(awk '{print $2}' "${CONSOLE_KEY}.pub")"
+  [[ -n "${key_blob}" ]] || { echo "控制台 SSH 公钥格式无效" >&2; exit 1; }
+  line="from=\"127.0.0.1,::1\",restrict $(<"${CONSOLE_KEY}.pub")"
+  temporary="$(mktemp "${auth}.sparkrobot.XXXXXX")"
+  awk -v key_blob="${key_blob}" 'index($0, key_blob) == 0' "${auth}" >"${temporary}"
+  printf '%s\n' "${line}" >>"${temporary}"
+  install -m 0600 -o "${user}" -g "${group}" "${temporary}" "${auth}"
+  rm -f -- "${temporary}"
 }
 if [[ "${INSTALL_TEST_MODE}" != true ]]; then
   authorize_console_key agi
@@ -188,12 +247,14 @@ if [[ "${INSTALL_TEST_MODE}" != true ]]; then
 fi
 
 if [[ -n "${SOC2_PRIVATE_KEY}" && "${INSTALL_TEST_MODE}" != true ]]; then
-  install -m 0600 -o agi -g "$(id -gn agi)" "${SOC2_PRIVATE_KEY}" "${CONFIG_DIR}/soc2-ed25519"
+  install -m 0600 -o root -g root "${SOC2_PRIVATE_KEY}" "${CONFIG_DIR}/soc2-ed25519"
 fi
 
 TIMESTAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 for file in console.env lingxi-nav.properties unified_nav_config.json; do
-  [[ -f "${CONFIG_DIR}/${file}" ]] && cp -a "${CONFIG_DIR}/${file}" "${STATE_DIR}/backups/${file}.${TIMESTAMP}"
+  if [[ -f "${CONFIG_DIR}/${file}" ]]; then
+    install -m 0600 "${CONFIG_DIR}/${file}" "${CONFIG_BACKUP_DIR}/${file}.${TIMESTAMP}"
+  fi
 done
 
 if [[ -n "${SECRETS_FILE}" ]]; then
@@ -247,7 +308,7 @@ live.maxTextLength=80
 Path(sys.argv[2]).write_text(text, encoding="utf-8")
 os.chmod(sys.argv[2], 0o640)
 PY
-  [[ "${INSTALL_TEST_MODE}" == true ]] || chown root:run "${CONFIG_DIR}/lingxi-nav.properties"
+  [[ "${INSTALL_TEST_MODE}" == true ]] || chown root:"${RUNTIME_GROUP}" "${CONFIG_DIR}/lingxi-nav.properties"
 fi
 
 python3 - "${TARGET}/templates/unified_nav_config.template.json" "${STATE_DIR}/unified_nav_config.json" "${SECRETS_FILE}" "${INSTALL_ROOT}" <<'PY'
@@ -296,7 +357,7 @@ elif existing.is_file():
 existing.write_text(json.dumps(output, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 os.chmod(existing, 0o660)
 PY
-[[ "${INSTALL_TEST_MODE}" == true ]] || chown agi:run "${STATE_DIR}/unified_nav_config.json"
+[[ "${INSTALL_TEST_MODE}" == true ]] || chown agi:"${RUNTIME_GROUP}" "${STATE_DIR}/unified_nav_config.json"
 rm -f "${CONFIG_DIR}/unified_nav_config.json"
 ln -s "${STATE_DIR}/unified_nav_config.json" "${CONFIG_DIR}/unified_nav_config.json"
 
@@ -308,9 +369,11 @@ if ! find "${STATE_DIR}/maps" -maxdepth 1 -type f -name '*.json' -print -quit | 
     fi
   done
 fi
-[[ "${INSTALL_TEST_MODE}" == true ]] || chown -R agi:run "${STATE_DIR}" "${LOG_DIR}"
+[[ "${INSTALL_TEST_MODE}" == true ]] || chown -R agi:"${RUNTIME_GROUP}" "${STATE_DIR}" "${LOG_DIR}"
 find "${STATE_DIR}" -type d -exec chmod 0770 {} +
+find "${STATE_DIR}" -type f -exec chmod 0660 {} +
 chmod 0770 "${LOG_DIR}"
+find "${LOG_DIR}" -type f -exec chmod 0660 {} +
 
 cat >"${CONFIG_DIR}/console.env" <<EOF
 DEPLOYMENT_MODE=robot
@@ -339,14 +402,21 @@ EOF
 chmod 0600 "${CONFIG_DIR}/console.env"
 
 cp -a "${TARGET}/system/." "${INSTALL_ROOT}/"
-chmod 0755 "$(root_path /usr/local/libexec/sparkrobot-license-verify)" "$(root_path /usr/local/libexec/sparkrobot-release-verify)" "$(root_path /usr/local/sbin/sparkrobot-lingxi-product)"
+chmod 0550 "$(root_path /usr/local/libexec/sparkrobot-license-verify)" "$(root_path /usr/local/libexec/sparkrobot-release-verify)" "$(root_path /usr/local/sbin/sparkrobot-lingxi-product)"
 chmod 0440 "$(root_path /etc/sudoers.d/sparkrobot-lingxi-nav)"
 chmod 0644 "$(root_path /etc/systemd/system/lingxi-nav-console.service)" "$(root_path /etc/systemd/system/lingxi-java-agent-robot.service)"
+if [[ "${INSTALL_TEST_MODE}" != true ]]; then
+  chown root:"${RUNTIME_GROUP}" \
+    "$(root_path /usr/local/libexec/sparkrobot-license-verify)" \
+    "$(root_path /usr/local/libexec/sparkrobot-release-verify)" \
+    "$(root_path /usr/local/sbin/sparkrobot-lingxi-product)"
+fi
 rm -f "${PRODUCT_BASE}/current.new"
 ln -s "${TARGET}" "${PRODUCT_BASE}/current.new"
 mv -Tf "${PRODUCT_BASE}/current.new" "${PRODUCT_BASE}/current"
 if [[ -n "${PREVIOUS}" && "${PREVIOUS}" != "${TARGET}" ]]; then
   basename "${PREVIOUS}" >"${STATE_DIR}/previous-version"
+  chmod 0600 "${STATE_DIR}/previous-version"
 fi
 
 systemctl_do daemon-reload

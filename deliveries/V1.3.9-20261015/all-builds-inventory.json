@@ -1,0 +1,2120 @@
+[
+  {
+    "worktree": "灵犀导航微信小程序开发",
+    "path": "blocked_navigation_reminder_deployment/dist/sparkrobot-lingxi-v1.3.9-blocked-reminder-1.0.0-20260929.tar.gz",
+    "bytes": 31900,
+    "sha256_sidecar": "76c094d0732ef11abce77de4ae9fed4d3946f9c2fdb891a870d5cf9d55665b9c"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发",
+    "path": "blocked_navigation_reminder_deployment/dist/sparkrobot-lingxi-v1.3.9-blocked-reminder-1.0.0-20260929.zip",
+    "bytes": 155011,
+    "sha256_sidecar": "982768ede2b8895129cd194d9dd2756fea1a729bf01c4e47d47102b47ef5b398"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发",
+    "path": "consecutive_nav_fix_deployment/dist/sparkrobot-lingxi-consecutive-nav-fix-1.0.0-20260907.tar.gz",
+    "bytes": 44262,
+    "sha256_sidecar": "a357a66d82f2b07c35ebd718caecaadf2cc26cfa68d7b8060cc4bfc2971df8c3"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发",
+    "path": "consecutive_nav_fix_deployment/dist/sparkrobot-lingxi-consecutive-nav-fix-1.0.0-20260907.zip",
+    "bytes": 49719,
+    "sha256_sidecar": "5e0ef7c547513349ebd32c77ea699a50838a77bd7f69fa94512b36866a7ef6c5"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发",
+    "path": "consecutive_nav_fix_deployment/dist/sparkrobot-lingxi-consecutive-nav-fix-1.0.1-20260907.tar.gz",
+    "bytes": 45448,
+    "sha256_sidecar": "8d297e41dabc44f0c2fee5e019cbdef76608020cd03ca76997b974730aa8578a"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发",
+    "path": "consecutive_nav_fix_deployment/dist/sparkrobot-lingxi-consecutive-nav-fix-1.0.1-20260907.zip",
+    "bytes": 50897,
+    "sha256_sidecar": "b17eef9227b37a08811e0747ee8143e5b1bccf5138b85605e779ceca8647082a"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发",
+    "path": "integrated_deployment/dist/lingxi-v1.3.1-complete-20260905-deployment.tar.gz",
+    "bytes": 466045792,
+    "sha256_sidecar": "999f3bc42f7e4ed7bc8dd305dae9d2e2b19cdb1cacc612ec20ddb9c95dc44ff4"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发",
+    "path": "integrated_deployment/dist/lingxi-v1.3.1-complete-20260905-deployment.zip",
+    "bytes": 468586743,
+    "sha256_sidecar": "245cf5a1019ca8f4e8b4261b0311d1705a41dd86335379fe94446813b6f3416e"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发",
+    "path": "integrated_deployment/dist/lingxi-v1.3.1-complete-20260906-deployment.tar.gz",
+    "bytes": 466045810,
+    "sha256_sidecar": "aeaf1785ee216eb9f052bdf75e1ea6de0411ffbaa745397cad712642ec81aa23"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发",
+    "path": "integrated_deployment/dist/lingxi-v1.3.1-complete-20260906-deployment.zip",
+    "bytes": 468586743,
+    "sha256_sidecar": "3c983337b34712d15e204f2d1db91c6a034a343706f6d68ea20e69d294762653"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发",
+    "path": "integrated_deployment/dist/lingxi-v1.3.1-complete-20260906-r1-deployment.tar.gz",
+    "bytes": 466045820,
+    "sha256_sidecar": "295dfaddcdc9ddcc548c34497ef92552420e79e59b36ef258c250d8d6398137e"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发",
+    "path": "integrated_deployment/dist/lingxi-v1.3.1-complete-20260906-r1-deployment.zip",
+    "bytes": 468586867,
+    "sha256_sidecar": "0e6ad8f2f6a446b1b05808eef73a141039109411f6d5467e7ab3019aad5c0a23"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发",
+    "path": "integrated_deployment/dist/lingxi-v1.3.1-complete-20260906-r2-deployment.tar.gz",
+    "bytes": 466046057,
+    "sha256_sidecar": "c61af98f47d66df063c170f2bb6a7d811fa4fb85bce8f2a6b09d1301c73c6d36"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发",
+    "path": "integrated_deployment/dist/lingxi-v1.3.1-complete-20260906-r2-deployment.zip",
+    "bytes": 468587462,
+    "sha256_sidecar": "c2e7d69bcc71325335c8dd258fb478cb08b8a2ef24f29d63636239718eb2af1e"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发",
+    "path": "integrated_deployment/dist/lingxi-v1.3.1-complete-20260906-r3-deployment.tar.gz",
+    "bytes": 466046039,
+    "sha256_sidecar": "bb8dd98bc4394cb1f7c392c14763f9891e601a0aadebb58063f4db47337ec646"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发",
+    "path": "integrated_deployment/dist/lingxi-v1.3.1-complete-20260906-r3-deployment.zip",
+    "bytes": 468587470,
+    "sha256_sidecar": "887fdb08e81efafa54d7d06120117cb4a94783e8ad68ddbc93f364f23ee2742e"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发",
+    "path": "integrated_deployment/dist/lingxi-v1.3.1-complete-20260906-r4-deployment.tar.gz",
+    "bytes": 466046059,
+    "sha256_sidecar": "7d19b0adff58cf24b88e2217aa1005ab92c7cb161b5a010d2fbfd5f82d289107"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发",
+    "path": "integrated_deployment/dist/lingxi-v1.3.1-complete-20260906-r4-deployment.zip",
+    "bytes": 468587575,
+    "sha256_sidecar": "d398a8e4e2dfdf389bb3af2c400c5aff9e8da5b9ac516085878855fb5cbbf58c"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发",
+    "path": "integrated_deployment/dist/lingxi-v1.3.1-complete-20260906-r5-deployment.tar.gz",
+    "bytes": 466046525,
+    "sha256_sidecar": "c05d0f967310dc37a240f8671f7c08017a887e10dc7b57a4eaa7a40d21778f6e"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发",
+    "path": "integrated_deployment/dist/lingxi-v1.3.1-complete-20260906-r5-deployment.zip",
+    "bytes": 468588948,
+    "sha256_sidecar": "6d535760b601ee2146e1725a311fa5cb0a77ca5338ca88a72d12cfbbc2579ae6"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发",
+    "path": "integrated_deployment/dist/lingxi-v1.3.1-complete-20260906-r6-deployment.tar.gz",
+    "bytes": 466047004,
+    "sha256_sidecar": "624d4a311076f0ef723a9115227e66b26364fde11c40ee2fa6d4a609177d78a6"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发",
+    "path": "integrated_deployment/dist/lingxi-v1.3.1-complete-20260906-r6-deployment.zip",
+    "bytes": 468589221,
+    "sha256_sidecar": "1d205db2db6ba6c52d55479bad24751113b854b97699cfbc67a53d466becc1fb"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发",
+    "path": "integrated_deployment/dist/lingxi-v1.3.1-complete-20260907-r7-deployment.tar.gz",
+    "bytes": 466091234,
+    "sha256_sidecar": "45f4ec5222c64b9c12bb34e3812da98116a16a214cb4c91c7fefda1af077790f"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发",
+    "path": "integrated_deployment/dist/lingxi-v1.3.1-complete-20260907-r7-deployment.zip",
+    "bytes": 468654346,
+    "sha256_sidecar": "186d273ac3b25a7646696abae65d9491f2a18ce796c6d2e4ae847a56aac0d2c6"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发",
+    "path": "internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.1-20260828.tar.gz",
+    "bytes": 101958492,
+    "sha256_sidecar": "b4ce55804775d2578f42708bc5a89d0eff35e1019171be8579ed69898d34ce42"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发",
+    "path": "internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.1-20260828.zip",
+    "bytes": 103262779,
+    "sha256_sidecar": "33498640ae08cfdbecf242c5f3e4f0085296f735bd18b864d744ddbb2f1658d7"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发",
+    "path": "internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.2-20260828.tar.gz",
+    "bytes": 101958730,
+    "sha256_sidecar": "09ab01213fb68015dfe9394c94956fce3e197f29be6467425cfa63403dca7e63"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发",
+    "path": "internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.2-20260828.zip",
+    "bytes": 103264964,
+    "sha256_sidecar": "a6041fe65246161c0ae97d159f51275523ca4c3b4df505c4ce104a59d5815b83"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发",
+    "path": "internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.3-20260828.tar.gz",
+    "bytes": 101958598,
+    "sha256_sidecar": "a33b328b1bd231e5931eb695dcc43617177bd9b211aa5c87fcd334161e3353c5"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发",
+    "path": "internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.3-20260828.zip",
+    "bytes": 103265673,
+    "sha256_sidecar": "a092ba2d012138cada7cfb94be6bcf7757d2b02c9f02deefe2a199d79e4d2d8f"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发",
+    "path": "internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.4-20260901.tar.gz",
+    "bytes": 101958918,
+    "sha256_sidecar": "043cd5ba2cb1702eecbe4ce787c4fbf0b4c58dba8942749906bba3ea7e54cb86"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发",
+    "path": "internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.4-20260901.zip",
+    "bytes": 103265673,
+    "sha256_sidecar": "de728756f5c7e8a851c757b1f58516b192a7d2f36c562f3d1aa837e0f50656e0"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发",
+    "path": "internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.5-20260901.tar.gz",
+    "bytes": 101959198,
+    "sha256_sidecar": "550bb9bda4ea88ef3a921b4ab04faa089368da4d747468c6f0fb79337b465401"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发",
+    "path": "internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.5-20260901.zip",
+    "bytes": 103266494,
+    "sha256_sidecar": "79f54b1f17a128d3213015913534881725a81b38feada31d1257dbf035568e2d"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发",
+    "path": "internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.6-20260901.tar.gz",
+    "bytes": 101959613,
+    "sha256_sidecar": "90e5a701e6cac7979c0010207321fd77664befab8cef7db9efbfa7a3dc6ad043"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发",
+    "path": "internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.6-20260901.zip",
+    "bytes": 103267373,
+    "sha256_sidecar": "01f9f67c24ffe222a625f2c3b53577fdc47f9545275b63bb5993a2b2d1b811bb"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发",
+    "path": "internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.7-20260901.tar.gz",
+    "bytes": 101959997,
+    "sha256_sidecar": "35acbc60fb6135fda778b65f58ae0a4c71e8806dd3a0213649a25bdc80e07c94"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发",
+    "path": "internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.7-20260901.zip",
+    "bytes": 103267572,
+    "sha256_sidecar": "1d1be5acc959a5416f9bf13d216a42f345df569d506a83d3fccee54511c46f32"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发",
+    "path": "knowledge_base_deployment/dist/sparkrobot-lingxi-kb-1.0.0-20260902.zip",
+    "bytes": 20184,
+    "sha256_sidecar": "c71f881276956813fdfeb2f50cd33fc84ae7ca5fbd39ba32204617d587481e1b"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发",
+    "path": "knowledge_base_deployment/dist/sparkrobot-lingxi-kb-1.0.1-20260902.zip",
+    "bytes": 9920993,
+    "sha256_sidecar": "56751ca6356fd02da40f631654fcd39adeb0ca9b7fb964debab70939dac55682"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发",
+    "path": "knowledge_base_deployment/dist/sparkrobot-lingxi-kb-1.0.2-20260902.zip",
+    "bytes": 9920917,
+    "sha256_sidecar": "b8f73d925cc914b0440bc6478424f7759f9472cc9c61d8ce06050c37ddf9cf30"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发",
+    "path": "linkcraft_deployment/dist/sparkrobot-lingxi-linkcraft-addon-1.0.0-20260902.tar.gz",
+    "bytes": 32763,
+    "sha256_sidecar": "3a84d60dd6a6b1d2380e0cbc58d7d0af2c6a29f21ea6a849974ff734e7798acd"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发",
+    "path": "linkcraft_deployment/dist/sparkrobot-lingxi-linkcraft-addon-1.0.0-20260902.zip",
+    "bytes": 37536,
+    "sha256_sidecar": "9dde0fa3de2e709507eacecd1832b1bf99fc3f550d962a164637bda58e1939a7"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发",
+    "path": "linkcraft_deployment/dist/sparkrobot-lingxi-linkcraft-addon-1.0.1-20260902.tar.gz",
+    "bytes": 33165,
+    "sha256_sidecar": "744ed795c0bf3e6f2669ec9ec50c4c666e8048934fb8a93955f5c6bb14fa954e"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发",
+    "path": "linkcraft_deployment/dist/sparkrobot-lingxi-linkcraft-addon-1.0.1-20260902.zip",
+    "bytes": 37926,
+    "sha256_sidecar": "cbc76dde3946627bf365bac92cdf9305a79815b6adb8a237b8902ff897d01a29"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发",
+    "path": "linkcraft_deployment/dist/sparkrobot-lingxi-linkcraft-addon-1.0.2-20260902.tar.gz",
+    "bytes": 35701,
+    "sha256_sidecar": "5eda91a77a697273aeafe93fc0bd60cfe6a88835eaef0f33c623a0dea3c73648"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发",
+    "path": "linkcraft_deployment/dist/sparkrobot-lingxi-linkcraft-addon-1.0.2-20260902.zip",
+    "bytes": 40837,
+    "sha256_sidecar": "416a86f72bb660887872d5151c09d7296fbe69c1de9e0eae00cc0a279f056dc0"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发",
+    "path": "linkcraft_deployment/dist/sparkrobot-lingxi-linkcraft-addon-1.0.3-20260902.tar.gz",
+    "bytes": 35851,
+    "sha256_sidecar": "cb299c27835de7cbbddc1d9ec70bd397f7c4876da08dd49d42b49332aa3f6663"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发",
+    "path": "linkcraft_deployment/dist/sparkrobot-lingxi-linkcraft-addon-1.0.3-20260902.zip",
+    "bytes": 40971,
+    "sha256_sidecar": "d023d89568c76bdb7168cb6d4cb0bd1b8eac8e329b01c7d5ad16dcb34b5e0fad"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发",
+    "path": "narrow_corridor_policy_deployment/dist/sparkrobot-lingxi-v1.3.9-narrow-corridor-policy-1.0.0-20260929.tar.gz",
+    "bytes": 7856,
+    "sha256_sidecar": "d3caee04dfcfa3f9233641706573e986e02f64cacbada59c115e6e2b6da47ab6"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发",
+    "path": "narrow_corridor_policy_deployment/dist/sparkrobot-lingxi-v1.3.9-narrow-corridor-policy-1.0.0-20260929.zip",
+    "bytes": 9847,
+    "sha256_sidecar": "86e7e5b14e242565f05477110d1dc29e1b52407efefb4567ea7d5098db7ff2ed"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发",
+    "path": "pnc_arrival_fix_deployment/dist/sparkrobot-lingxi-pnc-arrival-fix-1.0.0-20260903.tar.gz",
+    "bytes": 12304,
+    "sha256_sidecar": "f92a87b04a30d92800eb4e3d0a446f05182e7a10fb4fe7736f911c7de046151e"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发",
+    "path": "pnc_arrival_fix_deployment/dist/sparkrobot-lingxi-pnc-arrival-fix-1.0.0-20260903.zip",
+    "bytes": 15234,
+    "sha256_sidecar": "14186c49c0399fac0af7ccbbd8b3b15121691d260569d694ad03bfcb9cc23ff1"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发",
+    "path": "pnc_arrival_fix_deployment/dist/sparkrobot-lingxi-pnc-arrival-fix-1.0.1-20260906.tar.gz",
+    "bytes": 12577,
+    "sha256_sidecar": "5cf4ef7b2a2a078a17379ce431f2bf3e7201f1788cbe803b2b7ae3986b8d8b78"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发",
+    "path": "pnc_arrival_fix_deployment/dist/sparkrobot-lingxi-pnc-arrival-fix-1.0.1-20260906.zip",
+    "bytes": 15473,
+    "sha256_sidecar": "baa713ece3f385ab8cd98b715d8a69ca613a8b896637bcd86c3b29c6f4867793"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发",
+    "path": "pnc_arrival_fix_deployment/dist/sparkrobot-lingxi-pnc-arrival-fix-1.0.2-20260906.tar.gz",
+    "bytes": 12652,
+    "sha256_sidecar": "db06a9a5f093380c771d586adddd58e40f1354d043c6ecb531125eca8bc8c6bf"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发",
+    "path": "pnc_arrival_fix_deployment/dist/sparkrobot-lingxi-pnc-arrival-fix-1.0.2-20260906.zip",
+    "bytes": 15574,
+    "sha256_sidecar": "b7dda32ac6d718dd8d1c7b63984deb49d120d31d1acc55ff68e1452d6d290cb4"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "consecutive_nav_fix_deployment/dist/sparkrobot-lingxi-consecutive-nav-fix-1.0.0-20260907.tar.gz",
+    "bytes": 44262,
+    "sha256_sidecar": "a357a66d82f2b07c35ebd718caecaadf2cc26cfa68d7b8060cc4bfc2971df8c3"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "consecutive_nav_fix_deployment/dist/sparkrobot-lingxi-consecutive-nav-fix-1.0.0-20260907.zip",
+    "bytes": 49719,
+    "sha256_sidecar": "5e0ef7c547513349ebd32c77ea699a50838a77bd7f69fa94512b36866a7ef6c5"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "consecutive_nav_fix_deployment/dist/sparkrobot-lingxi-consecutive-nav-fix-1.0.1-20260907.tar.gz",
+    "bytes": 45448,
+    "sha256_sidecar": "8d297e41dabc44f0c2fee5e019cbdef76608020cd03ca76997b974730aa8578a"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "consecutive_nav_fix_deployment/dist/sparkrobot-lingxi-consecutive-nav-fix-1.0.1-20260907.zip",
+    "bytes": 50897,
+    "sha256_sidecar": "b17eef9227b37a08811e0747ee8143e5b1bccf5138b85605e779ceca8647082a"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "consecutive_nav_fix_deployment/dist/sparkrobot-lingxi-consecutive-nav-fix-1.0.2-20260909.tar.gz",
+    "bytes": 46929,
+    "sha256_sidecar": "d830cc35f59f2b1abe98d4c28b45a96431ba631a1ffa564e5f0044634245cb4c"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "consecutive_nav_fix_deployment/dist/sparkrobot-lingxi-consecutive-nav-fix-1.0.2-20260909.zip",
+    "bytes": 52375,
+    "sha256_sidecar": "f2679ef4d44525d75061bf3c6703936dd474cda1e0380283d7051306611b750e"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "consecutive_nav_fix_deployment/dist/sparkrobot-lingxi-consecutive-nav-fix-1.0.3-20260909.tar.gz",
+    "bytes": 48419,
+    "sha256_sidecar": "321930fc1a4798c6a16b17cee52463ff9aa246a661298d4045e2f3bd43f2bb3a"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "consecutive_nav_fix_deployment/dist/sparkrobot-lingxi-consecutive-nav-fix-1.0.3-20260909.zip",
+    "bytes": 54293,
+    "sha256_sidecar": "473c5719d7c7d4c0609468dd1a9476089d2e02e4884f249b8dbb35c7ede58654"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "dense_crowd_nav_deployment/dist/sparkrobot-lingxi-v1.3.9-dense-crowd-navigation-1.0.1-20260929.tar.gz",
+    "bytes": 47456,
+    "sha256_sidecar": "aba9e7eb421f63c2f1a5380ee0e3723b703f4a280a8f58d81fa2ce4cb6ce07ce"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "dense_crowd_nav_deployment/dist/sparkrobot-lingxi-v1.3.9-dense-crowd-navigation-1.0.1-20260929.zip",
+    "bytes": 52331,
+    "sha256_sidecar": "3c61d78f92eef3a64f5884c70ecfd7ad5544d2750dd6e22d7833431122cb48fb"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "integrated_deployment/dist/lingxi-v1.3.1-complete-20260905-deployment.tar.gz",
+    "bytes": 466045792,
+    "sha256_sidecar": "999f3bc42f7e4ed7bc8dd305dae9d2e2b19cdb1cacc612ec20ddb9c95dc44ff4"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "integrated_deployment/dist/lingxi-v1.3.1-complete-20260905-deployment.zip",
+    "bytes": 468586743,
+    "sha256_sidecar": "245cf5a1019ca8f4e8b4261b0311d1705a41dd86335379fe94446813b6f3416e"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "integrated_deployment/dist/lingxi-v1.3.1-complete-20260906-deployment.tar.gz",
+    "bytes": 466045810,
+    "sha256_sidecar": "aeaf1785ee216eb9f052bdf75e1ea6de0411ffbaa745397cad712642ec81aa23"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "integrated_deployment/dist/lingxi-v1.3.1-complete-20260906-deployment.zip",
+    "bytes": 468586743,
+    "sha256_sidecar": "3c983337b34712d15e204f2d1db91c6a034a343706f6d68ea20e69d294762653"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "integrated_deployment/dist/lingxi-v1.3.1-complete-20260906-r1-deployment.tar.gz",
+    "bytes": 466045820,
+    "sha256_sidecar": "295dfaddcdc9ddcc548c34497ef92552420e79e59b36ef258c250d8d6398137e"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "integrated_deployment/dist/lingxi-v1.3.1-complete-20260906-r1-deployment.zip",
+    "bytes": 468586867,
+    "sha256_sidecar": "0e6ad8f2f6a446b1b05808eef73a141039109411f6d5467e7ab3019aad5c0a23"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "integrated_deployment/dist/lingxi-v1.3.1-complete-20260906-r2-deployment.tar.gz",
+    "bytes": 466046057,
+    "sha256_sidecar": "c61af98f47d66df063c170f2bb6a7d811fa4fb85bce8f2a6b09d1301c73c6d36"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "integrated_deployment/dist/lingxi-v1.3.1-complete-20260906-r2-deployment.zip",
+    "bytes": 468587462,
+    "sha256_sidecar": "c2e7d69bcc71325335c8dd258fb478cb08b8a2ef24f29d63636239718eb2af1e"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "integrated_deployment/dist/lingxi-v1.3.1-complete-20260906-r3-deployment.tar.gz",
+    "bytes": 466046039,
+    "sha256_sidecar": "bb8dd98bc4394cb1f7c392c14763f9891e601a0aadebb58063f4db47337ec646"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "integrated_deployment/dist/lingxi-v1.3.1-complete-20260906-r3-deployment.zip",
+    "bytes": 468587470,
+    "sha256_sidecar": "887fdb08e81efafa54d7d06120117cb4a94783e8ad68ddbc93f364f23ee2742e"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "integrated_deployment/dist/lingxi-v1.3.1-complete-20260906-r4-deployment.tar.gz",
+    "bytes": 466046059,
+    "sha256_sidecar": "7d19b0adff58cf24b88e2217aa1005ab92c7cb161b5a010d2fbfd5f82d289107"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "integrated_deployment/dist/lingxi-v1.3.1-complete-20260906-r4-deployment.zip",
+    "bytes": 468587575,
+    "sha256_sidecar": "d398a8e4e2dfdf389bb3af2c400c5aff9e8da5b9ac516085878855fb5cbbf58c"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "integrated_deployment/dist/lingxi-v1.3.1-complete-20260906-r5-deployment.tar.gz",
+    "bytes": 466046525,
+    "sha256_sidecar": "c05d0f967310dc37a240f8671f7c08017a887e10dc7b57a4eaa7a40d21778f6e"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "integrated_deployment/dist/lingxi-v1.3.1-complete-20260906-r5-deployment.zip",
+    "bytes": 468588948,
+    "sha256_sidecar": "6d535760b601ee2146e1725a311fa5cb0a77ca5338ca88a72d12cfbbc2579ae6"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "integrated_deployment/dist/lingxi-v1.3.1-complete-20260906-r6-deployment.tar.gz",
+    "bytes": 466047004,
+    "sha256_sidecar": "624d4a311076f0ef723a9115227e66b26364fde11c40ee2fa6d4a609177d78a6"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "integrated_deployment/dist/lingxi-v1.3.1-complete-20260906-r6-deployment.zip",
+    "bytes": 468589221,
+    "sha256_sidecar": "1d205db2db6ba6c52d55479bad24751113b854b97699cfbc67a53d466becc1fb"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "integrated_deployment/dist/lingxi-v1.3.1-complete-20260907-r7-deployment.tar.gz",
+    "bytes": 466091234,
+    "sha256_sidecar": "45f4ec5222c64b9c12bb34e3812da98116a16a214cb4c91c7fefda1af077790f"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "integrated_deployment/dist/lingxi-v1.3.1-complete-20260907-r7-deployment.zip",
+    "bytes": 468654346,
+    "sha256_sidecar": "186d273ac3b25a7646696abae65d9491f2a18ce796c6d2e4ae847a56aac0d2c6"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "integrated_deployment/dist/lingxi-v1.3.8-complete-20260908-deployment.tar.gz",
+    "bytes": 239360193,
+    "sha256_sidecar": "fa81d9545890c88f94a99787a7228ad9f5a2747a000888f3806002a219b2303a"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "integrated_deployment/dist/lingxi-v1.3.8-complete-20260908-deployment.zip",
+    "bytes": 240668708,
+    "sha256_sidecar": "59b4f6f6fab97aaa19f418d6564d2cfa9647db53e1a63ccd14d7f6d31216ed64"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "integrated_deployment/dist/lingxi-v1.3.8-complete-20260917-deployment.tar.gz",
+    "bytes": 239393951,
+    "sha256_sidecar": "d9f7c61438196f32c7928e6d1c962b30bdd2c722d1ca28fe18acaa3070b9511c"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "integrated_deployment/dist/lingxi-v1.3.8-complete-20260917-deployment.zip",
+    "bytes": 240682258,
+    "sha256_sidecar": "8c663a32a9d609649bab22741465a705d9aac4db8c10dec32b0456ce9365cb9e"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "integrated_deployment/dist/lingxi-v1.3.8-complete-20260918-deployment.tar.gz",
+    "bytes": 241089997,
+    "sha256_sidecar": "bafab6d1c855d69fa940070a60a5e779ea4a101adb01bc422e20206411f186e6"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "integrated_deployment/dist/lingxi-v1.3.8-complete-20260918-deployment.zip",
+    "bytes": 242385200,
+    "sha256_sidecar": "4d3d39dc6e5c706f34df637ee67597d9e1305f55bf1f26c8b0d29466f412c436"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "integrated_deployment/dist/lingxi-v1.3.8-complete-20260918-r4-deployment.tar.gz",
+    "bytes": 241081132,
+    "sha256_sidecar": "93c6179a9617f012e527df36177743685e0e863c9ea16fedc0a419689ee4e74b"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "integrated_deployment/dist/lingxi-v1.3.8-complete-20260918-r4-deployment.zip",
+    "bytes": 242388888,
+    "sha256_sidecar": "88a618b0cd649f51f86406139006e43121bdc3e1414727015e5615b67e2ee28e"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "integrated_deployment/dist/lingxi-v1.3.8-complete-20260918-r5-deployment.tar.gz",
+    "bytes": 241088826,
+    "sha256_sidecar": "1ffaca3680b898b244797e23c4174c1efcd9e9618ce5771b73a59a9bbea5842d"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "integrated_deployment/dist/lingxi-v1.3.8-complete-20260918-r5-deployment.zip",
+    "bytes": 242390112,
+    "sha256_sidecar": "cd00d16f111a413ea0dd11ece92b7a63e5c71d9385bc4efe0ed7c174edc44ba4"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "integrated_deployment/dist/lingxi-v1.3.8-complete-20260918-r6-deployment.tar.gz",
+    "bytes": 241083738,
+    "sha256_sidecar": "8bb5552348fac7f1713566ae389ff6a65e2cd91d26ca86e8ce05e2895225d484"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "integrated_deployment/dist/lingxi-v1.3.8-complete-20260918-r6-deployment.zip",
+    "bytes": 242390198,
+    "sha256_sidecar": "1f1a7a85d4e1e8bbf68976e87b4d4b09d86e3e6b1580235f69c44e8701c28c8d"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "integrated_deployment/dist/lingxi-v1.3.8-complete-20260920-r7-deployment.tar.gz",
+    "bytes": 241747128,
+    "sha256_sidecar": "39274eaca1e1a24b70b4234c206afff631f79f1bed8a4a3bd01faf0defaa26c2"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "integrated_deployment/dist/lingxi-v1.3.8-complete-20260920-r7-deployment.zip",
+    "bytes": 243064799,
+    "sha256_sidecar": "b0cf4217eace254bdf181daeff5ab8d705fa36a6d279a7a346500ad8ab623020"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "integrated_deployment/dist/lingxi-v1.3.8-complete-20260921-r9-deployment.tar.gz",
+    "bytes": 241566673,
+    "sha256_sidecar": "0e8232cd515c8161ce7f411570e5b180d61cde90e7bd9e2aa2a60967d740b7c4"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "integrated_deployment/dist/lingxi-v1.3.8-complete-20260921-r9-deployment.zip",
+    "bytes": 242871469,
+    "sha256_sidecar": "8143713f328a351651e4c228c25e7da6a329c25b9f518fcda3f4e80a12a21eac"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "integrated_deployment/dist/lingxi-v1.3.9-complete-20260923-r1-deployment.tar.gz",
+    "bytes": 241491121,
+    "sha256_sidecar": "d5118a6d232e9d0cba92a673365777049f3b72bb4e894146606ddfa7d8fa87be"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "integrated_deployment/dist/lingxi-v1.3.9-complete-20260923-r1-deployment.zip",
+    "bytes": 242786173,
+    "sha256_sidecar": "b6c2b61bdcd9ca8ef01d2ac45882630b29d88d490329ce0b0335ab4e4b68aff7"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "integrated_deployment/dist/lingxi-v1.3.9-complete-20260923-r2-deployment.tar.gz",
+    "bytes": 241486375,
+    "sha256_sidecar": "1948286ba90161ed90c254c5958bab71ef491aaf37582e3b4c932fafa9d26170"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "integrated_deployment/dist/lingxi-v1.3.9-complete-20260923-r2-deployment.zip",
+    "bytes": 242790333,
+    "sha256_sidecar": "73ec0bc25b5490c79ce9230438d7be73113184e7a918a9c78f57d82fba704bad"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.1-20260828.tar.gz",
+    "bytes": 101958492,
+    "sha256_sidecar": "b4ce55804775d2578f42708bc5a89d0eff35e1019171be8579ed69898d34ce42"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.1-20260828.zip",
+    "bytes": 103262779,
+    "sha256_sidecar": "33498640ae08cfdbecf242c5f3e4f0085296f735bd18b864d744ddbb2f1658d7"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.10-20260909.tar.gz",
+    "bytes": 103374887,
+    "sha256_sidecar": "f5b2b35f58d324af3f35395c2f8b638db7fc1beb7b79f182728a50c1281c1d34"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.10-20260909.zip",
+    "bytes": 105338285,
+    "sha256_sidecar": "53f4dd70bc87076e10daceeb041d265dbbe6e73475d198e8081ce437d6219585"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.11-20260909.tar.gz",
+    "bytes": 103375849,
+    "sha256_sidecar": "3313cb8b050fac649f9786a16444ef7b98c5acb560369165459ef6903d57a372"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.11-20260909.zip",
+    "bytes": 105339044,
+    "sha256_sidecar": "8d1ac88f092801b26cef66330ae3f5515329f44eb1086da1480e4d841e7b2bbc"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.12-20260917.tar.gz",
+    "bytes": 103389140,
+    "sha256_sidecar": "6d7ebe01421a12a2740b8d9788463f1852f571e5d14cb39f348bfff03f594d00"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.12-20260917.zip",
+    "bytes": 105353952,
+    "sha256_sidecar": "0b4b5bab76d854f0bcad9413e0a0202ef107ea47959ddb1fe9b2d398a63a2684"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.13-20260918.tar.gz",
+    "bytes": 105082704,
+    "sha256_sidecar": "4b97f92e01e31430fbc19eab81396e84ffccd5ecac868a40a9dc83c54169d069"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.13-20260918.zip",
+    "bytes": 107034069,
+    "sha256_sidecar": "db577bcb6558c546aaa33c93e8ab5b3f2e9b8e209399a8c312e109ff015d4a42"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.14-20260918.tar.gz",
+    "bytes": 105085092,
+    "sha256_sidecar": "5c9bb9f11e8df2c43ae2f7c593b9952f73671b756cc95fce462a9c7613d53a46"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.14-20260918.zip",
+    "bytes": 107036672,
+    "sha256_sidecar": "a68c5e4c92eb0fa976e54275b82bf83b7a327fcc11bedddc6bf2b7bbeb462e21"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.15-20260918.tar.gz",
+    "bytes": 105085521,
+    "sha256_sidecar": "3c221e13406d49bf6edba2ff1b790d755d580980915c7ac76229dd43ff3872e4"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.15-20260918.zip",
+    "bytes": 107037088,
+    "sha256_sidecar": "633c9db23c07b94b13b8d51eace96f34db5c2c08ea4745b334fe0d34e788e176"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.16-20260918.tar.gz",
+    "bytes": 105085462,
+    "sha256_sidecar": "880bf5725b3bae9a881cb98e13d092c76235be6af83001f1662896d0d96a570d"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.16-20260918.zip",
+    "bytes": 107037130,
+    "sha256_sidecar": "15bf29dc031c4fb6880b16782baab8303d081ac43f99567654cd83163c95ec06"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.17-20260920.tar.gz",
+    "bytes": 105101303,
+    "sha256_sidecar": "294aec2de62122b24e0fc9aaa8f933bd4cac998c9b624b52f06631fa9ffdca19"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.17-20260920.zip",
+    "bytes": 107059194,
+    "sha256_sidecar": "89829eedf182e5d4745545fbc8300717ae23029b926a89a449571c9dc99fa0bc"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.18-20260921.tar.gz",
+    "bytes": 105135687,
+    "sha256_sidecar": "946adbec6d30fb63601347a9ff331d496a1e53fc454c1632a549c455091fab8a"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.18-20260921.zip",
+    "bytes": 107092648,
+    "sha256_sidecar": "314194a6ad7eb11a874dce164e70493f8d41eaa21ba67f2ef6e92c86f21fec2d"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.19-20260921.tar.gz",
+    "bytes": 105135908,
+    "sha256_sidecar": "30ed70324de3c65f82ba3d6caa2ca0114492819fe4eea758fe1208293ebb25bf"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.19-20260921.zip",
+    "bytes": 107097444,
+    "sha256_sidecar": "d518b82158a006d160bd11a95eb668c2ccf0c35b69829aaf161ee44b71385225"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.2-20260828.tar.gz",
+    "bytes": 101958730,
+    "sha256_sidecar": "09ab01213fb68015dfe9394c94956fce3e197f29be6467425cfa63403dca7e63"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.2-20260828.zip",
+    "bytes": 103264964,
+    "sha256_sidecar": "a6041fe65246161c0ae97d159f51275523ca4c3b4df505c4ce104a59d5815b83"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.20-20260923.tar.gz",
+    "bytes": 105140215,
+    "sha256_sidecar": "c07fc1fc49a2c9fd4a026da32c86db682081700deed485ab150742d124b86165"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.20-20260923.zip",
+    "bytes": 107104228,
+    "sha256_sidecar": "ba1f4ec633e4b73a018aa6c692cfe864a0d4d4fd0fcf029f783c843460f39315"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.3-20260828.tar.gz",
+    "bytes": 101958598,
+    "sha256_sidecar": "a33b328b1bd231e5931eb695dcc43617177bd9b211aa5c87fcd334161e3353c5"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.3-20260828.zip",
+    "bytes": 103265673,
+    "sha256_sidecar": "a092ba2d012138cada7cfb94be6bcf7757d2b02c9f02deefe2a199d79e4d2d8f"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.4-20260901.tar.gz",
+    "bytes": 101958918,
+    "sha256_sidecar": "043cd5ba2cb1702eecbe4ce787c4fbf0b4c58dba8942749906bba3ea7e54cb86"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.4-20260901.zip",
+    "bytes": 103265673,
+    "sha256_sidecar": "de728756f5c7e8a851c757b1f58516b192a7d2f36c562f3d1aa837e0f50656e0"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.5-20260901.tar.gz",
+    "bytes": 101959198,
+    "sha256_sidecar": "550bb9bda4ea88ef3a921b4ab04faa089368da4d747468c6f0fb79337b465401"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.5-20260901.zip",
+    "bytes": 103266494,
+    "sha256_sidecar": "79f54b1f17a128d3213015913534881725a81b38feada31d1257dbf035568e2d"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.6-20260901.tar.gz",
+    "bytes": 101959613,
+    "sha256_sidecar": "90e5a701e6cac7979c0010207321fd77664befab8cef7db9efbfa7a3dc6ad043"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.6-20260901.zip",
+    "bytes": 103267373,
+    "sha256_sidecar": "01f9f67c24ffe222a625f2c3b53577fdc47f9545275b63bb5993a2b2d1b811bb"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.7-20260901.tar.gz",
+    "bytes": 101959997,
+    "sha256_sidecar": "35acbc60fb6135fda778b65f58ae0a4c71e8806dd3a0213649a25bdc80e07c94"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.7-20260901.zip",
+    "bytes": 103267572,
+    "sha256_sidecar": "1d1be5acc959a5416f9bf13d216a42f345df569d506a83d3fccee54511c46f32"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.8-20260908.tar.gz",
+    "bytes": 105537587,
+    "sha256_sidecar": "80f66d8cfe353726c4a65b8e5be135450c3dfc148f962c44a4480e8d841f4920"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.8-20260908.zip",
+    "bytes": 108334449,
+    "sha256_sidecar": "ea4e4146e28308df408bfd2543a5b4e485ee8ea3a5d78d5e3713687af14b463a"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.9-20260909.tar.gz",
+    "bytes": 103373995,
+    "sha256_sidecar": "1426d0f22edaa54613da512d4695af09ccbc7df73396457125f51bba0b140970"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.9-20260909.zip",
+    "bytes": 105332016,
+    "sha256_sidecar": "a4ef9f55e421775f42f1e0fe63db5b46d807a903918c1326f4d79c474a1c316b"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "knowledge_base_deployment/dist/sparkrobot-lingxi-kb-1.0.0-20260902.zip",
+    "bytes": 20184,
+    "sha256_sidecar": "c71f881276956813fdfeb2f50cd33fc84ae7ca5fbd39ba32204617d587481e1b"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "knowledge_base_deployment/dist/sparkrobot-lingxi-kb-1.0.1-20260902.zip",
+    "bytes": 9920993,
+    "sha256_sidecar": "56751ca6356fd02da40f631654fcd39adeb0ca9b7fb964debab70939dac55682"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "knowledge_base_deployment/dist/sparkrobot-lingxi-kb-1.0.2-20260902.zip",
+    "bytes": 9920917,
+    "sha256_sidecar": "b8f73d925cc914b0440bc6478424f7759f9472cc9c61d8ce06050c37ddf9cf30"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "linkcraft_deployment/dist/sparkrobot-lingxi-linkcraft-addon-1.0.0-20260902.tar.gz",
+    "bytes": 32763,
+    "sha256_sidecar": "3a84d60dd6a6b1d2380e0cbc58d7d0af2c6a29f21ea6a849974ff734e7798acd"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "linkcraft_deployment/dist/sparkrobot-lingxi-linkcraft-addon-1.0.0-20260902.zip",
+    "bytes": 37536,
+    "sha256_sidecar": "9dde0fa3de2e709507eacecd1832b1bf99fc3f550d962a164637bda58e1939a7"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "linkcraft_deployment/dist/sparkrobot-lingxi-linkcraft-addon-1.0.1-20260902.tar.gz",
+    "bytes": 33165,
+    "sha256_sidecar": "744ed795c0bf3e6f2669ec9ec50c4c666e8048934fb8a93955f5c6bb14fa954e"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "linkcraft_deployment/dist/sparkrobot-lingxi-linkcraft-addon-1.0.1-20260902.zip",
+    "bytes": 37926,
+    "sha256_sidecar": "cbc76dde3946627bf365bac92cdf9305a79815b6adb8a237b8902ff897d01a29"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "linkcraft_deployment/dist/sparkrobot-lingxi-linkcraft-addon-1.0.2-20260902.tar.gz",
+    "bytes": 35701,
+    "sha256_sidecar": "5eda91a77a697273aeafe93fc0bd60cfe6a88835eaef0f33c623a0dea3c73648"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "linkcraft_deployment/dist/sparkrobot-lingxi-linkcraft-addon-1.0.2-20260902.zip",
+    "bytes": 40837,
+    "sha256_sidecar": "416a86f72bb660887872d5151c09d7296fbe69c1de9e0eae00cc0a279f056dc0"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "linkcraft_deployment/dist/sparkrobot-lingxi-linkcraft-addon-1.0.3-20260902.tar.gz",
+    "bytes": 35851,
+    "sha256_sidecar": "cb299c27835de7cbbddc1d9ec70bd397f7c4876da08dd49d42b49332aa3f6663"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "linkcraft_deployment/dist/sparkrobot-lingxi-linkcraft-addon-1.0.3-20260902.zip",
+    "bytes": 40971,
+    "sha256_sidecar": "d023d89568c76bdb7168cb6d4cb0bd1b8eac8e329b01c7d5ad16dcb34b5e0fad"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "pnc_arrival_fix_deployment/dist/sparkrobot-lingxi-pnc-arrival-fix-1.0.0-20260903.tar.gz",
+    "bytes": 12304,
+    "sha256_sidecar": "f92a87b04a30d92800eb4e3d0a446f05182e7a10fb4fe7736f911c7de046151e"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "pnc_arrival_fix_deployment/dist/sparkrobot-lingxi-pnc-arrival-fix-1.0.0-20260903.zip",
+    "bytes": 15234,
+    "sha256_sidecar": "14186c49c0399fac0af7ccbbd8b3b15121691d260569d694ad03bfcb9cc23ff1"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "pnc_arrival_fix_deployment/dist/sparkrobot-lingxi-pnc-arrival-fix-1.0.1-20260906.tar.gz",
+    "bytes": 12577,
+    "sha256_sidecar": "5cf4ef7b2a2a078a17379ce431f2bf3e7201f1788cbe803b2b7ae3986b8d8b78"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "pnc_arrival_fix_deployment/dist/sparkrobot-lingxi-pnc-arrival-fix-1.0.1-20260906.zip",
+    "bytes": 15473,
+    "sha256_sidecar": "baa713ece3f385ab8cd98b715d8a69ca613a8b896637bcd86c3b29c6f4867793"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "pnc_arrival_fix_deployment/dist/sparkrobot-lingxi-pnc-arrival-fix-1.0.2-20260906.tar.gz",
+    "bytes": 12652,
+    "sha256_sidecar": "db06a9a5f093380c771d586adddd58e40f1354d043c6ecb531125eca8bc8c6bf"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "pnc_arrival_fix_deployment/dist/sparkrobot-lingxi-pnc-arrival-fix-1.0.2-20260906.zip",
+    "bytes": 15574,
+    "sha256_sidecar": "b7dda32ac6d718dd8d1c7b63984deb49d120d31d1acc55ff68e1452d6d290cb4"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "tour_arrival_fix_deployment/dist/sparkrobot-lingxi-v1.3.9-tour-arrival-fix-1.0.1-20260927.tar.gz",
+    "bytes": 39248,
+    "sha256_sidecar": "0bf041fb397001f9e1f27d776058da871804886cdb0ea128a9e6bec83d40f096"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "tour_arrival_fix_deployment/dist/sparkrobot-lingxi-v1.3.9-tour-arrival-fix-1.0.1-20260927.zip",
+    "bytes": 43392,
+    "sha256_sidecar": "82bbd3d5cf25ec0147e82b24c0c55a426140cf4dab6833bc5a61367c610c798b"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "tour_loop_persistence_fix_deployment/dist/sparkrobot-lingxi-tour-loop-persistence-fix-1.0.0-20260927.tar.gz",
+    "bytes": 24280,
+    "sha256_sidecar": "25afb725314d0c79188d75213ae2cb7c57120a6dd080595fcc37bd111bf83442"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "tour_loop_persistence_fix_deployment/dist/sparkrobot-lingxi-tour-loop-persistence-fix-1.0.0-20260927.zip",
+    "bytes": 27233,
+    "sha256_sidecar": "ef5441d5d69c3cfc8f88bf787d1aae5c15303657971c717093a849261377a7c7"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "tour_task_save_fix_deployment/dist/sparkrobot-lingxi-v1.3.9-tour-task-save-fix-1.0.1-20260929.tar.gz",
+    "bytes": 30007,
+    "sha256_sidecar": "a7dd2a887d60cf9fd925b00847b6fb15f5c88458a3cc1813912f968fc7155076"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "tour_task_save_fix_deployment/dist/sparkrobot-lingxi-v1.3.9-tour-task-save-fix-1.0.2-20260929.tar.gz",
+    "bytes": 30145,
+    "sha256_sidecar": "15291c75d44601e0f9da486b9ba492806ddaaf7132050865e049189ea197d4bb"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "voice_fix_deployment/dist/lingxi-v1.3.8-complete-20260916-voice-motion-r4-deployment.tar.gz",
+    "bytes": 249275221,
+    "sha256_sidecar": "c8dd8cedb4995151b5d89809dff1f68454df7e10b7c70cad809a489b631af013"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "voice_fix_deployment/dist/lingxi-v1.3.8-complete-20260916-voice-motion-r4-deployment.zip",
+    "bytes": 249299114,
+    "sha256_sidecar": "b38cfb94b417d8fc1299f4482a4c1a0359be1b3a47b73af19fbabae88966e411"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "voice_fix_deployment/dist/lingxi-v1.3.8-complete-20260916-voicefix-r1-deployment.tar.gz",
+    "bytes": 249228945,
+    "sha256_sidecar": "af8a6f24515c52888a8324870c04a21da6e41bfd615b66f50b69e8b631e4b96b"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "voice_fix_deployment/dist/lingxi-v1.3.8-complete-20260916-voicefix-r1-deployment.zip",
+    "bytes": 249249695,
+    "sha256_sidecar": "57f914416d1d3b0e6b1caf88ceff22b1e5eaa86f0e73924e84832d4a049ce269"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "voice_fix_deployment/dist/lingxi-v1.3.8-complete-20260916-voicefix-r2-deployment.tar.gz",
+    "bytes": 249224568,
+    "sha256_sidecar": "9850b07f90fbf70264134910b5597ac6203d0edeee25dbf37262a65ce73cd836"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "voice_fix_deployment/dist/lingxi-v1.3.8-complete-20260916-voicefix-r2-deployment.zip",
+    "bytes": 249245763,
+    "sha256_sidecar": "41bb79421cda364d97a69336ae9268ca28cfb9d590a74ee7358aa8271c1ba9a1"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "voice_fix_deployment/dist/lingxi-v1.3.8-complete-20260916-voicefix-r3-deployment.tar.gz",
+    "bytes": 249246516,
+    "sha256_sidecar": "2652041268bc6aae2ab88556e2c65676bbc3978b1e53f448be145ab07f928528"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "voice_fix_deployment/dist/lingxi-v1.3.8-complete-20260916-voicefix-r3-deployment.zip",
+    "bytes": 249269285,
+    "sha256_sidecar": "0ed7ea900b891ee12f5f91fb9ed81ddd305ef2dabe097323a4711677c8de0399"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "voice_fix_deployment/dist/lingxi-v1.3.8-complete-20260917-voice-motion-r5-deployment.tar.gz",
+    "bytes": 249275367,
+    "sha256_sidecar": "5e1bfff51cfbaace5dc39b9cee79d0c75f89d64de3bb4fb4c7f4a9dcf3745e79"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "voice_fix_deployment/dist/lingxi-v1.3.8-complete-20260917-voice-motion-r5-deployment.zip",
+    "bytes": 249299386,
+    "sha256_sidecar": "fc17c471f4993c4640e1b6f9df2fa7db67056fdd1079223f93ea7f569d3299d2"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "voice_fix_deployment/dist/lingxi-v1.3.8-voice-fix-20260916-r1.tar.gz",
+    "bytes": 9934308,
+    "sha256_sidecar": "73c9bf4c0397554bf5424ac27716d9666b6f29644fdbd68ea4f1ee885fb273d7"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "voice_fix_deployment/dist/lingxi-v1.3.8-voice-fix-20260916-r1.zip",
+    "bytes": 9945609,
+    "sha256_sidecar": "3c8d1c03d42939020659a29689f7167f1fe68701014ec3e24aad0e97bc970c86"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "voice_fix_deployment/dist/lingxi-v1.3.8-voice-fix-20260916-r2.tar.gz",
+    "bytes": 9936664,
+    "sha256_sidecar": "8c8fff44bdd4fc482c5a746373c1a83a47ccc652cdec92d13eef5926f0faf46d"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "voice_fix_deployment/dist/lingxi-v1.3.8-voice-fix-20260916-r2.zip",
+    "bytes": 9947848,
+    "sha256_sidecar": "63e52e4c3514a0c8b478d9b42f4d42679a03266eff5c4c1b96981f05161c33ef"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "voice_fix_deployment/dist/lingxi-v1.3.8-voice-fix-20260916-r3.tar.gz",
+    "bytes": 9946723,
+    "sha256_sidecar": "d35d3589db6dbb9c087ac62c055df94f9db99372acb189d1ea754ccac7b2b956"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "voice_fix_deployment/dist/lingxi-v1.3.8-voice-fix-20260916-r3.zip",
+    "bytes": 9958117,
+    "sha256_sidecar": "145ca02930ad729ecb2500cb77ac402065e93ea1eb09cac55766a06a4ed1e3a9"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "voice_fix_deployment/dist/lingxi-v1.3.8-voice-motion-fix-20260916-r4.tar.gz",
+    "bytes": 9977226,
+    "sha256_sidecar": "59d2ec273a28015caef29557a6082269da1fa8d5cc6f5c5d20e92b4c6ba14457"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "voice_fix_deployment/dist/lingxi-v1.3.8-voice-motion-fix-20260916-r4.zip",
+    "bytes": 9990739,
+    "sha256_sidecar": "5ed46665fcb84f4464bdb0e612fc694a9ae0691552d70de48c885a7aba18ba60"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "voice_fix_deployment/dist/lingxi-v1.3.8-voice-motion-fix-20260917-r5.tar.gz",
+    "bytes": 9977368,
+    "sha256_sidecar": "92e7ced85fd5132c65190f2fa4868730a8fe378bc601ae2946fe0334ccecbad7"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "voice_fix_deployment/dist/lingxi-v1.3.8-voice-motion-fix-20260917-r5.zip",
+    "bytes": 9990914,
+    "sha256_sidecar": "fe831de1d24ce942386dc97559a8929a1767ab583c3d1841c0f0e34a87b551e6"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "voice_gate_deployment/dist/lingxi-v1.3.8-tour-voice-20260918-r2.tar.gz",
+    "bytes": 10826725,
+    "sha256_sidecar": "e2c6f19ac24ab28efedd0614c67617b26667a021efe7e41800187bd9411dd6e5"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "voice_gate_deployment/dist/lingxi-v1.3.8-tour-voice-20260918-r2.zip",
+    "bytes": 10836574,
+    "sha256_sidecar": "9f2aec252aebfdd98535ba272de34714b47b559fdcf7af78b322cea7c57270f7"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "voice_gate_deployment/dist/lingxi-v1.3.8-tour-voice-20260918-r3.tar.gz",
+    "bytes": 10828545,
+    "sha256_sidecar": "b65c28ab7d6a5191661a1fef942a829ae5b0d2911a98756418a8461d34c47080"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "voice_gate_deployment/dist/lingxi-v1.3.8-tour-voice-20260918-r3.zip",
+    "bytes": 10838395,
+    "sha256_sidecar": "4502c00f2f76263bdd096b49f75d749ddc49d21053347b580ebdb0b052a7a578"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "voice_gate_deployment/dist/lingxi-v1.3.8-tour-voice-20260918-r4.tar.gz",
+    "bytes": 10832993,
+    "sha256_sidecar": "6fcdfbd9b8af2844582495f680d8f05924c84e064678529afcfefc0ff32c0382"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "voice_gate_deployment/dist/lingxi-v1.3.8-tour-voice-20260918-r4.zip",
+    "bytes": 10843805,
+    "sha256_sidecar": "716bdf7547206a9b4a77162d28c9eb7c69f601177226520832c5c9013ccd9a85"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "voice_gate_deployment/dist/lingxi-v1.3.8-tour-wait-20260918-r5.tar.gz",
+    "bytes": 10834449,
+    "sha256_sidecar": "d029bba3f3907a995387cccb6818f44ed403ac52614440ca0b684051fc4be865"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "voice_gate_deployment/dist/lingxi-v1.3.8-tour-wait-20260918-r5.zip",
+    "bytes": 10845512,
+    "sha256_sidecar": "e10a9ba8ca19a34e7e18729f16e7188483f7cf6d472a1a1ba1f9966d02c70727"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "voice_gate_deployment/dist/lingxi-v1.3.8-voice-gate-20260917-r1.tar.gz",
+    "bytes": 9934334,
+    "sha256_sidecar": "0e5d1f58172f233e2995f0be5e21247ed0edb3461111ae32b6f044b3b314c62f"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "voice_gate_deployment/dist/lingxi-v1.3.8-voice-gate-20260917-r1.zip",
+    "bytes": 9941180,
+    "sha256_sidecar": "16d599a542138d3575724324f29c681cc41834cbc9a1cbf3caca9301184bfac1"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "voice_gate_deployment/dist/lingxi-v1.3.8-wake-gate-20260918-r7.tar.gz",
+    "bytes": 10855411,
+    "sha256_sidecar": "8413fafc667972ab6518691bdb014d3ab08133b3fdc9358fa23f8a4b8774834f"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "voice_gate_deployment/dist/lingxi-v1.3.8-wake-gate-20260918-r7.zip",
+    "bytes": 10865984,
+    "sha256_sidecar": "79cf5432272bc575fafb169e67c9e36ce9c24634a36e52707f4f10c253882502"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "voice_gate_deployment/dist/lingxi-v1.3.8-wake-gate-20260919-r10.tar.gz",
+    "bytes": 9960143,
+    "sha256_sidecar": "da29094fb04a1fe4c4d601e8263eaf8bf12d31e2d251565292cd2b58e19d2030"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "voice_gate_deployment/dist/lingxi-v1.3.8-wake-gate-20260919-r10.zip",
+    "bytes": 9965617,
+    "sha256_sidecar": "b7ec11002b4c07a0510856d795b3c6f0f49713030a25ee4f19a7c679090c60d8"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "voice_gate_deployment/dist/lingxi-v1.3.8-wake-gate-20260919-r8.tar.gz",
+    "bytes": 9959359,
+    "sha256_sidecar": "dd062520880a022b55dcdee6ffc5a8c500106e75feb927ad336abc6afcf60c94"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "voice_gate_deployment/dist/lingxi-v1.3.8-wake-gate-20260919-r8.zip",
+    "bytes": 9964823,
+    "sha256_sidecar": "8a925eb56dd6e581ba23d42b95d5b14508479ba091da16685d342a0bb6a30f27"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "voice_gate_deployment/dist/lingxi-v1.3.8-wake-gate-20260919-r9.tar.gz",
+    "bytes": 9959926,
+    "sha256_sidecar": "68ceeab1676e8aada9b24cc2867c8f501d065e65e16b0d6a1257132a2c5099ca"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "voice_gate_deployment/dist/lingxi-v1.3.8-wake-gate-20260919-r9.zip",
+    "bytes": 9965365,
+    "sha256_sidecar": "2b4e88173385940ad29ab221a3e0906ed95fab5a7581551ec517d0c611446e21"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "voice_gate_deployment/dist/lingxi-v1.3.8-wake-gate-20260920-r11.tar.gz",
+    "bytes": 9967827,
+    "sha256_sidecar": "5b49f8eb74b089f7163ec4e06b516790c36b4898bf1e0a203ff542f4ed00739f"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "voice_gate_deployment/dist/lingxi-v1.3.8-wake-gate-20260920-r11.zip",
+    "bytes": 9973388,
+    "sha256_sidecar": "fa0a4de50edb80534640bba11bd4203c82110d38f9ef2c3885a05397c4e85a13"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "voice_gate_deployment/dist/lingxi-v1.3.8-wake-gate-20260920-r12.tar.gz",
+    "bytes": 9970456,
+    "sha256_sidecar": "3170bd82ac277beacf096307df1861c19184d1b00bd25a3210ac539d12985755"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "voice_gate_deployment/dist/lingxi-v1.3.8-wake-gate-20260920-r12.zip",
+    "bytes": 9976238,
+    "sha256_sidecar": "7f6a7726913508a511e3cad8f8cb1182b9ca84afd3c6981ffce80a4db76f2cf2"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "voice_gate_deployment/dist/lingxi-v1.3.8-wake-gate-20260921-r13.tar.gz",
+    "bytes": 9975021,
+    "sha256_sidecar": "e697354219d020d0a6a2c99dc0db043438d05571f62da5e64a31a4e0654c27e4"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.9",
+    "path": "voice_gate_deployment/dist/lingxi-v1.3.8-wake-gate-20260921-r13.zip",
+    "bytes": 9980443,
+    "sha256_sidecar": "4cc4b0b9cee4a260d77eef7f0958559f3371dcedc7e0c72a07717980e883aafb"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "consecutive_nav_fix_deployment/dist/sparkrobot-lingxi-consecutive-nav-fix-1.0.0-20260907.tar.gz",
+    "bytes": 44262,
+    "sha256_sidecar": "a357a66d82f2b07c35ebd718caecaadf2cc26cfa68d7b8060cc4bfc2971df8c3"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "consecutive_nav_fix_deployment/dist/sparkrobot-lingxi-consecutive-nav-fix-1.0.0-20260907.zip",
+    "bytes": 49719,
+    "sha256_sidecar": "5e0ef7c547513349ebd32c77ea699a50838a77bd7f69fa94512b36866a7ef6c5"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "consecutive_nav_fix_deployment/dist/sparkrobot-lingxi-consecutive-nav-fix-1.0.1-20260907.tar.gz",
+    "bytes": 45448,
+    "sha256_sidecar": "8d297e41dabc44f0c2fee5e019cbdef76608020cd03ca76997b974730aa8578a"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "consecutive_nav_fix_deployment/dist/sparkrobot-lingxi-consecutive-nav-fix-1.0.1-20260907.zip",
+    "bytes": 50897,
+    "sha256_sidecar": "b17eef9227b37a08811e0747ee8143e5b1bccf5138b85605e779ceca8647082a"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "consecutive_nav_fix_deployment/dist/sparkrobot-lingxi-consecutive-nav-fix-1.0.2-20260909.tar.gz",
+    "bytes": 46929,
+    "sha256_sidecar": "d830cc35f59f2b1abe98d4c28b45a96431ba631a1ffa564e5f0044634245cb4c"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "consecutive_nav_fix_deployment/dist/sparkrobot-lingxi-consecutive-nav-fix-1.0.2-20260909.zip",
+    "bytes": 52375,
+    "sha256_sidecar": "f2679ef4d44525d75061bf3c6703936dd474cda1e0380283d7051306611b750e"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "consecutive_nav_fix_deployment/dist/sparkrobot-lingxi-consecutive-nav-fix-1.0.3-20260909.tar.gz",
+    "bytes": 48419,
+    "sha256_sidecar": "321930fc1a4798c6a16b17cee52463ff9aa246a661298d4045e2f3bd43f2bb3a"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "consecutive_nav_fix_deployment/dist/sparkrobot-lingxi-consecutive-nav-fix-1.0.3-20260909.zip",
+    "bytes": 54293,
+    "sha256_sidecar": "473c5719d7c7d4c0609468dd1a9476089d2e02e4884f249b8dbb35c7ede58654"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "integrated_deployment/dist/lingxi-v1.3.1-complete-20260905-deployment.tar.gz",
+    "bytes": 466045792,
+    "sha256_sidecar": "999f3bc42f7e4ed7bc8dd305dae9d2e2b19cdb1cacc612ec20ddb9c95dc44ff4"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "integrated_deployment/dist/lingxi-v1.3.1-complete-20260905-deployment.zip",
+    "bytes": 468586743,
+    "sha256_sidecar": "245cf5a1019ca8f4e8b4261b0311d1705a41dd86335379fe94446813b6f3416e"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "integrated_deployment/dist/lingxi-v1.3.1-complete-20260906-deployment.tar.gz",
+    "bytes": 466045810,
+    "sha256_sidecar": "aeaf1785ee216eb9f052bdf75e1ea6de0411ffbaa745397cad712642ec81aa23"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "integrated_deployment/dist/lingxi-v1.3.1-complete-20260906-deployment.zip",
+    "bytes": 468586743,
+    "sha256_sidecar": "3c983337b34712d15e204f2d1db91c6a034a343706f6d68ea20e69d294762653"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "integrated_deployment/dist/lingxi-v1.3.1-complete-20260906-r1-deployment.tar.gz",
+    "bytes": 466045820,
+    "sha256_sidecar": "295dfaddcdc9ddcc548c34497ef92552420e79e59b36ef258c250d8d6398137e"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "integrated_deployment/dist/lingxi-v1.3.1-complete-20260906-r1-deployment.zip",
+    "bytes": 468586867,
+    "sha256_sidecar": "0e6ad8f2f6a446b1b05808eef73a141039109411f6d5467e7ab3019aad5c0a23"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "integrated_deployment/dist/lingxi-v1.3.1-complete-20260906-r2-deployment.tar.gz",
+    "bytes": 466046057,
+    "sha256_sidecar": "c61af98f47d66df063c170f2bb6a7d811fa4fb85bce8f2a6b09d1301c73c6d36"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "integrated_deployment/dist/lingxi-v1.3.1-complete-20260906-r2-deployment.zip",
+    "bytes": 468587462,
+    "sha256_sidecar": "c2e7d69bcc71325335c8dd258fb478cb08b8a2ef24f29d63636239718eb2af1e"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "integrated_deployment/dist/lingxi-v1.3.1-complete-20260906-r3-deployment.tar.gz",
+    "bytes": 466046039,
+    "sha256_sidecar": "bb8dd98bc4394cb1f7c392c14763f9891e601a0aadebb58063f4db47337ec646"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "integrated_deployment/dist/lingxi-v1.3.1-complete-20260906-r3-deployment.zip",
+    "bytes": 468587470,
+    "sha256_sidecar": "887fdb08e81efafa54d7d06120117cb4a94783e8ad68ddbc93f364f23ee2742e"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "integrated_deployment/dist/lingxi-v1.3.1-complete-20260906-r4-deployment.tar.gz",
+    "bytes": 466046059,
+    "sha256_sidecar": "7d19b0adff58cf24b88e2217aa1005ab92c7cb161b5a010d2fbfd5f82d289107"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "integrated_deployment/dist/lingxi-v1.3.1-complete-20260906-r4-deployment.zip",
+    "bytes": 468587575,
+    "sha256_sidecar": "d398a8e4e2dfdf389bb3af2c400c5aff9e8da5b9ac516085878855fb5cbbf58c"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "integrated_deployment/dist/lingxi-v1.3.1-complete-20260906-r5-deployment.tar.gz",
+    "bytes": 466046525,
+    "sha256_sidecar": "c05d0f967310dc37a240f8671f7c08017a887e10dc7b57a4eaa7a40d21778f6e"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "integrated_deployment/dist/lingxi-v1.3.1-complete-20260906-r5-deployment.zip",
+    "bytes": 468588948,
+    "sha256_sidecar": "6d535760b601ee2146e1725a311fa5cb0a77ca5338ca88a72d12cfbbc2579ae6"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "integrated_deployment/dist/lingxi-v1.3.1-complete-20260906-r6-deployment.tar.gz",
+    "bytes": 466047004,
+    "sha256_sidecar": "624d4a311076f0ef723a9115227e66b26364fde11c40ee2fa6d4a609177d78a6"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "integrated_deployment/dist/lingxi-v1.3.1-complete-20260906-r6-deployment.zip",
+    "bytes": 468589221,
+    "sha256_sidecar": "1d205db2db6ba6c52d55479bad24751113b854b97699cfbc67a53d466becc1fb"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "integrated_deployment/dist/lingxi-v1.3.1-complete-20260907-r7-deployment.tar.gz",
+    "bytes": 466091234,
+    "sha256_sidecar": "45f4ec5222c64b9c12bb34e3812da98116a16a214cb4c91c7fefda1af077790f"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "integrated_deployment/dist/lingxi-v1.3.1-complete-20260907-r7-deployment.zip",
+    "bytes": 468654346,
+    "sha256_sidecar": "186d273ac3b25a7646696abae65d9491f2a18ce796c6d2e4ae847a56aac0d2c6"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "integrated_deployment/dist/lingxi-v1.3.8-complete-20260908-deployment.tar.gz",
+    "bytes": 239360193,
+    "sha256_sidecar": "fa81d9545890c88f94a99787a7228ad9f5a2747a000888f3806002a219b2303a"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "integrated_deployment/dist/lingxi-v1.3.8-complete-20260908-deployment.zip",
+    "bytes": 240668708,
+    "sha256_sidecar": "59b4f6f6fab97aaa19f418d6564d2cfa9647db53e1a63ccd14d7f6d31216ed64"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "integrated_deployment/dist/lingxi-v1.3.8-complete-20260917-deployment.tar.gz",
+    "bytes": 239393951,
+    "sha256_sidecar": "d9f7c61438196f32c7928e6d1c962b30bdd2c722d1ca28fe18acaa3070b9511c"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "integrated_deployment/dist/lingxi-v1.3.8-complete-20260917-deployment.zip",
+    "bytes": 240682258,
+    "sha256_sidecar": "8c663a32a9d609649bab22741465a705d9aac4db8c10dec32b0456ce9365cb9e"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "integrated_deployment/dist/lingxi-v1.3.8-complete-20260918-deployment.tar.gz",
+    "bytes": 241089997,
+    "sha256_sidecar": "bafab6d1c855d69fa940070a60a5e779ea4a101adb01bc422e20206411f186e6"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "integrated_deployment/dist/lingxi-v1.3.8-complete-20260918-deployment.zip",
+    "bytes": 242385200,
+    "sha256_sidecar": "4d3d39dc6e5c706f34df637ee67597d9e1305f55bf1f26c8b0d29466f412c436"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "integrated_deployment/dist/lingxi-v1.3.8-complete-20260918-r4-deployment.tar.gz",
+    "bytes": 241081132,
+    "sha256_sidecar": "93c6179a9617f012e527df36177743685e0e863c9ea16fedc0a419689ee4e74b"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "integrated_deployment/dist/lingxi-v1.3.8-complete-20260918-r4-deployment.zip",
+    "bytes": 242388888,
+    "sha256_sidecar": "88a618b0cd649f51f86406139006e43121bdc3e1414727015e5615b67e2ee28e"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "integrated_deployment/dist/lingxi-v1.3.8-complete-20260918-r5-deployment.tar.gz",
+    "bytes": 241088826,
+    "sha256_sidecar": "1ffaca3680b898b244797e23c4174c1efcd9e9618ce5771b73a59a9bbea5842d"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "integrated_deployment/dist/lingxi-v1.3.8-complete-20260918-r5-deployment.zip",
+    "bytes": 242390112,
+    "sha256_sidecar": "cd00d16f111a413ea0dd11ece92b7a63e5c71d9385bc4efe0ed7c174edc44ba4"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "integrated_deployment/dist/lingxi-v1.3.8-complete-20260918-r6-deployment.tar.gz",
+    "bytes": 241083738,
+    "sha256_sidecar": "8bb5552348fac7f1713566ae389ff6a65e2cd91d26ca86e8ce05e2895225d484"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "integrated_deployment/dist/lingxi-v1.3.8-complete-20260918-r6-deployment.zip",
+    "bytes": 242390198,
+    "sha256_sidecar": "1f1a7a85d4e1e8bbf68976e87b4d4b09d86e3e6b1580235f69c44e8701c28c8d"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "integrated_deployment/dist/lingxi-v1.3.8-complete-20260920-r7-deployment.tar.gz",
+    "bytes": 241747128,
+    "sha256_sidecar": "39274eaca1e1a24b70b4234c206afff631f79f1bed8a4a3bd01faf0defaa26c2"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "integrated_deployment/dist/lingxi-v1.3.8-complete-20260920-r7-deployment.zip",
+    "bytes": 243064799,
+    "sha256_sidecar": "b0cf4217eace254bdf181daeff5ab8d705fa36a6d279a7a346500ad8ab623020"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "integrated_deployment/dist/lingxi-v1.3.8-complete-20260921-r9-deployment.tar.gz",
+    "bytes": 241566673,
+    "sha256_sidecar": "0e8232cd515c8161ce7f411570e5b180d61cde90e7bd9e2aa2a60967d740b7c4"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "integrated_deployment/dist/lingxi-v1.3.8-complete-20260921-r9-deployment.zip",
+    "bytes": 242871469,
+    "sha256_sidecar": "8143713f328a351651e4c228c25e7da6a329c25b9f518fcda3f4e80a12a21eac"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.1-20260828.tar.gz",
+    "bytes": 101958492,
+    "sha256_sidecar": "b4ce55804775d2578f42708bc5a89d0eff35e1019171be8579ed69898d34ce42"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.1-20260828.zip",
+    "bytes": 103262779,
+    "sha256_sidecar": "33498640ae08cfdbecf242c5f3e4f0085296f735bd18b864d744ddbb2f1658d7"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.10-20260909.tar.gz",
+    "bytes": 103374887,
+    "sha256_sidecar": "f5b2b35f58d324af3f35395c2f8b638db7fc1beb7b79f182728a50c1281c1d34"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.10-20260909.zip",
+    "bytes": 105338285,
+    "sha256_sidecar": "53f4dd70bc87076e10daceeb041d265dbbe6e73475d198e8081ce437d6219585"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.11-20260909.tar.gz",
+    "bytes": 103375849,
+    "sha256_sidecar": "3313cb8b050fac649f9786a16444ef7b98c5acb560369165459ef6903d57a372"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.11-20260909.zip",
+    "bytes": 105339044,
+    "sha256_sidecar": "8d1ac88f092801b26cef66330ae3f5515329f44eb1086da1480e4d841e7b2bbc"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.12-20260917.tar.gz",
+    "bytes": 103389140,
+    "sha256_sidecar": "6d7ebe01421a12a2740b8d9788463f1852f571e5d14cb39f348bfff03f594d00"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.12-20260917.zip",
+    "bytes": 105353952,
+    "sha256_sidecar": "0b4b5bab76d854f0bcad9413e0a0202ef107ea47959ddb1fe9b2d398a63a2684"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.13-20260918.tar.gz",
+    "bytes": 105082704,
+    "sha256_sidecar": "4b97f92e01e31430fbc19eab81396e84ffccd5ecac868a40a9dc83c54169d069"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.13-20260918.zip",
+    "bytes": 107034069,
+    "sha256_sidecar": "db577bcb6558c546aaa33c93e8ab5b3f2e9b8e209399a8c312e109ff015d4a42"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.14-20260918.tar.gz",
+    "bytes": 105085092,
+    "sha256_sidecar": "5c9bb9f11e8df2c43ae2f7c593b9952f73671b756cc95fce462a9c7613d53a46"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.14-20260918.zip",
+    "bytes": 107036672,
+    "sha256_sidecar": "a68c5e4c92eb0fa976e54275b82bf83b7a327fcc11bedddc6bf2b7bbeb462e21"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.15-20260918.tar.gz",
+    "bytes": 105085521,
+    "sha256_sidecar": "3c221e13406d49bf6edba2ff1b790d755d580980915c7ac76229dd43ff3872e4"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.15-20260918.zip",
+    "bytes": 107037088,
+    "sha256_sidecar": "633c9db23c07b94b13b8d51eace96f34db5c2c08ea4745b334fe0d34e788e176"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.16-20260918.tar.gz",
+    "bytes": 105085462,
+    "sha256_sidecar": "880bf5725b3bae9a881cb98e13d092c76235be6af83001f1662896d0d96a570d"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.16-20260918.zip",
+    "bytes": 107037130,
+    "sha256_sidecar": "15bf29dc031c4fb6880b16782baab8303d081ac43f99567654cd83163c95ec06"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.17-20260920.tar.gz",
+    "bytes": 105101303,
+    "sha256_sidecar": "294aec2de62122b24e0fc9aaa8f933bd4cac998c9b624b52f06631fa9ffdca19"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.17-20260920.zip",
+    "bytes": 107059194,
+    "sha256_sidecar": "89829eedf182e5d4745545fbc8300717ae23029b926a89a449571c9dc99fa0bc"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.18-20260921.tar.gz",
+    "bytes": 105135687,
+    "sha256_sidecar": "946adbec6d30fb63601347a9ff331d496a1e53fc454c1632a549c455091fab8a"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.18-20260921.zip",
+    "bytes": 107092648,
+    "sha256_sidecar": "314194a6ad7eb11a874dce164e70493f8d41eaa21ba67f2ef6e92c86f21fec2d"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.19-20260921.tar.gz",
+    "bytes": 105135908,
+    "sha256_sidecar": "30ed70324de3c65f82ba3d6caa2ca0114492819fe4eea758fe1208293ebb25bf"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.19-20260921.zip",
+    "bytes": 107097444,
+    "sha256_sidecar": "d518b82158a006d160bd11a95eb668c2ccf0c35b69829aaf161ee44b71385225"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.2-20260828.tar.gz",
+    "bytes": 101958730,
+    "sha256_sidecar": "09ab01213fb68015dfe9394c94956fce3e197f29be6467425cfa63403dca7e63"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.2-20260828.zip",
+    "bytes": 103264964,
+    "sha256_sidecar": "a6041fe65246161c0ae97d159f51275523ca4c3b4df505c4ce104a59d5815b83"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.3-20260828.tar.gz",
+    "bytes": 101958598,
+    "sha256_sidecar": "a33b328b1bd231e5931eb695dcc43617177bd9b211aa5c87fcd334161e3353c5"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.3-20260828.zip",
+    "bytes": 103265673,
+    "sha256_sidecar": "a092ba2d012138cada7cfb94be6bcf7757d2b02c9f02deefe2a199d79e4d2d8f"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.4-20260901.tar.gz",
+    "bytes": 101958918,
+    "sha256_sidecar": "043cd5ba2cb1702eecbe4ce787c4fbf0b4c58dba8942749906bba3ea7e54cb86"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.4-20260901.zip",
+    "bytes": 103265673,
+    "sha256_sidecar": "de728756f5c7e8a851c757b1f58516b192a7d2f36c562f3d1aa837e0f50656e0"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.5-20260901.tar.gz",
+    "bytes": 101959198,
+    "sha256_sidecar": "550bb9bda4ea88ef3a921b4ab04faa089368da4d747468c6f0fb79337b465401"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.5-20260901.zip",
+    "bytes": 103266494,
+    "sha256_sidecar": "79f54b1f17a128d3213015913534881725a81b38feada31d1257dbf035568e2d"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.6-20260901.tar.gz",
+    "bytes": 101959613,
+    "sha256_sidecar": "90e5a701e6cac7979c0010207321fd77664befab8cef7db9efbfa7a3dc6ad043"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.6-20260901.zip",
+    "bytes": 103267373,
+    "sha256_sidecar": "01f9f67c24ffe222a625f2c3b53577fdc47f9545275b63bb5993a2b2d1b811bb"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.7-20260901.tar.gz",
+    "bytes": 101959997,
+    "sha256_sidecar": "35acbc60fb6135fda778b65f58ae0a4c71e8806dd3a0213649a25bdc80e07c94"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.7-20260901.zip",
+    "bytes": 103267572,
+    "sha256_sidecar": "1d1be5acc959a5416f9bf13d216a42f345df569d506a83d3fccee54511c46f32"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.8-20260908.tar.gz",
+    "bytes": 105537587,
+    "sha256_sidecar": "80f66d8cfe353726c4a65b8e5be135450c3dfc148f962c44a4480e8d841f4920"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.8-20260908.zip",
+    "bytes": 108334449,
+    "sha256_sidecar": "ea4e4146e28308df408bfd2543a5b4e485ee8ea3a5d78d5e3713687af14b463a"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.9-20260909.tar.gz",
+    "bytes": 103373995,
+    "sha256_sidecar": "1426d0f22edaa54613da512d4695af09ccbc7df73396457125f51bba0b140970"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.9-20260909.zip",
+    "bytes": 105332016,
+    "sha256_sidecar": "a4ef9f55e421775f42f1e0fe63db5b46d807a903918c1326f4d79c474a1c316b"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "knowledge_base_deployment/dist/sparkrobot-lingxi-kb-1.0.0-20260902.zip",
+    "bytes": 20184,
+    "sha256_sidecar": "c71f881276956813fdfeb2f50cd33fc84ae7ca5fbd39ba32204617d587481e1b"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "knowledge_base_deployment/dist/sparkrobot-lingxi-kb-1.0.1-20260902.zip",
+    "bytes": 9920993,
+    "sha256_sidecar": "56751ca6356fd02da40f631654fcd39adeb0ca9b7fb964debab70939dac55682"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "knowledge_base_deployment/dist/sparkrobot-lingxi-kb-1.0.2-20260902.zip",
+    "bytes": 9920917,
+    "sha256_sidecar": "b8f73d925cc914b0440bc6478424f7759f9472cc9c61d8ce06050c37ddf9cf30"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "linkcraft_deployment/dist/sparkrobot-lingxi-linkcraft-addon-1.0.0-20260902.tar.gz",
+    "bytes": 32763,
+    "sha256_sidecar": "3a84d60dd6a6b1d2380e0cbc58d7d0af2c6a29f21ea6a849974ff734e7798acd"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "linkcraft_deployment/dist/sparkrobot-lingxi-linkcraft-addon-1.0.0-20260902.zip",
+    "bytes": 37536,
+    "sha256_sidecar": "9dde0fa3de2e709507eacecd1832b1bf99fc3f550d962a164637bda58e1939a7"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "linkcraft_deployment/dist/sparkrobot-lingxi-linkcraft-addon-1.0.1-20260902.tar.gz",
+    "bytes": 33165,
+    "sha256_sidecar": "744ed795c0bf3e6f2669ec9ec50c4c666e8048934fb8a93955f5c6bb14fa954e"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "linkcraft_deployment/dist/sparkrobot-lingxi-linkcraft-addon-1.0.1-20260902.zip",
+    "bytes": 37926,
+    "sha256_sidecar": "cbc76dde3946627bf365bac92cdf9305a79815b6adb8a237b8902ff897d01a29"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "linkcraft_deployment/dist/sparkrobot-lingxi-linkcraft-addon-1.0.2-20260902.tar.gz",
+    "bytes": 35701,
+    "sha256_sidecar": "5eda91a77a697273aeafe93fc0bd60cfe6a88835eaef0f33c623a0dea3c73648"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "linkcraft_deployment/dist/sparkrobot-lingxi-linkcraft-addon-1.0.2-20260902.zip",
+    "bytes": 40837,
+    "sha256_sidecar": "416a86f72bb660887872d5151c09d7296fbe69c1de9e0eae00cc0a279f056dc0"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "linkcraft_deployment/dist/sparkrobot-lingxi-linkcraft-addon-1.0.3-20260902.tar.gz",
+    "bytes": 35851,
+    "sha256_sidecar": "cb299c27835de7cbbddc1d9ec70bd397f7c4876da08dd49d42b49332aa3f6663"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "linkcraft_deployment/dist/sparkrobot-lingxi-linkcraft-addon-1.0.3-20260902.zip",
+    "bytes": 40971,
+    "sha256_sidecar": "d023d89568c76bdb7168cb6d4cb0bd1b8eac8e329b01c7d5ad16dcb34b5e0fad"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "pnc_arrival_fix_deployment/dist/sparkrobot-lingxi-pnc-arrival-fix-1.0.0-20260903.tar.gz",
+    "bytes": 12304,
+    "sha256_sidecar": "f92a87b04a30d92800eb4e3d0a446f05182e7a10fb4fe7736f911c7de046151e"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "pnc_arrival_fix_deployment/dist/sparkrobot-lingxi-pnc-arrival-fix-1.0.0-20260903.zip",
+    "bytes": 15234,
+    "sha256_sidecar": "14186c49c0399fac0af7ccbbd8b3b15121691d260569d694ad03bfcb9cc23ff1"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "pnc_arrival_fix_deployment/dist/sparkrobot-lingxi-pnc-arrival-fix-1.0.1-20260906.tar.gz",
+    "bytes": 12577,
+    "sha256_sidecar": "5cf4ef7b2a2a078a17379ce431f2bf3e7201f1788cbe803b2b7ae3986b8d8b78"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "pnc_arrival_fix_deployment/dist/sparkrobot-lingxi-pnc-arrival-fix-1.0.1-20260906.zip",
+    "bytes": 15473,
+    "sha256_sidecar": "baa713ece3f385ab8cd98b715d8a69ca613a8b896637bcd86c3b29c6f4867793"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "pnc_arrival_fix_deployment/dist/sparkrobot-lingxi-pnc-arrival-fix-1.0.2-20260906.tar.gz",
+    "bytes": 12652,
+    "sha256_sidecar": "db06a9a5f093380c771d586adddd58e40f1354d043c6ecb531125eca8bc8c6bf"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "pnc_arrival_fix_deployment/dist/sparkrobot-lingxi-pnc-arrival-fix-1.0.2-20260906.zip",
+    "bytes": 15574,
+    "sha256_sidecar": "b7dda32ac6d718dd8d1c7b63984deb49d120d31d1acc55ff68e1452d6d290cb4"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "voice_fix_deployment/dist/lingxi-v1.3.8-complete-20260916-voice-motion-r4-deployment.tar.gz",
+    "bytes": 249275221,
+    "sha256_sidecar": "c8dd8cedb4995151b5d89809dff1f68454df7e10b7c70cad809a489b631af013"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "voice_fix_deployment/dist/lingxi-v1.3.8-complete-20260916-voice-motion-r4-deployment.zip",
+    "bytes": 249299114,
+    "sha256_sidecar": "b38cfb94b417d8fc1299f4482a4c1a0359be1b3a47b73af19fbabae88966e411"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "voice_fix_deployment/dist/lingxi-v1.3.8-complete-20260916-voicefix-r1-deployment.tar.gz",
+    "bytes": 249228945,
+    "sha256_sidecar": "af8a6f24515c52888a8324870c04a21da6e41bfd615b66f50b69e8b631e4b96b"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "voice_fix_deployment/dist/lingxi-v1.3.8-complete-20260916-voicefix-r1-deployment.zip",
+    "bytes": 249249695,
+    "sha256_sidecar": "57f914416d1d3b0e6b1caf88ceff22b1e5eaa86f0e73924e84832d4a049ce269"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "voice_fix_deployment/dist/lingxi-v1.3.8-complete-20260916-voicefix-r2-deployment.tar.gz",
+    "bytes": 249224568,
+    "sha256_sidecar": "9850b07f90fbf70264134910b5597ac6203d0edeee25dbf37262a65ce73cd836"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "voice_fix_deployment/dist/lingxi-v1.3.8-complete-20260916-voicefix-r2-deployment.zip",
+    "bytes": 249245763,
+    "sha256_sidecar": "41bb79421cda364d97a69336ae9268ca28cfb9d590a74ee7358aa8271c1ba9a1"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "voice_fix_deployment/dist/lingxi-v1.3.8-complete-20260916-voicefix-r3-deployment.tar.gz",
+    "bytes": 249246516,
+    "sha256_sidecar": "2652041268bc6aae2ab88556e2c65676bbc3978b1e53f448be145ab07f928528"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "voice_fix_deployment/dist/lingxi-v1.3.8-complete-20260916-voicefix-r3-deployment.zip",
+    "bytes": 249269285,
+    "sha256_sidecar": "0ed7ea900b891ee12f5f91fb9ed81ddd305ef2dabe097323a4711677c8de0399"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "voice_fix_deployment/dist/lingxi-v1.3.8-complete-20260917-voice-motion-r5-deployment.tar.gz",
+    "bytes": 249275367,
+    "sha256_sidecar": "5e1bfff51cfbaace5dc39b9cee79d0c75f89d64de3bb4fb4c7f4a9dcf3745e79"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "voice_fix_deployment/dist/lingxi-v1.3.8-complete-20260917-voice-motion-r5-deployment.zip",
+    "bytes": 249299386,
+    "sha256_sidecar": "fc17c471f4993c4640e1b6f9df2fa7db67056fdd1079223f93ea7f569d3299d2"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "voice_fix_deployment/dist/lingxi-v1.3.8-voice-fix-20260916-r1.tar.gz",
+    "bytes": 9934308,
+    "sha256_sidecar": "73c9bf4c0397554bf5424ac27716d9666b6f29644fdbd68ea4f1ee885fb273d7"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "voice_fix_deployment/dist/lingxi-v1.3.8-voice-fix-20260916-r1.zip",
+    "bytes": 9945609,
+    "sha256_sidecar": "3c8d1c03d42939020659a29689f7167f1fe68701014ec3e24aad0e97bc970c86"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "voice_fix_deployment/dist/lingxi-v1.3.8-voice-fix-20260916-r2.tar.gz",
+    "bytes": 9936664,
+    "sha256_sidecar": "8c8fff44bdd4fc482c5a746373c1a83a47ccc652cdec92d13eef5926f0faf46d"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "voice_fix_deployment/dist/lingxi-v1.3.8-voice-fix-20260916-r2.zip",
+    "bytes": 9947848,
+    "sha256_sidecar": "63e52e4c3514a0c8b478d9b42f4d42679a03266eff5c4c1b96981f05161c33ef"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "voice_fix_deployment/dist/lingxi-v1.3.8-voice-fix-20260916-r3.tar.gz",
+    "bytes": 9946723,
+    "sha256_sidecar": "d35d3589db6dbb9c087ac62c055df94f9db99372acb189d1ea754ccac7b2b956"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "voice_fix_deployment/dist/lingxi-v1.3.8-voice-fix-20260916-r3.zip",
+    "bytes": 9958117,
+    "sha256_sidecar": "145ca02930ad729ecb2500cb77ac402065e93ea1eb09cac55766a06a4ed1e3a9"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "voice_fix_deployment/dist/lingxi-v1.3.8-voice-motion-fix-20260916-r4.tar.gz",
+    "bytes": 9977226,
+    "sha256_sidecar": "59d2ec273a28015caef29557a6082269da1fa8d5cc6f5c5d20e92b4c6ba14457"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "voice_fix_deployment/dist/lingxi-v1.3.8-voice-motion-fix-20260916-r4.zip",
+    "bytes": 9990739,
+    "sha256_sidecar": "5ed46665fcb84f4464bdb0e612fc694a9ae0691552d70de48c885a7aba18ba60"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "voice_fix_deployment/dist/lingxi-v1.3.8-voice-motion-fix-20260917-r5.tar.gz",
+    "bytes": 9977368,
+    "sha256_sidecar": "92e7ced85fd5132c65190f2fa4868730a8fe378bc601ae2946fe0334ccecbad7"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "voice_fix_deployment/dist/lingxi-v1.3.8-voice-motion-fix-20260917-r5.zip",
+    "bytes": 9990914,
+    "sha256_sidecar": "fe831de1d24ce942386dc97559a8929a1767ab583c3d1841c0f0e34a87b551e6"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "voice_gate_deployment/dist/lingxi-v1.3.8-tour-voice-20260918-r2.tar.gz",
+    "bytes": 10826725,
+    "sha256_sidecar": "e2c6f19ac24ab28efedd0614c67617b26667a021efe7e41800187bd9411dd6e5"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "voice_gate_deployment/dist/lingxi-v1.3.8-tour-voice-20260918-r2.zip",
+    "bytes": 10836574,
+    "sha256_sidecar": "9f2aec252aebfdd98535ba272de34714b47b559fdcf7af78b322cea7c57270f7"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "voice_gate_deployment/dist/lingxi-v1.3.8-tour-voice-20260918-r3.tar.gz",
+    "bytes": 10828545,
+    "sha256_sidecar": "b65c28ab7d6a5191661a1fef942a829ae5b0d2911a98756418a8461d34c47080"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "voice_gate_deployment/dist/lingxi-v1.3.8-tour-voice-20260918-r3.zip",
+    "bytes": 10838395,
+    "sha256_sidecar": "4502c00f2f76263bdd096b49f75d749ddc49d21053347b580ebdb0b052a7a578"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "voice_gate_deployment/dist/lingxi-v1.3.8-tour-voice-20260918-r4.tar.gz",
+    "bytes": 10832993,
+    "sha256_sidecar": "6fcdfbd9b8af2844582495f680d8f05924c84e064678529afcfefc0ff32c0382"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "voice_gate_deployment/dist/lingxi-v1.3.8-tour-voice-20260918-r4.zip",
+    "bytes": 10843805,
+    "sha256_sidecar": "716bdf7547206a9b4a77162d28c9eb7c69f601177226520832c5c9013ccd9a85"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "voice_gate_deployment/dist/lingxi-v1.3.8-tour-wait-20260918-r5.tar.gz",
+    "bytes": 10834449,
+    "sha256_sidecar": "d029bba3f3907a995387cccb6818f44ed403ac52614440ca0b684051fc4be865"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "voice_gate_deployment/dist/lingxi-v1.3.8-tour-wait-20260918-r5.zip",
+    "bytes": 10845512,
+    "sha256_sidecar": "e10a9ba8ca19a34e7e18729f16e7188483f7cf6d472a1a1ba1f9966d02c70727"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "voice_gate_deployment/dist/lingxi-v1.3.8-voice-gate-20260917-r1.tar.gz",
+    "bytes": 9934334,
+    "sha256_sidecar": "0e5d1f58172f233e2995f0be5e21247ed0edb3461111ae32b6f044b3b314c62f"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "voice_gate_deployment/dist/lingxi-v1.3.8-voice-gate-20260917-r1.zip",
+    "bytes": 9941180,
+    "sha256_sidecar": "16d599a542138d3575724324f29c681cc41834cbc9a1cbf3caca9301184bfac1"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "voice_gate_deployment/dist/lingxi-v1.3.8-wake-gate-20260918-r7.tar.gz",
+    "bytes": 10855411,
+    "sha256_sidecar": "8413fafc667972ab6518691bdb014d3ab08133b3fdc9358fa23f8a4b8774834f"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "voice_gate_deployment/dist/lingxi-v1.3.8-wake-gate-20260918-r7.zip",
+    "bytes": 10865984,
+    "sha256_sidecar": "79cf5432272bc575fafb169e67c9e36ce9c24634a36e52707f4f10c253882502"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "voice_gate_deployment/dist/lingxi-v1.3.8-wake-gate-20260919-r10.tar.gz",
+    "bytes": 9960143,
+    "sha256_sidecar": "da29094fb04a1fe4c4d601e8263eaf8bf12d31e2d251565292cd2b58e19d2030"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "voice_gate_deployment/dist/lingxi-v1.3.8-wake-gate-20260919-r10.zip",
+    "bytes": 9965617,
+    "sha256_sidecar": "b7ec11002b4c07a0510856d795b3c6f0f49713030a25ee4f19a7c679090c60d8"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "voice_gate_deployment/dist/lingxi-v1.3.8-wake-gate-20260919-r8.tar.gz",
+    "bytes": 9959359,
+    "sha256_sidecar": "dd062520880a022b55dcdee6ffc5a8c500106e75feb927ad336abc6afcf60c94"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "voice_gate_deployment/dist/lingxi-v1.3.8-wake-gate-20260919-r8.zip",
+    "bytes": 9964823,
+    "sha256_sidecar": "8a925eb56dd6e581ba23d42b95d5b14508479ba091da16685d342a0bb6a30f27"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "voice_gate_deployment/dist/lingxi-v1.3.8-wake-gate-20260919-r9.tar.gz",
+    "bytes": 9959926,
+    "sha256_sidecar": "68ceeab1676e8aada9b24cc2867c8f501d065e65e16b0d6a1257132a2c5099ca"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "voice_gate_deployment/dist/lingxi-v1.3.8-wake-gate-20260919-r9.zip",
+    "bytes": 9965365,
+    "sha256_sidecar": "2b4e88173385940ad29ab221a3e0906ed95fab5a7581551ec517d0c611446e21"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "voice_gate_deployment/dist/lingxi-v1.3.8-wake-gate-20260920-r11.tar.gz",
+    "bytes": 9967827,
+    "sha256_sidecar": "5b49f8eb74b089f7163ec4e06b516790c36b4898bf1e0a203ff542f4ed00739f"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "voice_gate_deployment/dist/lingxi-v1.3.8-wake-gate-20260920-r11.zip",
+    "bytes": 9973388,
+    "sha256_sidecar": "fa0a4de50edb80534640bba11bd4203c82110d38f9ef2c3885a05397c4e85a13"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "voice_gate_deployment/dist/lingxi-v1.3.8-wake-gate-20260920-r12.tar.gz",
+    "bytes": 9970456,
+    "sha256_sidecar": "3170bd82ac277beacf096307df1861c19184d1b00bd25a3210ac539d12985755"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "voice_gate_deployment/dist/lingxi-v1.3.8-wake-gate-20260920-r12.zip",
+    "bytes": 9976238,
+    "sha256_sidecar": "7f6a7726913508a511e3cad8f8cb1182b9ca84afd3c6981ffce80a4db76f2cf2"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "voice_gate_deployment/dist/lingxi-v1.3.8-wake-gate-20260921-r13.tar.gz",
+    "bytes": 9975021,
+    "sha256_sidecar": "e697354219d020d0a6a2c99dc0db043438d05571f62da5e64a31a4e0654c27e4"
+  },
+  {
+    "worktree": "灵犀导航微信小程序开发-v1.3.8",
+    "path": "voice_gate_deployment/dist/lingxi-v1.3.8-wake-gate-20260921-r13.zip",
+    "bytes": 9980443,
+    "sha256_sidecar": "4cc4b0b9cee4a260d77eef7f0958559f3371dcedc7e0c72a07717980e883aafb"
+  }
+]

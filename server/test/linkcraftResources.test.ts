@@ -2,7 +2,11 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { discoverLocalLinkcraftResources } from "../src/linkcraftResources.js";
+import {
+  discoverLocalLinkcraftResources,
+  isResourceConfigAccessDenied,
+  robotPythonPathEntries
+} from "../src/linkcraftResources.js";
 
 const temporaryDirectories: string[] = [];
 
@@ -39,6 +43,18 @@ describe("local LinkCraft resource discovery", () => {
       duration_source: "audio",
       available: true
     });
+  });
+
+  it("includes the navigation subdirectory for robot-local package discovery", () => {
+    const entries = robotPythonPathEntries("/opt/sparkrobot/lingxi-nav/current");
+    expect(entries.split(":")).toContain("/opt/sparkrobot/lingxi-nav/current/navigation");
+  });
+
+  it("recognizes the SoC0 SSHFS permission failure", () => {
+    expect(isResourceConfigAccessDenied(new Error(
+      "PermissionError: [Errno 13] Permission denied: '/agibot/nfs/soc0/var/robot_proxy/resources/resource_config.yaml'"
+    ))).toBe(true);
+    expect(isResourceConfigAccessDenied(new Error("python module not found"))).toBe(false);
   });
 });
 

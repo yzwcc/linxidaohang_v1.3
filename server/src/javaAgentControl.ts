@@ -128,7 +128,7 @@ export async function getJavaAgentStatus(config: AppConfig): Promise<JavaAgentSt
 }
 
 async function getRobotJavaAgentStatus(config: AppConfig): Promise<JavaAgentStatus> {
-  const controlScript = `${config.robot.robotJavaAgentHome}/lingxi_java_agent_control.sh`;
+const controlScript = `${config.robot.robotJavaAgentHome}/java_agent_control.sh`;
   const output = await runRobotSystemSshCommand(`${shellQuote(controlScript)} status`, config, 25000);
   const marker = "\n---LOG---\n";
   const markerIndex = output.indexOf(marker);
@@ -221,7 +221,7 @@ export async function startJavaAgent(config: AppConfig): Promise<JavaAgentStatus
       throw new Error(`${navigationService.message}：${navigationService.output || "无输出"}`);
     }
     const current = await getRobotJavaAgentStatus(config);
-    const controlScript = `${config.robot.robotJavaAgentHome}/lingxi_java_agent_control.sh`;
+const controlScript = `${config.robot.robotJavaAgentHome}/java_agent_control.sh`;
     if (!current.running) {
       await runRobotSystemSshCommand(`${shellQuote(controlScript)} start`, config, 20000);
     }
@@ -305,7 +305,7 @@ export async function startJavaAgentAndRebindRobotVoice(
 
 export async function stopJavaAgent(config: AppConfig): Promise<JavaAgentStatus> {
   if (config.robot.javaAgentExecutionMode === "robot") {
-    const controlScript = `${config.robot.robotJavaAgentHome}/lingxi_java_agent_control.sh`;
+const controlScript = `${config.robot.robotJavaAgentHome}/java_agent_control.sh`;
     await runRobotSystemSshCommand(`${shellQuote(controlScript)} stop`, config, 12000);
     return getRobotJavaAgentStatus(config);
   }

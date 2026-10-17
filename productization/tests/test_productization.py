@@ -230,6 +230,38 @@ class ProductizationTest(unittest.TestCase):
             build_release.copy_runtime_dependencies(source, target)
             self.assertTrue((target / "yaml" / "dist" / "doc" / "directives.js").is_file())
 
+    def test_release_permissions_exclude_unrelated_local_users(self) -> None:
+        build_release = load_build_release()
+        executable_paths = (
+            "opt/sparkrobot/lingxi-nav/releases/1/runtime/node",
+            "opt/sparkrobot/lingxi-nav/releases/1/runtime/java/bin/java",
+            "opt/sparkrobot/lingxi-nav/releases/1/scripts/robot_local_navigation_v3.sh",
+            "opt/sparkrobot/lingxi-nav/releases/1/navigation/robot_local_navigation_v3/core.so",
+        )
+        data_paths = (
+            "opt/sparkrobot/lingxi-nav/releases/1/console/app.mjs",
+            "opt/sparkrobot/lingxi-nav/releases/1/java/app.jar",
+            "opt/sparkrobot/lingxi-nav/releases/1/templates/config.json",
+        )
+        for value in executable_paths:
+            mode = build_release.desired_rootfs_mode(Path(value))
+            self.assertEqual(mode, 0o550)
+            self.assertEqual(mode & 0o007, 0)
+        for value in data_paths:
+            mode = build_release.desired_rootfs_mode(Path(value))
+            self.assertEqual(mode, 0o440)
+            self.assertEqual(mode & 0o007, 0)
+
+    def test_runtime_group_and_console_key_are_restricted(self) -> None:
+        installer = (PRODUCTIZATION / "runtime" / "install_product.sh").read_text(encoding="utf-8")
+        java_service = (PRODUCTIZATION / "systemd" / "lingxi-java-agent-robot.service").read_text(encoding="utf-8")
+        self.assertIn('RUNTIME_GROUP="${SPARKROBOT_RUNTIME_GROUP:-sparkrobot-nav}"', installer)
+        self.assertIn('usermod -a -G "${RUNTIME_GROUP}" agi', installer)
+        self.assertIn('usermod -a -G "${RUNTIME_GROUP}" run', installer)
+        self.assertIn('from=\\"127.0.0.1,::1\\",restrict', installer)
+        self.assertIn("index($0, key_blob) == 0", installer)
+        self.assertIn("SupplementaryGroups=sparkrobot-nav", java_service)
+
     def test_product_scripts_do_not_embed_credentials(self) -> None:
         files = [path for path in PRODUCTIZATION.rglob("*") if path.is_file() and "tests" not in path.parts and "__pycache__" not in path.parts]
         forbidden = [b"ROBOT_SSH_PASSWORD=1", b"REAL_PASSWORD_DO_NOT_COMMIT"]

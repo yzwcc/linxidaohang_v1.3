@@ -29,11 +29,12 @@ def is_arrival_stability_candidate(
     strict_region_entered: bool,
     distance_to_goal: float,
     position_tolerance: float,
+    allow_initial_hysteresis: bool = False,
 ) -> bool:
     """严格到达过后，允许机器人重新进入制动回弹圈并重新稳定计时。"""
 
     return bool(in_strict_region) or (
-        bool(strict_region_entered)
+        (bool(strict_region_entered) or bool(allow_initial_hysteresis))
         and is_within_arrival_hysteresis(distance_to_goal, position_tolerance)
     )
 

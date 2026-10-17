@@ -1,0 +1,5 @@
+NAME=sparkrobot-lingxi-linkcraft-addon
+VERSION=1.0.3-20260902
+PURPOSE=只更新导航讲解任务的灵创舞蹈与灵创动作执行链路
+SCOPE=linkcraft-only
+SOURCE=当前仓库robot_local_navigation_v3-new-auto-return-interaction-end

@@ -7,6 +7,7 @@ After=network-online.target
 Type=simple
 User=run
 Group=run
+SupplementaryGroups=sparkrobot-nav
 WorkingDirectory=/opt/sparkrobot/lingxi-nav/current/java
 Environment=NAV_BASE_URL=http://127.0.0.1:18083
 ExecStartPre=+/usr/local/libexec/sparkrobot-license-verify --quiet --require-feature voice

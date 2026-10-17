@@ -1,0 +1,52 @@
+from pathlib import Path
+import json
+import build_delivery as build
+import audit_delivery
+
+if __name__ == "__main__":
+    inner = build.DELIVERY / ".build" / build.NAV_NAME
+    outer = build.DELIVERY / build.NAME
+    for source in (build.HERE / "docs").glob("*.md"):
+        build.copy(source, inner / "docs" / source.name)
+        build.copy(source, outer / "docs" / source.name)
+    build.copy(build.HERE / "docs/V1.3.9-完整部署说明.md", inner / "docs/内部部署与命令手册.md")
+    ib = build.load(build.V139 / "internal_deployment/build_internal_release.py", "internal_final")
+    ib.build_manifests(inner)
+    ib.audit(inner)
+    ib.create_archives(inner, build.DELIVERY / "components", build.NAV_NAME, True)
+    build.copy(build.DELIVERY / "components" / (build.NAV_NAME + ".tar.gz"),
+               outer / "components" / (build.NAV_NAME + ".tar.gz"))
+    manifest = json.loads((outer / "bundle-manifest.json").read_text(encoding="utf-8"))
+    manifest["components"] = {p.name:build.sha(p) for p in (outer / "components").iterdir()}
+    build.text(outer / "bundle-manifest.json", json.dumps(manifest, ensure_ascii=False, indent=2) + "\n")
+    build.text(outer / "audit/验证记录.md", """# V1.3.9 完整整合包验证记录
+
+日期：2026-10-15。版本：1.3.9-complete-20261015-r3；导航：1.0.21-20261015。
+
+| 检查 | 结果 |
+|---|---|
+| V1.3.9 合并导航回归 | 142 passed |
+| 网页 Vitest | 68 passed，11 个测试文件 |
+| 网页 TypeScript/静态资源构建 | npm run build 通过 |
+| Java | Maven 3.9.9 离线 package 通过；5 个入口测试程序及其嵌套语音回归通过 |
+| Java 源码与 JAR 一致性 | 14 个 Java 主源码与旧 V1.3.9 验证基线一致；新编译 JAR 与基线 JAR 的所有 class 均一致 |
+| SDK 一致性 | 构建 SDK 与交付 SDK SHA-256 相同：bd419749b4a3dc635170ce67f33aedcc93cb4298bf931f582b0eaf83004ebe50 |
+| 内部安装测试 | Windows 执行 12 项：10 通过、2 项 Linux root 权限测试跳过；包含 WSL 假负载安装/升级/数据保留/回退生命周期 |
+| Linux root 权限补测 | WSL 另执行 Java 访问权限测试 4 项全部通过，覆盖上述两个跳过项 |
+| 新增配置与备份工具 | Linux WSL 7 项通过；含只读预检、不兼容配置拒绝、无部分更新、密钥文件权限、任务恢复、版本链接和旧覆盖配置恢复 |
+| Bash | 22 个自有安装/运行/源码脚本通过 bash -n |
+| 归档网页依赖 | 从打包后的 console 导入 app.js 成功，依赖解析通过；无需 npm install |
+| ARM64 运行时 | Node 和 Java 的 ELF 机器号均为 183（AArch64）；本次未执行 ARM64 二进制 |
+| 包与主包审计 | 所有 manifest/hash、必要功能标记、源码/构建产物一致性、版本引用、配置效果、LF 与敏感文件/令牌模式检查通过 |
+| TAR/ZIP 最终核对 | 生成后逐文件比对 TAR、ZIP 与交付目录；外层 SHA256SUMS 和内层 payload-manifest/SHA256SUMS 全量核验 |
+
+内部安装测试在 Windows 跳过的两项已由 Linux root 补测覆盖。WSL 生命周期测试使用代表性假负载，验证安装脚本与数据迁移流程，不等同于目标机器人成功安装或 ARM64 运行验证。
+
+保留原已验证 Java JAR SHA-256：c495fbe6f20c57656aa5d031b3a7e51e24cbeabbb22dfa48ac2254d97ffc241c。
+
+此次没有 SSH 连接目标机器人，没有上传、安装、重启机器人服务，没有导航、动作、TTS 或声学测试。平台凭据、实际绑定、地图定位、灵创资源与现场避障须按部署说明验收。
+
+历史构建清单见同目录两个 JSON 文件。旧增量包不会在现场再次逐个执行；其代码或配置效果已经合并进主包和统一安装器。
+""")
+    audit_delivery.audit_stage()
+    build.finalize(outer)

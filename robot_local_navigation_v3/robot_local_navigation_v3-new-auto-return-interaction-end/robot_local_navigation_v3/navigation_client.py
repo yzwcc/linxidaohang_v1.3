@@ -4,6 +4,8 @@ import threading
 import time
 from dataclasses import dataclass
 import math
+import os
+from typing import Any
 
 from aimdk_msgs.msg import MessageHeader, PncTaskRequest
 from geometry_msgs.msg import PoseStamped
@@ -11,6 +13,7 @@ from nav_msgs.msg import Odometry
 from rclpy.qos import QoSDurabilityPolicy, QoSProfile, QoSReliabilityPolicy
 
 from robot_local_navigation_v3.arrival_policy import ArrivalPolicy, ArrivalSample
+from robot_local_navigation_v3.blocked_navigation import BlockedNavigationDetector
 from robot_local_navigation_v3.arrival_hysteresis import (
     is_arrival_stability_candidate,
     is_within_arrival_hysteresis,
@@ -23,10 +26,18 @@ from robot_local_navigation_v3.navigation_events import (
     NavigationEventType,
     emit_safely,
 )
+from robot_local_navigation_v3.pnc_response import (
+    claim_bounded_retry,
+    classify_pnc_response_support_error,
+    parse_pnc_task_response,
+)
 
 
 TASK_REQUEST_START = 1
 TASK_REQUEST_STOP = 2
+PNC_RESPONSE_TOPIC = "/aima/pnc/pnc_task_response"
+PNC_RESPONSE_RETRY_PERIOD_SEC = 2.0
+PNC_RESPONSE_MAX_RETRIES = 15
 
 
 @dataclass(frozen=True)
@@ -64,6 +75,34 @@ class NavigationClient:
         self._active_session: NavigationSession | None = None
         self._last_pose: dict[str, object] | None = None
         self._last_pose_at: float | None = None
+        self.pnc_response_topic = (
+            os.environ.get("NAV_PNC_RESPONSE_TOPIC", PNC_RESPONSE_TOPIC).strip()
+            or PNC_RESPONSE_TOPIC
+        )
+        self.pnc_response_type = ""
+        self.pnc_response_subscription = None
+        self._pnc_response_retry_timer = None
+        self._pnc_response_retry_count = 0
+        try:
+            configured_retries = int(
+                os.environ.get(
+                    "NAV_PNC_RESPONSE_DISCOVERY_RETRIES",
+                    str(PNC_RESPONSE_MAX_RETRIES),
+                )
+            )
+        except ValueError:
+            configured_retries = PNC_RESPONSE_MAX_RETRIES
+        self._pnc_response_max_retries = max(0, min(120, configured_retries))
+        self._pnc_response_status = "initializing"
+        self._pnc_response_publisher_count: int | None = None
+        self._pnc_response_notice_key = ""
+        self._pnc_response_last: dict[str, Any] = {
+            "task_id": None,
+            "state_value": None,
+            "disposition": "unknown",
+            "received_at": None,
+        }
+        self._pnc_response_error = ""
 
         cmd_qos = QoSProfile(
             depth=10,
@@ -78,6 +117,7 @@ class NavigationClient:
             self._handle_odom,
             qos_profile=odom_qos,
         )
+        self._setup_pnc_response_subscription()
 
     def start(
         self,
@@ -85,6 +125,7 @@ class NavigationClient:
         listener: NavigationEventListener | None = None,
         *,
         timeout_sec: float | None = None,
+        allow_initial_arrival_hysteresis: bool = False,
     ) -> NavigationSessionHandle:
         with self._lock:
             if self._active_session is not None and self._active_session.is_active:
@@ -118,6 +159,7 @@ class NavigationClient:
                 republish_period_sec=self.republish_period_sec,
                 progress_period_sec=self.progress_period_sec,
                 timeout_sec=timeout_sec or self.defaults.timeout_sec,
+                allow_initial_arrival_hysteresis=allow_initial_arrival_hysteresis,
                 on_finished=self._clear_session,
             )
             self._active_session = session
@@ -135,8 +177,21 @@ class NavigationClient:
         with self._lock:
             session = self._active_session
             if session is None:
-                return {"status": "idle"}
-            return session.get_status()
+                status: dict[str, object] = {"status": "idle"}
+            else:
+                status = session.get_status()
+            status["pnc_response"] = {
+                "enabled": self.pnc_response_subscription is not None,
+                "status": self._pnc_response_status,
+                "topic": self.pnc_response_topic,
+                "type": self.pnc_response_type,
+                "publisher_count": self._pnc_response_publisher_count,
+                "retry_count": self._pnc_response_retry_count,
+                "retry_limit": self._pnc_response_max_retries,
+                "last": dict(self._pnc_response_last),
+                "error": self._pnc_response_error,
+            }
+            return status
 
     def get_current_pose(self) -> dict[str, object] | None:
         with self._lock:
@@ -183,6 +238,127 @@ class NavigationClient:
             if self._active_session is session:
                 self._active_session = None
 
+    def _setup_pnc_response_subscription(self) -> None:
+        """Discover an optional PNC response publisher without blocking startup."""
+
+        if self.pnc_response_subscription is not None or self._pnc_response_status == "unsupported":
+            return
+        try:
+            graph_types = {
+                name: types
+                for name, types in self.node.get_topic_names_and_types()
+            }
+            candidates = graph_types.get(self.pnc_response_topic, [])
+            configured_type = os.environ.get("NAV_PNC_RESPONSE_TYPE", "").strip()
+            type_name = configured_type or (candidates[0] if candidates else "")
+            if not type_name:
+                self._defer_pnc_response_discovery(
+                    "waiting_for_topic",
+                    "尚未发现 PNC 回验话题，当前继续使用里程计到达判定",
+                )
+                return
+
+            self.pnc_response_type = type_name
+            publisher_query = getattr(self.node, "get_publishers_info_by_topic", None)
+            if callable(publisher_query):
+                publishers = publisher_query(self.pnc_response_topic)
+                self._pnc_response_publisher_count = len(publishers)
+                if not publishers:
+                    self._defer_pnc_response_discovery(
+                        "no_publisher",
+                        "PNC 回验话题没有发布者，当前继续使用里程计到达判定",
+                    )
+                    return
+
+            from rosidl_runtime_py.utilities import get_message
+
+            message_type = get_message(type_name)
+            response_qos = QoSProfile(
+                depth=10,
+                reliability=QoSReliabilityPolicy.BEST_EFFORT,
+                durability=QoSDurabilityPolicy.VOLATILE,
+            )
+            self.pnc_response_subscription = self.node.create_subscription(
+                message_type,
+                self.pnc_response_topic,
+                self._handle_pnc_response,
+                qos_profile=response_qos,
+            )
+            self._pnc_response_status = "enabled"
+            self._pnc_response_error = ""
+            self._cancel_pnc_response_retry()
+            self.node.get_logger().info(
+                f"PNC 到达回验已启用：topic={self.pnc_response_topic}, type={type_name}"
+            )
+        except Exception as exc:
+            if classify_pnc_response_support_error(exc) == "unsupported":
+                self._pnc_response_status = "unsupported"
+                self._pnc_response_error = (
+                    f"当前 AIMDK 不支持 PNC 回验类型 {self.pnc_response_type or '<unknown>'}：{exc}；"
+                    "已停止重试并继续使用里程计到达判定"
+                )
+                self._cancel_pnc_response_retry()
+                self.node.get_logger().warning(self._pnc_response_error)
+                return
+            self._defer_pnc_response_discovery(
+                "transient_error",
+                f"PNC 回验暂时不可用：{exc}；当前继续使用里程计到达判定",
+            )
+
+    def _defer_pnc_response_discovery(self, status: str, message: str) -> None:
+        self._pnc_response_status = status
+        self._pnc_response_error = message
+        notice_key = f"{status}:{message}"
+        if notice_key != self._pnc_response_notice_key:
+            self._pnc_response_notice_key = notice_key
+            self.node.get_logger().info(message)
+        self._schedule_pnc_response_retry()
+
+    def _schedule_pnc_response_retry(self) -> None:
+        if self._pnc_response_retry_timer is not None:
+            return
+        if self._pnc_response_max_retries <= 0:
+            self._pnc_response_status = "unavailable"
+            return
+        self._pnc_response_retry_timer = self.node.create_timer(
+            PNC_RESPONSE_RETRY_PERIOD_SEC,
+            self._retry_pnc_response_subscription,
+        )
+
+    def _retry_pnc_response_subscription(self) -> None:
+        if self.pnc_response_subscription is not None or self._pnc_response_status == "unsupported":
+            self._cancel_pnc_response_retry()
+            return
+        retry_allowed, retry_count = claim_bounded_retry(
+            self._pnc_response_retry_count,
+            self._pnc_response_max_retries,
+        )
+        self._pnc_response_retry_count = retry_count
+        if not retry_allowed:
+            self._pnc_response_status = "unavailable"
+            self._pnc_response_error = (
+                f"PNC 回验在 {self._pnc_response_retry_count} 次有限探测后仍不可用；"
+                "已停止重试并继续使用里程计到达判定，服务恢复后请重启导航 bridge"
+            )
+            self._cancel_pnc_response_retry()
+            self.node.get_logger().warning(self._pnc_response_error)
+            return
+        self._setup_pnc_response_subscription()
+
+    def _cancel_pnc_response_retry(self) -> None:
+        if self._pnc_response_retry_timer is not None:
+            self._pnc_response_retry_timer.cancel()
+            self._pnc_response_retry_timer = None
+
+    def _handle_pnc_response(self, message: Any) -> None:
+        parsed = parse_pnc_task_response(message)
+        parsed["received_at"] = time.time()
+        with self._lock:
+            self._pnc_response_last = parsed
+            session = self._active_session
+        if session is not None:
+            session.handle_pnc_response(parsed)
+
 
 def _yaw_from_quaternion(*, x: float, y: float, z: float, w: float) -> float:
     siny = 2.0 * (w * z + x * y)
@@ -203,6 +379,7 @@ class NavigationSession:
         republish_period_sec: float,
         progress_period_sec: float,
         timeout_sec: float,
+        allow_initial_arrival_hysteresis: bool,
         on_finished,
     ):
         self.node = node
@@ -214,6 +391,7 @@ class NavigationSession:
         self.republish_period_sec = republish_period_sec
         self.progress_period_sec = progress_period_sec
         self.timeout_sec = max(1.0, float(timeout_sec))
+        self.allow_initial_arrival_hysteresis = bool(allow_initial_arrival_hysteresis)
         self.on_finished = on_finished
         self.task_id = int(time.time() * 1000)
         self._lock = threading.RLock()
@@ -228,6 +406,10 @@ class NavigationSession:
         self._finish_started = False
         self._last_progress_at = 0.0
         self._last_sample: ArrivalSample | None = None
+        self._last_pnc_response: dict[str, Any] | None = None
+        self._blocked_detector = BlockedNavigationDetector(
+            reminder_interval_sec=5.0,
+        )
 
     @property
     def is_active(self) -> bool:
@@ -273,6 +455,18 @@ class NavigationSession:
         self._cancel_timers()
         if self.defaults.stop_policy.mode != "never":
             self._send_stop()
+            # The PNC layer can still be consuming the previous START when a
+            # new user goal arrives. Keep STOP alive briefly so the next START
+            # cannot race the old session's shutdown.
+            stop_hold_sec = max(
+                0.0,
+                min(3.0, float(self.defaults.stop_policy.hold_sec)),
+            )
+            if stop_hold_sec > 0.0:
+                self.node.get_logger().info(
+                    f"Navigation cancel stop hold: {stop_hold_sec:.1f}s, reason={reason}"
+                )
+                time.sleep(stop_hold_sec)
         self._emit(NavigationEventType.CANCELLED, status="cancelled", reason=reason)
         self._finish_without_stop("cancelled")
 
@@ -282,6 +476,22 @@ class NavigationSession:
                 return
         sample = self._arrival_policy.update(msg)
         self._last_sample = sample
+        linear = msg.twist.twist.linear
+        angular = msg.twist.twist.angular
+        blocked_notice = self._blocked_detector.update(
+            current_pose=sample.current_pose,
+            distance_to_goal=sample.distance_to_goal,
+            arrival_tolerance_m=self._arrival_policy.position_tolerance,
+            linear_speed_mps=math.hypot(float(linear.x), float(linear.y)),
+            angular_speed_radps=float(angular.z),
+        )
+        if blocked_notice is not None:
+            self._emit(
+                NavigationEventType.BLOCKED,
+                status="blocked",
+                reason=blocked_notice.reason,
+                sample=sample,
+            )
         self._emit_progress_if_due(sample)
 
         if sample.in_region:
@@ -296,8 +506,11 @@ class NavigationSession:
                     self._complete_async("arrived_region", sample=sample)
                     return
 
+        hysteresis_enabled = (
+            self._arrived_region_emitted or self.allow_initial_arrival_hysteresis
+        )
         within_arrival_hysteresis = (
-            self._arrived_region_emitted
+            hysteresis_enabled
             and is_within_arrival_hysteresis(
                 sample.distance_to_goal,
                 self._arrival_policy.position_tolerance,
@@ -308,6 +521,7 @@ class NavigationSession:
             self._arrived_region_emitted,
             sample.distance_to_goal,
             self._arrival_policy.position_tolerance,
+            allow_initial_hysteresis=self.allow_initial_arrival_hysteresis,
         )
         if stability_candidate:
             if self._arrived_region_at is None:
@@ -343,6 +557,28 @@ class NavigationSession:
             )
             self._complete_async("arrived_region_stable", sample=sample)
 
+    def handle_pnc_response(self, response: dict[str, Any]) -> None:
+        """Handle a terminal PNC response only when it matches this task."""
+
+        response_task_id = response.get("task_id")
+        if response_task_id is None or int(response_task_id) != self.task_id:
+            return
+        with self._lock:
+            if self._status != "navigating":
+                return
+            self._last_pnc_response = dict(response)
+        disposition = str(response.get("disposition", "unknown"))
+        state_value = response.get("state_value")
+        self.node.get_logger().info(
+            f"PNC 回验：task_id={self.task_id}, state={state_value}, disposition={disposition}"
+        )
+        if disposition == "completed":
+            self._complete_async("pnc_completed", sample=self._last_sample)
+        elif disposition == "failed":
+            self._fail_async(
+                f"PNC 返回失败状态：{state_value or response.get('state_text') or 'unknown'}"
+            )
+
     def get_status(self) -> dict[str, object]:
         with self._lock:
             return {
@@ -358,6 +594,8 @@ class NavigationSession:
                 "last_yaw_error_rad": (
                     None if self._last_sample is None else self._last_sample.yaw_error
                 ),
+                "pnc_response": self._last_pnc_response,
+                "blocked": self._blocked_detector.status(),
             }
 
     def _complete_async(self, reason: str, sample: ArrivalSample | None = None) -> None:
@@ -396,6 +634,28 @@ class NavigationSession:
             sample=self._last_sample,
         )
         self._finish_without_stop("timeout")
+
+    def _fail_async(self, reason: str) -> None:
+        if not self._begin_finish("failed"):
+            return
+        thread = threading.Thread(
+            target=self._fail,
+            args=(reason,),
+            daemon=True,
+        )
+        thread.start()
+
+    def _fail(self, reason: str) -> None:
+        self._cancel_timers()
+        if self.defaults.stop_policy.mode != "never":
+            self._send_stop(sample=self._last_sample)
+        self._emit(
+            NavigationEventType.FAILED,
+            status="failed",
+            reason=reason,
+            sample=self._last_sample,
+        )
+        self._finish_without_stop("failed")
 
     def _send_start(self) -> None:
         msg = PncTaskRequest()

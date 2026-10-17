@@ -1,4 +1,5 @@
 import { Client } from "ssh2";
+import { execFile } from "node:child_process";
 import fs from "node:fs";
 import type { AppConfig } from "./config.js";
 import { withRobotTransportSlot } from "./robotTransportLimiter.js";
@@ -22,11 +23,14 @@ export async function runBridgeAction(action: BridgeAction, config: AppConfig): 
 }
 
 export async function restartRobotVoiceStack(config: AppConfig): Promise<{ output: string }> {
-  const output = await runRobotSshCommand(shellQuote(config.robot.voiceRestartCommand), config, 90000);
+  const output = await runRobotSystemSshCommand(shellQuote(config.robot.voiceRestartCommand), config, 90000);
   return { output: output.trim() };
 }
 
 export async function runRobotSshCommand(command: string, config: AppConfig, readyTimeout = 8000): Promise<string> {
+  if (shouldExecuteRobotCommandLocally(config)) {
+    return runLocalRobotCommand(command, config.robot.sshUser, readyTimeout);
+  }
   const privateKey = readPrivateKey(config.robot.sshPrivateKeyPath);
   if (!config.robot.sshPassword && !privateKey) {
     throw new Error("缺少机器人 SSH 凭据，请配置本机私钥或 SSH 密码");
@@ -81,6 +85,35 @@ export async function runRobotSshCommand(command: string, config: AppConfig, rea
       ...(privateKey ? { privateKey } : { password: config.robot.sshPassword }),
       readyTimeout
     });
+  }), true);
+}
+
+export function shouldExecuteRobotCommandLocally(config: AppConfig): boolean {
+  return config.deploymentMode === "robot"
+    && config.robot.connectionMode === "direct"
+    && ["127.0.0.1", "::1", "localhost"].includes(config.robot.host.toLowerCase());
+}
+
+function runLocalRobotCommand(command: string, user: string, readyTimeout: number): Promise<string> {
+  return withRobotTransportSlot(() => new Promise((resolve, reject) => {
+    execFile(
+      "/usr/sbin/runuser",
+      ["-u", user, "--", "/bin/bash", "-c", command],
+      { encoding: "utf8", timeout: readyTimeout, maxBuffer: 2 * 1024 * 1024 },
+      (error, stdout, stderr) => {
+        const output = `${stdout || ""}${stderr || ""}`;
+        if (!error) {
+          resolve(output);
+          return;
+        }
+        if (error.killed || error.signal) {
+          reject(new Error(`机器人本机服务命令执行超时（${readyTimeout}ms）：${command}`));
+          return;
+        }
+        const code = typeof error.code === "number" ? error.code : 1;
+        reject(new Error(`机器人本机服务命令执行失败，退出码 ${code}：${output.trim() || error.message}`));
+      }
+    );
   }), true);
 }
 

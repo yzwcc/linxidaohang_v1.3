@@ -115,6 +115,13 @@ final class NavBridgeClient {
         return this.postJson("/interaction/mark", jSONObject);
     }
 
+    JSONObject wakeInteraction(String string, String string2) throws IOException, InterruptedException {
+        JSONObject jSONObject = new JSONObject();
+        jSONObject.put("event_id", string);
+        jSONObject.put("source", string2);
+        return this.postJson("/interaction/wake", jSONObject);
+    }
+
     JSONObject endInteraction(String string, String string2, String string3) throws IOException, InterruptedException {
         JSONObject jSONObject = new JSONObject();
         jSONObject.put("event_id", string);
@@ -146,7 +153,7 @@ final class NavBridgeClient {
     private JSONObject send(HttpRequest httpRequest) throws IOException, InterruptedException {
         HttpResponse<String> httpResponse = this.httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
         String string = httpRequest.uri().getPath();
-        if (string.endsWith("/nav/start") || string.endsWith("/nav/stop") || string.endsWith("/task/start") || string.endsWith("/task/pause") || string.endsWith("/task/resume") || string.endsWith("/task/stop") || string.endsWith("/entertainment/sing") || string.endsWith("/entertainment/dance") || string.endsWith("/tts/speak") || string.endsWith("/interaction/end") || string.endsWith("/interaction/mark")) {
+        if (string.endsWith("/nav/start") || string.endsWith("/nav/stop") || string.endsWith("/task/start") || string.endsWith("/task/pause") || string.endsWith("/task/resume") || string.endsWith("/task/stop") || string.endsWith("/entertainment/sing") || string.endsWith("/entertainment/dance") || string.endsWith("/tts/speak") || string.endsWith("/interaction/end") || string.endsWith("/interaction/mark") || string.endsWith("/interaction/wake")) {
             log.info("Robot bridge {} response: httpStatus={}, body={}", string, httpResponse.statusCode(), httpResponse.body());
         }
         if (httpResponse.statusCode() < 200 || httpResponse.statusCode() >= 300) {

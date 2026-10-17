@@ -11,6 +11,7 @@ class NavigationEventType(str, Enum):
     REJECTED = "rejected"
     STARTED = "started"
     PROGRESS = "progress"
+    BLOCKED = "blocked"
     ARRIVED_REGION = "arrived_region"
     STOP_SENT = "stop_sent"
     COMPLETED = "completed"

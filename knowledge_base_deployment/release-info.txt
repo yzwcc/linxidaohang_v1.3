@@ -1,0 +1,3 @@
+PRODUCT=sparkrobot-lingxi-kb
+VERSION=1.0.2-20260902
+ARCHITECTURE=aarch64

@@ -273,20 +273,20 @@ def desired_rootfs_mode(relative: PurePosixPath) -> int:
     value = relative.as_posix()
     name = relative.name
     if value.endswith("/runtime/node"):
-        return 0o555
+        return 0o550
     if "/runtime/java/bin/" in value or value.endswith("/runtime/java/lib/jspawnhelper"):
-        return 0o555
+        return 0o550
     if "/scripts/" in value and name.endswith(".sh"):
-        return 0o555
+        return 0o550
     if "/system/usr/local/libexec/" in value or "/system/usr/local/sbin/" in value:
-        return 0o555
+        return 0o550
     if name.endswith(".so"):
-        return 0o555
+        return 0o550
     if name.endswith(".jar"):
         return 0o440
     if value.endswith("/system/etc/sudoers.d/sparkrobot-lingxi-nav"):
         return 0o440
-    return 0o444
+    return 0o440
 
 
 def manifest_entries(rootfs: Path) -> list[dict[str, object]]:
@@ -306,7 +306,7 @@ def release_tar_filter(top_level: str):
     def apply(info: tarfile.TarInfo) -> tarfile.TarInfo:
         relative = PurePosixPath(info.name).relative_to(top_level)
         if info.isdir():
-            info.mode = 0o755
+            info.mode = 0o750 if relative.parts and relative.parts[0] == "rootfs" else 0o755
         elif relative.parts and relative.parts[0] == "rootfs":
             info.mode = desired_rootfs_mode(PurePosixPath(*relative.parts[1:]))
         elif relative.as_posix() == "install_product.sh":

@@ -1,0 +1,25 @@
+{
+  "format": "sparkrobot-lingxi-narrow-corridor-policy-v1",
+  "profile": "balanced-narrow",
+  "description": "V1.3.9 人流密集和窄通道的平衡避障参数，不关闭 footprint 或碰撞检查。",
+  "files": {
+    "app2.yaml": [
+      {"path": ["costmap_node", "costmap", "inflation_layer", "inflation_radius"], "value": "0.50"},
+      {"path": ["costmap_node", "static_costmap", "inflation_layer", "inflation_radius"], "value": "0.50"},
+      {"path": ["costmap_node", "local_costmap", "inflation_layer", "inflation_radius"], "value": "0.50"},
+      {"path": ["map_costmap_node", "static_costmap", "inflation_layer", "inflation_radius"], "value": "0.65"},
+      {"path": ["planner_server", "Ego", "obs_clearance"], "value": "0.35"},
+      {"path": ["planner_server", "Ego", "dyna_obs_clearance"], "value": "0.60"},
+      {"path": ["bt_task_manager", "PedestrianCollisionDetectionTask", "minimum_pedestrian_distance"], "value": "0.60"},
+      {"path": ["bt_task_manager", "LocalTargetDeciderTask", "obstacle_boundary_clearance"], "value": "0.35"},
+      {"path": ["bt_task_manager", "LocalTargetDeciderTask", "obstacle_drag_distance"], "value": "0.50"},
+      {"path": ["bt_task_manager", "LocalTargetDeciderTask", "min_dist_to_ego_"], "value": "0.50"},
+      {"path": ["bt_task_manager", "LocalTargetDeciderTask", "foot_print_padding_distance"], "value": "0.02"},
+      {"path": ["bt_task_manager", "LocalTargetDeciderTask", "stop_length"], "value": "0.40"},
+      {"path": ["bt_task_manager", "LocalTargetDeciderTask", "failsafe_obstacle_distance_threshold"], "value": "0.28"}
+    ],
+    "mppi_controller.yaml": [
+      {"path": ["optimizer", "vx_planning", "near_obstacle_slowdown_distance"], "value": "0.35"}
+    ]
+  }
+}

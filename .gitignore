@@ -70,3 +70,14 @@ productization/**/device-claim.json
 META-INF/
 交付代码包/
 灵心平台&交互云SDK二开使用手册/
+
+# Workstation metadata and extracted verification copies
+.codex/
+.tools/
+.analysis-original-nav/
+verify_r9_20260923/
+
+# Private delivery notes and generated checksum files
+**/*key*.txt
+*.tar.gz.sha256
+*.zip.sha256

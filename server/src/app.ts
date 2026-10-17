@@ -159,7 +159,8 @@ async function clearStaleCloudTunnel(): Promise<{ ok: boolean; output: string }>
 
 export function buildApp(config: AppConfig, robotClient?: RobotClient): FastifyInstance {
   const app = Fastify({ logger: true });
-  const publicDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../public");
+  // The compiled server and its bundled public assets are both under console/dist.
+  const publicDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "public");
   let activeConfig = loadRuntimeConfig(config);
   const usesInjectedRobotClient = robotClient != null;
   let activeRobotClient = robotClient ?? createRobotClient(activeConfig);

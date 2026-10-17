@@ -9,6 +9,7 @@ type ImagePayload = { data: Buffer; contentType: string };
 export function createRobotClient(config: AppConfig) {
   const bridgeBase = `http://${config.robot.host}:${config.robot.bridgePort}`;
   const webBase = `http://${config.robot.host}:${config.robot.webPort}`;
+  const gatewayBase = robotGatewayBaseUrl(config);
   const mapRootQuery = `map_root=${encodeURIComponent(config.robot.mapRoot)}`;
   const mapCaches = new Map<string, AsyncCache<JsonObject>>();
   const imageCaches = new Map<string, AsyncCache<ImagePayload>>();
@@ -24,7 +25,7 @@ export function createRobotClient(config: AppConfig) {
       requestJson<JsonObject>(`${bridgeBase}/nav/status`, { timeoutMs: 1800 }),
       requestJson<JsonObject>(`${bridgeBase}/points`, { timeoutMs: 1800 }),
       mapsCache.get(),
-      requestJson<JsonObject>(`${bridgeBase}/gateway/health`, { timeoutMs: 1800 })
+      requestJson<JsonObject>(`${gatewayBase}/gateway/health`, { timeoutMs: 1800 })
     ]);
     const gatewayHealthValue = gatewayHealth.status === "fulfilled" ? gatewayHealth.value : null;
     const gatewayServices = gatewayHealthValue?.services as Record<string, { ok?: boolean }> | undefined;
@@ -212,6 +213,10 @@ export function createRobotClient(config: AppConfig) {
       });
     }
   };
+}
+
+export function robotGatewayBaseUrl(config: AppConfig): string {
+  return `http://${config.robot.host}:${config.robot.robotJavaAgentBridgePort}`;
 }
 
 function errorMessage(error: unknown): string {

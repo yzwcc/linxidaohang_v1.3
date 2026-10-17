@@ -26,15 +26,18 @@ from robot_local_navigation_v3.linkcraft_resources import (
     normalize_linkcraft_action,
 )
 from robot_local_navigation_v3.map_point_store import MapPointStore
-from robot_local_navigation_v3.motion_option_policy import ArrivalMotionTracker
+from robot_local_navigation_v3.motion_option_policy import ArrivalMotionTracker, is_empty_motion
 from robot_local_navigation_v3.navigation_client import NavigationClient, NavigationSessionHandle
 from robot_local_navigation_v3.navigation_events import NavigationEvent, NavigationEventType
 from robot_local_navigation_v3.point_catalog import PointCatalog, PointCatalogError
 from robot_local_navigation_v3.sdk_motion_controller import DEFAULT_EMOJI_PRIORITY, SdkMotionController
 from robot_local_navigation_v3.tour_step_actions import merge_task_arrival_actions
 from robot_local_navigation_v3.tour_interaction_policy import (
+    WAKE_ACTION_BLOCK,
+    WAKE_ACTION_PAUSE,
     should_block_voice_output,
     should_protect_tour_interaction,
+    wake_interaction_action,
 )
 from robot_local_navigation_v3.tts_speaker import TtsSpeaker
 
@@ -53,6 +56,7 @@ AUTO_RETURN_RETURNING_HOME = "returning_home"
 
 ARRIVAL_SETTLE_SEC = 2.5
 ARRIVAL_COMPLETION_GUARD_SEC = 1.5
+ARRIVAL_INTERRUPT_RELEASE_GUARD_SEC = 1.5
 ARRIVAL_TTS_MAX_WAIT_SEC = 180.0
 LINKCRAFT_COMPLETION_GUARD_SEC = 2.0
 LINKCRAFT_SUBMIT_TIMEOUT_SEC = 6.0
@@ -85,7 +89,10 @@ class LingxiNavBridge(Node):
         self.active_map_name = self._resolve_active_map_name(active_map_name)
         points = self._load_active_points()
         if not points:
-            raise RuntimeError(f"No navigation points found for map: {self.active_map_name or '<all>'}")
+            self.get_logger().warning(
+                f"No navigation points found for map: {self.active_map_name or '<all>'}; "
+                "bridge will stay online for map and point configuration"
+            )
 
         self.point_catalog = PointCatalog(points)
         self.odom_topic = os.environ.get("NAV_ODOM_TOPIC", "/slam/lidar_odom").strip() or "/slam/lidar_odom"
@@ -336,6 +343,16 @@ class LingxiNavBridge(Node):
 
         event_id = str(payload.get("event_id", "")).strip()
         self.get_logger().info(f"/task/pause request: event_id={event_id or '<none>'}")
+        with self._auto_return_lock:
+            if self._auto_return_state == AUTO_RETURN_TASK_LINKCRAFT_ACTION:
+                return {
+                    "ok": True,
+                    "accepted": False,
+                    "paused": False,
+                    "status": "linkcraft_protected",
+                    "message": "灵创动作执行期间不能暂停讲解，请等待动作结束",
+                    "task": self._task_status_locked(),
+                }
         self._mark_valid_interaction(event_id=event_id, source="task_pause", intent="pause_task")
         with self._auto_return_lock:
             previous_state = self._auto_return_state
@@ -350,7 +367,6 @@ class LingxiNavBridge(Node):
             if previous_state not in {
                 AUTO_RETURN_NAVIGATING_TASK_STEP,
                 AUTO_RETURN_TASK_ARRIVAL_ACTION,
-                AUTO_RETURN_TASK_LINKCRAFT_ACTION,
             }:
                 return {
                     "ok": True,
@@ -362,7 +378,9 @@ class LingxiNavBridge(Node):
                 }
             should_cancel_navigation = previous_state == AUTO_RETURN_NAVIGATING_TASK_STEP
             self._task_resume_index = (
-                self._task_index if should_cancel_navigation else self._task_index + 1
+                self._task_index
+                if should_cancel_navigation or bool(payload.get("resume_current_step", False))
+                else self._task_index + 1
             )
             self._task_pause_origin = previous_state
             self._next_auto_return_generation_locked()
@@ -375,8 +393,6 @@ class LingxiNavBridge(Node):
             navigation_cancelled = self.navigation_client.cancel(
                 reason=f"tour task paused event_id={event_id or '<none>'}"
             )
-        if previous_state == AUTO_RETURN_TASK_LINKCRAFT_ACTION:
-            self._interrupt_linkcraft_action("task_paused")
         if previous_state == AUTO_RETURN_TASK_ARRIVAL_ACTION:
             self._stop_arrival_motion("task_paused")
         self._restore_looping_arrival_emoji()
@@ -443,7 +459,7 @@ class LingxiNavBridge(Node):
                 "task": self._task_status(),
             }
 
-        handle = self._start_task_step(resume_index)
+        handle = self._start_task_step(resume_index, resumed=True)
         result = handle_to_dict(handle)
         result.update({
             "ok": bool(handle.accepted),
@@ -510,6 +526,79 @@ class LingxiNavBridge(Node):
                 "navigation_cancelled": False,
             }
         return self._mark_valid_interaction(event_id=event_id, source=source, intent=intent)
+
+    def wake_interaction(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """在音频首包到达时按讲解阶段处理真实唤醒。"""
+
+        event_id = str(payload.get("event_id", "")).strip()
+        source = str(payload.get("source", "voice_wake")).strip() or "voice_wake"
+        with self._auto_return_lock:
+            task_state = self._auto_return_state
+            task_active = task_state in {
+                AUTO_RETURN_NAVIGATING_TASK_STEP,
+                AUTO_RETURN_TASK_ARRIVAL_ACTION,
+                AUTO_RETURN_TASK_LINKCRAFT_ACTION,
+                AUTO_RETURN_TASK_PAUSED,
+            }
+
+        if not task_active:
+            return {
+                "ok": True,
+                "accepted": True,
+                "handled": False,
+                "paused": False,
+                "status": "no_active_tour",
+                "state": task_state,
+            }
+
+        action = wake_interaction_action(task_state)
+        if action == WAKE_ACTION_BLOCK:
+            self.get_logger().info(
+                f"Voice wake ignored during LinkCraft action: event_id={event_id or '<none>'}, "
+                f"source={source}, task_state={task_state}"
+            )
+            return {
+                "ok": True,
+                "accepted": False,
+                "handled": True,
+                "paused": False,
+                "status": "linkcraft_protected",
+                "message": "灵创动作执行期间暂不响应唤醒，请等待动作结束",
+                "state": task_state,
+                "task": self._task_status(),
+            }
+
+        if action == WAKE_ACTION_PAUSE:
+            result = self.pause_task(
+                {
+                    "event_id": event_id,
+                    "resume_current_step": True,
+                }
+            )
+            result.update(
+                {
+                    "handled": True,
+                    "wake_action": WAKE_ACTION_PAUSE,
+                    "state": self._task_status().get("state", AUTO_RETURN_TASK_PAUSED),
+                }
+            )
+            return result
+
+        marked = self._mark_valid_interaction(
+            event_id=event_id,
+            source=source,
+            intent="wake",
+        )
+        marked.update(
+            {
+                "accepted": True,
+                "handled": True,
+                "paused": task_state == AUTO_RETURN_TASK_PAUSED,
+                "status": "already_paused" if task_state == AUTO_RETURN_TASK_PAUSED else "dialog_allowed",
+                "wake_action": "allow",
+            }
+        )
+        return marked
 
     def end_interaction(self, payload: dict[str, Any]) -> dict[str, Any]:
         """记录一轮 ASR/LLM/TTS 处理结束，并从此刻重新启动返航等待。"""
@@ -681,11 +770,6 @@ class LingxiNavBridge(Node):
         self._cancel_pending_auto_return("catalog_reload")
         self.config = self.config_store.load()
         points = self._load_active_points()
-        if not points:
-            return {
-                "ok": False,
-                "message": f"No navigation points found for map: {self.active_map_name or '<all>'}",
-            }
         self.point_catalog = PointCatalog(points)
         self.navigation_client.defaults = self.config.navigation
         self.navigation_client.mode = self.config.app.nav_mode
@@ -694,6 +778,7 @@ class LingxiNavBridge(Node):
             "active_map_name": self.active_map_name,
             "nav_mode": self.navigation_client.mode,
             "point_count": len(points),
+            "message": "Navigation points loaded" if points else "No navigation points configured",
         }
 
     def handle_navigation_event(self, event: NavigationEvent) -> None:
@@ -729,6 +814,14 @@ class LingxiNavBridge(Node):
             if self._is_user_navigation_event(event):
                 self._begin_waiting_auto_return(event, "user_navigation_cancelled")
                 return
+        if event.type == NavigationEventType.BLOCKED:
+            if (
+                self._is_auto_return_event(event)
+                or self._is_task_navigation_event(event)
+                or self._is_user_navigation_event(event)
+            ):
+                self._speak_navigation_blocked(event)
+            return
         if event.type in {NavigationEventType.FAILED, NavigationEventType.TIMEOUT, NavigationEventType.REJECTED}:
             # 失败和超时需要播报问题；拒绝一般表示任务未启动，不额外播报。
             if self._is_auto_return_event(event):
@@ -860,25 +953,63 @@ class LingxiNavBridge(Node):
         """执行到达点位后的预设动作。"""
 
         motion = str(payload.get("motion", "")).strip()
+        ani_path = str(payload.get("ani_path", "") or "").strip()
         if not motion:
+            return
+        try:
+            motion_id = self.motion_controller.resolve_motion_id(motion)
+        except ValueError:
+            return
+        if is_empty_motion(motion_id, ani_path):
+            self.get_logger().warning(
+                "Arrival empty motion ignored: 0/0 is reserved for explicit interruption "
+                "and must not be used as a normal arrival action"
+            )
             return
         future = self.motion_controller.play_preset_motion(
             motion,
             payload.get("area", "right_hand"),
             interrupt=bool(payload.get("interrupt", False)),
             force=bool(payload.get("force", True)),
+            ani_path=ani_path,
+            play_timestamp=max(0, int(payload.get("play_timestamp", 0) or 0)),
         )
         if future is None:
             return
-        try:
-            motion_id = self.motion_controller.resolve_motion_id(motion)
-        except ValueError:
-            return
         with self._auto_return_lock:
-            self._arrival_motion.mark_started(motion_id)
+            self._arrival_motion.mark_started(motion_id, ani_path)
+
+    def _finish_arrival_motion_after_wait(self, reason: str) -> dict[str, Any]:
+        """Finish finite motions naturally and explicitly stop known continuous motions."""
+
+        with self._auto_return_lock:
+            completion_action = self._arrival_motion.completion_action_after_wait()
+        if completion_action == "interrupt":
+            self.get_logger().info(
+                f"Continuous arrival motion requires explicit stop: reason={reason}"
+            )
+            result = self._stop_arrival_motion(reason)
+            result["completion"] = "interrupted"
+            result["release_guard_sec"] = (
+                ARRIVAL_INTERRUPT_RELEASE_GUARD_SEC if result.get("accepted") else 0.0
+            )
+            return result
+        if completion_action == "natural":
+            self.get_logger().info(
+                f"Arrival motion wait completed naturally: reason={reason}; "
+                "no empty action submitted"
+            )
+        return {
+            "ok": True,
+            "accepted": completion_action == "natural",
+            "status": "naturally_completed" if completion_action == "natural" else "idle",
+            "completion": completion_action,
+            "release_guard_sec": 0.0,
+            "reason": reason,
+        }
 
     def stop_arrival_motion(self, payload: dict[str, Any]) -> dict[str, Any]:
-        """Stop a lingering arrival motion through the documented empty action."""
+        """Stop a lingering action through the explicit internal empty action."""
 
         reason = str(payload.get("reason", "manual_request")).strip() or "manual_request"
         return self._stop_arrival_motion(reason, force=bool(payload.get("force", False)))
@@ -968,6 +1099,23 @@ class LingxiNavBridge(Node):
                 "text": text,
                 "interrupt": True,
                 "force": True,
+            }
+        )
+
+    def _speak_navigation_blocked(self, event: NavigationEvent) -> None:
+        """在导航实际停滞时礼貌提醒前方人员让出通道。"""
+
+        text = "请大家让让我"
+        self.get_logger().warning(
+            f"Navigation blocked reminder: point={event.point_name}, "
+            f"task_id={event.task_id}, reason={event.reason}, text={text}"
+        )
+        self.speak(
+            {
+                "event_id": f"nav-blocked-{event.task_id}-{int(event.created_at * 1000)}",
+                "text": text,
+                "interrupt": True,
+                "force": False,
             }
         )
 
@@ -1159,10 +1307,15 @@ class LingxiNavBridge(Node):
         )
         return task_name, steps
 
-    def _start_task_step(self, index: int) -> NavigationSessionHandle:
+    def _start_task_step(
+        self,
+        index: int,
+        *,
+        resumed: bool = False,
+    ) -> NavigationSessionHandle:
         """启动讲解任务中的一个步骤导航。"""
 
-        self._stop_arrival_motion("before_next_task_step")
+        self._finish_arrival_motion_after_wait("before_next_task_step")
         self._restore_looping_arrival_emoji()
         with self._auto_return_lock:
             if index < 0 or index >= len(self._task_steps):
@@ -1190,7 +1343,11 @@ class LingxiNavBridge(Node):
             f"Tour task step starting: task={self._task_name or '<unnamed>'}, "
             f"step={index + 1}/{len(self._task_steps)}, point={point.name}, point_id={point.id}"
         )
-        handle = self.navigation_client.start(point, listener=self.handle_navigation_event)
+        handle = self.navigation_client.start(
+            point,
+            listener=self.handle_navigation_event,
+            allow_initial_arrival_hysteresis=resumed,
+        )
         if not handle.accepted:
             self.get_logger().warning(
                 f"Tour task step rejected: point={point.name}, status={handle.status}, reason={handle.reason}"
@@ -1240,8 +1397,7 @@ class LingxiNavBridge(Node):
                 return
         self._restore_looping_arrival_emoji()
         if begin_linkcraft:
-            self._stop_arrival_motion("task_arrival_done")
-            self._begin_linkcraft_or_advance(event)
+            self._finish_task_arrival_and_continue(event)
 
     def _on_task_arrival_wait_done(self, generation: int, event: NavigationEvent) -> None:
         """讲解任务步骤动作等待结束。"""
@@ -1257,10 +1413,54 @@ class LingxiNavBridge(Node):
             ):
                 return
             should_continue = True
-        self._stop_arrival_motion("task_arrival_done")
-        self._restore_looping_arrival_emoji()
         if should_continue:
+            self._finish_task_arrival_and_continue(event)
+
+    def _finish_task_arrival_and_continue(self, event: NavigationEvent) -> None:
+        """Release the arrival motion safely before starting LinkCraft or the next point."""
+
+        result = self._finish_arrival_motion_after_wait("task_arrival_done")
+        self._restore_looping_arrival_emoji()
+        if not result.get("ok", False):
+            self.get_logger().error(
+                "Tour task stopped because the continuous arrival motion could not be interrupted"
+            )
+            self._finish_task_without_return("arrival_motion_stop_failed")
+            return
+
+        release_guard_sec = max(0.0, float(result.get("release_guard_sec", 0.0) or 0.0))
+        if release_guard_sec <= 0.0:
             self._begin_linkcraft_or_advance(event)
+            return
+
+        with self._auto_return_lock:
+            if (
+                self._auto_return_state != AUTO_RETURN_TASK_ARRIVAL_ACTION
+                or self._task_current_goal_id != event.goal_id
+            ):
+                return
+            generation = self._next_auto_return_generation_locked()
+            self._cancel_arrival_action_timer_locked()
+            self._arrival_action_timer = self.create_timer(
+                release_guard_sec,
+                lambda: self._on_task_motion_release_done(generation, event),
+            )
+        self.get_logger().info(
+            f"Tour task motion release wait started: point={event.point_name}, "
+            f"wait_sec={release_guard_sec:.1f}"
+        )
+
+    def _on_task_motion_release_done(self, generation: int, event: NavigationEvent) -> None:
+        with self._auto_return_lock:
+            if generation != self._auto_return_generation:
+                return
+            self._cancel_arrival_action_timer_locked()
+            if (
+                self._auto_return_state != AUTO_RETURN_TASK_ARRIVAL_ACTION
+                or self._task_current_goal_id != event.goal_id
+            ):
+                return
+        self._begin_linkcraft_or_advance(event)
 
     def _begin_linkcraft_or_advance(self, event: NavigationEvent) -> None:
         """Start the selected LinkCraft resource, or immediately advance."""
@@ -1652,7 +1852,7 @@ class LingxiNavBridge(Node):
                     f"Arrival action wait started: point={event.point_name}, wait_sec={wait_sec:.1f}"
                 )
         if transition_complete:
-            self._stop_arrival_motion("arrival_action_done")
+            self._finish_arrival_motion_after_wait("arrival_action_done")
             self._restore_looping_arrival_emoji()
 
     def _on_arrival_action_wait_done(self, generation: int, event: NavigationEvent) -> None:
@@ -1668,7 +1868,7 @@ class LingxiNavBridge(Node):
             ):
                 return
             self._begin_waiting_auto_return_locked(event, "arrival_action_done")
-        self._stop_arrival_motion("arrival_action_done")
+        self._finish_arrival_motion_after_wait("arrival_action_done")
         self._restore_looping_arrival_emoji()
 
     def _begin_waiting_auto_return(self, event: NavigationEvent, reason: str) -> None:
@@ -2087,6 +2287,9 @@ class NavHttpHandler(BaseHTTPRequestHandler):
                 return
             if self.path == "/interaction/mark":
                 self.write_json(200, self.server.bridge.mark_interaction(payload))
+                return
+            if self.path == "/interaction/wake":
+                self.write_json(200, self.server.bridge.wake_interaction(payload))
                 return
             if self.path == "/interaction/end":
                 self.write_json(200, self.server.bridge.end_interaction(payload))

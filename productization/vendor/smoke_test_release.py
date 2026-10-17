@@ -89,7 +89,7 @@ pid=$!
 cleanup_console() {{ kill "$pid" 2>/dev/null || true; wait "$pid" 2>/dev/null || true; }}
 trap cleanup_console EXIT
 for _ in $(seq 1 40); do
-  if curl -fsS --max-time 2 "http://127.0.0.1:$port/health" > {shlex.quote(remote_dir + '/health.json')}; then
+  if curl -fsS --max-time 2 "http://127.0.0.1:$port/health" > {shlex.quote(remote_dir + '/health.json')} 2>/dev/null; then
     cat {shlex.quote(remote_dir + '/health.json')}
     cleanup_console
     trap - EXIT

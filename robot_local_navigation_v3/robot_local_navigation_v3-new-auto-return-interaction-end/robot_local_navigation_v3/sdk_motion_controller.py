@@ -13,6 +13,7 @@ from robot_local_navigation_v3.motion_option_policy import (
     SPECIAL_MOTION_ALIASES,
     SPECIAL_MOTION_ALLOWED_AREAS,
     is_empty_motion,
+    is_request_acknowledged,
     parse_numeric_area_id,
 )
 
@@ -406,17 +407,18 @@ class SdkMotionController:
         task_response = getattr(response, "response", None)
         state_value = getattr(getattr(task_response, "state", None), "value", None)
         header = getattr(task_response, "header", None)
-        code = getattr(header, "code", 0)
+        code = getattr(header, "code", None)
         accepted_states = (
             CommonState.SUCCESS,
             CommonState.RUNNING,
             CommonState.CREATED,
             CommonState.PENDING,
         )
-        if code == 0 or state_value in accepted_states:
+        accepted = is_request_acknowledged(code, state_value, accepted_states)
+        if accepted:
             self.node.get_logger().info(
-                f"SDK motion accepted: motion={info.motion_id}, area={info.area_id}, "
-                f"state={state_value}, code={code}"
+                f"SDK motion request acknowledged: motion={info.motion_id}, area={info.area_id}, "
+                f"state={state_value}, code={code}; state is not a completion callback"
             )
             return
         self.node.get_logger().warning(
@@ -462,14 +464,18 @@ class SdkMotionController:
             response = future.result()
             common_response = getattr(response, "header", None)
             status_value = getattr(getattr(common_response, "status", None), "value", None)
-            code = getattr(getattr(common_response, "header", None), "code", 0)
+            code = getattr(getattr(common_response, "header", None), "code", None)
             message = str(getattr(common_response, "message", "") or "")
-            accepted = code == 0 or status_value in {
-                CommonState.SUCCESS,
-                CommonState.PENDING,
-                CommonState.CREATED,
-                CommonState.RUNNING,
-            }
+            accepted = is_request_acknowledged(
+                code,
+                status_value,
+                (
+                    CommonState.SUCCESS,
+                    CommonState.PENDING,
+                    CommonState.CREATED,
+                    CommonState.RUNNING,
+                ),
+            )
         except Exception as exc:
             accepted = False
             message = f"灵创资源请求失败: {exc}"
