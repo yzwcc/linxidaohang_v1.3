@@ -34,7 +34,7 @@
 - [x] Write `V1.3.8-r15-已编译AIMDK新机完整部署说明.md` as a standalone first-install procedure that does not compile or replace AIMDK.
 - [x] Build the complete archive and LF SHA files; check source/runtime equivalence and all checksum layers.
 - [x] Validate Linux fresh install, r11-r14 upgrades, repeat install, rollback and customer-state preservation against the final archive.
-- [ ] Record exact tested hash, limitations and evidence. Review, commit, push and compare remote/local commit before delivery.
+- [x] Record exact tested hash, limitations and evidence. Review, commit, push and compare remote/local commit before delivery.
 
 ## Verification Notes
 
@@ -44,3 +44,4 @@
 - Final archive SHA: `9d56d4718c4e5d103fa8ececd5110e0fd93cb98bc10a66360f35b4ffa0012b68`.
 - Windows final archive verification passed: 74 server tests, 133 Python tests, 8 Java suites, actual task HTTP persistence and source/runtime equality.
 - Linux final archive verification passed: all process, storage, AIMDK failure and install lifecycle cases; 30 Bash scripts and 24 documentation blocks parsed successfully. Both reports bind the final hash above. No robot/cloud/acoustic tests were claimed.
+- Reviewed and pushed source/test/report commit `9f1934a46733b87ceb4cb2d36c8abc0ee03499da` to `origin/codex/lingxi-v1.3.8-special`; independent ls-remote matched the local commit. The only default whitespace-check finding is an inherited empty line at EOF in unchanged Python __init__.py; retained the exact baseline and passed the check with blank-at-EOF disabled.
