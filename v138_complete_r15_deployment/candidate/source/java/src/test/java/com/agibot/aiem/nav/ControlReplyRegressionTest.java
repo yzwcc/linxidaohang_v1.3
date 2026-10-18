@@ -44,6 +44,8 @@ public final class ControlReplyRegressionTest {
         AtomicInteger motions = new AtomicInteger();
         AtomicInteger navs = new AtomicInteger();
         AtomicInteger tours = new AtomicInteger();
+        AtomicInteger motionCode = new AtomicInteger(200);
+        List<String> robotSpeech = new CopyOnWriteArrayList<>();
         AtomicReference<String> modelIntent = new AtomicReference<>(
                 "{\"intent\":\"navigate\",\"target_name\":\"大厅\",\"reply\":\"我做不到\"}");
         AtomicReference<String> motionResult = new AtomicReference<>("{\"accepted\":true}");
@@ -76,7 +78,9 @@ public final class ControlReplyRegressionTest {
                 default -> "{\"ok\":true}";
             };
             byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
-            exchange.sendResponseHeaders(200, bytes.length);
+            if (exchange.getRequestURI().getPath().equals("/tts/speak")) robotSpeech.add(input);
+            exchange.sendResponseHeaders(exchange.getRequestURI().getPath().equals("/motion/play")
+                    ? motionCode.get() : 200, bytes.length);
             exchange.getResponseBody().write(bytes);
             exchange.close();
         });
@@ -147,7 +151,7 @@ public final class ControlReplyRegressionTest {
             client.reset("");
             motionResult.set("{\"accepted\":false,\"status\":\"rejected\",\"message\":\"motion=1003, area=2\"}");
             llm.onRequest("llm", "real-rejection", "咱俩友好地握一下手怎么样", VoiceGateTest.acceptedParams(), llmResponse);
-            check(client.messages.stream().anyMatch(s -> s.contains("暂未被接受")), "real rejection is not disguised as success");
+            check(client.replyCount() == 0, "low-level rejection is silent without claiming success");
             check(client.messages.stream().noneMatch(s -> s.contains("motion=1003")), "protocol diagnostics remain in logs");
 
             clear("CONTROL_RESPONSE_DEDUP");
@@ -192,6 +196,46 @@ public final class ControlReplyRegressionTest {
                 check(navs.get() + tours.get() + motions.get() == count + 1,
                         "concurrent callbacks submit one control: " + kind);
                 check(client.replyCount() == 1, "concurrent callbacks produce one spoken reply: " + kind);
+            }
+            // Replay the field-log rejection through both speech routes and
+            // inject failures after the controller has returned its result.
+            for (String speechRoute : List.of("lingxi", "robot")) {
+                props.setProperty("tts.mode", speechRoute);
+                props.setProperty("tts.delayBeforeSpeakMs", "0");
+                props.setProperty("tts.suppressLingxiText", "true");
+                config = constructor.newInstance(props);
+                register.invoke(null, sdk, config, new NavBridgeClient(config), new DoubaoArkClient(config), null);
+                Asr2LlmCallback logLlm = (Asr2LlmCallback) sdk.getRobotCallback(AgentCallbackType.ASR_2_LLM);
+                Asr2TtsCallback logTts = (Asr2TtsCallback) sdk.getRobotCallback(AgentCallbackType.ASR_2_TTS);
+                modelIntent.set("{\"intent\":\"preset_motion\",\"target_name\":\"sweetheart\",\"motion_area\":\"both_hands\"}");
+                for (String status : List.of("rejected", "confirmation_timeout", "confirmation_unknown", "http_unavailable")) {
+                    motionResult.set("{\"ok\":false,\"accepted\":false,\"status\":\"" + status
+                            + "\",\"message\":\"机器人动作服务拒绝请求: motion=3004, area=3；请确认机器人已进入稳定站立模式\"}");
+                    motionCode.set(status.equals("http_unavailable") ? 503 : 200);
+                    for (String mode : List.of("llm", "tts")) {
+                        for (String failAt : mode.equals("llm")
+                                ? List.of("", "agentsdk.llm_response.item.done", "agentsdk.llm_response.done")
+                                : List.of("", "agentsdk.llm_response.item.done", "agentsdk.llm_response.done",
+                                          "agentsdk.tts_response.item.done", "agentsdk.tts_response.done")) {
+                            clear("CONTROL_RESPONSE_DEDUP");
+                            clear("LOCAL_COMMAND_DEDUP");
+                            clear("NATIVE_INTERRUPT_DEDUP");
+                            client.reset(failAt);
+                            robotSpeech.clear();
+                            int motionBefore = motions.get();
+                            String event = "logged-" + speechRoute + mode + status + failAt;
+                            if (mode.equals("llm")) logLlm.onRequest("llm", event, "比个心", VoiceGateTest.acceptedParams(), llmResponse);
+                            else logTts.onRequest("tts", event, "比个心", VoiceGateTest.acceptedParams(), ttsResponse);
+                            check(motions.get() == motionBefore + 1, "silent acknowledgement never resubmits: " + event);
+                            check(client.hasInterrupt(), "native duplicate still cancelled: " + event);
+                            check(robotSpeech.isEmpty() && client.replyCount() == 0,
+                                    "neither local TTS nor SDK text announces rejection/success: " + event);
+                            check(client.messages.stream().noneMatch(s -> s.contains("agentsdk.error")),
+                                    "late completion cannot trigger platform fallback: " + event);
+                            check(failAt.isEmpty() || client.failed, "late fault was actually exercised: " + event);
+                        }
+                    }
+                }
             }
             System.out.println("ControlReplyRegressionTest passed: " + checks + " assertions");
         } finally {

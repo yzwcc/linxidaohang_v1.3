@@ -12,14 +12,20 @@ BASE = HERE.parent / "v138_complete_r15_deployment"
 sys.path.insert(0, str(BASE))
 from archive_utils import normalize_text, put, tar_data, verify_sums, write_sums
 
-NAME = "sparkrobot-lingxi-v1.3.8-control-reply-fix-1.0.0-20261018"
+NAME = "sparkrobot-lingxi-v1.3.8-control-reply-fix-1.0.1-20261018"
 JAVA_TESTS = ("VoiceGateTest", "WakeSessionGateTest", "Soc2WakeEvidenceProviderTest",
               "AgentSdkInterruptWireTest", "VoiceRegression", "ModelRecoveryTest",
-              "FunctionalControlTest", "AgentConnectionStateTest", "ControlReplyRegressionTest")
+              "FunctionalControlTest", "AgentConnectionStateTest", "ControlReplyRegressionTest",
+              "LoggedModelTimeoutTest")
 
 
 def run(args):
-    result = subprocess.run(list(map(str, args)), capture_output=True, text=True, encoding="utf-8")
+    args = list(map(str, args))
+    if Path(args[0]).name == "javac.exe":
+        args[1:1] = ["-J-Dfile.encoding=UTF-8", "-J-Duser.language=en"]
+    elif Path(args[0]).name == "java.exe":
+        args[1:1] = ["-Dfile.encoding=UTF-8", "-Duser.language=en"]
+    result = subprocess.run(args, capture_output=True, text=True, encoding="utf-8", errors="replace")
     if result.returncode:
         raise RuntimeError(result.stdout[-12000:] + result.stderr[-6000:])
     return result.stdout
@@ -70,7 +76,7 @@ def main():
     if "--java-only" in sys.argv:
         return
     files = {}
-    for name in ("install.sh", "install.py", "control.sh", "部署说明.md", "test_install.py"):
+    for name in ("install.sh", "install.py", "control.sh", "部署说明.md", "日志核验说明.md", "test_install.py"):
         put(files, name, normalize_text(name, (HERE / name).read_bytes()))
     put(files, "payload/java/robot-local-navigation-java-all.jar", jar.read_bytes(), 0o644)
     for path in sorted((source / "main/java").rglob("*.java")):
@@ -81,8 +87,9 @@ def main():
         put(files, name, normalize_text(name, path.read_bytes()), 0o644)
     digest = lambda p: hashlib.sha256(p.read_bytes()).hexdigest()
     metadata = {
-        "package": NAME, "version": "1.0.0-20261018", "product": "V1.3.8",
+        "package": NAME, "version": "1.0.1-20261018", "product": "V1.3.8",
         "baseline_jar_sha256": digest(baseline), "patched_jar_sha256": digest(jar),
+        "superseded_jar_sha256": ["8cdf57a8f7c384b913d9aa8e47d1232075232f336937453170387955f55ada9e"],
         "sdk_sha256": digest(sdk),
         "allowed_releases": ["1.0.19-20261017-r" + str(n) for n in range(11, 16)],
         "java_tests": results,
@@ -99,6 +106,7 @@ def main():
     output.with_suffix(output.suffix + ".sha256").write_bytes(
         (digest(output) + "  " + output.name + "\n").encode("ascii"))
     (dist / "部署说明.md").write_bytes(files["部署说明.md"][1])
+    (dist / "日志核验说明.md").write_bytes(files["日志核验说明.md"][1])
     (work / "java-results.json").write_text(json.dumps(results, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(output)
 

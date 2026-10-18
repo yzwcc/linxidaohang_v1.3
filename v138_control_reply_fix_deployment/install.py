@@ -120,7 +120,9 @@ class Installer:
             raise RuntimeError("当前版本不是支持的 V1.3.8 r11-r15；已停止，未覆盖文件")
         self.release = release
         app = regular(release / JAR)
-        if digest(app) not in {self.meta["baseline_jar_sha256"], self.meta["patched_jar_sha256"]}:
+        supported = {self.meta["baseline_jar_sha256"], self.meta["patched_jar_sha256"]}
+        supported.update(self.meta.get("superseded_jar_sha256", []))
+        if digest(app) not in supported:
             raise RuntimeError("Java JAR 与验证基线不一致，拒绝覆盖未知现场修改")
         if digest(regular(release / "java/linksoul-agentsdk-1.4.0.jar")) != self.meta["sdk_sha256"]:
             raise RuntimeError("AgentSDK 与验证版本不一致")

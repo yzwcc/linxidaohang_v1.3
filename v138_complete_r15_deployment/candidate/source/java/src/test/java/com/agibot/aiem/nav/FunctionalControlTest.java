@@ -102,10 +102,15 @@ public final class FunctionalControlTest {
             check(motions.get() == 2, "negative request cannot execute even if model misclassifies");
             rejectMotion.set(true);
             result = process.invoke(null, "rejected-motion", "握个手", config, bridge, model, null, new AtomicBoolean());
-            check(((String) reply.invoke(result)).contains("未被接受") && !((String) reply.invoke(result)).contains("motion="),
-                    "real rejection retained without reading protocol details aloud");
-            check(LingxiNavAgentApp.motionFailureReply(JSONObject.parseObject("{\"status\":\"confirmation_unknown\"}")).contains("暂未收到"),
-                    "unknown acknowledgement is not physical failure");
+            check(((String) reply.invoke(result)).isBlank(),
+                    "low-level rejection remains diagnostic without a spoken failure");
+            Method motionAccepted = result.getClass().getDeclaredMethod("localPerformanceAccepted");
+            motionAccepted.setAccessible(true);
+            check(!(boolean) motionAccepted.invoke(result), "silent rejection is never marked accepted");
+            check(LingxiNavAgentApp.motionFailureReply(JSONObject.parseObject("{\"status\":\"confirmation_unknown\"}")).isBlank(),
+                    "unknown acknowledgement is not announced as failure");
+            check(LingxiNavAgentApp.motionFailureReply(JSONObject.parseObject("{\"status\":\"navigation_active\"}")).contains("停稳"),
+                    "navigation safety precondition remains visible to the user");
             modelOffline.set(true);
             result = process.invoke(null, "offline-nav", "带我去大厅", config, bridge, model, null, new AtomicBoolean());
             check(navigations.get() == 1 && ((String) reply.invoke(result)).contains("大厅"), "explicit exact navigation survives model outage");

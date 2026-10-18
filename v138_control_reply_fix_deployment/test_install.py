@@ -113,6 +113,20 @@ class InstallTests(unittest.TestCase):
         self.assertFalse(self.installer.active)
         self.assertNotIn("start", self.installer.events)
 
+    def test_previous_patch_can_upgrade_and_rollback_to_its_exact_bytes(self):
+        previous = jar("previous-v1.0.0")
+        (self.release / module.JAR).write_bytes(previous)
+        manifest = {"files": [dict(path=module.JAR, sha256=module.digest(previous), size=len(previous))],
+                    "control_reply_fix": "1.0.0-20261018"}
+        previous_manifest = module.json_bytes(manifest)
+        (self.release / module.MANIFEST).write_bytes(previous_manifest)
+        self.installer.meta["superseded_jar_sha256"] = [module.digest(previous)]
+        self.installer.install()
+        self.assertEqual((self.release / module.JAR).read_bytes(), self.new)
+        self.installer.rollback(self.backup())
+        self.assertEqual((self.release / module.JAR).read_bytes(), previous)
+        self.assertEqual((self.release / module.MANIFEST).read_bytes(), previous_manifest)
+
     def test_startup_failure_rolls_back_once_and_restores_running_service(self):
         self.installer.fail_start = True
         with self.assertRaisesRegex(RuntimeError, "startup"):

@@ -14,7 +14,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent / "v138_complete_r15_deployment"))
 from archive_utils import read_archive, verify_sums
 
-NAME = "sparkrobot-lingxi-v1.3.8-control-reply-fix-1.0.0-20261018"
+NAME = "sparkrobot-lingxi-v1.3.8-control-reply-fix-1.0.1-20261018"
 
 
 def main():

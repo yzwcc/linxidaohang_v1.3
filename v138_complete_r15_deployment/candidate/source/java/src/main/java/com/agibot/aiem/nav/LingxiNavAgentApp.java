@@ -324,8 +324,9 @@ public final class LingxiNavAgentApp {
                     }
                     catch (Exception exception) {
                         log.error("Asr2Llm handling failed", exception);
-                        if (interactionResult != null && interactionResult.localPerformanceAccepted()) {
-                            log.warn("Suppressing SDK error after local performance was accepted: callback=Asr2Llm, eventId={}", string2);
+                        if (interactionResult != null && interactionResult.suppressSdkFailure()) {
+                            log.warn("Suppressing SDK error after local response was handled: callback=Asr2Llm, eventId={}, accepted={}",
+                                    string2, interactionResult.localPerformanceAccepted());
                             LingxiNavAgentApp.finishAcceptedAsr2Llm(string2, string4, asr2LlmResponse);
                         } else {
                             asr2LlmResponse.onError(string2, 5001, "\u5904\u7406\u5931\u8d25: " + exception.getMessage());
@@ -396,8 +397,9 @@ public final class LingxiNavAgentApp {
                     }
                     catch (Exception exception) {
                         log.error("Asr2Tts handling failed", exception);
-                        if (interactionResult != null && interactionResult.localPerformanceAccepted()) {
-                            log.warn("Suppressing SDK error after local performance was accepted: callback=Asr2Tts, eventId={}", string2);
+                        if (interactionResult != null && interactionResult.suppressSdkFailure()) {
+                            log.warn("Suppressing SDK error after local response was handled: callback=Asr2Tts, eventId={}, accepted={}",
+                                    string2, interactionResult.localPerformanceAccepted());
                             LingxiNavAgentApp.finishAcceptedAsr2Tts(string2, string4, asr2TtsResponse);
                         } else {
                             asr2TtsResponse.onError(string2, 5001, "\u5904\u7406\u5931\u8d25: " + exception.getMessage());
@@ -635,7 +637,7 @@ public final class LingxiNavAgentApp {
             audio2LlmResponse.onAsrFinal(string, audioResult.asrText);
             RobotTtsResult ttsResult = LingxiNavAgentApp.speakIfNeeded(
                     appConfig, string, audioResult.reply, audioResult.ttsPriority, navBridgeClient);
-            if (LingxiNavAgentApp.shouldReturnLingxiText(appConfig, ttsResult)) {
+            if (!audioResult.reply.isBlank() && LingxiNavAgentApp.shouldReturnLingxiText(appConfig, ttsResult)) {
                 audio2LlmResponse.onLlmItemDelta(string, audioSession.itemId, audioResult.reply);
             } else {
                 log.info("Lingxi LLM text suppressed for local robot TTS test: eventId={}, text={}", (Object)string, (Object)LingxiNavAgentApp.abbreviate(audioResult.reply));
@@ -646,8 +648,9 @@ public final class LingxiNavAgentApp {
         }
         catch (Exception exception) {
             LingxiNavAgentApp.logAudioHandlingFailure("Audio2Llm", string, audioSession, exception);
-            if (audioResult != null && audioResult.localPerformanceAccepted()) {
-                log.warn("Suppressing SDK error after local performance was accepted: callback=Audio2Llm, eventId={}", string);
+            if (audioResult != null && audioResult.suppressSdkFailure()) {
+                log.warn("Suppressing SDK error after local response was handled: callback=Audio2Llm, eventId={}, accepted={}",
+                        string, audioResult.localPerformanceAccepted());
                 LingxiNavAgentApp.finishAcceptedAudio2Llm(string, audioSession.itemId, audio2LlmResponse);
             } else {
                 LingxiNavAgentApp.speakIfNeeded(appConfig, string, "网络暂时有点慢，请再说一遍。", TtsPriority.NORMAL, navBridgeClient);
@@ -674,7 +677,7 @@ public final class LingxiNavAgentApp {
             audio2TtsResponse.onAsrFinal(string, audioResult.asrText);
             RobotTtsResult ttsResult = LingxiNavAgentApp.speakIfNeeded(
                     appConfig, string, audioResult.reply, audioResult.ttsPriority, navBridgeClient);
-            if (LingxiNavAgentApp.shouldReturnLingxiText(appConfig, ttsResult)) {
+            if (!audioResult.reply.isBlank() && LingxiNavAgentApp.shouldReturnLingxiText(appConfig, ttsResult)) {
                 audio2TtsResponse.onLlmItemDelta(string, audioSession.itemId, audioResult.reply);
             } else {
                 log.info("Lingxi LLM text suppressed for local robot TTS test: eventId={}, text={}", (Object)string, (Object)LingxiNavAgentApp.abbreviate(audioResult.reply));
@@ -687,8 +690,9 @@ public final class LingxiNavAgentApp {
         }
         catch (Exception exception) {
             LingxiNavAgentApp.logAudioHandlingFailure("Audio2Tts", string, audioSession, exception);
-            if (audioResult != null && audioResult.localPerformanceAccepted()) {
-                log.warn("Suppressing SDK error after local performance was accepted: callback=Audio2Tts, eventId={}", string);
+            if (audioResult != null && audioResult.suppressSdkFailure()) {
+                log.warn("Suppressing SDK error after local response was handled: callback=Audio2Tts, eventId={}, accepted={}",
+                        string, audioResult.localPerformanceAccepted());
                 LingxiNavAgentApp.finishAcceptedAudio2Tts(string, audioSession.itemId, audio2TtsResponse);
             } else {
                 LingxiNavAgentApp.speakIfNeeded(appConfig, string, "网络暂时有点慢，请再说一遍。", TtsPriority.NORMAL, navBridgeClient);
@@ -760,7 +764,8 @@ public final class LingxiNavAgentApp {
             interactionResult = LingxiNavAgentApp.handleIntent(string, string2, navigationIntent, navBridgeClient, doubaoArkClient, qaStore, true);
         }
         return new AudioResult(string2, interactionResult.reply, interactionResult.ttsPriority,
-                interactionResult.skillAction, interactionResult.localPerformanceAccepted());
+                interactionResult.skillAction, interactionResult.localPerformanceAccepted(),
+                interactionResult.suppressSdkFailure());
     }
 
     private static InteractionResult processTextRequest(String string, String string2, AppConfig appConfig, NavBridgeClient navBridgeClient, DoubaoArkClient doubaoArkClient, QaStore qaStore, AtomicBoolean atomicBoolean) throws Exception {
@@ -1212,18 +1217,15 @@ public final class LingxiNavAgentApp {
                 );
             } catch (IOException exception) {
                 log.warn("Motion acknowledgement unavailable; not resubmitting: eventId={}, error={}", string, exception.getMessage());
-                return new InteractionResult("暂未收到动作确认，请先观察机器人状态。", TtsPriority.NORMAL);
+                return new InteractionResult("", TtsPriority.NORMAL, "", false, true);
             }
             if (motionResult.getBooleanValue("accepted")) {
                 return new InteractionResult(selection.motion().reply(), TtsPriority.NORMAL, "", true);
             }
             String motionMessage = motionFailureReply(motionResult);
-            return new InteractionResult(
-                    motionMessage == null || motionMessage.isBlank()
-                            ? "这个动作现在没有执行，请等机器人停稳后再试。"
-                            : motionMessage,
-                    TtsPriority.NORMAL
-            );
+            // Silence low-level acknowledgements without claiming motion success.
+            // Retain controller status/details in logs and do not submit again.
+            return new InteractionResult(motionMessage, TtsPriority.NORMAL, "", false, true);
         }
         String string9 = navigationIntent.questionOrDefault(string2);
         if (LingxiNavAgentApp.isDateQuestion(string9)) {
@@ -1250,14 +1252,12 @@ public final class LingxiNavAgentApp {
 
     static String motionFailureReply(JSONObject result) {
         String status = result.getString("status");
-        if ("confirmation_timeout".equals(status) || "confirmation_unknown".equals(status)) {
-            return "暂未收到动作确认，请先观察机器人状态。";
-        }
+        log.warn("Motion not accepted: status={}, detail={}", status, result.getString("message"));
         if ("navigation_active".equals(status) || "tour_active".equals(status)) {
             return "我正在导航或讲解，请停稳后再做这个动作。";
         }
-        log.warn("Motion not accepted: status={}, detail={}", status, result.getString("message"));
-        return "这个动作请求暂未被接受，请稍后再试。";
+        log.info("Motion acknowledgement speech suppressed: status={}, accepted=false", status);
+        return "";
     }
 
     private static JSONObject startNavigationWithRetry(String eventId, String targetName,
@@ -2055,7 +2055,7 @@ public final class LingxiNavAgentApp {
     }
 
     private record AudioResult(String asrText, String reply, TtsPriority ttsPriority, String skillAction,
-                               boolean localPerformanceAccepted) {
+                               boolean localPerformanceAccepted, boolean suppressSdkFailure) {
     }
 
     private static enum TtsPriority {
@@ -2075,7 +2075,11 @@ public final class LingxiNavAgentApp {
     }
 
     private record InteractionResult(String reply, TtsPriority ttsPriority, String skillAction,
-                                     boolean localPerformanceAccepted) {
+                                     boolean localPerformanceAccepted, boolean suppressSdkFailure) {
+        private InteractionResult(String reply, TtsPriority priority, String skillAction, boolean accepted) {
+            this(reply, priority, skillAction, accepted, accepted);
+        }
+
         private InteractionResult(String string, TtsPriority ttsPriority) {
             this(string, ttsPriority, "", false);
         }
