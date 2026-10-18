@@ -314,8 +314,9 @@ public final class LingxiNavAgentApp {
                         RobotTtsResult ttsResult = LingxiNavAgentApp.speakIfNeeded(
                                 appConfig, string2, interactionResult.reply, interactionResult.ttsPriority, navBridgeClient);
                         if (!interactionResult.reply.isBlank()
-                                && LingxiNavAgentApp.shouldReturnLingxiText(appConfig, ttsResult)) {
+                                && LingxiNavAgentApp.shouldReturnLingxiText(appConfig, interactionResult.ttsPriority, ttsResult)) {
                             asr2LlmResponse.onLlmItemDelta(string2, string4, interactionResult.reply);
+                            log.info("Lingxi reply text returned: eventId={}, priority={}", string2, interactionResult.ttsPriority);
                         } else {
                             log.info("Lingxi LLM text suppressed for local robot TTS test: eventId={}, text={}", (Object)string2, (Object)LingxiNavAgentApp.abbreviate(interactionResult.reply));
                         }
@@ -385,8 +386,9 @@ public final class LingxiNavAgentApp {
                         RobotTtsResult ttsResult = LingxiNavAgentApp.speakIfNeeded(
                                 appConfig, string2, interactionResult.reply, interactionResult.ttsPriority, navBridgeClient);
                         if (!interactionResult.reply.isBlank()
-                                && LingxiNavAgentApp.shouldReturnLingxiText(appConfig, ttsResult)) {
+                                && LingxiNavAgentApp.shouldReturnLingxiText(appConfig, interactionResult.ttsPriority, ttsResult)) {
                             asr2TtsResponse.onLlmItemDelta(string2, string4, interactionResult.reply);
+                            log.info("Lingxi reply text returned: eventId={}, priority={}", string2, interactionResult.ttsPriority);
                         } else {
                             log.info("Lingxi LLM text suppressed for local robot TTS test: eventId={}, text={}", (Object)string2, (Object)LingxiNavAgentApp.abbreviate(interactionResult.reply));
                         }
@@ -638,8 +640,9 @@ public final class LingxiNavAgentApp {
             audio2LlmResponse.onAsrFinal(string, audioResult.asrText);
             RobotTtsResult ttsResult = LingxiNavAgentApp.speakIfNeeded(
                     appConfig, string, audioResult.reply, audioResult.ttsPriority, navBridgeClient);
-            if (!audioResult.reply.isBlank() && LingxiNavAgentApp.shouldReturnLingxiText(appConfig, ttsResult)) {
+            if (!audioResult.reply.isBlank() && LingxiNavAgentApp.shouldReturnLingxiText(appConfig, audioResult.ttsPriority, ttsResult)) {
                 audio2LlmResponse.onLlmItemDelta(string, audioSession.itemId, audioResult.reply);
+                log.info("Lingxi reply text returned: eventId={}, priority={}", string, audioResult.ttsPriority);
             } else {
                 log.info("Lingxi LLM text suppressed for local robot TTS test: eventId={}, text={}", (Object)string, (Object)LingxiNavAgentApp.abbreviate(audioResult.reply));
             }
@@ -678,8 +681,9 @@ public final class LingxiNavAgentApp {
             audio2TtsResponse.onAsrFinal(string, audioResult.asrText);
             RobotTtsResult ttsResult = LingxiNavAgentApp.speakIfNeeded(
                     appConfig, string, audioResult.reply, audioResult.ttsPriority, navBridgeClient);
-            if (!audioResult.reply.isBlank() && LingxiNavAgentApp.shouldReturnLingxiText(appConfig, ttsResult)) {
+            if (!audioResult.reply.isBlank() && LingxiNavAgentApp.shouldReturnLingxiText(appConfig, audioResult.ttsPriority, ttsResult)) {
                 audio2TtsResponse.onLlmItemDelta(string, audioSession.itemId, audioResult.reply);
+                log.info("Lingxi reply text returned: eventId={}, priority={}", string, audioResult.ttsPriority);
             } else {
                 log.info("Lingxi LLM text suppressed for local robot TTS test: eventId={}, text={}", (Object)string, (Object)LingxiNavAgentApp.abbreviate(audioResult.reply));
             }
@@ -968,11 +972,12 @@ public final class LingxiNavAgentApp {
         return !"robot".equals(appConfig.ttsMode) || !appConfig.ttsSuppressLingxiText;
     }
 
-    private static boolean shouldReturnLingxiText(AppConfig appConfig, RobotTtsResult ttsResult) {
-        // Suppression is only valid when the robot actually accepted local TTS.
-        // Otherwise the SDK must receive the answer so the cloud speech path can
-        // still complete the interaction instead of becoming silent.
-        return shouldReturnLingxiText(appConfig) || ttsResult == null || !ttsResult.accepted();
+    private static boolean shouldReturnLingxiText(AppConfig appConfig, TtsPriority priority,
+                                                  RobotTtsResult ttsResult) {
+        // Preserve the historical control-reply exception: a successful local
+        // TTS request must not leave navigation/tour completion empty on Lingxi.
+        return priority == TtsPriority.NAVIGATION || priority == TtsPriority.URGENT
+                || shouldReturnLingxiText(appConfig) || ttsResult == null || !ttsResult.accepted();
     }
 
     private static void markUserInteraction(String string, String string2, NavigationIntent navigationIntent, NavBridgeClient navBridgeClient, AtomicBoolean atomicBoolean) {
@@ -1664,8 +1669,8 @@ public final class LingxiNavAgentApp {
             NATIVE_INTERRUPT_DEDUP.put(key, now);
         }
         try {
-            // HTTP control is executed locally, not by an SDK onSkill action.
-            // An action interrupt without onSkill leaves the native action response incomplete.
+            // Keep the existing local HTTP response channel; SDK text completion
+            // is handled separately from physical control dispatch.
             interruptSender.send(eventId, "chat", null);
             log.info("Local control response claimed: eventId={}, type=chat, text={}",
                     eventId, LingxiNavAgentApp.abbreviate(text));
