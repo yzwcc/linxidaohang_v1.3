@@ -80,8 +80,8 @@ public final class AgentSdkInterruptWireTest {
                 check(!begin.test(intent), "same response cannot dispatch control twice");
                 check(client.messages.size() == before + 1, "resolved intent sends exactly one interrupt");
                 JSONObject payload = JSON.parseObject(client.messages.get(before).payload);
-                check("action".equals(payload.getString("interruptType")),
-                        "resolved command owns SDK response including custom and flexible intents");
+                check("chat".equals(payload.getString("interruptType")),
+                        "resolved local command uses chat rather than an empty skill action");
                 check(payload.get("interruptTips") == null, "no fallback interrupt announcement");
             }
             System.out.println("AgentSdkInterruptWireTest passed: " + checks + " assertions");
@@ -121,8 +121,8 @@ public final class AgentSdkInterruptWireTest {
         check(robotCid.equals(payload.getString("robotCid")), "payload keeps robot cid");
         check(robotCid.equals(payload.getString("cid")), "payload keeps cid alias");
         check(eventId.equals(payload.getString("eventId")), "payload keeps callback event id");
-        check("action".equals(payload.getString("interruptType")),
-                "payload interrupts the native action channel");
+        check("chat".equals(payload.getString("interruptType")),
+                "local HTTP control is a chat response, not an SDK skill action");
         check(payload.get("interruptTips") == null, "payload leaves interrupt tips empty");
     }
 

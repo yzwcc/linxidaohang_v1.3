@@ -162,7 +162,9 @@ public final class ControlOwnershipFaultTest {
                             String event = route + mode + kind + value;
                             if (mode.equals("llm")) llm.onRequest("llm", event, text(kind), VoiceGateTest.acceptedParams(), llmReply);
                             else tts.onRequest("tts", event, text(kind), VoiceGateTest.acceptedParams(), ttsReply);
-                            check(total(calls) == 1, "ambiguous POST never retried: " + event);
+                            check(total(calls) == (kind.equals("dance") ? 0 : 1),
+                                    kind.equals("dance") ? "native dance bypasses local endpoint: " + event
+                                            : "ambiguous POST never retried: " + event);
                             check(speech.isEmpty() && !client.hasSpeechOrError(), "unknown acknowledgement silent: " + event);
                         }
                     }

@@ -41,7 +41,7 @@ final class DoubaoArkClient {
         try {
             return NavigationIntent.fromJsonText(string2);
         } catch (RuntimeException invalid) {
-            throw new IOException("Doubao returned an invalid intent", invalid);
+            throw new IOException("Doubao returned an invalid intent: " + invalid.getClass().getSimpleName(), invalid);
         }
     }
 
@@ -184,6 +184,8 @@ final class DoubaoArkClient {
                 + "target_name 必须填写等号后的英文标准名；motion_area 只能填写 left_hand、right_hand、both_hands 或 whole_body。"
                 + "没有指定左右手时使用该动作允许区域中的常用默认值：握手/挥手/举手/飞吻/击掌/敬礼/胸前挥手用 right_hand，比心/平举用 both_hands，其他用 whole_body。"
                 + "例如‘能不能跟我握一下手’是 handshake，‘给小朋友比个爱心’是 sweetheart，‘用左手挥一下’是 wave+left_hand。"
+                + "‘打个招呼’、‘跟大家打招呼’、‘挥手问好’属于 preset_motion，target_name=wave；"
+                + "只说‘你好’属于 chat。不得输出 greet、greeting 等不在列表中的 intent。"
                 + "只有明确要求执行动作才用 preset_motion；询问‘你会握手吗’属于 chat。舞蹈仍用 dance，不得当作 preset_motion。"
                 + "不支持的动作必须用 chat 说明暂不支持，禁止编造动作名或数值 ID。\n"
                 + "停止导航、开始/暂停/继续/停止讲解、唱歌和跳舞分别使用对应 intent。"

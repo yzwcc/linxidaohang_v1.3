@@ -13,7 +13,7 @@ final class PresetMotionCatalog {
     private static final Map<String, String> ALIASES = new LinkedHashMap<>();
 
     static {
-        register("wave", "挥手", "right_hand", Set.of("left_hand", "right_hand"), "好的，给你挥挥手。", "wave_hand", "挥手");
+        register("wave", "挥手", "right_hand", Set.of("left_hand", "right_hand"), "好的，给你挥挥手。", "wave_hand", "挥手", "greet", "greeting", "say_hello", "打招呼", "打个招呼");
         register("handshake", "握手", "right_hand", Set.of("left_hand", "right_hand"), "好的，和你握个手。", "shake_hand", "握手");
         register("raise_hand", "举手", "right_hand", Set.of("left_hand", "right_hand"), "好的，我来举手。", "raisehand", "举手");
         register("flying_kiss", "飞吻", "right_hand", Set.of("left_hand", "right_hand"), "好的，送你一个飞吻。", "blow_kiss", "飞吻");
@@ -57,6 +57,10 @@ final class PresetMotionCatalog {
         if (text.isBlank() || looksLikeMotionQuestion(text) || hasNegationOrQuotedSpeech(text)) return null;
         String imperative = text.replaceFirst("^(?:你好)?(?:灵犀|灵心)", "")
                 .replaceFirst("^(?:能不能|可不可以|可以|麻烦|请)(?:你)?", "");
+        if (imperative.matches("(?:(?:给|跟|和|向)(?:我|我们|大家|客人|小朋友|他们))?"
+                + "(?:打个招呼|打招呼|打一下招呼|挥手打招呼|挥挥手打个招呼)(?:一下|吧|呗|呀|啊)?")) {
+            return resolve("wave", requestedArea(text));
+        }
         if (imperative.length() > 24 || !imperative.matches(
                 "^(?:给我|跟我|和我|向我|来|做|用|握|比|挥|摆|举|抬|飞吻|送个吻|亲一个|击掌|拍手|敬礼|鞠躬|鼓掌|拜拜|再见).*$")) return null;
         String area = requestedArea(text);

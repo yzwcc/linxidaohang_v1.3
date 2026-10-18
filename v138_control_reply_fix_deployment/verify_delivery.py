@@ -14,7 +14,8 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent / "v138_complete_r15_deployment"))
 from archive_utils import read_archive, verify_sums
 
-NAME = "sparkrobot-lingxi-v1.3.8-control-reply-fix-1.0.2-20261018"
+NAME = "sparkrobot-lingxi-v1.3.8-control-reply-fix-1.0.3-20261018"
+CHANGED_CLASSES = ("LingxiNavAgentApp", "PresetMotionCatalog", "DoubaoArkClient")
 
 
 def main():
@@ -41,10 +42,12 @@ def main():
                              if name not in jar.namelist() or name not in original.namelist()
                              or jar.read(name) != original.read(name))
             assert changed
-            assert all(name.startswith("com/agibot/aiem/nav/LingxiNavAgentApp")
-                       and name.endswith(".class") for name in changed), changed
+            assert all(any(name == "com/agibot/aiem/nav/" + cls + ".class"
+                           or name.startswith("com/agibot/aiem/nav/" + cls + "$") and name.endswith(".class")
+                           for cls in CHANGED_CLASSES) for name in changed), changed
     meta = json.loads(files["release.json"][1])
     assert meta["changed_runtime_files"] == ["java/robot-local-navigation-java-all.jar"]
+    assert meta["changed_java_classes"] == list(CHANGED_CLASSES)
     assert hashlib.sha256(files["payload/java/robot-local-navigation-java-all.jar"][1]).hexdigest() == meta["patched_jar_sha256"]
     bash_blocks = re.findall(r"```bash\n(.*?)```", files["部署说明.md"][1].decode("utf-8"), re.S)
     commands = [data for name, (_, data) in files.items() if name.endswith(".sh")]

@@ -168,11 +168,11 @@ final class VoiceAgentGateRegression {
                 check((boolean) shouldInterruptNativeTour.invoke(null, text),
                         "explicit tour control interrupts native duplicate: " + text);
             }
-            for (String text : List.of("握手", "请给我比个心", "挥手一下", "跳一段舞")) {
+            for (String text : List.of("握手", "请给我比个心", "挥手一下", "打个招呼")) {
                 check((boolean) shouldInterruptNativeTour.invoke(null, text),
                         "local performance interrupts native duplicate: " + text);
             }
-            for (String text : List.of("如何开始讲解", "不要停止讲解", "如果继续讲解会怎样", "今天星期几")) {
+            for (String text : List.of("如何开始讲解", "不要停止讲解", "如果继续讲解会怎样", "今天星期几", "跳一段舞", "唱首歌")) {
                 check(!(boolean) shouldInterruptNativeTour.invoke(null, text),
                         "question or negation does not interrupt native action: " + text);
             }
@@ -185,7 +185,7 @@ final class VoiceAgentGateRegression {
                     (proxy, invoked, args) -> {
                         nativeInterruptCalls.incrementAndGet();
                         check("native-event".equals(args[0]), "native interrupt keeps callback event id");
-                        check("action".equals(args[1]), "native interrupt uses action type");
+                        check("chat".equals(args[1]), "local control uses chat response type");
                         check(args[2] == null, "native interrupt leaves tips empty");
                         return null;
                     });

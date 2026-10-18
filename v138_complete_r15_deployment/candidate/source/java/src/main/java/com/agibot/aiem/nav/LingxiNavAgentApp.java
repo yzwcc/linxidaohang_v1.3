@@ -300,8 +300,8 @@ public final class LingxiNavAgentApp {
                     try {
                         Runnable nativeInterrupt = LingxiNavAgentApp.nativeTourActionInterrupt(
                                 string2, string3, asr2LlmResponse::onInterrupt);
-                        // Cancel the native duplicate before slow wake evidence lookup.
-                        // This cancellation never admits a command through the voice gates.
+                        // Claim clear local controls before the native default response races us.
+                        // Native singing/dancing keep their original response channel.
                         nativeInterrupt.run();
                         if (LingxiNavAgentApp.shouldIgnoreTextCallback(
                                 "Asr2Llm", string, string2, string3, agentParam,
@@ -801,10 +801,17 @@ public final class LingxiNavAgentApp {
                     navigationIntent = NavigationCommandFallback.resolve(string2, pointNames);
                 }
                 if (navigationIntent == null) {
+                    navigationIntent = entertainmentIntentFromText(string2);
+                }
+                if (navigationIntent == null) {
                     return new InteractionResult("语音已收到，但问答服务暂时不可用，请稍后再试。", TtsPriority.NORMAL);
                 }
                 log.info("Explicit local control fallback: eventId={}, intent={}", string, navigationIntent.intent);
             }
+        }
+        NavigationIntent explicitMotion = presetMotionIntentFromText(string2);
+        if (explicitMotion != null && "chat".equals(navigationIntent.intent)) {
+            navigationIntent = explicitMotion;
         }
         // Another callback can complete classification while this one waits on the model.
         if (hasControlResponseOwner(string, string2)) {
@@ -865,7 +872,9 @@ public final class LingxiNavAgentApp {
 
     private static NavigationIntent entertainmentIntentFromText(String string) {
         String string2 = LingxiNavAgentApp.normalizeText(string);
-        if (string2.isBlank()) {
+        if (string2.isBlank() || isNegatedOrQuotedControl(string)
+                || string2.matches(".*(?:是什么|怎么|如何|为什么|会不会|能不能唱什么|你会唱什么|你会跳什么).*")
+                || string2.matches(".*(?:会唱歌吗|会跳舞吗|会唱歌么|会跳舞么)")) {
             return null;
         }
         if (LingxiNavAgentApp.containsAny(string2, "\u8df3\u592a\u6781", "\u592a\u6781\u821e", "\u6765\u6bb5\u592a\u6781", "\u6765\u4e00\u6bb5\u592a\u6781", "taiji", "tai chi", "taichi")) {
@@ -922,12 +931,8 @@ public final class LingxiNavAgentApp {
     }
 
     private static NavigationIntent localEntertainmentIntentFromRequest(String string, NavigationIntent navigationIntent) {
-        StringBuilder stringBuilder = new StringBuilder();
-        LingxiNavAgentApp.appendIfNotBlank(stringBuilder, string);
-        LingxiNavAgentApp.appendIfNotBlank(stringBuilder, navigationIntent.targetName);
-        LingxiNavAgentApp.appendIfNotBlank(stringBuilder, navigationIntent.question);
-        LingxiNavAgentApp.appendIfNotBlank(stringBuilder, navigationIntent.reply);
-        return LingxiNavAgentApp.entertainmentIntentFromText(stringBuilder.toString());
+        // Model answers and suggested capabilities are not user commands.
+        return LingxiNavAgentApp.entertainmentIntentFromText(string);
     }
 
     private static void appendIfNotBlank(StringBuilder stringBuilder, String string) {
@@ -1214,27 +1219,11 @@ public final class LingxiNavAgentApp {
             return new InteractionResult(bl5 ? "\u5df2\u7ed3\u675f\u8bb2\u89e3\u4efb\u52a1" : "\u5f53\u524d\u6ca1\u6709\u6b63\u5728\u6267\u884c\u7684\u8bb2\u89e3\u4efb\u52a1", TtsPriority.URGENT, "", bl5);
         }
         if (navigationIntent.isSing()) {
-            return new InteractionResult("\u5531\u6b4c\u529f\u80fd\u6682\u65f6\u5173\u95ed\u4e86\uff0c\u6211\u73b0\u5728\u53ef\u4ee5\u7ed9\u4f60\u8df3\u821e\u3002", TtsPriority.NORMAL);
+            log.info("Native performance retained: eventId={}, kind=sing; no local playback or skill resubmission", string);
+            return new InteractionResult("", TtsPriority.NORMAL, "", false, true);
         }
         if (navigationIntent.isDance()) {
-            if (!bl) {
-                return new InteractionResult(navigationIntent.replyOrDefault("\u597d\u7684\uff0c\u6211\u6765\u8df3\u4e00\u6bb5\u3002"), TtsPriority.NORMAL, "dance");
-            }
-            String string7 = navigationIntent.targetName.isBlank() ? string2 : navigationIntent.targetName;
-            JSONObject jSONObject;
-            try {
-                jSONObject = requireControlAcknowledgement(navBridgeClient.dance(string, string7), "accepted");
-            } catch (IOException | JSONException exception) {
-                return bridgeUnavailable(string, "dance", exception);
-            } catch (InterruptedException exception) {
-                Thread.currentThread().interrupt();
-                return bridgeUnavailable(string, "dance_interrupted", exception);
-            }
-            boolean bl6 = jSONObject.getBooleanValue("accepted");
-            if (bl6) {
-                return new InteractionResult("", TtsPriority.NORMAL, "", true);
-            }
-            log.warn("Dance not accepted; acknowledgement speech suppressed: eventId={}, result={}", string, jSONObject);
+            log.info("Native performance retained: eventId={}, kind=dance; no local prepare speech or resource resubmission", string);
             return new InteractionResult("", TtsPriority.NORMAL, "", false, true);
         }
         if (navigationIntent.isPresetMotion()) {
@@ -1277,7 +1266,7 @@ public final class LingxiNavAgentApp {
         String knowledgeAnswer = LingxiNavAgentApp.knowledgeAnswer(string9, doubaoArkClient);
         if (knowledgeAnswer != null) {
             log.info("Knowledge base answer selected: eventId={}, question={}", string, LingxiNavAgentApp.abbreviate(string9));
-            return new InteractionResult(SpeechInputPolicy.cleanReply(string9, knowledgeAnswer), TtsPriority.NORMAL);
+            return new InteractionResult(cleanDialogReply(string9, knowledgeAnswer), TtsPriority.NORMAL);
         }
         try {
             object = doubaoArkClient.chat(string9);
@@ -1285,11 +1274,25 @@ public final class LingxiNavAgentApp {
             log.warn("Text model answer unavailable: eventId={}, error={}", string, exception.getMessage());
             return new InteractionResult("问答服务暂时不可用，请稍后再试。", TtsPriority.NORMAL);
         }
-        object = SpeechInputPolicy.cleanReply(string9, (String)object);
+        object = cleanDialogReply(string9, (String)object);
         if (!bl7 && !LingxiNavAgentApp.mentionsForbiddenIdentity((String)object)) {
             qaStore.savePair(string9, (String)object);
         }
         return new InteractionResult((String)object, TtsPriority.NORMAL);
+    }
+
+    static boolean isIncompleteSpeech(String text) {
+        String value = SpeechInputPolicy.normalize(text);
+        return value.matches("(?:那|那么)?(?:你是|我是|你能|我想|你想|你|我)"
+                + "|(?:那个|这个|然后我|然后你|我想问|我想说)");
+    }
+
+    static String cleanDialogReply(String question, String reply) {
+        if (reply == null || isIncompleteSpeech(question)) return "";
+        if (isIdentityQuestion(question) || SpeechInputPolicy.asksIdentity(question)) return reply.trim();
+        String cleaned = reply.replaceFirst(
+                "^(?:你好[呀啊！!，, ]*)?我是[^。！？!?.]*(?:现场服务|互动机器人)[^。！？!?.]*[。！？!?.]?", "").trim();
+        return cleaned.isBlank() ? "" : SpeechInputPolicy.cleanReply(question, cleaned);
     }
 
     static String motionFailureReply(JSONObject result) {
@@ -1465,6 +1468,10 @@ public final class LingxiNavAgentApp {
         }
         if (SpeechInputPolicy.isFiller(text)) {
             log.info("Text ignored: eventId={}, reason=filler", eventId);
+            return true;
+        }
+        if (isIncompleteSpeech(text)) {
+            log.info("Text ignored: eventId={}, reason=incomplete_asr_fragment", eventId);
             return true;
         }
         if (TTS_CONTROLLER.isInputEcho(text)) {
@@ -1657,10 +1664,10 @@ public final class LingxiNavAgentApp {
             NATIVE_INTERRUPT_DEDUP.put(key, now);
         }
         try {
-            // AgentSDK requires an interrupt before a valid action response. This
-            // also cancels the robot's built-in exhibit_commentary duplicate.
-            interruptSender.send(eventId, "action", null);
-            log.info("Native tour action interrupt sent: eventId={}, type=action, text={}",
+            // HTTP control is executed locally, not by an SDK onSkill action.
+            // An action interrupt without onSkill leaves the native action response incomplete.
+            interruptSender.send(eventId, "chat", null);
+            log.info("Local control response claimed: eventId={}, type=chat, text={}",
                     eventId, LingxiNavAgentApp.abbreviate(text));
         } catch (RuntimeException exception) {
             NATIVE_INTERRUPT_DEDUP.remove(key, now);
@@ -1690,7 +1697,9 @@ public final class LingxiNavAgentApp {
             if (!intent.isStop() && !intent.isEndTask()
                     && !claimControlResponse(eventId, text, intent)) return false;
             // A transport failure must not prevent local dispatch or a safety stop.
-            sendNativeActionInterrupt(eventId, text, sender);
+            if (!intent.isSing() && !intent.isDance()) {
+                sendNativeActionInterrupt(eventId, text, sender);
+            }
             return true;
         };
     }
@@ -1730,8 +1739,6 @@ public final class LingxiNavAgentApp {
 
     private static boolean shouldInterruptNativeTourAction(String text) {
         if (PresetMotionCatalog.resolveVoiceCommand(text) != null) return true;
-        NavigationIntent entertainment = LingxiNavAgentApp.entertainmentIntentFromText(text);
-        if (entertainment != null && entertainment.isDance()) return true;
         String command = SpeechInputPolicy.normalize(text)
                 .replaceFirst("^(?:你好灵犀|灵犀灵犀|嗨灵犀|灵犀|灵溪灵溪|嗨灵溪|hellolumi|hilumi|heylumi)", "")
                 .replaceFirst("^(?:(?:请你|请|麻烦你|麻烦|帮我)|(?:现在|马上|立即|立刻|赶紧|快))+", "")
