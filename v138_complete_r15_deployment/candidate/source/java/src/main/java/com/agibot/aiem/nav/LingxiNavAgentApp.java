@@ -30,6 +30,7 @@ import com.agibot.aiem.sdk.passive.AudioVideo2TtsResponse;
 import com.agibot.aiem.sdk.passive.AudioVideo2VlmCallback;
 import com.agibot.aiem.sdk.passive.AudioVideo2VlmResponse;
 import com.alibaba.fastjson2.JSONObject;
+import com.alibaba.fastjson2.JSONException;
 import com.alibaba.fastjson2.JSONWriter;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -782,12 +783,18 @@ public final class LingxiNavAgentApp {
             catch (RuntimeException exception) { log.warn("SDK interrupt unavailable before safety stop: eventId={}", string, exception); }
             return LingxiNavAgentApp.handleIntent(string, string2, urgentStop, navBridgeClient, doubaoArkClient, qaStore, true);
         }
+        if (hasControlResponseOwner(string, string2)) {
+            return duplicateControlResponse(string);
+        }
         NavigationIntent navigationIntent = LingxiNavAgentApp.taskControlIntentFromText(string2, navBridgeClient);
         if (navigationIntent == null) {
             List<String> pointNames = LingxiNavAgentApp.loadPointNames(navBridgeClient, string);
             try {
                 navigationIntent = doubaoArkClient.parseInteraction(string2, pointNames);
             } catch (IOException | IllegalArgumentException exception) {
+                if (hasControlResponseOwner(string, string2)) {
+                    return duplicateControlResponse(string);
+                }
                 log.warn("Text model intent unavailable: eventId={}, error={}", string, exception.getMessage());
                 navigationIntent = LingxiNavAgentApp.presetMotionIntentFromText(string2);
                 if (navigationIntent == null) {
@@ -799,13 +806,21 @@ public final class LingxiNavAgentApp {
                 log.info("Explicit local control fallback: eventId={}, intent={}", string, navigationIntent.intent);
             }
         }
+        // Another callback can complete classification while this one waits on the model.
+        if (hasControlResponseOwner(string, string2)) {
+            return duplicateControlResponse(string);
+        }
+        if ((isRobotControlIntent(navigationIntent) || isRobotEntertainmentIntent(navigationIntent))
+                && isNegatedOrQuotedControl(string2)) {
+            return new InteractionResult("好的，不执行这条控制指令。", TtsPriority.NORMAL);
+        }
         LingxiNavAgentApp.logIntent("text_asr_final", string, string2, navigationIntent);
         // Establish response ownership before any local side effect. Recognition
         // and wake/noise rejection have already completed in the SDK callback.
         if (!responseStart.test(navigationIntent)) {
             log.info("Duplicate control response completed without dispatch: eventId={}, intent={}",
                     string, navigationIntent.intent);
-            return new InteractionResult("", TtsPriority.NORMAL, "", true);
+            return new InteractionResult("", TtsPriority.NORMAL, "", false, true);
         }
         LingxiNavAgentApp.markUserInteraction(string, "text_asr_final", navigationIntent, navBridgeClient, atomicBoolean);
         InteractionResult interactionResult = LingxiNavAgentApp.handleIntent(string, string2, navigationIntent, navBridgeClient, doubaoArkClient, qaStore, true);
@@ -867,7 +882,7 @@ public final class LingxiNavAgentApp {
 
     private static NavigationIntent taskControlIntentFromText(String string, NavBridgeClient navBridgeClient) {
         String string2 = LingxiNavAgentApp.normalizeText(string);
-        if (string2.isBlank()) {
+        if (string2.isBlank() || isNegatedOrQuotedControl(string)) {
             return null;
         }
         if (LingxiNavAgentApp.containsAny(string2, "暂停讲解", "暂停任务", "讲解暂停", "先暂停", "暂停一下")) {
@@ -898,6 +913,12 @@ public final class LingxiNavAgentApp {
             return NavigationIntent.startTask();
         }
         return null;
+    }
+
+    private static boolean isNegatedOrQuotedControl(String text) {
+        String value = SpeechInputPolicy.normalize(text).replace("能不能", "能否");
+        return containsAny(value, "不要", "别", "不用", "不想", "不需要", "不许",
+                "不能", "禁止", "他说", "她说", "刚才说", "如果", "假如", "不是让");
     }
 
     private static NavigationIntent localEntertainmentIntentFromRequest(String string, NavigationIntent navigationIntent) {
@@ -1048,15 +1069,23 @@ public final class LingxiNavAgentApp {
     }
 
     private static InteractionResult bridgeUnavailable(String eventId, String operation, Exception exception) {
-        log.warn("Robot bridge unavailable: eventId={}, operation={}, error={}",
+        log.warn("Control acknowledgement unavailable; not resubmitting or announcing failure: eventId={}, operation={}, error={}",
                 eventId, operation, exception.getMessage());
-        return new InteractionResult(
-                "\u673a\u5668\u4eba\u5bfc\u822a\u670d\u52a1\u6682\u65f6\u4e0d\u53ef\u7528\uff0c\u8bf7\u68c0\u67e5\u5bfc\u822a\u670d\u52a1\u540e\u518d\u8bd5\u3002",
-                TtsPriority.NAVIGATION
-        );
+        return new InteractionResult("", TtsPriority.NORMAL, "", false, true);
+    }
+
+    private static JSONObject requireControlAcknowledgement(JSONObject result, String field) throws IOException {
+        if (result == null || !(result.get(field) instanceof Boolean)) {
+            throw new IOException("Missing boolean control acknowledgement: " + field);
+        }
+        return result;
     }
 
     private static InteractionResult handleIntent(String string, String string2, NavigationIntent navigationIntent, NavBridgeClient navBridgeClient, DoubaoArkClient doubaoArkClient, QaStore qaStore, boolean bl) throws Exception {
+        if ((isRobotControlIntent(navigationIntent) || isRobotEntertainmentIntent(navigationIntent))
+                && urgentStopIntent(string2) == null && isNegatedOrQuotedControl(string2)) {
+            return new InteractionResult("好的，不执行这条控制指令。", TtsPriority.NORMAL);
+        }
         Object object;
         NavigationIntent navigationIntent2 = LingxiNavAgentApp.localEntertainmentIntentFromRequest(string2, navigationIntent);
         if (navigationIntent2 != null && (navigationIntent.isSing() || navigationIntent.isDance() || "chat".equals(navigationIntent.intent))) {
@@ -1070,7 +1099,7 @@ public final class LingxiNavAgentApp {
             JSONObject jSONObject;
             try {
                 jSONObject = startNavigationWithRetry(string, navigationIntent.targetName, navBridgeClient);
-            } catch (IOException exception) {
+            } catch (IOException | JSONException exception) {
                 return LingxiNavAgentApp.bridgeUnavailable(string, "nav_start", exception);
             } catch (InterruptedException exception) {
                 Thread.currentThread().interrupt();
@@ -1087,14 +1116,17 @@ public final class LingxiNavAgentApp {
             if ("busy".equals(string3)) {
                 return new InteractionResult("\u5f53\u524d\u5df2\u6709\u5bfc\u822a\u4efb\u52a1\u5728\u8fdb\u884c\u4e2d\uff0c\u8bf7\u7a0d\u540e\u518d\u8bd5", TtsPriority.NAVIGATION);
             }
-            String string4 = jSONObject.getString("message") == null ? navigationIntent.replyOrDefault("\u5bfc\u822a\u8bf7\u6c42\u6ca1\u6709\u88ab\u63a5\u53d7") : jSONObject.getString("message");
-            return new InteractionResult(string4, TtsPriority.NAVIGATION);
+            log.warn("Navigation not accepted: eventId={}, result={}", string, jSONObject);
+            String notice = isTransientNavigationStartStatus(string3)
+                    ? ("localization_unavailable".equals(string3) ? "定位尚未就绪，请稍后再试。" : "导航服务尚未就绪，请稍后再试。")
+                    : "";
+            return new InteractionResult(notice, TtsPriority.NAVIGATION, "", false, true);
         }
         if (navigationIntent.isStop()) {
             JSONObject jSONObject;
             try {
-                jSONObject = navBridgeClient.stopNavigation(string);
-            } catch (IOException exception) {
+                jSONObject = requireControlAcknowledgement(navBridgeClient.stopNavigation(string), "cancelled");
+            } catch (IOException | JSONException exception) {
                 return LingxiNavAgentApp.bridgeUnavailable(string, "nav_stop", exception);
             } catch (InterruptedException exception) {
                 Thread.currentThread().interrupt();
@@ -1106,8 +1138,8 @@ public final class LingxiNavAgentApp {
         if (navigationIntent.isStartTask()) {
             JSONObject jSONObject;
             try {
-                jSONObject = navBridgeClient.startTask(string, navigationIntent.targetName);
-            } catch (IOException exception) {
+                jSONObject = requireControlAcknowledgement(navBridgeClient.startTask(string, navigationIntent.targetName), "accepted");
+            } catch (IOException | JSONException exception) {
                 return LingxiNavAgentApp.bridgeUnavailable(string, "task_start", exception);
             } catch (InterruptedException exception) {
                 Thread.currentThread().interrupt();
@@ -1131,14 +1163,14 @@ public final class LingxiNavAgentApp {
             if ("busy".equals(string5)) {
                 return new InteractionResult("\u5f53\u524d\u5df2\u6709\u5bfc\u822a\u4efb\u52a1\u5728\u8fdb\u884c\u4e2d\uff0c\u8bf7\u7a0d\u540e\u518d\u8bd5", TtsPriority.NAVIGATION);
             }
-            String string6 = jSONObject.getString("message") == null ? navigationIntent.replyOrDefault("\u8bb2\u89e3\u4efb\u52a1\u6ca1\u6709\u88ab\u63a5\u53d7") : jSONObject.getString("message");
-            return new InteractionResult(string6, TtsPriority.NAVIGATION);
+            log.warn("Tour not accepted; acknowledgement speech suppressed: eventId={}, result={}", string, jSONObject);
+            return new InteractionResult("", TtsPriority.NAVIGATION, "", false, true);
         }
         if (navigationIntent.isPauseTask()) {
             JSONObject jSONObject;
             try {
-                jSONObject = navBridgeClient.pauseTask(string);
-            } catch (IOException exception) {
+                jSONObject = requireControlAcknowledgement(navBridgeClient.pauseTask(string), "paused");
+            } catch (IOException | JSONException exception) {
                 return LingxiNavAgentApp.bridgeUnavailable(string, "task_pause", exception);
             } catch (InterruptedException exception) {
                 Thread.currentThread().interrupt();
@@ -1154,8 +1186,8 @@ public final class LingxiNavAgentApp {
         if (navigationIntent.isResumeTask()) {
             JSONObject jSONObject;
             try {
-                jSONObject = navBridgeClient.resumeTask(string);
-            } catch (IOException exception) {
+                jSONObject = requireControlAcknowledgement(navBridgeClient.resumeTask(string), "resumed");
+            } catch (IOException | JSONException exception) {
                 return LingxiNavAgentApp.bridgeUnavailable(string, "task_resume", exception);
             } catch (InterruptedException exception) {
                 Thread.currentThread().interrupt();
@@ -1171,8 +1203,8 @@ public final class LingxiNavAgentApp {
         if (navigationIntent.isEndTask()) {
             JSONObject jSONObject;
             try {
-                jSONObject = navBridgeClient.stopTask(string);
-            } catch (IOException exception) {
+                jSONObject = requireControlAcknowledgement(navBridgeClient.stopTask(string), "stopped");
+            } catch (IOException | JSONException exception) {
                 return LingxiNavAgentApp.bridgeUnavailable(string, "task_stop", exception);
             } catch (InterruptedException exception) {
                 Thread.currentThread().interrupt();
@@ -1189,13 +1221,21 @@ public final class LingxiNavAgentApp {
                 return new InteractionResult(navigationIntent.replyOrDefault("\u597d\u7684\uff0c\u6211\u6765\u8df3\u4e00\u6bb5\u3002"), TtsPriority.NORMAL, "dance");
             }
             String string7 = navigationIntent.targetName.isBlank() ? string2 : navigationIntent.targetName;
-            JSONObject jSONObject = navBridgeClient.dance(string, string7);
+            JSONObject jSONObject;
+            try {
+                jSONObject = requireControlAcknowledgement(navBridgeClient.dance(string, string7), "accepted");
+            } catch (IOException | JSONException exception) {
+                return bridgeUnavailable(string, "dance", exception);
+            } catch (InterruptedException exception) {
+                Thread.currentThread().interrupt();
+                return bridgeUnavailable(string, "dance_interrupted", exception);
+            }
             boolean bl6 = jSONObject.getBooleanValue("accepted");
             if (bl6) {
                 return new InteractionResult("", TtsPriority.NORMAL, "", true);
             }
-            String string8 = jSONObject.getString("message") == null ? navigationIntent.replyOrDefault("\u8df3\u821e\u8bf7\u6c42\u6ca1\u6709\u88ab\u673a\u5668\u4eba\u63a5\u53d7\u3002") : jSONObject.getString("message");
-            return new InteractionResult(string8, TtsPriority.NORMAL);
+            log.warn("Dance not accepted; acknowledgement speech suppressed: eventId={}, result={}", string, jSONObject);
+            return new InteractionResult("", TtsPriority.NORMAL, "", false, true);
         }
         if (navigationIntent.isPresetMotion()) {
             if (PresetMotionCatalog.hasNegationOrQuotedSpeech(string2)) {
@@ -1210,14 +1250,16 @@ public final class LingxiNavAgentApp {
             }
             JSONObject motionResult;
             try {
-                motionResult = navBridgeClient.presetMotion(
+                motionResult = requireControlAcknowledgement(navBridgeClient.presetMotion(
                     string,
                     selection.motion().name(),
                     selection.area()
-                );
-            } catch (IOException exception) {
-                log.warn("Motion acknowledgement unavailable; not resubmitting: eventId={}, error={}", string, exception.getMessage());
-                return new InteractionResult("", TtsPriority.NORMAL, "", false, true);
+                ), "accepted");
+            } catch (IOException | JSONException exception) {
+                return bridgeUnavailable(string, "motion", exception);
+            } catch (InterruptedException exception) {
+                Thread.currentThread().interrupt();
+                return bridgeUnavailable(string, "motion_interrupted", exception);
             }
             if (motionResult.getBooleanValue("accepted")) {
                 return new InteractionResult(selection.motion().reply(), TtsPriority.NORMAL, "", true);
@@ -1263,28 +1305,23 @@ public final class LingxiNavAgentApp {
     private static JSONObject startNavigationWithRetry(String eventId, String targetName,
                                                        NavBridgeClient navBridgeClient)
             throws IOException, InterruptedException {
-        IOException lastError = null;
+        JSONObject result = null;
         for (int attempt = 1; attempt <= NAVIGATION_START_RETRIES; attempt++) {
-            try {
-                JSONObject result = navBridgeClient.startNavigation(eventId, targetName);
-                if (result == null || result.getBooleanValue("accepted")
-                        || !isTransientNavigationStartStatus(result.getString("status"))) {
-                    return result;
-                }
-                log.warn("Transient navigation start rejection: eventId={}, target={}, attempt={}/{}, status={}, message={}",
-                        eventId, targetName, attempt, NAVIGATION_START_RETRIES,
-                        result.getString("status"), result.getString("message"));
-            } catch (IOException exception) {
-                lastError = exception;
-                log.warn("Transient navigation start request failure: eventId={}, target={}, attempt={}/{}, error={}",
-                        eventId, targetName, attempt, NAVIGATION_START_RETRIES, exception.getMessage());
+            // Only an explicit negative acknowledgement permits resubmission.
+            // A failed HTTP response can follow a successful non-idempotent POST.
+            result = requireControlAcknowledgement(navBridgeClient.startNavigation(eventId, targetName), "accepted");
+            if (result.getBooleanValue("accepted")
+                    || !isTransientNavigationStartStatus(result.getString("status"))) {
+                return result;
             }
+            log.warn("Transient navigation start rejection: eventId={}, target={}, attempt={}/{}, status={}, message={}",
+                    eventId, targetName, attempt, NAVIGATION_START_RETRIES,
+                    result.getString("status"), result.getString("message"));
             if (attempt < NAVIGATION_START_RETRIES) {
                 Thread.sleep(NAVIGATION_START_RETRY_DELAY_MS);
             }
         }
-        if (lastError != null) throw lastError;
-        return new JSONObject();
+        return result;
     }
 
     private static boolean isTransientNavigationStartStatus(String status) {
@@ -1421,6 +1458,10 @@ public final class LingxiNavAgentApp {
         if (LingxiNavAgentApp.looksLikeUrgentStop(text)) {
             LingxiNavAgentApp.resetVoiceGates();
             return false;
+        }
+        if (hasControlResponseOwner(eventId, text)) {
+            log.info("Owned control callback ignored before tour wake: eventId={}", eventId);
+            return true;
         }
         if (SpeechInputPolicy.isFiller(text)) {
             log.info("Text ignored: eventId={}, reason=filler", eventId);
@@ -1671,6 +1712,20 @@ public final class LingxiNavAgentApp {
             CONTROL_RESPONSE_DEDUP.put(commandKey, now);
             return true;
         }
+    }
+
+    private static boolean hasControlResponseOwner(String eventId, String text) {
+        if (eventId == null || eventId.isBlank()) return false;
+        String key = "event:" + eventId + ":" + SpeechInputPolicy.normalize(text);
+        synchronized (CONTROL_RESPONSE_DEDUP) {
+            Long timestamp = CONTROL_RESPONSE_DEDUP.get(key);
+            return timestamp != null && System.currentTimeMillis() - timestamp <= 60000L;
+        }
+    }
+
+    private static InteractionResult duplicateControlResponse(String eventId) {
+        log.info("Owned control callback completed before model/dispatch: eventId={}", eventId);
+        return new InteractionResult("", TtsPriority.NORMAL, "", false, true);
     }
 
     private static boolean shouldInterruptNativeTourAction(String text) {

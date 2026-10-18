@@ -14,7 +14,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent / "v138_complete_r15_deployment"))
 from archive_utils import read_archive, verify_sums
 
-NAME = "sparkrobot-lingxi-v1.3.8-control-reply-fix-1.0.1-20261018"
+NAME = "sparkrobot-lingxi-v1.3.8-control-reply-fix-1.0.2-20261018"
 
 
 def main():
@@ -35,6 +35,14 @@ def main():
         assert jar.testzip() is None
         app = jar.read("com/agibot/aiem/nav/LingxiNavAgentApp.class")
         assert int.from_bytes(app[6:8], "big") == 61, "Must support Java 17"
+        baseline = HERE.parent / "v138_complete_r15_deployment/reference/java/robot-local-navigation-java-all.jar"
+        with zipfile.ZipFile(baseline) as original:
+            changed = sorted(name for name in set(jar.namelist()) | set(original.namelist())
+                             if name not in jar.namelist() or name not in original.namelist()
+                             or jar.read(name) != original.read(name))
+            assert changed
+            assert all(name.startswith("com/agibot/aiem/nav/LingxiNavAgentApp")
+                       and name.endswith(".class") for name in changed), changed
     meta = json.loads(files["release.json"][1])
     assert meta["changed_runtime_files"] == ["java/robot-local-navigation-java-all.jar"]
     assert hashlib.sha256(files["payload/java/robot-local-navigation-java-all.jar"][1]).hexdigest() == meta["patched_jar_sha256"]
@@ -58,11 +66,23 @@ def main():
         installer = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(installer)
         installer.verify_package(root)
+        # Execute the installer tests extracted from the actual deliverable,
+        # rather than silently testing a different workspace copy.
+        if os.name == "nt":
+            linux_root = "/mnt/" + root.drive[0].lower() + root.as_posix()[2:]
+            args = ["wsl", "-d", "Ubuntu", "-u", "root", "--", "python3", linux_root + "/test_install.py"]
+        else:
+            args = [sys.executable, str(root / "test_install.py")]
+        installed_tests = subprocess.run(args, capture_output=True, timeout=60)
+        installer_output = (installed_tests.stdout + installed_tests.stderr).decode("utf-8", errors="replace")
+        assert installed_tests.returncode == 0, installer_output
+        assert "Ran 10 tests" in installer_output and "\nOK" in installer_output, installer_output
     report = {
         "archive": archive.name, "sha256": hashlib.sha256(raw).hexdigest(),
         "size_bytes": len(raw), "checked_files": len(files), "lf_text_files": text_count,
         "bash_scripts_and_guide_blocks": len(commands), "java_target": 17,
-        "java_regression": meta["java_tests"], "hardware_validation": False,
+        "java_regression": meta["java_tests"], "changed_jar_entries": changed,
+        "packaged_linux_installer_tests": 10, "hardware_validation": False,
     }
     output = HERE / "dist" / "交付验证结果.json"
     output.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")

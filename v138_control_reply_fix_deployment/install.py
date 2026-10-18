@@ -7,6 +7,7 @@ import hashlib
 import json
 import os
 from pathlib import Path, PurePosixPath
+import re
 import shutil
 import stat
 import subprocess
@@ -19,6 +20,8 @@ JAR = "java/robot-local-navigation-java-all.jar"
 MANIFEST = "payload-manifest.json"
 UNIT = "lingxi-java-agent-robot.service"
 MAIN = "com/agibot/aiem/nav/LingxiNavAgentApp.class"
+MAIN_CLASS = "com.agibot.aiem.nav.LingxiNavAgentApp"
+SDK = "java/linksoul-agentsdk-1.4.0.jar"
 
 
 def digest(data):
@@ -94,6 +97,31 @@ class Installer:
                 raise RuntimeError("Java Agent 启动后反复退出")
             last_pid = pid
             time.sleep(0.5)
+        self.check_runtime(live=True)
+
+    def check_runtime(self, live=False):
+        def has_path(command, relative):
+            aliases = (str(self.base / "current" / relative), str(self.release / relative))
+            return any(re.search(r"(?<![A-Za-z0-9_./-])" + re.escape(path) + r"(?=$|[\s:;}])",
+                                 command) for path in aliases)
+        command = run(["systemctl", "show", UNIT, "-p", "ExecStart", "--value"])
+        if (not has_path(command, JAR) or not has_path(command, SDK)
+                or MAIN_CLASS not in command or "/overrides/" in command):
+            raise RuntimeError("Java 服务启动命令未使用当前 JAR/SDK；请先处理旧 systemd 覆盖配置，未自动删除现场配置")
+        if not live:
+            return
+        pid = run(["systemctl", "show", UNIT, "-p", "MainPID", "--value"])
+        if not pid.isdigit() or int(pid) <= 1:
+            raise RuntimeError("Java 进程 PID 无效，无法核验实际加载路径")
+        args = regular(self.path("/proc") / pid / "cmdline").decode("utf-8").rstrip("\0").split("\0")
+        indexes = [i for i, value in enumerate(args) if value in {"-cp", "-classpath", "--class-path"}]
+        if len(indexes) != 1 or indexes[0] + 2 >= len(args):
+            raise RuntimeError("Java 进程未使用受支持的 classpath 启动方式")
+        index = indexes[0]
+        entries = args[index + 1].split(":")
+        expected = [(self.release / relative).resolve() for relative in (JAR, SDK)]
+        if ([Path(entry).resolve() for entry in entries] != expected or args[index + 2] != MAIN_CLASS):
+            raise RuntimeError("Java 实际进程未加载当前 JAR/SDK，可能仍在运行旧覆盖包")
 
     def check_access(self):
         user = run(["systemctl", "show", UNIT, "-p", "User", "--value"]) or "root"
@@ -145,6 +173,7 @@ class Installer:
         if len(entries) != 1 or entries[0]["sha256"] != digest(app) or entries[0]["size"] != len(app):
             raise RuntimeError("运行 JAR 与运行清单不一致，已停止")
         self.check_access()
+        self.check_runtime()
         return manifest
 
     def restore_files(self, backup, transaction):
@@ -163,6 +192,7 @@ class Installer:
         manifest = self.validate()
         new_jar = regular(self.package / "payload" / JAR)
         if regular(self.release / JAR) == new_jar:
+            self.check_runtime(live=self.state())
             print("此补丁已经安装，运行清单和服务用户访问检查通过；未重复重启")
             return
         was_active = self.state()
@@ -196,6 +226,7 @@ class Installer:
             for relative, data in replacement.items():
                 atomic_write(self.release / relative, data)
             self.check_access()
+            self.check_runtime()
             if was_active:
                 self.start()
         except Exception:
@@ -217,6 +248,8 @@ class Installer:
         if backup.parent != self.backups.resolve() or backup.is_symlink():
             raise RuntimeError("请使用安装器输出的本补丁备份目录")
         transaction = json.loads(regular(backup / "transaction.json"))
+        if Path(transaction["release"]) != self.release:
+            raise RuntimeError("备份属于另一个 release，拒绝恢复")
         for relative in (JAR, MANIFEST):
             if digest(regular(self.release / relative)) != transaction["after"][relative]:
                 raise RuntimeError("安装后文件已有其他变更，拒绝覆盖：" + relative)
@@ -268,7 +301,8 @@ def main():
         installer = Installer()
         if args.check:
             installer.validate()
-            print("版本、JAR、AgentSDK、运行清单和服务用户访问检查通过")
+            installer.check_runtime(live=installer.state())
+            print("版本、JAR、AgentSDK、运行清单、服务用户权限和实际启动路径检查通过")
         elif args.rollback:
             installer.rollback(args.rollback)
         else:

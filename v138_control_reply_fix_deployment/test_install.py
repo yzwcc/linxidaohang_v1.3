@@ -52,6 +52,9 @@ class FakeInstaller(module.Installer):
         if self.fail_access:
             raise RuntimeError("service user cannot read JAR")
 
+    def check_runtime(self, live=False):
+        self.events.append("runtime")
+
 
 @unittest.skipUnless(os.name == "posix", "requires Linux filesystem ownership")
 class InstallTests(unittest.TestCase):
@@ -189,6 +192,56 @@ class InstallTests(unittest.TestCase):
         (self.package / "SHA256SUMS").write_bytes(sums.replace(b"\n", b"\r\n"))
         with self.assertRaisesRegex(RuntimeError, "LF"):
             module.verify_package(self.package)
+
+    def test_backup_from_another_release_is_rejected_before_stopping_service(self):
+        self.installer.install()
+        backup = self.backup()
+        transaction_path = backup / "transaction.json"
+        transaction = json.loads(transaction_path.read_bytes())
+        transaction["release"] = str(self.release.parent / "1.0.19-20261017-r14")
+        transaction_path.write_bytes(module.json_bytes(transaction))
+        stops = self.installer.events.count("stop")
+        with self.assertRaisesRegex(RuntimeError, "另一个 release"):
+            self.installer.rollback(backup)
+        self.assertEqual(self.installer.events.count("stop"), stops)
+        self.assertTrue(self.installer.active)
+        self.assertEqual((self.release / module.JAR).read_bytes(), self.new)
+
+    def test_effective_start_command_and_live_process_use_current_jar(self):
+        actual = module.Installer(self.root, self.package)
+        actual.release = self.release
+        alias = self.release.parent.parent / "current"
+        command = f"{{ path=/usr/bin/java ; argv[]=/usr/bin/java -cp {alias / module.JAR}:{alias / module.SDK} {module.MAIN_CLASS} ; }}"
+        proc = self.root / "proc/123/cmdline"
+        proc.parent.mkdir(parents=True)
+        args = ["/usr/bin/java", "-cp", f"{alias / module.JAR}:{alias / module.SDK}", module.MAIN_CLASS]
+        proc.write_bytes(("\0".join(args) + "\0").encode())
+
+        def properties(values, **kwargs):
+            if "ExecStart" in values:
+                return command
+            if "MainPID" in values:
+                return "123"
+            raise AssertionError(values)
+
+        with patch.object(module, "run", side_effect=properties):
+            actual.check_runtime(live=True)
+            original_command = command
+            for altered in (original_command.replace(module.JAR, module.JAR + ".old"),
+                            original_command.replace(str(alias / module.JAR), "/var/lib/overrides/old.jar"),
+                            original_command.replace(module.SDK, "java/old-sdk.jar")):
+                command = altered
+                with self.assertRaisesRegex(RuntimeError, "启动命令"):
+                    actual.check_runtime(live=False)
+            command = original_command
+            for bad in (
+                ["/usr/bin/java", "-cp", f"/var/lib/old.jar:{alias / module.SDK}", module.MAIN_CLASS],
+                ["/usr/bin/java", "-cp", f"/var/lib/old.jar:{args[2]}", module.MAIN_CLASS],
+                ["/usr/bin/java", "-cp", args[2], "other.Main"],
+            ):
+                proc.write_bytes(("\0".join(bad) + "\0").encode())
+                with self.assertRaisesRegex(RuntimeError, "实际进程"):
+                    actual.check_runtime(live=True)
 
     @unittest.skipUnless(hasattr(os, "geteuid") and os.geteuid() == 0, "requires root for runuser")
     def test_actual_service_user_readability_including_parent_directories(self):
