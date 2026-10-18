@@ -58,6 +58,32 @@ public final class AgentSdkInterruptWireTest {
             verify(client.messages.get(0), "agent-tts", "robot-tts", "event-tts");
             verify(client.messages.get(1), "agent-llm", "robot-llm", "event-llm");
             verify(client.messages.get(2), "agent-tts", "robot-tts", "event-motion");
+            for (NavigationIntent intent : List.of(NavigationIntent.navigate("wire大厅"),
+                    NavigationIntent.startTask("custom-tour"),
+                    NavigationIntent.presetMotion("handshake", "right_hand"), NavigationIntent.chat("你好"))) {
+                String event = "resolved-" + client.messages.size();
+                Class<?> senderType = Class.forName("com.agibot.aiem.nav.LingxiNavAgentApp$InterruptSender");
+                Object sender = Proxy.newProxyInstance(senderType.getClassLoader(), new Class<?>[]{senderType},
+                        (proxy, method, values) -> { ttsResponse.onInterrupt((String) values[0], (String) values[1], (String) values[2]); return null; });
+                Method factory = LingxiNavAgentApp.class.getDeclaredMethod("resolvedResponseInterrupt", String.class, String.class, senderType);
+                factory.setAccessible(true);
+                @SuppressWarnings("unchecked")
+                java.util.function.Predicate<NavigationIntent> begin =
+                        (java.util.function.Predicate<NavigationIntent>) factory.invoke(null, event, "wire-" + intent.intent, sender);
+                int before = client.messages.size();
+                check(begin.test(intent), "first resolved request admitted");
+                if ("chat".equals(intent.intent)) {
+                    check(begin.test(intent) && client.messages.size() == before,
+                            "ordinary chat does not interrupt a native action");
+                    continue;
+                }
+                check(!begin.test(intent), "same response cannot dispatch control twice");
+                check(client.messages.size() == before + 1, "resolved intent sends exactly one interrupt");
+                JSONObject payload = JSON.parseObject(client.messages.get(before).payload);
+                check("action".equals(payload.getString("interruptType")),
+                        "resolved command owns SDK response including custom and flexible intents");
+                check(payload.get("interruptTips") == null, "no fallback interrupt announcement");
+            }
             System.out.println("AgentSdkInterruptWireTest passed: " + checks + " assertions");
         } finally {
             client.stop();

@@ -33,6 +33,8 @@ public final class FunctionalControlTest {
 
         AtomicInteger motions = new AtomicInteger();
         AtomicInteger navigations = new AtomicInteger();
+        AtomicInteger tours = new AtomicInteger();
+        AtomicInteger responseStarts = new AtomicInteger();
         AtomicInteger modelCalls = new AtomicInteger();
         AtomicBoolean modelOffline = new AtomicBoolean();
         AtomicBoolean rejectMotion = new AtomicBoolean();
@@ -53,6 +55,10 @@ public final class FunctionalControlTest {
                 }
                 case "/points" -> body = "{\"ok\":true,\"point_names\":[\"大厅\",\"门口\"]}";
                 case "/nav/start" -> { navigations.incrementAndGet(); body = "{\"accepted\":true}"; }
+                case "/task/match" -> body = input.contains("酒店欢迎导览")
+                        ? "{\"matched\":true,\"task_id\":\"hotel\",\"task_name\":\"酒店导览\"}"
+                        : "{\"matched\":false}";
+                case "/task/start" -> { tours.incrementAndGet(); body = "{\"accepted\":true,\"task_name\":\"酒店导览\"}"; }
                 case "/model" -> {
                     modelCalls.incrementAndGet();
                     check(JSONObject.parseObject(input).getJSONArray("messages").getJSONObject(1).get("content") instanceof String,
@@ -109,6 +115,29 @@ public final class FunctionalControlTest {
             intent.set("{\"intent\":\"navigate\",\"target_name\":\"门口\"}");
             process.invoke(null, "model-recovered", "请引领我前往入口处", config, bridge, model, null, new AtomicBoolean());
             check(navigations.get() == 2, "flexible model navigation resumes after outage");
+            Method ownedProcess = LingxiNavAgentApp.class.getDeclaredMethod("processTextRequest", String.class, String.class,
+                    AppConfig.class, NavBridgeClient.class, DoubaoArkClient.class, QaStore.class, AtomicBoolean.class,
+                    java.util.function.Predicate.class);
+            ownedProcess.setAccessible(true);
+            java.util.function.Predicate<NavigationIntent> claim = value -> {
+                check(navigations.get() == 2 && tours.get() == 0, "SDK response starts before controller side effect");
+                responseStarts.incrementAndGet();
+                return true;
+            };
+            intent.set("{\"intent\":\"navigate\",\"target_name\":\"大厅\",\"reply\":\"对不起我做不到\"}");
+            result = ownedProcess.invoke(null, "accepted-negative-nav", "带我去大厅", config, bridge, model, null, new AtomicBoolean(), claim);
+            Method accepted = result.getClass().getDeclaredMethod("localPerformanceAccepted"); accepted.setAccessible(true);
+            check(((String) reply.invoke(result)).equals("收到，正在前往大厅。"), "accepted navigation never uses negative model reply");
+            check((boolean) accepted.invoke(result) && responseStarts.get() == 1, "accepted navigation cannot become late SDK failure");
+            result = ownedProcess.invoke(null, "custom-tour", "酒店欢迎导览", config, bridge, model, null, new AtomicBoolean(),
+                    (java.util.function.Predicate<NavigationIntent>) value -> {
+                        check(value.isStartTask() && tours.get() == 0, "custom tour resolved and claimed before dispatch");
+                        return true;
+                    });
+            check(tours.get() == 1 && (boolean) accepted.invoke(result), "custom tour accepted exactly once and flagged");
+            intent.set("{\"intent\":\"start_task\",\"reply\":\"任务执行失败\"}");
+            result = process.invoke(null, "model-negative-tour", "请为来宾进行导览", config, bridge, model, null, new AtomicBoolean());
+            check(!((String) reply.invoke(result)).contains("失败") && tours.get() == 2, "accepted model tour ignores contradictory reply");
         } finally { server.stop(0); }
         System.out.println("FunctionalControlTest passed: " + checks + " assertions");
     }

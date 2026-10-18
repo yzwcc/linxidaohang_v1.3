@@ -74,6 +74,7 @@ public final class LingxiNavAgentApp {
     private static final long NAVIGATION_START_RETRY_DELAY_MS = 250L;
     private static final Map<String, Long> LOCAL_COMMAND_DEDUP = new ConcurrentHashMap<String, Long>();
     private static final Map<String, Long> NATIVE_INTERRUPT_DEDUP = new ConcurrentHashMap<String, Long>();
+    private static final Map<String, Long> CONTROL_RESPONSE_DEDUP = new ConcurrentHashMap<>();
     private static final ThreadPoolExecutor AUDIO_WORKERS = new ThreadPoolExecutor(3, 3, 0L, TimeUnit.MILLISECONDS, new ArrayBlockingQueue<Runnable>(3), runnable -> {
         Thread thread = new Thread(runnable, "lingxi-audio-worker");
         thread.setDaemon(true);
@@ -296,22 +297,23 @@ public final class LingxiNavAgentApp {
                     AtomicBoolean atomicBoolean = new AtomicBoolean(false);
                     InteractionResult interactionResult = null;
                     try {
-                        Runnable nativeTourInterrupt = LingxiNavAgentApp.nativeTourActionInterrupt(
+                        Runnable nativeInterrupt = LingxiNavAgentApp.nativeTourActionInterrupt(
                                 string2, string3, asr2LlmResponse::onInterrupt);
-                        // The platform can dispatch exhibit_commentary before wake evidence is
-                        // verified. Cancel that duplicate immediately; the wake gate below still
-                        // decides whether our own tour command is allowed to execute.
-                        nativeTourInterrupt.run();
+                        // Cancel the native duplicate before slow wake evidence lookup.
+                        // This cancellation never admits a command through the voice gates.
+                        nativeInterrupt.run();
                         if (LingxiNavAgentApp.shouldIgnoreTextCallback(
                                 "Asr2Llm", string, string2, string3, agentParam,
-                                navBridgeClient, nativeTourInterrupt)) {
+                                navBridgeClient, nativeInterrupt)) {
                             LingxiNavAgentApp.finishIgnoredAsr2Llm(string2, asr2LlmResponse);
                             return;
                         }
-                        interactionResult = LingxiNavAgentApp.processTextRequest(string2, string3, appConfig, navBridgeClient, doubaoArkClient, qaStore, atomicBoolean);
+                        interactionResult = LingxiNavAgentApp.processTextRequest(string2, string3, appConfig, navBridgeClient, doubaoArkClient, qaStore, atomicBoolean,
+                                resolvedResponseInterrupt(string2, string3, asr2LlmResponse::onInterrupt));
                         RobotTtsResult ttsResult = LingxiNavAgentApp.speakIfNeeded(
                                 appConfig, string2, interactionResult.reply, interactionResult.ttsPriority, navBridgeClient);
-                        if (LingxiNavAgentApp.shouldReturnLingxiText(appConfig, ttsResult)) {
+                        if (!interactionResult.reply.isBlank()
+                                && LingxiNavAgentApp.shouldReturnLingxiText(appConfig, ttsResult)) {
                             asr2LlmResponse.onLlmItemDelta(string2, string4, interactionResult.reply);
                         } else {
                             log.info("Lingxi LLM text suppressed for local robot TTS test: eventId={}, text={}", (Object)string2, (Object)LingxiNavAgentApp.abbreviate(interactionResult.reply));
@@ -367,21 +369,21 @@ public final class LingxiNavAgentApp {
                     AtomicBoolean atomicBoolean = new AtomicBoolean(false);
                     InteractionResult interactionResult = null;
                     try {
-                        Runnable nativeTourInterrupt = LingxiNavAgentApp.nativeTourActionInterrupt(
+                        Runnable nativeInterrupt = LingxiNavAgentApp.nativeTourActionInterrupt(
                                 string2, string3, asr2TtsResponse::onInterrupt);
-                        // Keep this before SOC2 log probing. The robot's built-in fixed-line
-                        // action can otherwise reach task_fail while wake verification is reading.
-                        nativeTourInterrupt.run();
+                        nativeInterrupt.run();
                         if (LingxiNavAgentApp.shouldIgnoreTextCallback(
                                 "Asr2Tts", string, string2, string3, agentParam,
-                                navBridgeClient, nativeTourInterrupt)) {
+                                navBridgeClient, nativeInterrupt)) {
                             LingxiNavAgentApp.finishIgnoredAsr2Tts(string2, asr2TtsResponse);
                             return;
                         }
-                        interactionResult = LingxiNavAgentApp.processTextRequest(string2, string3, appConfig, navBridgeClient, doubaoArkClient, qaStore, atomicBoolean);
+                        interactionResult = LingxiNavAgentApp.processTextRequest(string2, string3, appConfig, navBridgeClient, doubaoArkClient, qaStore, atomicBoolean,
+                                resolvedResponseInterrupt(string2, string3, asr2TtsResponse::onInterrupt));
                         RobotTtsResult ttsResult = LingxiNavAgentApp.speakIfNeeded(
                                 appConfig, string2, interactionResult.reply, interactionResult.ttsPriority, navBridgeClient);
-                        if (LingxiNavAgentApp.shouldReturnLingxiText(appConfig, ttsResult)) {
+                        if (!interactionResult.reply.isBlank()
+                                && LingxiNavAgentApp.shouldReturnLingxiText(appConfig, ttsResult)) {
                             asr2TtsResponse.onLlmItemDelta(string2, string4, interactionResult.reply);
                         } else {
                             log.info("Lingxi LLM text suppressed for local robot TTS test: eventId={}, text={}", (Object)string2, (Object)LingxiNavAgentApp.abbreviate(interactionResult.reply));
@@ -762,9 +764,17 @@ public final class LingxiNavAgentApp {
     }
 
     private static InteractionResult processTextRequest(String string, String string2, AppConfig appConfig, NavBridgeClient navBridgeClient, DoubaoArkClient doubaoArkClient, QaStore qaStore, AtomicBoolean atomicBoolean) throws Exception {
+        return processTextRequest(string, string2, appConfig, navBridgeClient, doubaoArkClient,
+                qaStore, atomicBoolean, intent -> true);
+    }
+
+    private static InteractionResult processTextRequest(String string, String string2, AppConfig appConfig, NavBridgeClient navBridgeClient, DoubaoArkClient doubaoArkClient, QaStore qaStore, AtomicBoolean atomicBoolean,
+            java.util.function.Predicate<NavigationIntent> responseStart) throws Exception {
         NavigationIntent urgentStop = LingxiNavAgentApp.urgentStopIntent(string2);
         if (urgentStop != null) {
             // A safety stop must not depend on point lookup, task matching or the LLM.
+            try { responseStart.test(urgentStop); }
+            catch (RuntimeException exception) { log.warn("SDK interrupt unavailable before safety stop: eventId={}", string, exception); }
             return LingxiNavAgentApp.handleIntent(string, string2, urgentStop, navBridgeClient, doubaoArkClient, qaStore, true);
         }
         NavigationIntent navigationIntent = LingxiNavAgentApp.taskControlIntentFromText(string2, navBridgeClient);
@@ -785,6 +795,13 @@ public final class LingxiNavAgentApp {
             }
         }
         LingxiNavAgentApp.logIntent("text_asr_final", string, string2, navigationIntent);
+        // Establish response ownership before any local side effect. Recognition
+        // and wake/noise rejection have already completed in the SDK callback.
+        if (!responseStart.test(navigationIntent)) {
+            log.info("Duplicate control response completed without dispatch: eventId={}, intent={}",
+                    string, navigationIntent.intent);
+            return new InteractionResult("", TtsPriority.NORMAL, "", true);
+        }
         LingxiNavAgentApp.markUserInteraction(string, "text_asr_final", navigationIntent, navBridgeClient, atomicBoolean);
         InteractionResult interactionResult = LingxiNavAgentApp.handleIntent(string, string2, navigationIntent, navBridgeClient, doubaoArkClient, qaStore, true);
         return interactionResult;
@@ -1057,7 +1074,7 @@ public final class LingxiNavAgentApp {
             boolean bl2 = jSONObject.getBooleanValue("accepted");
             String string3 = jSONObject.getString("status");
             if (bl2) {
-                return new InteractionResult(navigationIntent.replyOrDefault("\u597d\u7684\uff0c\u6211\u5e26\u4f60\u53bb" + navigationIntent.targetName), TtsPriority.NAVIGATION);
+                return new InteractionResult("收到，正在前往" + navigationIntent.targetName + "。", TtsPriority.NAVIGATION, "", true);
             }
             if ("point_not_found".equals(string3)) {
                 return new InteractionResult("\u6211\u6ca1\u6709\u627e\u5230" + navigationIntent.targetName + "\u8fd9\u4e2a\u5bfc\u822a\u70b9", TtsPriority.NAVIGATION);
@@ -1079,7 +1096,7 @@ public final class LingxiNavAgentApp {
                 return LingxiNavAgentApp.bridgeUnavailable(string, "nav_stop_interrupted", exception);
             }
             boolean bl3 = jSONObject.getBooleanValue("cancelled");
-            return new InteractionResult(bl3 ? "\u5df2\u53d6\u6d88\u5bfc\u822a" : "\u5f53\u524d\u6ca1\u6709\u6b63\u5728\u8fdb\u884c\u7684\u5bfc\u822a", TtsPriority.URGENT);
+            return new InteractionResult(bl3 ? "\u5df2\u53d6\u6d88\u5bfc\u822a" : "\u5f53\u524d\u6ca1\u6709\u6b63\u5728\u8fdb\u884c\u7684\u5bfc\u822a", TtsPriority.URGENT, "", bl3);
         }
         if (navigationIntent.isStartTask()) {
             JSONObject jSONObject;
@@ -1098,7 +1115,7 @@ public final class LingxiNavAgentApp {
                 String reply = taskName == null || taskName.isBlank()
                     ? "收到，开始讲解任务。"
                     : "收到，开始" + taskName + "。";
-                return new InteractionResult(navigationIntent.replyOrDefault(reply), TtsPriority.NAVIGATION);
+                return new InteractionResult(reply, TtsPriority.NAVIGATION, "", true);
             }
             if ("invalid_task".equals(string5)) {
                 return new InteractionResult("没有找到对应的讲解任务，请在网页检查任务命令词", TtsPriority.NAVIGATION);
@@ -1125,9 +1142,9 @@ public final class LingxiNavAgentApp {
             boolean paused = jSONObject.getBooleanValue("paused");
             String status = jSONObject.getString("status");
             if (paused && "already_paused".equals(status)) {
-                return new InteractionResult("讲解任务已经暂停", TtsPriority.URGENT);
+                return new InteractionResult("讲解任务已经暂停", TtsPriority.URGENT, "", true);
             }
-            return new InteractionResult(paused ? "已暂停讲解任务" : "当前没有正在执行的讲解任务", TtsPriority.URGENT);
+            return new InteractionResult(paused ? "已暂停讲解任务" : "当前没有正在执行的讲解任务", TtsPriority.URGENT, "", paused);
         }
         if (navigationIntent.isResumeTask()) {
             JSONObject jSONObject;
@@ -1144,7 +1161,7 @@ public final class LingxiNavAgentApp {
             if ("busy".equals(status)) {
                 return new InteractionResult("导航正在停止，请稍后再说继续讲解", TtsPriority.NAVIGATION);
             }
-            return new InteractionResult(resumed ? "好的，继续讲解任务" : "当前没有暂停的讲解任务", TtsPriority.NAVIGATION);
+            return new InteractionResult(resumed ? "好的，继续讲解任务" : "当前没有暂停的讲解任务", TtsPriority.NAVIGATION, "", resumed);
         }
         if (navigationIntent.isEndTask()) {
             JSONObject jSONObject;
@@ -1157,7 +1174,7 @@ public final class LingxiNavAgentApp {
                 return LingxiNavAgentApp.bridgeUnavailable(string, "task_stop_interrupted", exception);
             }
             boolean bl5 = jSONObject.getBooleanValue("stopped");
-            return new InteractionResult(bl5 ? "\u5df2\u7ed3\u675f\u8bb2\u89e3\u4efb\u52a1" : "\u5f53\u524d\u6ca1\u6709\u6b63\u5728\u6267\u884c\u7684\u8bb2\u89e3\u4efb\u52a1", TtsPriority.URGENT);
+            return new InteractionResult(bl5 ? "\u5df2\u7ed3\u675f\u8bb2\u89e3\u4efb\u52a1" : "\u5f53\u524d\u6ca1\u6709\u6b63\u5728\u6267\u884c\u7684\u8bb2\u89e3\u4efb\u52a1", TtsPriority.URGENT, "", bl5);
         }
         if (navigationIntent.isSing()) {
             return new InteractionResult("\u5531\u6b4c\u529f\u80fd\u6682\u65f6\u5173\u95ed\u4e86\uff0c\u6211\u73b0\u5728\u53ef\u4ee5\u7ed9\u4f60\u8df3\u821e\u3002", TtsPriority.NORMAL);
@@ -1546,7 +1563,7 @@ public final class LingxiNavAgentApp {
             LingxiNavAgentApp.evictExpired(LOCAL_COMMAND_DEDUP, now);
             String eventKey = eventId == null || eventId.isBlank()
                     ? ""
-                    : "event:" + SpeechInputPolicy.normalize(eventId);
+                    : "event:" + eventId + ":" + commandKey;
             String textKey = "command:" + commandKey;
             if ((!eventKey.isBlank() && LingxiNavAgentApp.isRecent(LOCAL_COMMAND_DEDUP.get(eventKey), now))
                     || LingxiNavAgentApp.isRecent(LOCAL_COMMAND_DEDUP.get(textKey), now)) {
@@ -1581,10 +1598,15 @@ public final class LingxiNavAgentApp {
     private static void interruptNativeTourActionIfNeeded(String eventId, String text,
                                                            InterruptSender interruptSender) {
         if (!LingxiNavAgentApp.shouldInterruptNativeTourAction(text)) return;
+        sendNativeActionInterrupt(eventId, text, interruptSender);
+    }
+
+    private static void sendNativeActionInterrupt(String eventId, String text,
+                                                   InterruptSender interruptSender) {
         long now = System.currentTimeMillis();
         String key = eventId == null || eventId.isBlank()
-                ? "command:" + LingxiNavAgentApp.localPerformanceKey(text)
-                : "event:" + SpeechInputPolicy.normalize(eventId);
+                ? "command:" + SpeechInputPolicy.normalize(text)
+                : "event:" + eventId + ":" + SpeechInputPolicy.normalize(text);
         synchronized (NATIVE_INTERRUPT_DEDUP) {
             LingxiNavAgentApp.evictExpired(NATIVE_INTERRUPT_DEDUP, now);
             if (LingxiNavAgentApp.isRecent(NATIVE_INTERRUPT_DEDUP.get(key), now)) {
@@ -1600,6 +1622,7 @@ public final class LingxiNavAgentApp {
             log.info("Native tour action interrupt sent: eventId={}, type=action, text={}",
                     eventId, LingxiNavAgentApp.abbreviate(text));
         } catch (RuntimeException exception) {
+            NATIVE_INTERRUPT_DEDUP.remove(key, now);
             log.warn("Native tour action interrupt failed: eventId={}, error={}",
                     eventId, exception.getMessage());
         }
@@ -1615,6 +1638,41 @@ public final class LingxiNavAgentApp {
         };
     }
 
+    private static java.util.function.Predicate<NavigationIntent> resolvedResponseInterrupt(
+            String eventId, String text, InterruptSender sender) {
+        AtomicBoolean sent = new AtomicBoolean(false);
+        return intent -> {
+            if (!isRobotControlIntent(intent) && !isRobotEntertainmentIntent(intent)) {
+                return true;
+            }
+            if (!sent.compareAndSet(false, true)) return false;
+            if (!intent.isStop() && !intent.isEndTask()
+                    && !claimControlResponse(eventId, text, intent)) return false;
+            // A transport failure must not prevent local dispatch or a safety stop.
+            sendNativeActionInterrupt(eventId, text, sender);
+            return true;
+        };
+    }
+
+    private static boolean claimControlResponse(String eventId, String text, NavigationIntent intent) {
+        long now = System.currentTimeMillis();
+        String normalizedText = SpeechInputPolicy.normalize(text);
+        String eventKey = eventId == null || eventId.isBlank()
+                ? "" : "event:" + eventId + ":" + normalizedText;
+        String commandKey = "command:" + intent.intent + ":" + intent.targetName + ":" + intent.motionArea;
+        synchronized (CONTROL_RESPONSE_DEDUP) {
+            CONTROL_RESPONSE_DEDUP.entrySet().removeIf(entry ->
+                    now - entry.getValue() > (entry.getKey().startsWith("event:") ? 60000L : LOCAL_COMMAND_DEDUP_WINDOW_MS));
+            if ((!eventKey.isBlank() && CONTROL_RESPONSE_DEDUP.containsKey(eventKey))
+                    || isRecent(CONTROL_RESPONSE_DEDUP.get(commandKey), now)) {
+                return false;
+            }
+            if (!eventKey.isBlank()) CONTROL_RESPONSE_DEDUP.put(eventKey, now);
+            CONTROL_RESPONSE_DEDUP.put(commandKey, now);
+            return true;
+        }
+    }
+
     private static boolean shouldInterruptNativeTourAction(String text) {
         if (PresetMotionCatalog.resolveVoiceCommand(text) != null) return true;
         NavigationIntent entertainment = LingxiNavAgentApp.entertainmentIntentFromText(text);
@@ -1623,6 +1681,10 @@ public final class LingxiNavAgentApp {
                 .replaceFirst("^(?:你好灵犀|灵犀灵犀|嗨灵犀|灵犀|灵溪灵溪|嗨灵溪|hellolumi|hilumi|heylumi)", "")
                 .replaceFirst("^(?:(?:请你|请|麻烦你|麻烦|帮我)|(?:现在|马上|立即|立刻|赶紧|快))+", "")
                 .replaceFirst("(?:一下|吧|啊|呀|谢谢)+$", "");
+        if (!PresetMotionCatalog.hasNegationOrQuotedSpeech(text)
+                && command.matches("(?:带(?:我|我们)|领(?:我|我们)|引导(?:我|我们))去.+|(?:导航到|前往).+")) {
+            return true;
+        }
         return command.matches("(?:(?:开始|启动)(?:讲解|讲解任务|任务|参观)"
                 + "|暂停(?:讲解|讲解任务|任务)"
                 + "|(?:讲解|任务)暂停"
@@ -1690,12 +1752,24 @@ public final class LingxiNavAgentApp {
     }
 
     private static void finishIgnoredAsr2Llm(String string, Asr2LlmResponse asr2LlmResponse) {
-        asr2LlmResponse.onLlmDone(string);
+        try {
+            asr2LlmResponse.onLlmDone(string);
+        } catch (RuntimeException exception) {
+            log.debug("Ignored Asr2Llm stream already closed: eventId={}", string);
+        }
     }
 
     private static void finishIgnoredAsr2Tts(String string, Asr2TtsResponse asr2TtsResponse) {
-        asr2TtsResponse.onLlmDone(string);
-        asr2TtsResponse.onTtsDone(string);
+        try {
+            asr2TtsResponse.onLlmDone(string);
+        } catch (RuntimeException exception) {
+            log.debug("Ignored Asr2Tts LLM stream already closed: eventId={}", string);
+        }
+        try {
+            asr2TtsResponse.onTtsDone(string);
+        } catch (RuntimeException exception) {
+            log.debug("Ignored Asr2Tts TTS stream already closed: eventId={}", string);
+        }
     }
 
     /**
