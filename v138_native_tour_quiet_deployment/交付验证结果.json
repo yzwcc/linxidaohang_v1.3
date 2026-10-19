@@ -1,0 +1,70 @@
+{
+  "archive": "sparkrobot-lingxi-v1.3.8-native-tour-quiet-1.0.10-20261019.tar.gz",
+  "sha256": "4f663936aecd297be378967dd1c16a623d6da7d1ede892c7ee5ae391c955afe6",
+  "size_bytes": 10216027,
+  "checked_files": 102,
+  "lf_text_files": 101,
+  "bash_blocks": 7,
+  "runtime_payload_byte_identical_to_shipped_1_0_8": true,
+  "source_byte_identical_to_shipped_1_0_8": true,
+  "java_regression": {
+    "VoiceGateTest": [
+      "VoiceGateTest passed: 1419 assertions"
+    ],
+    "WakeSessionGateTest": [
+      "WakeSessionGateTest passed: 28 assertions"
+    ],
+    "Soc2WakeEvidenceProviderTest": [
+      "Soc2WakeEvidenceProviderTest passed: 8 assertions"
+    ],
+    "AgentSdkInterruptWireTest": [
+      "AgentSdkInterruptWireTest passed: 29 assertions"
+    ],
+    "VoiceRegression": [
+      "VoiceAgentGateRegression passed: 393 assertions",
+      "VoiceRegression passed: 47 assertions plus real Agent gate regression"
+    ],
+    "ModelRecoveryTest": [
+      "ModelRecoveryTest passed: text input, transient retry, auth rejection, malformed intent, bridge outage, next-request recovery"
+    ],
+    "FunctionalControlTest": [
+      "FunctionalControlTest passed: 39 assertions"
+    ],
+    "AgentConnectionStateTest": [
+      "AgentConnectionStateTest passed: early callbacks, auth failure, offline, restart, atomic state"
+    ],
+    "ControlReplyRegressionTest": [
+      "ControlReplyRegressionTest passed: 566 assertions"
+    ],
+    "ControlOwnershipFaultTest": [
+      "ControlOwnershipFaultTest passed: 524 assertions"
+    ],
+    "LoggedModelTimeoutTest": [
+      "LoggedModelTimeoutTest passed: real 15s chat timeout, exact navigation without model wait, no repeat dispatch"
+    ],
+    "FieldVoiceReplayTest": [
+      "FieldVoiceReplayTest passed: 424 assertions"
+    ],
+    "ControlReplyTextWireTest": [
+      "ControlReplyTextWireTest passed: 1480 assertions"
+    ],
+    "ReferenceControlChannelTest": [
+      "ReferenceControlChannelTest passed: 204 assertions"
+    ],
+    "NavigationTourRoutingTest": [
+      "NavigationTourRoutingTest passed: 165 assertions"
+    ],
+    "TtsAcknowledgementTest": [
+      "TTS acknowledgement checks passed: 56"
+    ],
+    "SilentStartControlTest": [
+      "SilentStartControlTest passed: 3648 assertions"
+    ]
+  },
+  "source_runtime_class_count": 47,
+  "navigation_tests": "183 passed in 7.10s",
+  "packaged_linux_tests": 97,
+  "native_repair": "disable only start_fixed_line_intro/exhibit_commentary enabled entries",
+  "hardware_validation": false,
+  "independent_native_speech_interception_verified": false
+}
