@@ -1,0 +1,348 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#ffffff">
+    <title>灵犀导航</title>
+<link rel="stylesheet" href="/console/styles.css?v=20261015-v139-r3">
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">灵</span>
+        <div>
+          <h1>灵犀导航</h1>
+          <p>机器人本机控制台</p>
+        </div>
+      </div>
+      <div class="actions">
+        <span id="onlineBadge" class="badge bad">检查中</span>
+        <button id="refreshBtn" class="icon-command" title="刷新状态" aria-label="刷新状态">刷新</button>
+        <button id="startBridgeBtn" hidden>启动导航</button>
+        <button id="restartBridgeBtn" hidden>重启导航</button>
+      </div>
+    </header>
+
+    <section class="customer-shell">
+      <div class="customer-hero">
+        <div class="hero-copy">
+          <span class="eyebrow">设备控制</span>
+          <h2>机器人服务</h2>
+          <p>语音、导航、地图与灵心平台统一管理。</p>
+        </div>
+        <div class="hero-card">
+          <div class="hero-status">
+            <span id="customerReadyDot" class="status-dot"></span>
+            <strong id="customerReadyTitle">正在检查</strong>
+            <small id="customerReadyDetail">正在读取机器人状态。</small>
+          </div>
+          <button id="startAllServicesBtn" class="primary-large">一键启动全部服务</button>
+          <button id="customerRefreshBtn" class="ghost-large">重新检查</button>
+          <div id="startAllResult" class="start-result"></div>
+        </div>
+      </div>
+
+      <div class="customer-grid">
+        <div class="customer-card">
+          <span>机器人连接</span>
+          <strong id="customerTunnelState">检查中</strong>
+          <small id="customerTunnelDetail">本机控制与地图链路</small>
+        </div>
+        <div class="customer-card">
+          <span>语音服务</span>
+          <strong id="customerVoiceState">检查中</strong>
+          <small id="customerVoiceDetail">灵心连接与语音回调</small>
+        </div>
+        <div class="customer-card">
+          <span>当前地图</span>
+          <strong id="customerMapState">-</strong>
+          <small id="customerMapDetail">当前导航地图</small>
+        </div>
+        <div class="customer-card">
+          <span>定位状态</span>
+          <strong id="customerLocalizationState">检查中</strong>
+          <small id="customerLocalizationDetail">导航前需定位正常</small>
+        </div>
+      </div>
+      <nav class="customer-shortcuts" aria-label="工作区" role="tablist">
+        <button type="button" role="tab" class="workspace-tab active" data-view="nav">导航</button>
+        <button type="button" role="tab" class="workspace-tab" data-view="task">讲解</button>
+        <button type="button" role="tab" class="workspace-tab" data-view="map">地图</button>
+        <button type="button" role="tab" class="workspace-tab" data-view="system">服务</button>
+      </nav>
+    </section>
+
+    <main class="layout">
+      <section id="serviceCheckPanel" class="panel wizard-panel view-section" data-view-section="system" hidden>
+        <div class="panel-head">
+          <div>
+            <h2>服务管理</h2>
+            <p class="hint">查看服务链路，必要时单独恢复。</p>
+          </div>
+          <span id="readyBadge" class="badge bad">未就绪</span>
+        </div>
+        <div class="robot-config local-access">
+          <div class="config-meta">
+            <strong>本机访问地址</strong>
+            <span id="robotUrls">正在读取机器人网络地址...</span>
+            <small>机器人更换网络后，只需在浏览器地址栏使用新的机器人 IP，网页内无需配置目标 IP。</small>
+          </div>
+        </div>
+        <div id="startupChecklist" class="wizard-list"></div>
+        <div class="notice">
+          先确认手机或电脑与机器人在同一网络，再确认语音服务已连接灵心平台（code=0），最后执行导航层启动和现场重定位。
+        </div>
+        <div class="split-actions">
+          <button id="startupRefreshBtn" class="secondary">检查启动状态</button>
+          <button id="startupJavaBtn">2. 启动语音服务</button>
+          <button id="startupBridgeBtn">4. 启动机器人导航层</button>
+          <button id="startupRelocBtn" class="warning">6. 现场一键重定位</button>
+        </div>
+      </section>
+
+      <section class="panel status-panel view-section" data-view-section="system" hidden>
+        <div class="panel-head">
+          <h2>运行状态</h2>
+          <span class="badge-label">实时状态</span>
+        </div>
+        <div class="status-grid">
+          <div><span>当前地图</span><strong id="activeMap">-</strong></div>
+          <div><span>导航模式</span><strong id="navMode">-</strong></div>
+          <div><span>导航状态</span><strong id="navState">-</strong></div>
+          <div><span>返航状态</span><strong id="returnState">-</strong></div>
+          <div><span>地图服务</span><strong id="mapWebState">-</strong></div>
+          <div><span>动作/表情</span><strong id="sdkState">-</strong></div>
+        </div>
+        <pre id="statusErrors" class="log"></pre>
+      </section>
+
+      <section class="panel view-section" data-view-section="system" hidden>
+        <div class="panel-head">
+          <h2>底层导航/传感器</h2>
+          <span id="systemHealthBadge" class="badge bad">未检查</span>
+        </div>
+        <p class="hint">重定位失败时先检查这里；它会确认底层服务、SLAM、雷达点云、雷达 IMU 和定位输出是否就绪。</p>
+        <div class="status-grid compact">
+          <div><span>底层服务</span><strong id="systemServiceState">-</strong></div>
+          <div><span>传感器服务</span><strong id="systemHalState">-</strong></div>
+          <div><span>SLAM 服务</span><strong id="systemSlamState">-</strong></div>
+        </div>
+        <pre id="systemHealthDetails" class="log neutral"></pre>
+        <div class="split-actions">
+          <button id="checkSystemHealthBtn" class="secondary">检查底层服务</button>
+          <button id="recoverLocalizationBtn" class="warning">定位链路一键恢复</button>
+          <button id="restartSystemBtn" class="warning">重启底层导航/传感器</button>
+        </div>
+      </section>
+
+      <section class="panel view-section" data-view-section="nav">
+        <div class="panel-head">
+          <h2>当前定位</h2>
+          <button id="getLocalizationBtn" class="secondary">获取当前定位</button>
+        </div>
+        <p class="hint">读取机器人 `/slam/lidar_odom` 的当前位姿；获取成功后会在当前地图上标出机器人位置。</p>
+        <div class="status-grid compact">
+          <div><span>X 坐标</span><strong id="locX">-</strong></div>
+          <div><span>Y 坐标</span><strong id="locY">-</strong></div>
+          <div><span>朝向</span><strong id="locYaw">-</strong></div>
+        </div>
+        <pre id="locDetails" class="log neutral"></pre>
+      </section>
+
+      <section id="quickNavPanel" class="panel view-section primary-workspace" data-view-section="nav">
+        <div class="panel-head">
+          <h2>快速导航</h2>
+          <button id="stopNavBtn" class="danger">停止导航</button>
+        </div>
+        <div id="pointButtons" class="point-grid"></div>
+        <div class="split-actions">
+          <button id="startTaskBtn">开始讲解任务</button>
+          <button id="pauseTaskBtn" class="warning">暂停讲解</button>
+          <button id="resumeTaskBtn" class="secondary">继续讲解</button>
+          <button id="stopTaskBtn" class="danger">结束讲解任务</button>
+        </div>
+      </section>
+
+      <section class="panel view-section" data-view-section="nav">
+        <div class="panel-head">
+          <h2>重定位</h2>
+          <button id="refreshRelocBtn" class="secondary">刷新状态</button>
+        </div>
+        <p class="hint">优先选择保存的点位自动重定位，可填写修正量校准误差。</p>
+        <div class="status-grid compact">
+          <div><span>进程</span><strong id="relocRunning">-</strong></div>
+          <div><span>结果</span><strong id="relocResult">-</strong></div>
+          <div><span>坐标来源</span><strong id="relocPoint">-</strong></div>
+        </div>
+        <form class="form auto-reloc-form">
+          <label>自动重定位点<select id="autoRelocPointSelect"></select></label>
+          <label>X 修正（像素）<input id="autoRelocOffsetX" type="number" step="0.001" value="0"></label>
+          <label>Y 修正（像素）<input id="autoRelocOffsetY" type="number" step="0.001" value="0"></label>
+          <label>朝向修正（度）<input id="autoRelocYawOffset" type="number" step="0.1" value="0"></label>
+        </form>
+        <div class="split-actions primary-reloc-actions">
+          <button id="fillAutoRelocBtn" class="secondary">填入点位</button>
+          <button id="startAutoRelocBtn" class="warning">自动重定位</button>
+        </div>
+        <details class="advanced-tools">
+          <summary>手动重定位参数</summary>
+        <form class="form reloc-form">
+          <label>地图 ID<input id="relocMapId" type="number" step="1"></label>
+          <label>像素 X<input id="relocX" type="number" step="0.001"></label>
+          <label>像素 Y<input id="relocY" type="number" step="0.001"></label>
+          <label>Z<input id="relocZ" type="number" step="0.001" value="0"></label>
+          <label>超时秒数<input id="relocTimeout" type="number" step="1" value="30"></label>
+          <label>QX<input id="relocQx" type="number" step="0.000001" value="0"></label>
+          <label>QY<input id="relocQy" type="number" step="0.000001" value="0"></label>
+          <label>QZ<input id="relocQz" type="number" step="0.000001" value="0"></label>
+          <label>QW<input id="relocQw" type="number" step="0.000001" value="1"></label>
+        </form>
+          <div class="split-actions">
+          <button id="fillRelocFromPointBtn" class="secondary">使用当前选点坐标</button>
+          <button id="startRelocBtn" class="warning">开始重定位</button>
+          </div>
+        </details>
+        <pre id="relocDetails" class="log neutral"></pre>
+      </section>
+
+      <section id="mapConfigPanel" class="panel map-panel view-section" data-view-section="map" hidden>
+        <div class="panel-head">
+          <div>
+            <h2>地图与点位</h2>
+            <p class="hint">下拉框用于查看和编辑地图；需要机器人使用该地图时，请点击“设为当前导航地图”。</p>
+          </div>
+          <div class="map-switcher">
+            <select id="mapSelect"></select>
+            <button id="refreshMapsBtn" class="secondary">刷新地图列表</button>
+            <button id="setActiveMapBtn">设为当前导航地图</button>
+          </div>
+        </div>
+        <div class="notice compact" id="activeMapNotice">当前导航地图：-</div>
+        <div class="map-workspace">
+          <div class="map-frame">
+            <canvas id="mapCanvas"></canvas>
+          </div>
+          <div>
+            <div class="panel-subhead">
+              <h3>点位列表</h3>
+              <button id="newPointBtn" class="secondary">新增点位</button>
+            </div>
+            <div id="pointsList" class="list"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel editor-panel view-section" data-view-section="map" hidden>
+        <h2 id="editorTitle">点位编辑</h2>
+        <form id="pointForm" class="form">
+          <input type="hidden" id="pointId">
+          <label>名称<input id="pointName" required></label>
+          <label>别名（逗号分隔）<input id="pointAliases"></label>
+          <label>坐标 X<input id="pointX" type="number" step="0.001" readonly></label>
+          <label>坐标 Y<input id="pointY" type="number" step="0.001" readonly></label>
+          <label>坐标 Z<input id="pointZ" type="number" step="0.001" value="0"></label>
+          <label>朝向 Yaw（度）<input id="pointYaw" type="number" step="0.1" readonly></label>
+          <label>到达半径<input id="pointRadius" type="number" step="0.01" value="0.15"></label>
+          <label>最大速度<input id="pointSpeed" type="number" step="0.01" value="0.3"></label>
+          <label>导航规划模式<input id="pointPncMode" type="number" step="1" value="0"></label>
+          <label>导航任务类型<input id="pointTaskType" type="number" step="1" value="2"></label>
+          <label class="checkbox"><input id="pointStart" type="checkbox"> 设置为起点</label>
+          <label class="wide">到达播报<textarea id="arrivalText" rows="3"></textarea></label>
+          <label>到达动作<select id="arrivalMotion">
+            <option value="">无动作</option>
+            <option value="raise_hand">raise_hand</option>
+            <option value="wave">wave</option>
+            <option value="handshake">handshake</option>
+            <option value="flying_kiss">flying_kiss</option>
+            <option value="clap">clap</option>
+            <option value="turn_wave">turn_wave</option>
+            <option value="bow">bow</option>
+            <option value="like">like</option>
+            <option value="ye">ye</option>
+            <option value="sweetheart">sweetheart</option>
+            <option value="salute">salute</option>
+            <option value="sad">sad</option>
+            <option value="lightwave">lightwave</option>
+            <option value="hug">hug</option>
+            <option value="handx">handx</option>
+            <option value="chestwave">chestwave</option>
+            <option value="cheer">cheer</option>
+            <option value="blowkiss">blowkiss</option>
+            <option value="bassdance1">bassdance1</option>
+            <option value="bassdance2">bassdance2</option>
+            <option value="hitclap">hitclap</option>
+            <option value="speak">speak</option>
+            <option value="clipfist">clipfist</option>
+            <option value="photo">photo</option>
+            <option value="photo_triple">photo_triple</option>
+            <option value="nod">nod</option>
+            <option value="shake_head">shake_head</option>
+          </select></label>
+          <label>动作区域<select id="arrivalMotionArea">
+            <option value="right_hand">right_hand</option>
+            <option value="left_hand">left_hand</option>
+            <option value="head">head</option>
+            <option value="waist">waist</option>
+            <option value="none">none</option>
+          </select></label>
+          <label>到达表情<select id="arrivalEmoji">
+            <option value="">无表情</option>
+            <option value="blink">blink</option>
+            <option value="calm">calm</option>
+            <option value="cute">cute</option>
+            <option value="happy">happy</option>
+            <option value="extreme_happy">extreme_happy</option>
+            <option value="sad">sad</option>
+            <option value="confuse">confuse</option>
+            <option value="shock">shock</option>
+            <option value="thinking">thinking</option>
+            <option value="angry">angry</option>
+            <option value="adore">adore</option>
+            <option value="charge">charge</option>
+          </select></label>
+          <label>表情模式<select id="arrivalEmojiMode">
+            <option value="once">once</option>
+            <option value="loop">loop</option>
+          </select></label>
+          <p class="hint wide">在地图上第一次左键选择点位位置，第二次左键或右键设置朝向；编辑已有点位后可直接保存。</p>
+          <div class="split-actions wide">
+            <button type="submit">保存点位</button>
+            <button type="button" id="resetYawBtn" class="secondary">重置朝向</button>
+            <button type="button" id="deletePointBtn" class="danger">删除点位</button>
+          </div>
+        </form>
+      </section>
+
+      <section id="taskConfigPanel" class="panel task-product-panel view-section" data-view-section="task" hidden>
+        <div class="panel-head">
+          <h2>讲解任务编排</h2>
+          <div class="actions">
+            <button id="refreshLinkcraftBtn" class="secondary">刷新灵创资源</button>
+            <button id="saveTaskBtn">保存并设为当前任务</button>
+          </div>
+        </div>
+          <p class="task-note">每一步按到点讲解、动作和表情、灵创舞蹈或动作、原地等待的顺序执行。</p>
+        <div class="task-toolbar">
+          <select id="taskSelect"></select>
+          <button id="newTaskBtn" class="secondary">新建任务</button>
+        </div>
+        <div class="form task-command-form">
+          <label>任务名称<input id="taskName"></label>
+          <label>命令主题词<input id="taskCommandTopic" maxlength="60" placeholder="例如：办理业务"></label>
+          <label>循环讲解次数<input id="taskLoopCount" type="number" min="1" max="20" step="1" value="1" inputmode="numeric"></label>
+          <label class="wide">开始命令词<textarea id="taskStartPhrases" rows="2" maxlength="600" placeholder="每行一条，最多 10 条"></textarea></label>
+        </div>
+        <div class="task-builder">
+          <select id="taskPointSelect"></select>
+          <textarea id="taskSpeechText" rows="2" placeholder="到达该点后的讲解内容"></textarea>
+          <button id="addTaskStepBtn" class="secondary">添加到任务</button>
+        </div>
+        <div id="taskSteps" class="list"></div>
+      </section>
+    </main>
+
+    <div id="toast" class="toast"></div>
+<script type="module" src="/console/app.js?v=20261015-v139-r3"></script>
+  </body>
+</html>

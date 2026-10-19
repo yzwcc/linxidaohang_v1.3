@@ -1,0 +1,25 @@
+{
+  "date": "2026-10-19",
+  "version": "1.3.9-complete-20261019-r4",
+  "navigation_version": "1.0.22-20261019",
+  "baseline": "1.3.9-complete-20261015-r3",
+  "navigation": { "passed": 144, "failed": 0 },
+  "web": { "files": 11, "passed": 68, "failed": 0, "build": "passed" },
+  "java": {
+    "build": "passed",
+    "suites": 6,
+    "assertions": { "VoiceGate": 1419, "WakeSession": 28, "SOC2Evidence": 8, "SDKInterrupt": 34, "VoiceRegression": 47, "VoiceAgentGate": 387, "ControlAck": 201 },
+    "sha256": "acb2be21ca3d2d194f3d4b88e177c7da54d2b3c12676074fd8f2d7316eefd971"
+  },
+  "installer_tools": {
+    "linux": { "passed": 18, "failed": 0, "skipped": 0 },
+    "windows": { "passed": 12, "failed": 0, "skipped": 6 },
+    "baseline_linux_java_access": { "passed": 4, "failed": 0, "skipped": 0 }
+  },
+  "browser": { "passed": true, "widths": [320, 390, 1440], "isolated_mock_writes": 21, "page_errors": 0, "external_requests": 0, "unexpected_requests": 0, "overflow": false },
+  "packaged_runtime": { "navigation_passed": 144, "java_suites_passed": 6, "console_requests_passed": 16, "mocked_task_saves": 6 },
+  "final_archive_audit": "See archive-audit.json alongside the finished archives; generated after packaging and bound to exact SHA-256 values",
+  "robot_deployed": false,
+  "physical_robot_acceptance": false,
+  "limitations": ["No real ROS/PNC movement or localization", "No acoustic or cloud authentication acceptance", "ARM64 runtimes checked by ELF architecture and hashes, not executed on x64 workstation", "Linux install lifecycle uses fixture runtimes and disabled services"]
+}

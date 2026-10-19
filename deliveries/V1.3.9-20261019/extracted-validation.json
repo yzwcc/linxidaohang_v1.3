@@ -1,0 +1,15 @@
+{
+  "passed": true,
+  "archive": "lingxi-v1.3.9-complete-20261019-r4-deployment.tar.gz",
+  "sha256": "1c88e092f84ba43c275aadcf7000a168469f6b30c840bb2e1d07878c4910ca23",
+  "linux": true,
+  "outer_checksums": "passed",
+  "inner_checksums": "passed",
+  "payload_manifest": "passed",
+  "all_shell_syntax": "passed",
+  "python_ast": "passed",
+  "extracted_installer_lifecycle_tests": 3,
+  "failed": 0,
+  "skipped": 0,
+  "robot_services_started": false
+}

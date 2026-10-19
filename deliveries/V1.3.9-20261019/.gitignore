@@ -1,0 +1,5 @@
+.build/
+components/
+reports/
+lingxi-v*-deployment/
+source/server/test/artifacts/
