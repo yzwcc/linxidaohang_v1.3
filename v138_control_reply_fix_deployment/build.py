@@ -14,14 +14,14 @@ BASE = HERE.parent / "v138_complete_r15_deployment"
 sys.path.insert(0, str(BASE))
 from archive_utils import normalize_text, put, read_archive, tar_data, verify_sums, write_sums
 
-NAME = "sparkrobot-lingxi-v1.3.8-control-reply-fix-1.0.4-20261018"
-PREVIOUS = "sparkrobot-lingxi-v1.3.8-control-reply-fix-1.0.3-20261018"
+NAME = "sparkrobot-lingxi-v1.3.8-control-reply-fix-1.0.5-20261019"
+PREVIOUS = "sparkrobot-lingxi-v1.3.8-control-reply-fix-1.0.4-20261018"
 CHANGED_CLASSES = ("LingxiNavAgentApp", "PresetMotionCatalog", "DoubaoArkClient")
 JAVA_TESTS = ("VoiceGateTest", "WakeSessionGateTest", "Soc2WakeEvidenceProviderTest",
               "AgentSdkInterruptWireTest", "VoiceRegression", "ModelRecoveryTest",
               "FunctionalControlTest", "AgentConnectionStateTest", "ControlReplyRegressionTest",
               "ControlOwnershipFaultTest", "LoggedModelTimeoutTest", "FieldVoiceReplayTest",
-              "ControlReplyTextWireTest")
+              "ControlReplyTextWireTest", "ReferenceControlChannelTest")
 
 
 def patched_class(name):
@@ -71,7 +71,7 @@ def main():
             new.writestr(entry, data)
         for name, data in sorted(compiled.items()):
             if patched_class(name):
-                info = zipfile.ZipInfo(name, (2026, 10, 18, 0, 0, 0))
+                info = zipfile.ZipInfo(name, (2026, 10, 19, 0, 0, 0))
                 info.compress_type = zipfile.ZIP_DEFLATED
                 info.external_attr = 0o100644 << 16
                 new.writestr(info, data)
@@ -93,26 +93,35 @@ def main():
     assert changed_since_previous
     assert all(name == "com/agibot/aiem/nav/LingxiNavAgentApp.class"
                or name.startswith("com/agibot/aiem/nav/LingxiNavAgentApp$") and name.endswith(".class")
-               for name in changed_since_previous), "Unexpected runtime change since 1.0.3"
+               for name in changed_since_previous), "Unexpected runtime change since 1.0.4"
     comparison = None
     if "--check-previous" in sys.argv:
-        previous_path = work / "previous-1.0.3.jar"
+        print(run([sys.executable, HERE / "compare_reference.py"]).strip())
+        previous_path = work / "previous-1.0.4.jar"
         previous_path.write_bytes(previous_jar)
         old_cp = os.pathsep.join(map(str, (tests, previous_path, sdk)))
         previous_result = subprocess.run(
             [str(java / "java.exe"), "-Dfile.encoding=UTF-8", "-Duser.language=en", "-cp", old_cp,
-             "com.agibot.aiem.nav.ControlReplyTextWireTest"],
+             "com.agibot.aiem.nav.ReferenceControlChannelTest"],
             capture_output=True, text=True, encoding="utf-8", errors="replace")
         (work / "previous-audit.log").write_text(previous_result.stdout + previous_result.stderr, encoding="utf-8")
         assert previous_result.returncode != 0, "The previous package must reproduce the audit regressions"
         headline = next(line for line in previous_result.stderr.splitlines() if "failures:" in line)
-        assert "Control reply text failures: 28/712" in headline, headline
+        assert "Reference control channel failures: 70/204" in headline, headline
         missing = [line for line in previous_result.stderr.splitlines()
-                   if line.startswith("nonempty exact SDK control reply robot/200/")]
-        assert len(missing) == 28, "Previous audit failed outside the expected control-text regression"
-        comparison = {"package": PREVIOUS, "suite": "ControlReplyTextWireTest",
-                      "assertions": 712, "expected_failures": len(missing)}
-        print("Previous 1.0.3 reproduced: 28 missing control-text assertions out of 712")
+                   if line.startswith(("no SDK interrupt ", "single speech owner ", "SDK completion before local TTS "))]
+        assert len(missing) == 70, "Previous audit failed outside the reference channel differences"
+        reference_report = json.loads((work / "reference-comparison.json").read_text(encoding="utf-8"))
+        assert reference_report["v131_effective_kb"]["exit_code"] == 0
+        assert reference_report["v131_effective_kb"]["result"] == "ReferenceControlChannelTest passed: 204 assertions"
+        assert reference_report["previous_1_0_4"]["sha256"] == hashlib.sha256(previous_jar).hexdigest()
+        contract_sha = hashlib.sha256((source / "test/java/com/agibot/aiem/nav/ReferenceControlChannelTest.java").read_bytes()).hexdigest()
+        assert reference_report["contract_source_sha256"] == contract_sha
+        comparison = {"package": PREVIOUS, "suite": "ReferenceControlChannelTest",
+                      "assertions": 204, "expected_failures": len(missing),
+                      "contract_source_sha256": contract_sha,
+                      "v131_effective_kb": reference_report["v131_effective_kb"]}
+        print("Previous 1.0.4 reproduced: 70/204 reference channel assertions failed; V1.3.1 reference passed")
     results = {}
     selected = (("ControlReplyTextWireTest",) if "--text-only" in sys.argv else
                 ("FieldVoiceReplayTest",) if "--field-only" in sys.argv else
@@ -137,7 +146,7 @@ def main():
         put(files, name, normalize_text(name, path.read_bytes()), 0o644)
     digest = lambda p: hashlib.sha256(p.read_bytes()).hexdigest()
     metadata = {
-        "package": NAME, "version": "1.0.4-20261018", "product": "V1.3.8",
+        "package": NAME, "version": "1.0.5-20261019", "product": "V1.3.8",
         "baseline_jar_sha256": digest(baseline), "patched_jar_sha256": digest(jar),
         "superseded_jar_sha256": list(dict.fromkeys(
             json.loads(previous_files["release.json"][1])["superseded_jar_sha256"]
@@ -147,7 +156,7 @@ def main():
         "java_tests": results,
         "changed_runtime_files": ["java/robot-local-navigation-java-all.jar"],
         "changed_java_classes": list(CHANGED_CLASSES),
-        "changed_jar_entries_since_1_0_3": changed_since_previous,
+        "changed_jar_entries_since_1_0_4": changed_since_previous,
         "previous_comparison": comparison,
         "hardware_validation": False,
     }

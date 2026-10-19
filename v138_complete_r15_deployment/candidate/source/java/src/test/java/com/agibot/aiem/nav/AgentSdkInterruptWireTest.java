@@ -53,11 +53,9 @@ public final class AgentSdkInterruptWireTest {
                     "event-question", "\u5982\u4f55\u5f00\u59cb\u8bb2\u89e3", ttsResponse::onInterrupt);
             question.run();
 
-            check(client.messages.size() == 3,
-                    "both callback modes and local motion emit one interrupt, questions emit none");
-            verify(client.messages.get(0), "agent-tts", "robot-tts", "event-tts");
-            verify(client.messages.get(1), "agent-llm", "robot-llm", "event-llm");
-            verify(client.messages.get(2), "agent-tts", "robot-tts", "event-motion");
+            check(client.messages.size() == 1,
+                    "tour controls retain the reference channel; preset motion emits one interrupt");
+            verify(client.messages.get(0), "agent-tts", "robot-tts", "event-motion");
             for (NavigationIntent intent : List.of(NavigationIntent.navigate("wire大厅"),
                     NavigationIntent.startTask("custom-tour"),
                     NavigationIntent.presetMotion("handshake", "right_hand"), NavigationIntent.chat("你好"))) {
@@ -78,7 +76,11 @@ public final class AgentSdkInterruptWireTest {
                     continue;
                 }
                 check(!begin.test(intent), "same response cannot dispatch control twice");
-                check(client.messages.size() == before + 1, "resolved intent sends exactly one interrupt");
+                if (!intent.isPresetMotion()) {
+                    check(client.messages.size() == before, "resolved HTTP navigation/tour emits no SDK interrupt");
+                    continue;
+                }
+                check(client.messages.size() == before + 1, "resolved motion sends exactly one interrupt");
                 JSONObject payload = JSON.parseObject(client.messages.get(before).payload);
                 check("chat".equals(payload.getString("interruptType")),
                         "resolved local command uses chat rather than an empty skill action");

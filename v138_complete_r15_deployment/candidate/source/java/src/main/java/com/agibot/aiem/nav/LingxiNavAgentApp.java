@@ -300,8 +300,8 @@ public final class LingxiNavAgentApp {
                     try {
                         Runnable nativeInterrupt = LingxiNavAgentApp.nativeTourActionInterrupt(
                                 string2, string3, asr2LlmResponse::onInterrupt);
-                        // Claim clear local controls before the native default response races us.
-                        // Native singing/dancing keep their original response channel.
+                        // Preset motions retain their existing interrupt policy.
+                        // Navigation/tours use the V1.3.1 reference response channel.
                         nativeInterrupt.run();
                         if (LingxiNavAgentApp.shouldIgnoreTextCallback(
                                 "Asr2Llm", string, string2, string3, agentParam,
@@ -311,6 +311,14 @@ public final class LingxiNavAgentApp {
                         }
                         interactionResult = LingxiNavAgentApp.processTextRequest(string2, string3, appConfig, navBridgeClient, doubaoArkClient, qaStore, atomicBoolean,
                                 resolvedResponseInterrupt(string2, string3, asr2LlmResponse::onInterrupt));
+                        if (isLocalControlReply(appConfig, interactionResult.ttsPriority)) {
+                            InteractionResult result = interactionResult;
+                            completeLocalControlReply(appConfig, string2, result.reply, result.ttsPriority, navBridgeClient,
+                                    () -> asr2LlmResponse.onLlmItemDelta(string2, string4, result.reply),
+                                    () -> asr2LlmResponse.onLlmItemDone(string2, string4),
+                                    () -> asr2LlmResponse.onLlmDone(string2), null, null);
+                            return;
+                        }
                         RobotTtsResult ttsResult = LingxiNavAgentApp.speakIfNeeded(
                                 appConfig, string2, interactionResult.reply, interactionResult.ttsPriority, navBridgeClient);
                         if (!interactionResult.reply.isBlank()
@@ -383,6 +391,16 @@ public final class LingxiNavAgentApp {
                         }
                         interactionResult = LingxiNavAgentApp.processTextRequest(string2, string3, appConfig, navBridgeClient, doubaoArkClient, qaStore, atomicBoolean,
                                 resolvedResponseInterrupt(string2, string3, asr2TtsResponse::onInterrupt));
+                        if (isLocalControlReply(appConfig, interactionResult.ttsPriority)) {
+                            InteractionResult result = interactionResult;
+                            completeLocalControlReply(appConfig, string2, result.reply, result.ttsPriority, navBridgeClient,
+                                    () -> asr2TtsResponse.onLlmItemDelta(string2, string4, result.reply),
+                                    () -> asr2TtsResponse.onLlmItemDone(string2, string4),
+                                    () -> asr2TtsResponse.onLlmDone(string2),
+                                    () -> asr2TtsResponse.onTtsItemDone(string2, string4),
+                                    () -> asr2TtsResponse.onTtsDone(string2));
+                            return;
+                        }
                         RobotTtsResult ttsResult = LingxiNavAgentApp.speakIfNeeded(
                                 appConfig, string2, interactionResult.reply, interactionResult.ttsPriority, navBridgeClient);
                         if (!interactionResult.reply.isBlank()
@@ -638,6 +656,14 @@ public final class LingxiNavAgentApp {
             LingxiNavAgentApp.interruptNativeTourActionIfNeeded(string, audioResult.asrText, audio2LlmResponse::onInterrupt);
             log.info("Audio2Llm final: eventId={}, asrText={}, reply={}, priority={}", new Object[]{string, LingxiNavAgentApp.abbreviate(audioResult.asrText), LingxiNavAgentApp.abbreviate(audioResult.reply), audioResult.ttsPriority});
             audio2LlmResponse.onAsrFinal(string, audioResult.asrText);
+            if (isLocalControlReply(appConfig, audioResult.ttsPriority)) {
+                AudioResult result = audioResult;
+                completeLocalControlReply(appConfig, string, result.reply, result.ttsPriority, navBridgeClient,
+                        () -> audio2LlmResponse.onLlmItemDelta(string, audioSession.itemId, result.reply),
+                        () -> audio2LlmResponse.onLlmItemDone(string, audioSession.itemId),
+                        () -> audio2LlmResponse.onLlmDone(string), null, null);
+                return;
+            }
             RobotTtsResult ttsResult = LingxiNavAgentApp.speakIfNeeded(
                     appConfig, string, audioResult.reply, audioResult.ttsPriority, navBridgeClient);
             if (!audioResult.reply.isBlank() && LingxiNavAgentApp.shouldReturnLingxiText(appConfig, audioResult.ttsPriority, ttsResult)) {
@@ -679,6 +705,16 @@ public final class LingxiNavAgentApp {
             LingxiNavAgentApp.interruptNativeTourActionIfNeeded(string, audioResult.asrText, audio2TtsResponse::onInterrupt);
             log.info("Audio2Tts final: eventId={}, asrText={}, reply={}, priority={}", new Object[]{string, LingxiNavAgentApp.abbreviate(audioResult.asrText), LingxiNavAgentApp.abbreviate(audioResult.reply), audioResult.ttsPriority});
             audio2TtsResponse.onAsrFinal(string, audioResult.asrText);
+            if (isLocalControlReply(appConfig, audioResult.ttsPriority)) {
+                AudioResult result = audioResult;
+                completeLocalControlReply(appConfig, string, result.reply, result.ttsPriority, navBridgeClient,
+                        () -> audio2TtsResponse.onLlmItemDelta(string, audioSession.itemId, result.reply),
+                        () -> audio2TtsResponse.onLlmItemDone(string, audioSession.itemId),
+                        () -> audio2TtsResponse.onLlmDone(string),
+                        () -> audio2TtsResponse.onTtsItemDone(string, audioSession.itemId),
+                        () -> audio2TtsResponse.onTtsDone(string));
+                return;
+            }
             RobotTtsResult ttsResult = LingxiNavAgentApp.speakIfNeeded(
                     appConfig, string, audioResult.reply, audioResult.ttsPriority, navBridgeClient);
             if (!audioResult.reply.isBlank() && LingxiNavAgentApp.shouldReturnLingxiText(appConfig, audioResult.ttsPriority, ttsResult)) {
@@ -974,10 +1010,41 @@ public final class LingxiNavAgentApp {
 
     private static boolean shouldReturnLingxiText(AppConfig appConfig, TtsPriority priority,
                                                   RobotTtsResult ttsResult) {
-        // Preserve the historical control-reply exception: a successful local
-        // TTS request must not leave navigation/tour completion empty on Lingxi.
-        return priority == TtsPriority.NAVIGATION || priority == TtsPriority.URGENT
-                || shouldReturnLingxiText(appConfig) || ttsResult == null || !ttsResult.accepted();
+        return shouldReturnLingxiText(appConfig) || ttsResult == null || !ttsResult.accepted();
+    }
+
+    private static boolean isLocalControlReply(AppConfig config, TtsPriority priority) {
+        return "robot".equals(config.ttsMode)
+                && (priority == TtsPriority.NAVIGATION || priority == TtsPriority.URGENT);
+    }
+
+    private static void completeLocalControlReply(AppConfig config, String eventId, String text,
+            TtsPriority priority, NavBridgeClient bridge, Runnable sdkText, Runnable sdkItemDone,
+            Runnable sdkDone, Runnable sdkTtsItemDone, Runnable sdkTtsDone) {
+        // V1.3.1 closes the SDK LLM response before submitting local control
+        // speech. Keep one speech owner and never reopen it after a TTS failure.
+        if (!text.isBlank() && shouldReturnLingxiText(config)) {
+            sendControlReplyFrame(eventId, "text", sdkText);
+        }
+        sendControlReplyFrame(eventId, "item_done", sdkItemDone);
+        boolean completed = sendControlReplyFrame(eventId, "done", sdkDone);
+        RobotTtsResult result = speakIfNeeded(config, eventId, text, priority, bridge);
+        sendControlReplyFrame(eventId, "tts_item_done", sdkTtsItemDone);
+        sendControlReplyFrame(eventId, "tts_done", sdkTtsDone);
+        log.info("Local control reply completed: eventId={}, sdkTextSuppressed={}, sdkCompleted={}, localTtsAccepted={}",
+                eventId, !shouldReturnLingxiText(config), completed, result.accepted());
+    }
+
+    private static boolean sendControlReplyFrame(String eventId, String frame, Runnable send) {
+        if (send == null) return true;
+        try {
+            send.run();
+            return true;
+        } catch (RuntimeException exception) {
+            log.warn("Control reply transport failed; no control retry or SDK error: eventId={}, frame={}, error={}",
+                    eventId, frame, exception.getMessage());
+            return false;
+        }
     }
 
     private static void markUserInteraction(String string, String string2, NavigationIntent navigationIntent, NavBridgeClient navBridgeClient, AtomicBoolean atomicBoolean) {
@@ -1701,8 +1768,9 @@ public final class LingxiNavAgentApp {
             if (!sent.compareAndSet(false, true)) return false;
             if (!intent.isStop() && !intent.isEndTask()
                     && !claimControlResponse(eventId, text, intent)) return false;
-            // A transport failure must not prevent local dispatch or a safety stop.
-            if (!intent.isSing() && !intent.isDance()) {
+            // Navigation/tour ownership is local; it does not require an SDK
+            // interrupt. Motion transport failure must not block dispatch.
+            if (intent.isPresetMotion()) {
                 sendNativeActionInterrupt(eventId, text, sender);
             }
             return true;
@@ -1743,21 +1811,9 @@ public final class LingxiNavAgentApp {
     }
 
     private static boolean shouldInterruptNativeTourAction(String text) {
-        if (PresetMotionCatalog.resolveVoiceCommand(text) != null) return true;
-        String command = SpeechInputPolicy.normalize(text)
-                .replaceFirst("^(?:你好灵犀|灵犀灵犀|嗨灵犀|灵犀|灵溪灵溪|嗨灵溪|hellolumi|hilumi|heylumi)", "")
-                .replaceFirst("^(?:(?:请你|请|麻烦你|麻烦|帮我)|(?:现在|马上|立即|立刻|赶紧|快))+", "")
-                .replaceFirst("(?:一下|吧|啊|呀|谢谢)+$", "");
-        if (!PresetMotionCatalog.hasNegationOrQuotedSpeech(text)
-                && command.matches("(?:带(?:我|我们)|领(?:我|我们)|引导(?:我|我们))去.+|(?:导航到|前往).+")) {
-            return true;
-        }
-        return command.matches("(?:(?:开始|启动)(?:讲解|讲解任务|任务|参观)"
-                + "|暂停(?:讲解|讲解任务|任务)"
-                + "|(?:讲解|任务)暂停"
-                + "|(?:继续|恢复)(?:讲解|讲解任务|任务)"
-                + "|接着讲解"
-                + "|(?:停止|结束|终止|取消)(?:讲解|讲解任务|任务))");
+        // Navigation and tours use the reference application's HTTP control
+        // channel. Only preset motions retain their separately verified policy.
+        return PresetMotionCatalog.resolveVoiceCommand(text) != null;
     }
 
     private static WakeGate checkTourWake(String string, String string2, NavBridgeClient navBridgeClient) {

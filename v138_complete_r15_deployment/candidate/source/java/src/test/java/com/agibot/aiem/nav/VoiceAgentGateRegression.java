@@ -165,8 +165,8 @@ final class VoiceAgentGateRegression {
             check(stableNavigation.getBooleanValue("accepted") && navStartCalls.get() == 1,
                     "direct navigation does not retry accepted request");
             for (String text : List.of("开始讲解", "灵犀，开始讲解一下", "暂停讲解", "继续讲解", "结束讲解任务")) {
-                check((boolean) shouldInterruptNativeTour.invoke(null, text),
-                        "explicit tour control interrupts native duplicate: " + text);
+                check(!(boolean) shouldInterruptNativeTour.invoke(null, text),
+                        "explicit tour control keeps the reference SDK channel: " + text);
             }
             for (String text : List.of("握手", "请给我比个心", "挥手一下", "打个招呼")) {
                 check((boolean) shouldInterruptNativeTour.invoke(null, text),
@@ -190,10 +190,10 @@ final class VoiceAgentGateRegression {
                         return null;
                     });
             Runnable nativeInterrupt = (Runnable) nativeTourInterruptFactory.invoke(
-                    null, "native-event", "开始讲解", sender);
+                    null, "native-event", "握手", sender);
             nativeInterrupt.run();
             nativeInterrupt.run();
-            check(nativeInterruptCalls.get() == 1, "native tour interrupt is idempotent per callback");
+            check(nativeInterruptCalls.get() == 1, "preset motion interrupt is idempotent per callback");
             VoiceGateTest.FakeClock clock = new VoiceGateTest.FakeClock();
             VoiceGate gate = new VoiceGate(config, clock);
             WakeSessionGate wakeGate = new WakeSessionGate(config, clock);

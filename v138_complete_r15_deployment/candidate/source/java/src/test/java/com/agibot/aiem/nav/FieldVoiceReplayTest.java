@@ -145,7 +145,8 @@ public final class FieldVoiceReplayTest {
                         if (mode.equals("llm")) llm.onRequest("llm", route + mode + kind, text, VoiceGateTest.acceptedParams(), llmResponse);
                         else tts.onRequest("tts", route + mode + kind, text, VoiceGateTest.acceptedParams(), ttsResponse);
                         check(navs.get() + tours.get() + motions.get() == before + 1, "single local dispatch " + route + mode + kind);
-                        check(client.interruptTypes().equals(List.of("chat")), "local HTTP execution uses chat, never empty action " + route + mode + kind);
+                        check(client.interruptTypes().equals(kind.equals("motion") ? List.of("chat") : List.of()),
+                                "navigation/tour use reference channel; motion retains its policy " + route + mode + kind);
                         check(!client.join(speech).contains("做不到"), "model refusal cannot precede accepted dispatch");
                     }
                     for (String text : List.of("打个招呼", "打个招呼呗", "跟大家打个招呼", "请你打一下招呼")) {

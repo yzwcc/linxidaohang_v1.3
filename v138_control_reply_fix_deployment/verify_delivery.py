@@ -14,8 +14,8 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent / "v138_complete_r15_deployment"))
 from archive_utils import read_archive, verify_sums
 
-NAME = "sparkrobot-lingxi-v1.3.8-control-reply-fix-1.0.4-20261018"
-PREVIOUS = "sparkrobot-lingxi-v1.3.8-control-reply-fix-1.0.3-20261018"
+NAME = "sparkrobot-lingxi-v1.3.8-control-reply-fix-1.0.5-20261019"
+PREVIOUS = "sparkrobot-lingxi-v1.3.8-control-reply-fix-1.0.4-20261018"
 CHANGED_CLASSES = ("LingxiNavAgentApp", "PresetMotionCatalog", "DoubaoArkClient")
 
 
@@ -50,9 +50,15 @@ def main():
     assert meta["changed_runtime_files"] == ["java/robot-local-navigation-java-all.jar"]
     assert meta["changed_java_classes"] == list(CHANGED_CLASSES)
     assert hashlib.sha256(files["payload/java/robot-local-navigation-java-all.jar"][1]).hexdigest() == meta["patched_jar_sha256"]
-    assert len(meta["java_tests"]) == 13 and meta["java_tests"]["ControlReplyTextWireTest"]
-    assert meta["previous_comparison"] == {
-        "package": PREVIOUS, "suite": "ControlReplyTextWireTest", "assertions": 712, "expected_failures": 28}
+    assert len(meta["java_tests"]) == 14 and meta["java_tests"]["ReferenceControlChannelTest"]
+    comparison = meta["previous_comparison"]
+    assert comparison["package"] == PREVIOUS and comparison["suite"] == "ReferenceControlChannelTest"
+    assert comparison["assertions"] == 204 and comparison["expected_failures"] == 70
+    assert comparison["v131_effective_kb"]["exit_code"] == 0
+    assert comparison["v131_effective_kb"]["sha256"] == "7f1836d23443086090c33f94fc30d98727fb22de797be552fd7ac74d834f37a3"
+    # Archive normalization is LF-only; the Java contract itself is stored with LF.
+    assert comparison["contract_source_sha256"] == hashlib.sha256(
+        files["tests/com/agibot/aiem/nav/ReferenceControlChannelTest.java"][1]).hexdigest()
     previous = read_archive((HERE / "dist" / (PREVIOUS + ".tar.gz")).read_bytes(), PREVIOUS)
     previous_jar = previous["payload/java/robot-local-navigation-java-all.jar"][1]
     assert hashlib.sha256(previous_jar).hexdigest() in meta["superseded_jar_sha256"]
@@ -61,7 +67,7 @@ def main():
         changed_previous = sorted(name for name in set(old.namelist()) | set(new.namelist())
                                   if name not in old.namelist() or name not in new.namelist()
                                   or old.read(name) != new.read(name))
-    assert changed_previous == meta["changed_jar_entries_since_1_0_3"]
+    assert changed_previous == meta["changed_jar_entries_since_1_0_4"]
     assert all(name == "com/agibot/aiem/nav/LingxiNavAgentApp.class"
                or name.startswith("com/agibot/aiem/nav/LingxiNavAgentApp$") and name.endswith(".class")
                for name in changed_previous)
@@ -102,7 +108,7 @@ def main():
         "bash_scripts_and_guide_blocks": len(commands), "java_target": 17,
         "java_regression": meta["java_tests"], "changed_jar_entries": changed,
         "previous_comparison": meta["previous_comparison"],
-        "changed_jar_entries_since_1_0_3": changed_previous,
+        "changed_jar_entries_since_1_0_4": changed_previous,
         "packaged_linux_installer_tests": 10, "hardware_validation": False,
     }
     output = HERE / "dist" / "交付验证结果.json"

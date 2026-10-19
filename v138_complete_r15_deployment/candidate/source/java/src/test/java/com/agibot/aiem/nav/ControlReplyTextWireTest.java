@@ -27,7 +27,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
-/** Checks real SDK completion text, including the robot-TTS field configuration. */
+/** Checks configured speech ownership and real SDK completion across all response paths. */
 public final class ControlReplyTextWireTest {
     private static int checks;
     private static int events;
@@ -149,7 +149,8 @@ public final class ControlReplyTextWireTest {
                             invoke(mode, sdk, client, event, scenario.text, config, bridge, model, qa);
                             String label = route + "/" + code + "/" + mode + "/" + scenario.intent;
                             check(dispatches.get() == before + 1, "one control dispatch " + label);
-                            check(client.replies().equals(List.of(scenario.expected)), "nonempty exact SDK control reply " + label);
+                            check(client.replies().equals(route.equals("robot") ? List.of() : List.of(scenario.expected)),
+                                    "configured single SDK/local speech owner " + label);
                             check(client.complete(), "SDK completion retained " + label);
                             check(!client.hasErrorOrSkill(), "no contradictory SDK error/skill " + label);
                             check(localSpeech.equals(route.equals("robot") ? List.of(scenario.expected) : List.of()),
@@ -183,6 +184,46 @@ public final class ControlReplyTextWireTest {
                             check(dispatches.get() == before + 1, "uncertain receipt is not retried");
                             check(client.replies().isEmpty() && localSpeech.isEmpty() && !client.hasErrorOrSkill(),
                                     "uncertain/rejected tour never invents success/failure speech " + mode);
+                        }
+                    }
+                }
+            }
+            // A completed local control must still speak once if any SDK frame
+            // throws, without reopening the response or resubmitting the command.
+            props.setProperty("tts.mode", "robot");
+            for (boolean suppress : List.of(true, false)) {
+                props.setProperty("tts.suppressLingxiText", Boolean.toString(suppress));
+                AppConfig config = constructor.newInstance(props);
+                NavBridgeClient bridge = new NavBridgeClient(config);
+                DoubaoArkClient model = new DoubaoArkClient(config);
+                QaStore qa = new QaStore(qaPath.toString());
+                register.invoke(null, sdk, config, bridge, model, qa);
+                for (int code : List.of(200, 503)) {
+                    ttsCode.set(code);
+                    for (String mode : List.of("asr2llm", "asr2tts", "audio2llm", "audio2tts")) {
+                        List<String> frames = new ArrayList<>(List.of(
+                                "agentsdk.llm_response.item.done", "agentsdk.llm_response.done"));
+                        if (!suppress) frames.add("agentsdk.llm_response.item.delta");
+                        if (mode.endsWith("tts")) frames.addAll(List.of(
+                                "agentsdk.tts_response.item.done", "agentsdk.tts_response.done"));
+                        for (Scenario scenario : List.of(controls.get(0), controls.get(2))) {
+                            for (String frame : frames) {
+                                reset(); client.messages.clear(); localSpeech.clear();
+                                client.failAt = frame; client.failed = false;
+                                receipt.set("{\"accepted\":true,\"task_name\":\"" + TOUR + "\"}");
+                                modeled.set(scenario.model());
+                                int before = dispatches.get();
+                                String label = mode + "/" + suppress + "/" + code + "/" + frame + "/" + scenario.intent;
+                                invoke(mode, sdk, client, "frame-fault-" + events++, scenario.text,
+                                        config, bridge, model, qa);
+                                check(client.failed, "actual SDK frame exception injected " + label);
+                                check(dispatches.get() == before + 1, "frame fault never retries physical control " + label);
+                                check(localSpeech.equals(List.of(scenario.expected)), "frame fault still attempts local TTS once " + label);
+                                check(client.replies().equals(suppress ? List.of() : List.of(scenario.expected)),
+                                        "frame fault preserves configured speech owner " + label);
+                                check(client.complete(), "later completion remains attempted " + label);
+                                check(!client.hasErrorOrSkill(), "frame fault never becomes SDK error or skill " + label);
+                            }
                         }
                     }
                 }
@@ -238,6 +279,8 @@ public final class ControlReplyTextWireTest {
 
     private static final class CapturingClient extends LinkskyClient {
         final List<String> messages = new CopyOnWriteArrayList<>();
+        String failAt = "";
+        boolean failed;
         CapturingClient() { super((AgentSdk) null); }
         List<String> replies() {
             return messages.stream().map(JSON::parseObject)
@@ -252,6 +295,10 @@ public final class ControlReplyTextWireTest {
         }
         @Override public void sendText(String agent, String event, String payload, String logged) {
             messages.add(payload);
+            if (!failed && !failAt.isEmpty() && failAt.equals(JSON.parseObject(payload).getString("type"))) {
+                failed = true;
+                throw new IllegalStateException("injected control completion transport failure");
+            }
         }
     }
 }

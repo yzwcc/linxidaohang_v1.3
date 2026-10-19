@@ -59,12 +59,12 @@ public final class ControlReplyRegressionTest {
                 case "/task/match" -> input.contains("欢迎参观")
                         ? "{\"matched\":true,\"task_id\":\"hotel\",\"task_name\":\"酒店导览\"}" : "{\"matched\":false}";
                 case "/nav/start" -> {
-                    check(client.hasInterrupt(), "native action interrupted before navigation side effect");
+                    check(!client.hasInterrupt(), "navigation keeps reference HTTP/SDK separation");
                     navs.incrementAndGet();
                     yield "{\"accepted\":true}";
                 }
                 case "/task/start" -> {
-                    check(client.hasInterrupt(), "custom tour interrupted before task side effect");
+                    check(!client.hasInterrupt(), "custom tour keeps reference HTTP/SDK separation");
                     tours.incrementAndGet();
                     yield "{\"accepted\":true,\"task_name\":\"酒店导览\"}";
                 }
