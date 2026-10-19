@@ -76,11 +76,11 @@ public final class AgentSdkInterruptWireTest {
                     continue;
                 }
                 check(!begin.test(intent), "same response cannot dispatch control twice");
-                if (!intent.isPresetMotion()) {
+                if (!intent.isPresetMotion() && !intent.isNavigate() && !intent.isStartTask()) {
                     check(client.messages.size() == before, "resolved HTTP navigation/tour emits no SDK interrupt");
                     continue;
                 }
-                check(client.messages.size() == before + 1, "resolved motion sends exactly one interrupt");
+                check(client.messages.size() == before + 1, "resolved control sends exactly one silent interrupt");
                 JSONObject payload = JSON.parseObject(client.messages.get(before).payload);
                 check("chat".equals(payload.getString("interruptType")),
                         "resolved local command uses chat rather than an empty skill action");

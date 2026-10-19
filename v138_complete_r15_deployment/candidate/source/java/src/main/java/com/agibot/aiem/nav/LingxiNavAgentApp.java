@@ -334,9 +334,10 @@ public final class LingxiNavAgentApp {
                     }
                     catch (Exception exception) {
                         log.error("Asr2Llm handling failed", exception);
-                        if (interactionResult != null && interactionResult.suppressSdkFailure()) {
+                        if (hasSilentStartControlEvent(string2)
+                                || interactionResult != null && interactionResult.suppressSdkFailure()) {
                             log.warn("Suppressing SDK error after local response was handled: callback=Asr2Llm, eventId={}, accepted={}",
-                                    string2, interactionResult.localPerformanceAccepted());
+                                    string2, interactionResult != null && interactionResult.localPerformanceAccepted());
                             LingxiNavAgentApp.finishAcceptedAsr2Llm(string2, string4, asr2LlmResponse);
                         } else {
                             asr2LlmResponse.onError(string2, 5001, "\u5904\u7406\u5931\u8d25: " + exception.getMessage());
@@ -418,9 +419,10 @@ public final class LingxiNavAgentApp {
                     }
                     catch (Exception exception) {
                         log.error("Asr2Tts handling failed", exception);
-                        if (interactionResult != null && interactionResult.suppressSdkFailure()) {
+                        if (hasSilentStartControlEvent(string2)
+                                || interactionResult != null && interactionResult.suppressSdkFailure()) {
                             log.warn("Suppressing SDK error after local response was handled: callback=Asr2Tts, eventId={}, accepted={}",
-                                    string2, interactionResult.localPerformanceAccepted());
+                                    string2, interactionResult != null && interactionResult.localPerformanceAccepted());
                             LingxiNavAgentApp.finishAcceptedAsr2Tts(string2, string4, asr2TtsResponse);
                         } else {
                             asr2TtsResponse.onError(string2, 5001, "\u5904\u7406\u5931\u8d25: " + exception.getMessage());
@@ -652,7 +654,8 @@ public final class LingxiNavAgentApp {
         AtomicBoolean atomicBoolean = new AtomicBoolean(false);
         AudioResult audioResult = null;
         try {
-            audioResult = LingxiNavAgentApp.processAudioRequest(string, audioSession, appConfig, navBridgeClient, doubaoArkClient, qaStore, atomicBoolean);
+            audioResult = LingxiNavAgentApp.processAudioRequest(string, audioSession, appConfig, navBridgeClient, doubaoArkClient, qaStore, atomicBoolean,
+                    resolvedResponseInterrupt(string, "", audio2LlmResponse::onInterrupt));
             LingxiNavAgentApp.interruptNativeTourActionIfNeeded(string, audioResult.asrText, audio2LlmResponse::onInterrupt);
             log.info("Audio2Llm final: eventId={}, asrText={}, reply={}, priority={}", new Object[]{string, LingxiNavAgentApp.abbreviate(audioResult.asrText), LingxiNavAgentApp.abbreviate(audioResult.reply), audioResult.ttsPriority});
             audio2LlmResponse.onAsrFinal(string, audioResult.asrText);
@@ -678,9 +681,9 @@ public final class LingxiNavAgentApp {
         }
         catch (Exception exception) {
             LingxiNavAgentApp.logAudioHandlingFailure("Audio2Llm", string, audioSession, exception);
-            if (audioResult != null && audioResult.suppressSdkFailure()) {
+            if (hasSilentStartControlEvent(string) || audioResult != null && audioResult.suppressSdkFailure()) {
                 log.warn("Suppressing SDK error after local response was handled: callback=Audio2Llm, eventId={}, accepted={}",
-                        string, audioResult.localPerformanceAccepted());
+                        string, audioResult != null && audioResult.localPerformanceAccepted());
                 LingxiNavAgentApp.finishAcceptedAudio2Llm(string, audioSession.itemId, audio2LlmResponse);
             } else {
                 LingxiNavAgentApp.speakIfNeeded(appConfig, string, "网络暂时有点慢，请再说一遍。", TtsPriority.NORMAL, navBridgeClient);
@@ -701,7 +704,8 @@ public final class LingxiNavAgentApp {
         AtomicBoolean atomicBoolean = new AtomicBoolean(false);
         AudioResult audioResult = null;
         try {
-            audioResult = LingxiNavAgentApp.processAudioRequest(string, audioSession, appConfig, navBridgeClient, doubaoArkClient, qaStore, atomicBoolean);
+            audioResult = LingxiNavAgentApp.processAudioRequest(string, audioSession, appConfig, navBridgeClient, doubaoArkClient, qaStore, atomicBoolean,
+                    resolvedResponseInterrupt(string, "", audio2TtsResponse::onInterrupt));
             LingxiNavAgentApp.interruptNativeTourActionIfNeeded(string, audioResult.asrText, audio2TtsResponse::onInterrupt);
             log.info("Audio2Tts final: eventId={}, asrText={}, reply={}, priority={}", new Object[]{string, LingxiNavAgentApp.abbreviate(audioResult.asrText), LingxiNavAgentApp.abbreviate(audioResult.reply), audioResult.ttsPriority});
             audio2TtsResponse.onAsrFinal(string, audioResult.asrText);
@@ -731,9 +735,9 @@ public final class LingxiNavAgentApp {
         }
         catch (Exception exception) {
             LingxiNavAgentApp.logAudioHandlingFailure("Audio2Tts", string, audioSession, exception);
-            if (audioResult != null && audioResult.suppressSdkFailure()) {
+            if (hasSilentStartControlEvent(string) || audioResult != null && audioResult.suppressSdkFailure()) {
                 log.warn("Suppressing SDK error after local response was handled: callback=Audio2Tts, eventId={}, accepted={}",
-                        string, audioResult.localPerformanceAccepted());
+                        string, audioResult != null && audioResult.localPerformanceAccepted());
                 LingxiNavAgentApp.finishAcceptedAudio2Tts(string, audioSession.itemId, audio2TtsResponse);
             } else {
                 LingxiNavAgentApp.speakIfNeeded(appConfig, string, "网络暂时有点慢，请再说一遍。", TtsPriority.NORMAL, navBridgeClient);
@@ -763,6 +767,12 @@ public final class LingxiNavAgentApp {
     }
 
     private static AudioResult processAudioRequest(String string, AudioSession audioSession, AppConfig appConfig, NavBridgeClient navBridgeClient, DoubaoArkClient doubaoArkClient, QaStore qaStore, AtomicBoolean atomicBoolean) throws Exception {
+        return processAudioRequest(string, audioSession, appConfig, navBridgeClient, doubaoArkClient,
+                qaStore, atomicBoolean, intent -> true);
+    }
+
+    private static AudioResult processAudioRequest(String string, AudioSession audioSession, AppConfig appConfig, NavBridgeClient navBridgeClient, DoubaoArkClient doubaoArkClient, QaStore qaStore, AtomicBoolean atomicBoolean,
+            java.util.function.Predicate<NavigationIntent> responseStart) throws Exception {
         byte[] byArray = audioSession.toByteArray();
         if (byArray.length == 0) {
             throw new IllegalArgumentException("\u97f3\u9891\u4e3a\u7a7a");
@@ -783,6 +793,9 @@ public final class LingxiNavAgentApp {
         log.info("Audio request parsed by Doubao: eventId={}, elapsedMs={}", (Object)string, (Object)(System.currentTimeMillis() - l2));
         String string2 = LingxiNavAgentApp.describeIntent(navigationIntent);
         LingxiNavAgentApp.logIntent("audio_asr_final", string, string2, navigationIntent);
+        if (!responseStart.test(navigationIntent)) {
+            return new AudioResult(string2, "", TtsPriority.NORMAL, "", false, true);
+        }
         LingxiNavAgentApp.markUserInteraction(string, "audio_asr_final", navigationIntent, navBridgeClient, atomicBoolean);
         InteractionResult interactionResult;
         if ("chat".equals(navigationIntent.intent) && !navigationIntent.reply.isBlank()) {
@@ -804,6 +817,7 @@ public final class LingxiNavAgentApp {
         } else {
             interactionResult = LingxiNavAgentApp.handleIntent(string, string2, navigationIntent, navBridgeClient, doubaoArkClient, qaStore, true);
         }
+        interactionResult = quietStartControlReply(string, navigationIntent, interactionResult);
         return new AudioResult(string2, interactionResult.reply, interactionResult.ttsPriority,
                 interactionResult.skillAction, interactionResult.localPerformanceAccepted(),
                 interactionResult.suppressSdkFailure());
@@ -831,7 +845,10 @@ public final class LingxiNavAgentApp {
             List<String> pointNames = LingxiNavAgentApp.loadPointNames(navBridgeClient, string);
             NavigationIntent exactNavigation = NavigationCommandFallback.resolve(string2, pointNames);
             try {
-                navigationIntent = doubaoArkClient.parseInteraction(string2, pointNames);
+                // A unique saved destination is already an unambiguous command.
+                // Dispatch without waiting for a second classifier to reject it.
+                navigationIntent = exactNavigation != null
+                        ? exactNavigation : doubaoArkClient.parseInteraction(string2, pointNames);
             } catch (IOException | IllegalArgumentException exception) {
                 if (hasControlResponseOwner(string, string2)) {
                     return duplicateControlResponse(string);
@@ -845,6 +862,11 @@ public final class LingxiNavAgentApp {
                     navigationIntent = entertainmentIntentFromText(string2);
                 }
                 if (navigationIntent == null) {
+                    if (NavigationCommandFallback.isNavigationRequest(string2)) {
+                        navigationIntent = NavigationIntent.navigate("");
+                    }
+                }
+                if (navigationIntent == null) {
                     return new InteractionResult("语音已收到，但问答服务暂时不可用，请稍后再试。", TtsPriority.NORMAL);
                 }
                 log.info("Explicit local control fallback: eventId={}, intent={}", string, navigationIntent.intent);
@@ -854,6 +876,12 @@ public final class LingxiNavAgentApp {
                 log.warn("Saved-point navigation intent corrected: eventId={}, modelIntent={}, modelTarget={}, target={}",
                         string, navigationIntent.intent, navigationIntent.targetName, exactNavigation.targetName);
                 navigationIntent = exactNavigation;
+            }
+            if (NavigationCommandFallback.isNavigationRequest(string2)
+                    && !navigationIntent.isNavigate()) {
+                // An unknown destination is not an invitation to speak a model
+                // apology or to turn a navigation request into a physical action.
+                navigationIntent = NavigationIntent.navigate("");
             }
         }
         NavigationIntent explicitMotion = presetMotionIntentFromText(string2);
@@ -878,7 +906,20 @@ public final class LingxiNavAgentApp {
         }
         LingxiNavAgentApp.markUserInteraction(string, "text_asr_final", navigationIntent, navBridgeClient, atomicBoolean);
         InteractionResult interactionResult = LingxiNavAgentApp.handleIntent(string, string2, navigationIntent, navBridgeClient, doubaoArkClient, qaStore, true);
-        return interactionResult;
+        return quietStartControlReply(string, navigationIntent, interactionResult);
+    }
+
+    private static boolean isSilentStartControl(NavigationIntent intent) {
+        return intent.isNavigate() || intent.isStartTask();
+    }
+
+    private static InteractionResult quietStartControlReply(String eventId, NavigationIntent intent,
+                                                             InteractionResult result) {
+        if (!isSilentStartControl(intent)) return result;
+        log.info("Voice start result is log-only: eventId={}, intent={}, accepted={}, detail={}",
+                eventId, intent.intent, result.localPerformanceAccepted(), abbreviate(result.reply()));
+        return new InteractionResult("", TtsPriority.NAVIGATION, "",
+                result.localPerformanceAccepted(), true);
     }
 
     private static void handleLiveDanmu(LiveDanmuServer.IncomingDanmu incomingDanmu, AppConfig appConfig, NavBridgeClient navBridgeClient, DoubaoArkClient doubaoArkClient, QaStore qaStore) throws Exception {
@@ -1098,6 +1139,10 @@ public final class LingxiNavAgentApp {
      * WARNING - Removed try catching itself - possible behaviour change.
      */
     private static RobotTtsResult speakIfNeeded(AppConfig appConfig, String string, String string2, TtsPriority ttsPriority, NavBridgeClient navBridgeClient) {
+        if (hasSilentStartControlEvent(string)) {
+            log.info("Voice start acknowledgement TTS suppressed: eventId={}", string);
+            return RobotTtsResult.skipped("silent_start_control");
+        }
         if (string2 == null || string2.isBlank()) {
             log.info("Robot TTS skipped: eventId={}, reason=empty_reply", (Object)string);
             return RobotTtsResult.skipped("empty_reply");
@@ -1796,13 +1841,31 @@ public final class LingxiNavAgentApp {
             if (!sent.compareAndSet(false, true)) return false;
             if (!intent.isStop() && !intent.isEndTask()
                     && !claimControlResponse(eventId, text, intent)) return false;
-            // Navigation/tour ownership is local; it does not require an SDK
-            // interrupt. Motion transport failure must not block dispatch.
-            if (intent.isPresetMotion()) {
+            if (isSilentStartControl(intent) && eventId != null && !eventId.isBlank()) {
+                synchronized (SILENT_START_CONTROL_EVENTS) {
+                    long now = System.currentTimeMillis();
+                    SILENT_START_CONTROL_EVENTS.entrySet().removeIf(entry -> now - entry.getValue() > 120000L);
+                    SILENT_START_CONTROL_EVENTS.put(eventId, now);
+                }
+            }
+            // Select the SDK chat response channel before local dispatch, with
+            // no skill and no interruptTips that could synthesize a receipt.
+            if (isSilentStartControl(intent) || intent.isPresetMotion()) {
                 sendNativeActionInterrupt(eventId, text, sender);
             }
             return true;
         };
+    }
+
+    private static final Map<String, Long> SILENT_START_CONTROL_EVENTS = new java.util.HashMap<>();
+
+    private static boolean hasSilentStartControlEvent(String eventId) {
+        if (eventId == null || eventId.isBlank()) return false;
+        synchronized (SILENT_START_CONTROL_EVENTS) {
+            long now = System.currentTimeMillis();
+            SILENT_START_CONTROL_EVENTS.entrySet().removeIf(entry -> now - entry.getValue() > 120000L);
+            return SILENT_START_CONTROL_EVENTS.containsKey(eventId);
+        }
     }
 
     private static boolean claimControlResponse(String eventId, String text, NavigationIntent intent) {

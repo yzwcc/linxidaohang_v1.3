@@ -316,7 +316,11 @@ class LingxiNavBridge(Node):
         reserved_task_id = self._reserve_navigation_task_id()
         if self.navigation_client.get_status().get("status") == "idle":
             # 只有客户端空闲时才进入“用户导航中”状态；若已有任务，交给 navigation_client 决定是否拒绝。
-            self._begin_user_navigation(match.point.id, reserved_task_id)
+            with self._auto_return_lock:
+                self._user_navigation_silent_receipts = (
+                    bool(event_id) and payload.get("silent_control_reply") is True
+                )
+                self._begin_user_navigation(match.point.id, reserved_task_id)
         start_kwargs: dict[str, Any] = {"listener": self.handle_navigation_event}
         if reserved_task_id is not None:
             start_kwargs["task_id"] = reserved_task_id
@@ -411,6 +415,7 @@ class LingxiNavBridge(Node):
 
         with self._auto_return_lock:
             self._task_id = task_id
+            self._task_silent_receipts = bool(event_id) and payload.get("silent_control_reply") is True
             self._task_name = task_name
             self._task_steps = steps
             self._task_failed_steps = []
@@ -1350,6 +1355,17 @@ class LingxiNavBridge(Node):
     def _speak_navigation_problem(self, event: NavigationEvent, *, auto_return: bool) -> None:
         """导航失败或超时时，通过 TTS 提醒现场人员处理。"""
 
+        with self._auto_return_lock:
+            silent = not auto_return and (
+                self._is_task_navigation_event(event) and getattr(self, "_task_silent_receipts", False)
+                or self._is_user_navigation_event(event) and getattr(self, "_user_navigation_silent_receipts", False)
+            )
+        if silent:
+            self.get_logger().warning(
+                f"Voice control navigation result is log-only: type={event.type}, "
+                f"task_id={event.task_id}, point={event.point_name}, reason={event.reason}"
+            )
+            return
         if auto_return:
             text = "自动回起点失败，请检查通道、定位或底盘状态。"
         elif event.type == NavigationEventType.TIMEOUT:

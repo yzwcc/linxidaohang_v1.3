@@ -63,17 +63,18 @@ public final class LoggedModelTimeoutTest {
                 Method reply = result.getClass().getDeclaredMethod("reply");
                 reply.setAccessible(true);
                 String spoken = (String) reply.invoke(result);
-                if (elapsed < 14000 || elapsed > 25000)
-                    throw new AssertionError("must exercise the production 15-second HTTP timeout: " + elapsed);
                 if (text.startsWith("带我")) {
-                    if (navigations.get() != 1 || !spoken.equals("收到，正在前往魔箱。"))
-                        throw new AssertionError("exact configured navigation must survive model timeout once");
-                } else if (!spoken.contains("暂时不可用") || navigations.get() != 1) {
-                    throw new AssertionError("chat timeout must return availability notice without a robot command");
+                    if (navigations.get() != 1 || !spoken.isBlank() || elapsed > 3000 || models.get() != 0)
+                        throw new AssertionError("exact configured navigation must bypass classifier and stay silent");
+                } else {
+                    if (elapsed < 14000 || elapsed > 25000)
+                        throw new AssertionError("must exercise the production 15-second HTTP timeout: " + elapsed);
+                    if (!spoken.contains("暂时不可用") || navigations.get() != 1)
+                        throw new AssertionError("chat timeout must return availability notice without a robot command");
                 }
             }
-            if (models.get() != 2) throw new AssertionError("timeout must not replay model/action requests");
-            System.out.println("LoggedModelTimeoutTest passed: real 15s HTTP timeouts, exact navigation fallback, chat availability, no repeat dispatch");
+            if (models.get() != 1) throw new AssertionError("timeout must not replay model/action requests");
+            System.out.println("LoggedModelTimeoutTest passed: real 15s chat timeout, exact navigation without model wait, no repeat dispatch");
         } finally {
             for (HttpExchange exchange : pending) exchange.close();
             server.stop(0);

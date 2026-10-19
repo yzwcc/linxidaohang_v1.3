@@ -118,13 +118,13 @@ public final class NavigationTourRoutingTest {
                         check(calls.size() == 1 && calls.get(0).startsWith("/nav/start:")
                                 && JSONObject.parseObject(calls.get(0).substring("/nav/start:".length()))
                                         .getString("target_name").equals("门口"), "one correct navigation " + mode + wrong + text);
-                        check(speech.equals(List.of("收到，正在前往门口。")), "one positive local navigation reply " + text);
+                        check(speech.isEmpty(), "navigation receipt is silent " + text);
                         check(speech.stream().noneMatch(s -> s.contains(APOLOGY)), "no application apology " + text);
                         check(client.messages.stream().noneMatch(s -> s.contains("agentsdk.error") || s.contains("skill")),
                                 "no SDK error or duplicate skill");
                         int before = calls.size();
                         request(sdk, client, mode.equals("asr2llm") ? "asr2tts" : "asr2llm", id, text);
-                        check(calls.size() == before && speech.size() == 1, "cross callback deduplication");
+                        check(calls.size() == before && speech.isEmpty(), "cross callback deduplication");
                     }
                 }
                 for (String text : List.of("开始讲解任务", "开始一下讲解任务", "执行讲解任务",
@@ -133,7 +133,7 @@ public final class NavigationTourRoutingTest {
                     modelIntent.set("{\"intent\":\"chat\",\"reply\":\"" + APOLOGY + "\"}");
                     request(sdk, client, mode, "route-tour-" + event++, text);
                     check(calls.size() == 1 && calls.get(0).startsWith("/task/start:"), "tour dispatch " + text);
-                    check(speech.size() == 1 && speech.get(0).startsWith("收到，开始"), "tour acknowledgement " + text);
+                    check(speech.isEmpty(), "tour acknowledgement is silent " + text);
                     if (text.equals("欢迎参观酒店")) {
                         check(calls.size() == 1 && calls.get(0).contains("\"task_id\":\"hotel\""), "configured task ID preserved");
                     }

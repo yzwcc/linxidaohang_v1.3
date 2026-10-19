@@ -174,10 +174,8 @@ public final class ControlOwnershipFaultTest {
                     fault.set(value); intent.set(modelIntent("nav"));
                     llm.onRequest("llm", route + value, text("nav"), VoiceGateTest.acceptedParams(), llmReply);
                     check(total(calls) == (value.equals("point-not-found") ? 1 : 3), "only explicit transient rejection retries: " + value);
-                    String spoken = speech.toString() + client.messages.toString();
-                    check(spoken.contains(value.equals("transient-then-ok") ? "正在前往"
-                            : value.equals("point-not-found") ? "没有找到" : "定位尚未就绪"),
-                            "actual final controller result retained: " + value);
+                    check(speech.isEmpty() && !client.hasSpeechOrError(),
+                            "final navigation result stays log-only: " + value);
                 }
                 fault.set("");
                 for (String negative : List.of("不要开始讲解", "别继续讲解", "他说开始讲解",

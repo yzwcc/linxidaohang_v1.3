@@ -148,12 +148,13 @@ public final class ControlReplyTextWireTest {
                             int before = dispatches.get();
                             invoke(mode, sdk, client, event, scenario.text, config, bridge, model, qa);
                             String label = route + "/" + code + "/" + mode + "/" + scenario.intent;
+                            boolean silent = scenario.intent.equals("navigate") || scenario.intent.equals("start_task");
                             check(dispatches.get() == before + 1, "one control dispatch " + label);
-                            check(client.replies().equals(route.equals("robot") ? List.of() : List.of(scenario.expected)),
+                            check(client.replies().equals(silent || route.equals("robot") ? List.of() : List.of(scenario.expected)),
                                     "configured single SDK/local speech owner " + label);
                             check(client.complete(), "SDK completion retained " + label);
                             check(!client.hasErrorOrSkill(), "no contradictory SDK error/skill " + label);
-                            check(localSpeech.equals(route.equals("robot") ? List.of(scenario.expected) : List.of()),
+                            check(localSpeech.equals(!silent && route.equals("robot") ? List.of(scenario.expected) : List.of()),
                                     "one local TTS attempt at most " + label);
                             if (mode.startsWith("asr")) {
                                 int messages = client.replies().size();
@@ -188,8 +189,7 @@ public final class ControlReplyTextWireTest {
                     }
                 }
             }
-            // A completed local control must still speak once if any SDK frame
-            // throws, without reopening the response or resubmitting the command.
+            // Silent start controls stay silent when SDK completion frames fail.
             props.setProperty("tts.mode", "robot");
             for (boolean suppress : List.of(true, false)) {
                 props.setProperty("tts.suppressLingxiText", Boolean.toString(suppress));
@@ -203,7 +203,7 @@ public final class ControlReplyTextWireTest {
                     for (String mode : List.of("asr2llm", "asr2tts", "audio2llm", "audio2tts")) {
                         List<String> frames = new ArrayList<>(List.of(
                                 "agentsdk.llm_response.item.done", "agentsdk.llm_response.done"));
-                        if (!suppress) frames.add("agentsdk.llm_response.item.delta");
+                        frames.add("agentsdk.xlm_response.interrupt");
                         if (mode.endsWith("tts")) frames.addAll(List.of(
                                 "agentsdk.tts_response.item.done", "agentsdk.tts_response.done"));
                         for (Scenario scenario : List.of(controls.get(0), controls.get(2))) {
@@ -218,9 +218,8 @@ public final class ControlReplyTextWireTest {
                                         config, bridge, model, qa);
                                 check(client.failed, "actual SDK frame exception injected " + label);
                                 check(dispatches.get() == before + 1, "frame fault never retries physical control " + label);
-                                check(localSpeech.equals(List.of(scenario.expected)), "frame fault still attempts local TTS once " + label);
-                                check(client.replies().equals(suppress ? List.of() : List.of(scenario.expected)),
-                                        "frame fault preserves configured speech owner " + label);
+                                check(localSpeech.isEmpty(), "frame fault cannot cause local receipt speech " + label);
+                                check(client.replies().isEmpty(), "frame fault cannot cause SDK receipt speech " + label);
                                 check(client.complete(), "later completion remains attempted " + label);
                                 check(!client.hasErrorOrSkill(), "frame fault never becomes SDK error or skill " + label);
                             }
@@ -239,7 +238,7 @@ public final class ControlReplyTextWireTest {
         System.out.println("ControlReplyTextWireTest passed: " + checks + " assertions");
     }
 
-    private static void invoke(String mode, AgentSdk sdk, CapturingClient client, String event, String text,
+    static void invoke(String mode, AgentSdk sdk, LinkskyClient client, String event, String text,
                                AppConfig config, NavBridgeClient bridge, DoubaoArkClient model, QaStore qa) throws Exception {
         if (mode.equals("asr2llm")) {
             var callback = (Asr2LlmCallback) sdk.getRobotCallback(AgentCallbackType.ASR_2_LLM);

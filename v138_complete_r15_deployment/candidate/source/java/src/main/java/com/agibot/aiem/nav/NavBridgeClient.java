@@ -54,6 +54,7 @@ final class NavBridgeClient {
         JSONObject jSONObject = new JSONObject();
         jSONObject.put("event_id", string);
         jSONObject.put("target_name", string2);
+        jSONObject.put("silent_control_reply", true);
         log.info("Robot bridge /nav/start request: eventId={}, targetName={}", (Object)string, (Object)string2);
         return this.postJson("/nav/start", jSONObject);
     }
@@ -72,6 +73,7 @@ final class NavBridgeClient {
     JSONObject startTask(String string, String taskId) throws IOException, InterruptedException {
         JSONObject jSONObject = new JSONObject();
         jSONObject.put("event_id", string);
+        jSONObject.put("silent_control_reply", true);
         if (taskId != null && !taskId.isBlank()) {
             jSONObject.put("task_id", taskId.trim());
         }

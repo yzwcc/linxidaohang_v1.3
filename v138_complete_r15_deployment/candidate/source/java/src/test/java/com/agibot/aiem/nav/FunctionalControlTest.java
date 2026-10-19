@@ -113,9 +113,9 @@ public final class FunctionalControlTest {
                     "navigation safety precondition remains visible to the user");
             modelOffline.set(true);
             result = process.invoke(null, "offline-nav", "带我去大厅", config, bridge, model, null, new AtomicBoolean());
-            check(navigations.get() == 1 && ((String) reply.invoke(result)).contains("大厅"), "explicit exact navigation survives model outage");
+            check(navigations.get() == 1 && ((String) reply.invoke(result)).isBlank(), "explicit exact navigation survives model outage silently");
             result = process.invoke(null, "offline-unknown", "带我去不存在", config, bridge, model, null, new AtomicBoolean());
-            check(navigations.get() == 1 && ((String) reply.invoke(result)).contains("暂时不可用"), "unknown destination not sent");
+            check(navigations.get() == 1 && ((String) reply.invoke(result)).isBlank(), "unknown destination not sent or announced");
             modelOffline.set(false);
             intent.set("{\"intent\":\"navigate\",\"target_name\":\"门口\"}");
             process.invoke(null, "model-recovered", "请引领我前往入口处", config, bridge, model, null, new AtomicBoolean());
@@ -132,7 +132,7 @@ public final class FunctionalControlTest {
             intent.set("{\"intent\":\"navigate\",\"target_name\":\"大厅\",\"reply\":\"对不起我做不到\"}");
             result = ownedProcess.invoke(null, "accepted-negative-nav", "带我去大厅", config, bridge, model, null, new AtomicBoolean(), claim);
             Method accepted = result.getClass().getDeclaredMethod("localPerformanceAccepted"); accepted.setAccessible(true);
-            check(((String) reply.invoke(result)).equals("收到，正在前往大厅。"), "accepted navigation never uses negative model reply");
+            check(((String) reply.invoke(result)).isBlank(), "accepted navigation has no receipt speech");
             check((boolean) accepted.invoke(result) && responseStarts.get() == 1, "accepted navigation cannot become late SDK failure");
             result = ownedProcess.invoke(null, "custom-tour", "酒店欢迎导览", config, bridge, model, null, new AtomicBoolean(),
                     (java.util.function.Predicate<NavigationIntent>) value -> {

@@ -25,7 +25,7 @@ import java.util.Properties;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicReference;
 
-/** Runs unchanged against the supplied V1.3.1 KB JAR and the V1.3.8 JARs. */
+/** Preserves the reference channel for other controls; start receipts are now silent. */
 public final class ReferenceControlChannelTest {
     private static int checks;
     private static final List<String> failures = new ArrayList<>();
@@ -153,19 +153,22 @@ public final class ReferenceControlChannelTest {
                                 : new Audio2TtsResponse(client, "test", "robot"), config, bridge, model, null);
                     }
                     String label = mode + "/" + current.intent;
+                    boolean silent = current.intent.equals("navigate") || current.intent.equals("start_task");
                     List<String> types = client.messages.stream().map(JSON::parseObject)
                             .map(message -> message.getString("type")).toList();
                     check(trace.stream().filter(s -> s.startsWith("dispatch:")).toList()
                             .equals(List.of("dispatch:" + current.path)), "single dispatch " + label);
-                    check(types.stream().noneMatch(t -> t.contains("interrupt")), "no SDK interrupt " + label);
+                    check(types.stream().filter(t -> t.contains("interrupt")).count() == (silent ? 1 : 0),
+                            "silent start uses one SDK takeover " + label);
                     check(types.stream().noneMatch(t -> t.contains("llm_response.item.delta")), "single speech owner " + label);
                     check(types.stream().noneMatch(t -> t.contains("error") || t.contains("skill")), "no SDK error/skill " + label);
-                    check(speech.size() == 1, "one local speech request " + label);
+                    check(speech.size() == (silent ? 0 : 1), "expected local speech request count " + label);
                     check(trace.contains("agentsdk.llm_response.done"), "SDK completion " + label);
                     check(trace.indexOf("agentsdk.llm_response.item.done") >= 0
                             && trace.indexOf("agentsdk.llm_response.item.done") < trace.indexOf("agentsdk.llm_response.done"),
                             "SDK item completion before completion " + label);
-                    check(trace.indexOf("agentsdk.llm_response.done") < trace.indexOf("local-tts"),
+                    check(silent ? !trace.contains("local-tts")
+                                    : trace.indexOf("agentsdk.llm_response.done") < trace.indexOf("local-tts"),
                             "SDK completion before local TTS " + label);
                     if (mode.endsWith("tts")) {
                         check(trace.indexOf("agentsdk.tts_response.item.done") > trace.indexOf("local-tts")

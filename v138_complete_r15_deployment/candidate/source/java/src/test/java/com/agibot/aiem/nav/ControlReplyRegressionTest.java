@@ -59,12 +59,12 @@ public final class ControlReplyRegressionTest {
                 case "/task/match" -> input.contains("欢迎参观")
                         ? "{\"matched\":true,\"task_id\":\"hotel\",\"task_name\":\"酒店导览\"}" : "{\"matched\":false}";
                 case "/nav/start" -> {
-                    check(!client.hasInterrupt(), "navigation keeps reference HTTP/SDK separation");
+                    check(client.hasInterrupt(), "navigation claims a silent SDK response before dispatch");
                     navs.incrementAndGet();
                     yield "{\"accepted\":true}";
                 }
                 case "/task/start" -> {
-                    check(!client.hasInterrupt(), "custom tour keeps reference HTTP/SDK separation");
+                    check(client.hasInterrupt(), "custom tour claims a silent SDK response before dispatch");
                     tours.incrementAndGet();
                     yield "{\"accepted\":true,\"task_name\":\"酒店导览\"}";
                 }
@@ -195,7 +195,8 @@ public final class ControlReplyRegressionTest {
                 }
                 check(navs.get() + tours.get() + motions.get() == count + 1,
                         "concurrent callbacks submit one control: " + kind);
-                check(client.replyCount() == 1, "concurrent callbacks produce one spoken reply: " + kind);
+                check(client.replyCount() == (kind.equals("motion") ? 1 : 0),
+                        "concurrent callbacks preserve silent start receipts: " + kind);
             }
             // Replay the field-log rejection through both speech routes and
             // inject failures after the controller has returned its result.

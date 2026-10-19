@@ -29,4 +29,12 @@ final class NavigationCommandFallback {
     static boolean isExplanatoryQuestion(String text) {
         return commandText(text).matches(".*(?:怎么|如何|为什么|什么意思|是什么|是否支持|会不会).*");
     }
+
+    static boolean isNavigationRequest(String text) {
+        String command = commandText(text);
+        return !PresetMotionCatalog.hasNegationOrQuotedSpeech(command)
+                && !isExplanatoryQuestion(text)
+                && command.matches("(?:(?:带|领)(?:我们|我)(?:去|到|前往)|"
+                        + "(?:导航|带路)(?:带)?(?:我们|我)?(?:去|到|前往)|前往|去).+");
+    }
 }
