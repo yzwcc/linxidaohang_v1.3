@@ -1,0 +1,6 @@
+dist/
+qa/work/
+qa/extracted/
+qa/*.log
+**/__pycache__/
+**/.pytest_cache/

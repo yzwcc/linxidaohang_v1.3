@@ -1,0 +1,103 @@
+{
+  "status": "passed",
+  "version": "1.3.8-complete-20261019-r16",
+  "tested_archive_sha256": "1f17375157f06334ac95ec5836020136005dc178aba4be9de573080b30857069",
+  "physical_robot": "not_run",
+  "cloud_auth": "not_run",
+  "acoustic_hardware": "not_run",
+  "merged_increments": [
+    "sparkrobot-lingxi-v1.3.8-control-reply-fix-1.0.0-20261018",
+    "sparkrobot-lingxi-v1.3.8-control-reply-fix-1.0.1-20261018",
+    "sparkrobot-lingxi-v1.3.8-control-reply-fix-1.0.2-20261018",
+    "sparkrobot-lingxi-v1.3.8-control-reply-fix-1.0.3-20261018",
+    "sparkrobot-lingxi-v1.3.8-control-reply-fix-1.0.4-20261018",
+    "sparkrobot-lingxi-v1.3.8-control-reply-fix-1.0.5-20261019"
+  ],
+  "exact_shipped_1_0_5_jar": "183daa4eeb9a658e15b7d157e5c22847206683a53e8c606622e5e2ad3275486b",
+  "changed_java_entries": [
+    "com/agibot/aiem/nav/DoubaoArkClient.class",
+    "com/agibot/aiem/nav/LingxiNavAgentApp$1.class",
+    "com/agibot/aiem/nav/LingxiNavAgentApp$2.class",
+    "com/agibot/aiem/nav/LingxiNavAgentApp$3.class",
+    "com/agibot/aiem/nav/LingxiNavAgentApp$4.class",
+    "com/agibot/aiem/nav/LingxiNavAgentApp$5.class",
+    "com/agibot/aiem/nav/LingxiNavAgentApp$6.class",
+    "com/agibot/aiem/nav/LingxiNavAgentApp$7.class",
+    "com/agibot/aiem/nav/LingxiNavAgentApp$8.class",
+    "com/agibot/aiem/nav/LingxiNavAgentApp$9.class",
+    "com/agibot/aiem/nav/LingxiNavAgentApp$AudioResult.class",
+    "com/agibot/aiem/nav/LingxiNavAgentApp$AudioSession.class",
+    "com/agibot/aiem/nav/LingxiNavAgentApp$InteractionResult.class",
+    "com/agibot/aiem/nav/LingxiNavAgentApp$RobotTtsResult.class",
+    "com/agibot/aiem/nav/LingxiNavAgentApp$TtsController.class",
+    "com/agibot/aiem/nav/LingxiNavAgentApp$TtsDecision.class",
+    "com/agibot/aiem/nav/LingxiNavAgentApp$TtsPriority.class",
+    "com/agibot/aiem/nav/LingxiNavAgentApp$WakeGate.class",
+    "com/agibot/aiem/nav/LingxiNavAgentApp.class",
+    "com/agibot/aiem/nav/PresetMotionCatalog.class"
+  ],
+  "java_launch_policy": "..\n----------------------------------------------------------------------\nRan 2 tests in 0.001s\n\nOK",
+  "motion_receipts": "........\n----------------------------------------------------------------------\nRan 8 tests in 0.016s\n\nOK",
+  "motion_confirmation": "....\n----------------------------------------------------------------------\nRan 4 tests in 0.146s\n\nOK",
+  "connection_and_process_orchestration": "..s\n----------------------------------------------------------------------\nRan 3 tests in 0.009s\n\nOK (skipped=1)",
+  "python_regression": "........................................................................ [ 54%]\n.............................................................            [100%]\n133 passed in 7.75s",
+  "java_regression": {
+    "VoiceGateTest": [
+      "VoiceGateTest passed: 1419 assertions"
+    ],
+    "WakeSessionGateTest": [
+      "WakeSessionGateTest passed: 28 assertions"
+    ],
+    "Soc2WakeEvidenceProviderTest": [
+      "Soc2WakeEvidenceProviderTest passed: 8 assertions"
+    ],
+    "AgentSdkInterruptWireTest": [
+      "AgentSdkInterruptWireTest passed: 25 assertions"
+    ],
+    "VoiceRegression": [
+      "VoiceAgentGateRegression passed: 393 assertions",
+      "VoiceRegression passed: 47 assertions plus real Agent gate regression"
+    ],
+    "ModelRecoveryTest": [
+      "ModelRecoveryTest passed: text input, transient retry, auth rejection, malformed intent, bridge outage, next-request recovery"
+    ],
+    "FunctionalControlTest": [
+      "FunctionalControlTest passed: 42 assertions"
+    ],
+    "AgentConnectionStateTest": [
+      "AgentConnectionStateTest passed: early callbacks, auth failure, offline, restart, atomic state"
+    ],
+    "ControlReplyRegressionTest": [
+      "ControlReplyRegressionTest passed: 566 assertions"
+    ],
+    "ControlOwnershipFaultTest": [
+      "ControlOwnershipFaultTest passed: 524 assertions"
+    ],
+    "LoggedModelTimeoutTest": [
+      "LoggedModelTimeoutTest passed: real 15s HTTP timeouts, exact navigation fallback, chat availability, no repeat dispatch"
+    ],
+    "FieldVoiceReplayTest": [
+      "FieldVoiceReplayTest passed: 424 assertions"
+    ],
+    "ControlReplyTextWireTest": [
+      "ControlReplyTextWireTest passed: 1384 assertions"
+    ],
+    "ReferenceControlChannelTest": [
+      "ReferenceControlChannelTest passed: 204 assertions"
+    ]
+  },
+  "task_http_to_disk_persistence": ".\n----------------------------------------------------------------------\nRan 1 test in 8.964s\n\nOK",
+  "server_regression": {
+    "numTotalTests": 74,
+    "numPassedTests": 74,
+    "numFailedTests": 0
+  },
+  "integrity": "passed",
+  "source_to_runtime": "passed",
+  "runtime_files": 2763,
+  "runtime_changes": [
+    "java/robot-local-navigation-java-all.jar"
+  ],
+  "unchanged_aimdk_and_kb": "passed",
+  "arm64_runtime": "passed"
+}
