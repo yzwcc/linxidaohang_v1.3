@@ -2,12 +2,12 @@
 set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DELIVERY="$(dirname "${HERE}")"
-ARCHIVE="${DELIVERY}/lingxi-v1.3.9-complete-20261019-r4-deployment.tar.gz"
-NAME="lingxi-v1.3.9-complete-20261019-r4-deployment"
-NAV="sparkrobot-lingxi-nav-internal-1.0.22-20261019"
+ARCHIVE="${DELIVERY}/lingxi-v1.3.9-complete-20261019-r5-deployment.tar.gz"
+NAME="lingxi-v1.3.9-complete-20261019-r5-deployment"
+NAV="sparkrobot-lingxi-nav-internal-1.0.23-20261019"
 [[ "${EUID}" -eq 0 ]] || { echo "Run as Linux root for isolated installer tests" >&2; exit 1; }
-TEMP_ROOT="$(mktemp -d /tmp/lingxi-r4-extracted.XXXXXX)"
-[[ "${TEMP_ROOT}" == /tmp/lingxi-r4-extracted.* ]] || exit 1
+TEMP_ROOT="$(mktemp -d /tmp/lingxi-r5-extracted.XXXXXX)"
+[[ "${TEMP_ROOT}" == /tmp/lingxi-r5-extracted.* ]] || exit 1
 trap 'rm -rf -- "${TEMP_ROOT}"' EXIT
 tar -xzf "${ARCHIVE}" -C "${TEMP_ROOT}"
 cd "${TEMP_ROOT}/${NAME}"
@@ -36,7 +36,7 @@ suite = unittest.defaultTestLoader.loadTestsFromTestCase(test_install_lifecycle.
 result = unittest.TextTestRunner(verbosity=2).run(suite)
 if not result.wasSuccessful() or result.skipped:
     raise SystemExit("Extracted installer lifecycle failed")
-archive = delivery / "lingxi-v1.3.9-complete-20261019-r4-deployment.tar.gz"
+archive = delivery / "lingxi-v1.3.9-complete-20261019-r5-deployment.tar.gz"
 h = hashlib.sha256()
 with archive.open("rb") as stream:
     for block in iter(lambda: stream.read(1024 * 1024), b""):

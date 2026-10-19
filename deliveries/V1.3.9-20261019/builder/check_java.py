@@ -12,7 +12,7 @@ JAVA = HERE.parent / "source/java"
 REPORTS = HERE.parent / "reports"
 TESTS = (
     "VoiceGateTest", "WakeSessionGateTest", "Soc2WakeEvidenceProviderTest",
-    "AgentSdkInterruptWireTest", "VoiceRegression", "ControlAckRegression",
+    "AgentSdkInterruptWireTest", "VoiceRegression", "ControlAckRegression", "NativePerformanceRegression",
 )
 
 
@@ -31,14 +31,14 @@ def run():
     java = shutil.which("java")
     if not java:
         raise RuntimeError("Java 17 is required")
-    commands += [(test, [java, "-cp", classpath, "com.agibot.aiem.nav." + test]) for test in TESTS]
+    commands += [(test, [java, "-Dfile.encoding=UTF-8", "-cp", classpath, "com.agibot.aiem.nav." + test]) for test in TESTS]
     for name, command in commands:
         with (REPORTS / (name + ".log")).open("w", encoding="utf-8") as log:
             result = subprocess.run(command, cwd=JAVA, stdout=log, stderr=subprocess.STDOUT, timeout=180)
         records.append({"name": name, "exit_code": result.returncode})
         print(name, "PASS" if result.returncode == 0 else "FAIL", flush=True)
         if result.returncode:
-            print((REPORTS / (name + ".log")).read_text(encoding="utf-8")[-5000:])
+            print((REPORTS / (name + ".log")).read_text(encoding="utf-8", errors="replace")[-5000:])
             break
     (REPORTS / "java-results.json").write_text(json.dumps(records, indent=2) + "\n", encoding="utf-8")
     return records[-1]["exit_code"]

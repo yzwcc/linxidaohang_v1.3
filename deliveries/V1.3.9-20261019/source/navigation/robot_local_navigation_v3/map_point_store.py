@@ -1,8 +1,13 @@
 from __future__ import annotations
 
 import json
+import os
+import stat
+import tempfile
+import threading
 import time
 from collections import defaultdict
+from functools import wraps
 from pathlib import Path
 from typing import Any
 
@@ -17,12 +22,21 @@ from robot_local_navigation_v3.tour_step_actions import (
 )
 
 
+def _serialized_write(method):
+    @wraps(method)
+    def locked(self, *args, **kwargs):
+        with self._write_lock:
+            return method(self, *args, **kwargs)
+    return locked
+
+
 class MapPointStore:
     """Stores navigation points in one JSON file per map."""
 
     def __init__(self, maps_dir: str | Path):
         self.maps_dir = Path(maps_dir).expanduser()
         self.maps_dir.mkdir(parents=True, exist_ok=True)
+        self._write_lock = threading.RLock()
 
     def load_points(
         self,
@@ -58,6 +72,7 @@ class MapPointStore:
         }
         return _normalize_tour_tasks(payload, valid_point_ids=valid_point_ids)
 
+    @_serialized_write
     def save_tour_task(self, map_name: str, map_id: int, task: dict[str, Any]) -> dict[str, Any]:
         points = self.load_points(map_name)
         valid_point_ids = {point.id for point in points}
@@ -98,6 +113,7 @@ class MapPointStore:
                     points.append(NavPoint.from_dict(item, defaults=defaults))
         return points
 
+    @_serialized_write
     def upsert_point(
         self,
         point: NavPoint,
@@ -113,6 +129,7 @@ class MapPointStore:
         self.save_points(point.map_name, point.map_id, points)
         return point
 
+    @_serialized_write
     def delete_point_by_id(self, point_id: str, defaults: NavigationDefaults | None = None) -> bool:
         for path in sorted(self.maps_dir.glob("*.json")):
             payload = self._load_payload(path)
@@ -130,6 +147,7 @@ class MapPointStore:
             return True
         return False
 
+    @_serialized_write
     def save_points(
         self,
         map_name: str,
@@ -166,8 +184,24 @@ class MapPointStore:
             "tour_tasks": tasks_payload["tasks"],
             "active_tour_task_id": tasks_payload["active_tour_task_id"],
         }
-        path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+        # Readers see either the old complete map or the new complete map.
+        temporary = None
+        try:
+            with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", newline="\n",
+                                             dir=path.parent, prefix=path.name + ".", suffix=".tmp",
+                                             delete=False) as stream:
+                temporary = Path(stream.name)
+                json.dump(payload, stream, ensure_ascii=False, indent=2)
+                stream.flush()
+                os.fsync(stream.fileno())
+            if path.exists():
+                temporary.chmod(stat.S_IMODE(path.stat().st_mode))
+            os.replace(temporary, path)
+        finally:
+            if temporary is not None:
+                temporary.unlink(missing_ok=True)
 
+    @_serialized_write
     def migrate_from_unified(self, config: UnifiedNavConfig) -> bool:
         if not config.points:
             return False

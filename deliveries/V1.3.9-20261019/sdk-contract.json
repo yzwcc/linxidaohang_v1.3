@@ -1,0 +1,15 @@
+{
+  "passed": true,
+  "sdk_archive_sha256": "f13147a175bc3fb621fb118698aae0353c097adda38bba640f9a39c01433cc98",
+  "vendor_sources": {
+    "docs/cn/_build/html/zh-cn/dev/Interface/control_mod/preset_motion.html": "7386fae9d6c5fe0ae7d81a64fb16b6fcc9c77be0ab79fd80cdc302ca5d879015",
+    "src/aimdk_msgs/prebuilt_aarch64/share/aimdk_msgs/msg/McPresetMotion.msg": "02bc6caf0c47ecf8a55ebbea599aeff36047be56d975258c58ca19cecbb7f4d2",
+    "src/aimdk_msgs/prebuilt_aarch64/share/aimdk_msgs/srv/SetMcPresetMotion.srv": "29df5508145be62d1c094d6335bf98d547374a52d3e5f7786c857f75038ae585"
+  },
+  "offered_motion_types": 18,
+  "vendor_pairs_checked": 29,
+  "stale_generated_sweetheart_enum": 3004,
+  "current_documented_sweetheart_id": 1007,
+  "pinned_service_has_input_source": false,
+  "physical_motion_verified": false
+}

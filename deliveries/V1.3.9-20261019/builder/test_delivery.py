@@ -57,6 +57,8 @@ class ReleaseConfigTests(unittest.TestCase):
         p.write_text(json.dumps([
             {"skill_name": "start_fixed_line_intro", "enabled": True},
             {"skill_name": "other_skill", "enabled": True},
+            {"skill_name": "sing", "enabled": True},
+            {"skill_name": "dance", "enabled": True},
         ]))
 
     def test_preflight_is_readonly_and_apply_preserves_unrelated_fields(self):
@@ -72,6 +74,8 @@ class ReleaseConfigTests(unittest.TestCase):
             skills = json.loads((root / config.SKILLS).read_text())
             self.assertFalse(skills[0]["enabled"])
             self.assertTrue(skills[1]["enabled"])
+            self.assertTrue(skills[2]["enabled"])
+            self.assertTrue(skills[3]["enabled"])
 
     def test_invalid_second_yaml_does_not_partially_apply_first(self):
         with tempfile.TemporaryDirectory() as t:

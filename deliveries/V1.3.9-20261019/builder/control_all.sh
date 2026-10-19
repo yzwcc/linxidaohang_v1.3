@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-VERSION="1.3.9-complete-20261019-r4"
-NAV_VERSION="1.0.22-20261019"
+VERSION="1.3.9-complete-20261019-r5"
+NAV_VERSION="1.0.23-20261019"
 CURRENT="/opt/sparkrobot/lingxi-nav/current"
 RUNTIME_GROUP="${SPARKROBOT_RUNTIME_GROUP:-sparkrobot-nav}"
 STATE_ROOT="/var/lib/sparkrobot/lingxi-nav"

@@ -2,8 +2,8 @@
 set -Eeuo pipefail
 umask 077
 PACKAGE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-VERSION="1.3.9-complete-20261019-r4"
-NAV_VERSION="1.0.22-20261019"
+VERSION="1.3.9-complete-20261019-r5"
+NAV_VERSION="1.0.23-20261019"
 NAV_NAME="sparkrobot-lingxi-nav-internal-${NAV_VERSION}"
 KB_NAME="sparkrobot-lingxi-kb-1.0.2-20260902"
 WORK_ROOT="${WORK_ROOT:-/home/run/lingxi-v139-20261019-work}"

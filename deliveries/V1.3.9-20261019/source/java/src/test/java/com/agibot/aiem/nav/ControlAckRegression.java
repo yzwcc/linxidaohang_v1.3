@@ -45,12 +45,12 @@ public final class ControlAckRegression {
                     "handleIntent", String.class, String.class, NavigationIntent.class,
                     NavBridgeClient.class, DoubaoArkClient.class, QaStore.class, boolean.class);
             handle.setAccessible(true);
-            String[] fields = {"accepted", "cancelled", "accepted", "paused", "resumed", "stopped", "accepted", "accepted"};
+            String[] fields = {"accepted", "cancelled", "accepted", "paused", "resumed", "stopped", "accepted"};
             NavigationIntent[] intents = {
                 NavigationIntent.fromJsonText("{\"intent\":\"navigate\",\"target_name\":\"fixture\",\"reply\":\"success\"}"),
                 NavigationIntent.stop(), NavigationIntent.startTask(), NavigationIntent.pauseTask(),
                 NavigationIntent.resumeTask(), NavigationIntent.endTask(),
-                NavigationIntent.dance("fixture", "success"), NavigationIntent.presetMotion("handshake", "right_hand"),
+                NavigationIntent.presetMotion("handshake", "right_hand"),
             };
             for (int index = 0; index < intents.length; index++) {
                 String field = fields[index];

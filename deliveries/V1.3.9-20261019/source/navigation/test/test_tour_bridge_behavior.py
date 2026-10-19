@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections import namedtuple
 from concurrent.futures import Future
 import importlib.util
+import robot_local_navigation_v3
 from pathlib import Path
 import sys
 import threading
@@ -77,7 +78,7 @@ def bridge_module():
         prefix + "sdk_motion_controller": stub(prefix + "sdk_motion_controller", DEFAULT_EMOJI_PRIORITY=0, SdkMotionController=forbidden),
         prefix + "tts_speaker": stub(prefix + "tts_speaker", TtsSpeaker=forbidden),
     }
-    path = Path(__file__).resolve().parents[1] / "robot_local_navigation_v3" / "lingxi_nav_bridge.py"
+    path = Path(robot_local_navigation_v3.__file__).parent / "lingxi_nav_bridge.py"
     spec = importlib.util.spec_from_file_location(prefix + "_behavior_test_bridge", path)
     module = importlib.util.module_from_spec(spec)
     with patch.dict(sys.modules, stubs):

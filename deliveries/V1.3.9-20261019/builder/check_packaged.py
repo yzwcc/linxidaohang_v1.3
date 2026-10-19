@@ -14,8 +14,9 @@ def run(package):
     package = package.resolve()
     report_dir = build.DELIVERY / "reports/packaged"
     report_dir.mkdir(parents=True, exist_ok=True)
-    environment = dict(os.environ, PYTHONPATH=str(package / "payload/navigation"),
-                       PYTHONDONTWRITEBYTECODE="1")
+    environment = dict(os.environ, PYTHONPATH=os.pathsep.join(map(str, (
+                           package / "payload/navigation", build.SOURCE / "navigation"))),
+                       PYTHONDONTWRITEBYTECODE="1", FUNCTIONAL_CONSOLE=str(package / "payload/console"))
     nav = package / "payload/navigation"
     classpath = os.pathsep.join(map(str, (
         build.SOURCE / "java/target/test-classes",
@@ -32,8 +33,10 @@ def run(package):
         ("navigation", [sys.executable, "-X", "utf8", "-m", "pytest", "-q", "-p", "no:cacheprovider",
                         str(build.SOURCE / "navigation/test")]),
         ("console", [shutil.which("node"), str(build.HERE / "check_console.mjs"), str(package / "payload/console")]),
+        ("task-functional", [sys.executable, "-X", "utf8", "-m", "pytest", "-q", "-s", "-p", "no:cacheprovider",
+                             str(build.HERE / "functional_task_check.py")]),
     ]
-    commands += [(name, [shutil.which("java"), "-cp", classpath, "com.agibot.aiem.nav." + name]) for name in TESTS]
+    commands += [(name, [shutil.which("java"), "-Dfile.encoding=UTF-8", "-cp", classpath, "com.agibot.aiem.nav." + name]) for name in TESTS]
     records = []
     for name, command in commands:
         with (report_dir / (name + ".log")).open("w", encoding="utf-8") as log:

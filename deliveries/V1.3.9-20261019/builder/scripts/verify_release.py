@@ -10,8 +10,8 @@ import sys
 import release_config
 
 CURRENT = Path("/opt/sparkrobot/lingxi-nav/current")
-VERSION = "1.3.9-complete-20261019-r4"
-NAV_VERSION = "1.0.22-20261019"
+VERSION = "1.3.9-complete-20261019-r5"
+NAV_VERSION = "1.0.23-20261019"
 PROFILE = {
     "enabled": True, "target_pose_radius": 0.45, "position_tolerance_m": 0.45,
     "yaw_tolerance_rad": 0.5235987755982988, "stable_duration_sec": 1.0,

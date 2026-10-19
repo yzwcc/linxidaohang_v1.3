@@ -1,4 +1,4 @@
-"""Build r4 from versioned sources and the verified r3 third-party components."""
+"""Build r5 from versioned sources and the verified r3 third-party components."""
 from __future__ import annotations
 import argparse
 from datetime import datetime, timezone
@@ -17,8 +17,8 @@ SOURCE = DELIVERY / "source"
 BASE = ROOT / "deliveries/V1.3.9-20261015"
 BASE_OUTER = BASE / "lingxi-v1.3.9-complete-20261015-r3-deployment"
 BASE_INNER = BASE / ".build/sparkrobot-lingxi-nav-internal-1.0.21-20261015"
-VERSION = "1.3.9-complete-20261019-r4"
-NAV_VERSION = "1.0.22-20261019"
+VERSION = "1.3.9-complete-20261019-r5"
+NAV_VERSION = "1.0.23-20261019"
 NAME = f"lingxi-v{VERSION}-deployment"
 NAV_NAME = f"sparkrobot-lingxi-nav-internal-{NAV_VERSION}"
 INNER = DELIVERY / ".build" / NAV_NAME
@@ -224,12 +224,15 @@ def stage():
         "strict-control-ack-and-non-command-guard-20261019",
         "firmware-preflight-and-restore-validation-20261019",
         "exact-runtime-provenance-20261019",
+        "native-singing-dancing-retained-20261019",
+        "motion-1007-and-no-unknown-resubmission-20261019",
+        "disabled-task-start-and-http-disk-chain-20261019",
     ]
     write(OUTER / "bundle-manifest.json", manifest)
     write(OUTER / "VERSION", "LINGXI_COMPLETE_VERSION=" + VERSION + "\n")
     write(OUTER / "README.md", (
-        f"# 灵犀导航 V1.3.9 r4\n\n完整版本：`{VERSION}`；导航主包：`{NAV_VERSION}`。\n\n"
-        "部署入口：`docs/V1.3.9-完整部署说明.md`。修复和验证范围：`docs/V1.3.9-r4-修复与验收.md`。\n\n"
+        f"# 灵犀导航 V1.3.9 r5\n\n完整版本：`{VERSION}`；导航主包：`{NAV_VERSION}`。\n\n"
+        "部署入口：`docs/V1.3.9-完整部署说明.md`。功能和修复：`docs/V1.3.9-r5-功能复核报告.md`。\n\n"
         "保留 Java/AgentSDK 语音、知识库、循环讲解与机器人本机网页架构。\n"
         "本次完成本地源码、异常回执、Linux 隔离安装和归档验证；实机验收状态见 `audit/验证记录.md`。\n"
     ))
@@ -249,7 +252,7 @@ def finalize():
     manifest = json.loads((OUTER / "bundle-manifest.json").read_text(encoding="utf-8"))
     manifest["components"] = {p.name: sha(p) for p in sorted((OUTER / "components").iterdir())}
     write(OUTER / "bundle-manifest.json", manifest)
-    for name in ("验证记录.md", "validation-results.json"):
+    for name in ("验证记录.md", "validation-results.json", "sdk-contract.json"):
         copy(DELIVERY / name, OUTER / "audit" / name)
     copy(DELIVERY / "reports/packaged/results.json", OUTER / "audit/packaged-results.json")
     copy(DELIVERY / "reports/java-results.json", OUTER / "audit/java-results.json")

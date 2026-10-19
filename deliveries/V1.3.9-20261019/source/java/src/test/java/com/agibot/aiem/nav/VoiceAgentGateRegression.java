@@ -139,11 +139,12 @@ final class VoiceAgentGateRegression {
                 check((boolean) shouldInterruptNativeTour.invoke(null, text),
                         "explicit tour control interrupts native duplicate: " + text);
             }
-            for (String text : List.of("握手", "请给我比个心", "挥手一下", "跳一段舞")) {
+            for (String text : List.of("握手", "请给我比个心", "挥手一下")) {
                 check((boolean) shouldInterruptNativeTour.invoke(null, text),
                         "local performance interrupts native duplicate: " + text);
             }
-            for (String text : List.of("如何开始讲解", "不要停止讲解", "如果继续讲解会怎样", "今天星期几")) {
+            for (String text : List.of("如何开始讲解", "不要停止讲解", "如果继续讲解会怎样", "今天星期几",
+                    "跳一段舞", "唱首歌", "跳太极", "不要握手", "如果挥手会怎样", "他说“比心”")) {
                 check(!(boolean) shouldInterruptNativeTour.invoke(null, text),
                         "question or negation does not interrupt native action: " + text);
             }

@@ -1612,7 +1612,10 @@ class LingxiNavBridge(Node):
             if task is None:
                 raise PointCatalogError(f"讲解任务不存在：{requested_task_id}")
         if not task.get("enabled", True):
-            return str(task.get("id", "")), str(task.get("name", "默认讲解任务")), []
+            return (
+                str(task.get("id", "")), str(task.get("name", "默认讲解任务")), [],
+                normalize_task_loop_count(task.get("loop_count", 1)),
+            )
         steps = []
         for step in task.get("steps", []):
             if not isinstance(step, dict) or not step.get("enabled", True):

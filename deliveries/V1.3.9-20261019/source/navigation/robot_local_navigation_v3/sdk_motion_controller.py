@@ -49,13 +49,14 @@ DEFAULT_WAIT_TIMEOUT_SEC = 0.5
 DEFAULT_MIN_MOTION_INTERVAL_SEC = 0.8
 DEFAULT_MOTION_RETRY_DELAY_SEC = 1.5
 DEFAULT_MOTION_CONFIRMATION_TIMEOUT_SEC = 6.0
+MOTION_CONFIRMATION_UNKNOWN = "暂未收到动作确认，请先观察机器人状态"
 DEFAULT_SERVICE_CALL_ATTEMPTS = 8
 DEFAULT_SERVICE_CALL_TIMEOUT_SEC = 0.35
 DEFAULT_STAND_RECOVERY_DELAY_SEC = 0.6
 DEFAULT_STAND_RECOVERY_TIMEOUT_SEC = 1.5
 
-# Friendly alias -> documented SDK motion id. Legacy aliases use the locally
-# generated aimdk_msgs constants so existing map files remain readable.
+# Current SDK motion/area pairs take precedence over stale generated enums.
+# Legacy-only aliases remain readable for existing map files.
 MOTION_ALIASES: dict[str, int] = {
     **SPECIAL_MOTION_ALIASES,
     "raise_hand": 1001,
@@ -64,7 +65,7 @@ MOTION_ALIASES: dict[str, int] = {
     "handshake": 1003,
     "shake_hand": McPresetMotion.SHAKE_HAND,
     "flying_kiss": 1004,
-    "sweetheart": McPresetMotion.INTERACTION_SWEATHEART,
+    "sweetheart": 1007,
     "high_five": 1008,
     "horizontal_arm": 1010,
     "chestwave": 1011,
@@ -113,7 +114,7 @@ AREA_ALIASES: dict[str, int] = {
 MOTION_ALLOWED_AREAS: dict[int, set[int]] = {
     **SPECIAL_MOTION_ALLOWED_AREAS,
     1001: {1, 2}, 1002: {1, 2}, 1003: {1, 2}, 1004: {1, 2},
-    McPresetMotion.INTERACTION_SWEATHEART: {1, 2, 3},
+    1007: {1, 2, 3},
     1008: {1, 2}, 1010: {1, 2, 3}, 1011: {1, 2},
     1013: {1, 2},
     3001: {11}, 3007: {11}, 3008: {11}, 3009: {11}, 3011: {11},
@@ -398,7 +399,9 @@ class SdkMotionController:
             outcome.update(
                 {
                     "accepted": bool(accepted),
-                    "status": "accepted" if accepted else "rejected",
+                    "status": "accepted" if accepted else (
+                        "confirmation_unknown" if message == MOTION_CONFIRMATION_UNKNOWN else "rejected"
+                    ),
                     "message": str(message or ""),
                 }
             )
@@ -421,7 +424,7 @@ class SdkMotionController:
             return {
                 "accepted": False,
                 "status": "confirmation_timeout",
-                "message": "机器人动作服务确认超时，请确认机器人处于稳定站立模式后重试",
+                "message": MOTION_CONFIRMATION_UNKNOWN,
             }
         return outcome
 
@@ -840,7 +843,8 @@ class SdkMotionController:
             response = future.result()
         except Exception as exc:
             self.node.get_logger().warning(f"SDK motion request failed: {exc}")
-            self._schedule_motion_retry(info, retries_remaining, on_result, cancel_event)
+            # Losing the reply does not prove the physical action failed.
+            self._notify_motion_result(on_result, False, MOTION_CONFIRMATION_UNKNOWN)
             return
         task_response = getattr(response, "response", None)
         state_value = getattr(getattr(task_response, "state", None), "value", None)
@@ -852,7 +856,14 @@ class SdkMotionController:
             CommonState.CREATED,
             CommonState.PENDING,
         )
-        accepted = is_request_acknowledged(code, state_value, accepted_states)
+        if code is None and state_value is None:
+            self._notify_motion_result(on_result, False, MOTION_CONFIRMATION_UNKNOWN)
+            return
+        try:
+            accepted = is_request_acknowledged(code, state_value, accepted_states)
+        except (TypeError, ValueError):
+            self._notify_motion_result(on_result, False, MOTION_CONFIRMATION_UNKNOWN)
+            return
         if accepted:
             self.node.get_logger().info(
                 f"SDK motion request acknowledged: motion={info.motion_id}, area={info.area_id}, "
@@ -864,7 +875,8 @@ class SdkMotionController:
             f"SDK motion rejected: motion={info.motion_id}, area={info.area_id}, "
             f"state={state_value}, code={code}"
         )
-        self._schedule_motion_retry(info, retries_remaining, on_result, cancel_event)
+        message = str(getattr(task_response, "message", "") or "")
+        self._notify_motion_result(on_result, False, message or "机器人动作服务拒绝请求，请查看动作服务日志")
 
     def _schedule_motion_retry(
         self,

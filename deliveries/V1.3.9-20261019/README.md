@@ -1,12 +1,14 @@
-# 灵犀导航 V1.3.9 r4
+# 灵犀导航 V1.3.9 r5
 
-完整版本：`1.3.9-complete-20261019-r4`。导航主包：`1.0.22-20261019`。
+完整版本：`1.3.9-complete-20261019-r5`。导航主包：`1.0.23-20261019`。
 
-机器人使用同目录 `lingxi-v1.3.9-complete-20261019-r4-deployment.tar.gz` 与 `.sha256`。ZIP 内容相同，便于 Windows 查看。安装步骤见 [完整部署说明](builder/docs/V1.3.9-完整部署说明.md)，本地验证见 [验证记录](验证记录.md)。
+机器人使用同目录 `lingxi-v1.3.9-complete-20261019-r5-deployment.tar.gz` 与 `.sha256`。ZIP 内容相同，便于 Windows 查看。安装步骤见 [完整部署说明](builder/docs/V1.3.9-完整部署说明.md)，本地验证见 [验证记录](验证记录.md)。
 
 最终归档及 Linux 解压复验均已通过，准确哈希与结果见 [交付校验结果](交付校验结果.md)、`archive-audit.json` 和 `extracted-validation.json`。归档、依赖和缓存保留在本地并由 `.gitignore` 排除，GitHub 保存源码、安装器、测试和校验记录。
 
 `source/` 固定本次 V1.3.9 源码，`builder/` 保存修复后的安装器、测试及打包审计工具。主仓库顶层的历史源码不作为本次构建输入。
+
+本次功能复核的修复、完整能力清单和实机边界见 [r5 功能复核报告](builder/docs/V1.3.9-r5-功能复核报告.md)。旧 r4 归档保留，源码与记录以当前 r5 为准；r4 原始源码记录在 Git 提交 `e899dcd`。
 
 ## 重建顺序
 
@@ -17,7 +19,9 @@ source/server: npm ci --ignore-scripts --no-audit --no-fund
 source/server: npm test
 source/server: npm run build
 python -X utf8 builder/check_java.py
+python -X utf8 builder/check_sdk_contract.py
 source/navigation: python -X utf8 -m pytest -q test
+PYTHONPATH=source/navigation: python -X utf8 -m pytest -q builder/functional_task_check.py
 python -X utf8 -m unittest discover -s builder -p test_*.py
 WSL root: python3 -m unittest discover -s builder -p test_*.py
 python -X utf8 builder/build_delivery.py stage
