@@ -52,6 +52,7 @@ from robot_local_navigation_v3.tour_interaction_policy import (
     wake_interaction_action,
 )
 from robot_local_navigation_v3.tts_speaker import TtsSpeaker
+from robot_local_navigation_v3.tts_receipt import future_receipt, wait_receipt
 from robot_local_navigation_v3.voice_preset_motion import (
     resolve_voice_preset_motion,
     voice_preset_motion_block_reason,
@@ -772,7 +773,7 @@ class LingxiNavBridge(Node):
             "reason": reason,
         }
 
-    def speak(self, payload: dict[str, Any]) -> dict[str, Any]:
+    def speak(self, payload: dict[str, Any], *, wait_for_ack: bool = False) -> dict[str, Any]:
         """向机器人本地 AimDK TTS 服务提交文本播报请求。"""
 
         text = str(payload.get("text", "")).strip()
@@ -814,6 +815,8 @@ class LingxiNavBridge(Node):
                     "message": f"TTS throttled; retry after {retry_after_sec:.1f}s",
                 }
             self._last_tts_at = now
+            self._tts_generation = getattr(self, "_tts_generation", 0) + 1
+            tts_generation = self._tts_generation
         self.get_logger().info(
             f"TTS speak: event_id={event_id or '<none>'}, requested_interrupt={requested_interrupt}, "
             f"interrupt={interrupt}, force={force}, text={text}"
@@ -831,12 +834,29 @@ class LingxiNavBridge(Node):
                     self._tour_quiet_since = time.monotonic()
                 self._tour_reply_until = time.monotonic() + ARRIVAL_TTS_MAX_WAIT_SEC
                 self._refresh_tour_quiet_timer_locked("reply_submitted")
+            submitted_state = self._auto_return_state
+            submitted_generation = self._auto_return_generation
+
+            def retry_submit(send):
+                with self._auto_return_lock:
+                    allowed = (
+                        getattr(self, "_tts_generation", 0) == tts_generation
+                        and self._auto_return_state == submitted_state
+                        and self._auto_return_generation == submitted_generation
+                        and (reply_generation is None or self._tour_reply_generation == reply_generation)
+                        and not should_block_voice_output(self._auto_return_state, event_id)
+                    )
+                    if allowed:
+                        send()
+                    return allowed
+
             try:
                 future = self.tts_speaker.speak(
                     text,
                     interrupt=interrupt,
                     # Cloud event IDs must not end the local async playback.
                     trace_id=None,
+                    retry_submit=retry_submit,
                 )
             except Exception:
                 if reply_generation is not None:
@@ -856,7 +876,18 @@ class LingxiNavBridge(Node):
                 "status": "tts_unavailable",
                 "message": "TTS service is not available",
             }
-        return {"ok": True, "accepted": True, "status": "submitted"}
+        def log_ack(result):
+            receipt = future_receipt(result)
+            self.get_logger().info(
+                f"TTS acknowledgement: event_id={event_id}, request_id={tts_generation}, "
+                f"status={receipt['status']}, accepted={receipt['accepted']}, message={receipt['message']}"
+            )
+
+        future.add_done_callback(log_ack)
+        receipt = wait_receipt(future, 2.2) if wait_for_ack else {
+            "ok": True, "accepted": None, "status": "ack_pending",
+        }
+        return {**receipt, "request_id": tts_generation, "event_id": event_id}
 
     def _on_tour_reply_result(self, generation: int, text: str, future) -> None:
         with self._auto_return_lock:
@@ -864,17 +895,20 @@ class LingxiNavBridge(Node):
                 return
             accepted = False
             if future is not None:
-                try:
-                    response = future.result()
-                    accepted = bool(response.tts_resp.is_success)
-                except Exception as exc:
-                    self.get_logger().warning(f"Tour reply submission failed: {exc}")
+                accepted = future_receipt(future)["accepted"]
             now = time.monotonic()
             # PlayTts success is an acknowledgement, NOT playback completion.
             duration = self._arrival_action_wait_sec("tts", {"text": text}) + ARRIVAL_COMPLETION_GUARD_SEC
-            self._tour_reply_until = now + duration if accepted else 0.0
+            if accepted is None:
+                # An uncertain request may already be audible. Keep a bounded
+                # playback hold instead of resuming narration over that reply.
+                self._tour_reply_until = now + min(duration, ARRIVAL_TTS_MAX_WAIT_SEC)
+            else:
+                self._tour_reply_until = now + duration if accepted else 0.0
             self._tour_quiet_since = max(self._tour_quiet_since, now)
-            self._refresh_tour_quiet_timer_locked("reply_accepted" if accepted else "reply_failed")
+            self._refresh_tour_quiet_timer_locked(
+                "reply_ack_unknown" if accepted is None else "reply_accepted" if accepted else "reply_failed"
+            )
 
     def _refresh_tour_quiet_timer_locked(self, source: str) -> None:
         if self._auto_return_state == AUTO_RETURN_TASK_WAITING:
@@ -3018,7 +3052,7 @@ class NavHttpHandler(BaseHTTPRequestHandler):
                 self.write_json(200, self.server.bridge.play_voice_preset_motion(payload))
                 return
             if self.path == "/tts/speak":
-                self.write_json(200, self.server.bridge.speak(payload))
+                self.write_json(200, self.server.bridge.speak(payload, wait_for_ack=True))
                 return
             self.write_json(404, {"ok": False, "message": "not found"})
         except Exception as exc:

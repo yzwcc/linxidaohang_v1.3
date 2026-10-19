@@ -169,9 +169,9 @@ public final class ControlReplyTextWireTest {
                         modeled.set("{\"intent\":\"chat\",\"question\":\"\u4eca\u5929\u6709\u54ea\u4e9b\u670d\u52a1\",\"reply\":\"" + ANSWER + "\"}");
                         invoke(mode, sdk, client, "qa-" + events++, "\u4eca\u5929\u6709\u54ea\u4e9b\u670d\u52a1",
                                 config, bridge, model, qa);
-                        boolean suppress = route.equals("robot") && code == 200;
+                        boolean suppress = route.equals("robot");
                         check(client.replies().equals(suppress ? List.of() : List.of(ANSWER)),
-                                "QA suppression and local TTS failure fallback preserved " + route + code + mode);
+                                "QA local ownership retained on missing transport acknowledgement " + route + code + mode);
 
                         for (String result : List.of("{\"accepted\":false,\"status\":\"rejected\"}",
                                 "{\"accepted\":false,\"status\":\"confirmation_unknown\"}", "{}")) {

@@ -1023,7 +1023,8 @@ public final class LingxiNavAgentApp {
 
     private static boolean shouldReturnLingxiText(AppConfig appConfig, TtsPriority priority,
                                                   RobotTtsResult ttsResult) {
-        return shouldReturnLingxiText(appConfig) || ttsResult == null || !ttsResult.accepted();
+        return shouldReturnLingxiText(appConfig) || ttsResult == null
+                || (!ttsResult.accepted() && !ttsResult.deliveryUncertain());
     }
 
     private static boolean isLocalControlReply(AppConfig config, TtsPriority priority) {
@@ -1107,12 +1108,14 @@ public final class LingxiNavAgentApp {
         }
         if (appConfig.ttsFixedDialogTest) {
             boolean bl = false;
+            String receiptReason = "ack_unknown";
             long l = TTS_CONTROLLER.estimatePlaybackMillis(FIXED_DIALOG_TTS_TEXT);
             try {
                 LingxiNavAgentApp.delayBeforeRobotTts(appConfig);
                 log.info("Fixed normal dialog TTS test enabled: originalEventId={}, fixedEventId={}, originalText={}, fixedText={}", string, FIXED_DIALOG_TTS_EVENT_ID, LingxiNavAgentApp.abbreviate(string2), FIXED_DIALOG_TTS_TEXT);
                 JSONObject jSONObject = navBridgeClient.speak(FIXED_DIALOG_TTS_EVENT_ID, FIXED_DIALOG_TTS_TEXT, true, true);
-                bl = jSONObject.getBooleanValue("accepted");
+                receiptReason = ttsAcknowledgement(jSONObject);
+                bl = "accepted".equals(receiptReason);
                 if (!bl) {
                     log.warn("Robot fixed test TTS was not accepted: {}", (Object)jSONObject);
                 }
@@ -1121,11 +1124,11 @@ public final class LingxiNavAgentApp {
                 log.warn("Robot fixed test TTS request failed: {}", (Object)exception.getMessage());
             }
             finally {
-                if (bl) {
+                if (bl || receiptReason.startsWith("ack_")) {
                     TTS_CONTROLLER.openSilentWindow(l);
                 }
             }
-            return new RobotTtsResult(true, bl, bl ? l : 0L, "fixed_dialog_test");
+            return new RobotTtsResult(true, bl, bl ? l : 0L, receiptReason);
         }
         TtsDecision ttsDecision = TTS_CONTROLLER.tryAcquire(string2, ttsPriority);
         if (!ttsDecision.allowed) {
@@ -1133,23 +1136,35 @@ public final class LingxiNavAgentApp {
             return RobotTtsResult.skipped(ttsDecision.reason);
         }
         boolean bl = false;
+        String receiptReason = "ack_unknown";
         try {
             LingxiNavAgentApp.delayBeforeRobotTts(appConfig);
             // Lingxi submits an L6 placeholder for the same audio turn. Keep every
             // robot-local reply at L7 so the placeholder cannot preempt playback.
             JSONObject jSONObject = navBridgeClient.speak(string, string2, ttsDecision.interrupt, true);
-            bl = jSONObject.getBooleanValue("accepted");
+            receiptReason = ttsAcknowledgement(jSONObject);
+            bl = "accepted".equals(receiptReason);
             if (!bl) {
                 log.warn("Robot TTS was not accepted: {}", (Object)jSONObject);
             }
         }
         catch (Exception exception) {
+            if (exception instanceof InterruptedException) Thread.currentThread().interrupt();
             log.warn("Robot TTS request failed: {}", (Object)exception.getMessage());
         }
         finally {
-            TTS_CONTROLLER.finish(ttsDecision, bl);
+            // A timed-out acknowledgement can still arrive and start playback.
+            // Keep the speech owner; never synthesize the same reply via SDK.
+            TTS_CONTROLLER.finish(ttsDecision, bl || receiptReason.startsWith("ack_"));
         }
-        return new RobotTtsResult(true, bl, bl ? ttsDecision.estimatedPlaybackMillis : 0L, ttsDecision.reason);
+        return new RobotTtsResult(true, bl, bl ? ttsDecision.estimatedPlaybackMillis : 0L, receiptReason);
+    }
+
+    private static String ttsAcknowledgement(JSONObject receipt) {
+        if (receipt != null && Boolean.TRUE.equals(receipt.get("accepted"))) return "accepted";
+        if (receipt != null && Boolean.FALSE.equals(receipt.get("accepted"))) return "rejected";
+        return receipt != null && "ack_pending".equals(receipt.getString("status"))
+                ? "ack_pending" : "ack_unknown";
     }
 
     private static void delayBeforeRobotTts(AppConfig appConfig) throws InterruptedException {
@@ -2202,6 +2217,9 @@ public final class LingxiNavAgentApp {
     }
 
     private record RobotTtsResult(boolean requested, boolean accepted, long estimatedPlaybackMillis, String reason) {
+        boolean deliveryUncertain() {
+            return requested && ("ack_pending".equals(reason) || "ack_unknown".equals(reason));
+        }
         static RobotTtsResult skipped(String string) {
             return new RobotTtsResult(false, false, 0L, string);
         }

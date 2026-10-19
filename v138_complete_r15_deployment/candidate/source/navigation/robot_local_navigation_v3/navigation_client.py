@@ -21,6 +21,7 @@ from robot_local_navigation_v3.arrival_hysteresis import (
     is_within_arrival_hysteresis,
 )
 from robot_local_navigation_v3.models import NavPoint, NavigationDefaults
+from robot_local_navigation_v3.near_goal_arrival import NearGoalArrival
 from robot_local_navigation_v3.navigation_events import (
     NavigationEvent,
     NavigationEventListener,
@@ -642,6 +643,7 @@ class NavigationSession:
         self._republish_timer = None
         self._timeout_timer = None
         self._arrival_policy = ArrivalPolicy(defaults.arrival_policy, point)
+        self._near_goal_arrival = NearGoalArrival()
         self._arrived_region_emitted = False
         self._strict_region_entered_at: float | None = None
         self._arrival_stable_since: float | None = None
@@ -802,6 +804,24 @@ class NavigationSession:
                 f"strict_region_age_sec={strict_region_age_sec}"
             )
             self._complete_async("arrived_region_stable", sample=sample)
+            return
+
+        # Receipt time alone cannot distinguish live odometry from a replay.
+        try:
+            ros_now_sec = self.node.get_clock().now().nanoseconds / 1e9
+        except (AttributeError, TypeError):
+            ros_now_sec = float("nan")
+        if self._near_goal_arrival.update(
+            msg, sample, now=now, ros_now_sec=ros_now_sec,
+            yaw_tolerance=self.defaults.arrival_policy.yaw_tolerance_rad,
+            stop_enabled=self.defaults.stop_policy.mode != "never",
+        ):
+            self.node.get_logger().info(
+                f"Navigation stable near-goal accepted: point={self.point.name}, "
+                f"distance={sample.distance_to_goal:.3f}, radius=0.450, dwell_sec=5.0, "
+                f"linear_speed_mps={sample.linear_speed_mps:.3f}"
+            )
+            self._complete_async("near_goal_stationary", sample=sample)
 
     def handle_pnc_response(self, response: dict[str, Any]) -> None:
         """Handle a terminal PNC response only when it matches this task."""
@@ -863,6 +883,12 @@ class NavigationSession:
                     None if self._last_sample is None else self._last_sample.yaw_error
                 ),
                 "pnc_response": self._last_pnc_response,
+                "near_goal_arrival": {
+                    "enabled": self._near_goal_arrival.enabled,
+                    "radius_m": self._near_goal_arrival.RADIUS_M,
+                    "dwell_sec": self._near_goal_arrival.DWELL_SEC,
+                    "stable_samples": self._near_goal_arrival.samples,
+                },
             }
 
     def _complete_async(self, reason: str, sample: ArrivalSample | None = None) -> None:

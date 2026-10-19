@@ -282,7 +282,7 @@ def test_reply_ack_and_cloud_end_cannot_shorten_local_playback(rig, waiting):
     begin_wait(rig) if waiting else wake(rig)
     mark(rig)
     text = "x" * 80
-    assert reply(rig, text)["accepted"]
+    assert reply(rig, text)["accepted"] is None
     rig.clock.advance(12)
     assert rig.bridge._task_index == 0
     acknowledge(rig)
@@ -312,7 +312,7 @@ def test_reply_without_mark_or_end_still_holds_and_resets_wait(rig):
     assert rig.bridge._task_index == 1
 
 
-@pytest.mark.parametrize("failure", ["rejected", "exception", "unavailable"])
+@pytest.mark.parametrize("failure", ["rejected", "unavailable"])
 def test_failed_reply_releases_hold_without_waiting_for_timeout(rig, failure):
     begin_wait(rig)
     mark(rig)
@@ -321,8 +321,6 @@ def test_failed_reply_releases_hold_without_waiting_for_timeout(rig, failure):
     reply(rig)
     if failure == "rejected":
         acknowledge(rig, accepted=False)
-    elif failure == "exception":
-        rig.futures[-1].set_exception(RuntimeError("offline test failure"))
     end(rig)
     rig.clock.advance(10)
     assert rig.bridge._task_index == 1

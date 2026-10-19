@@ -1,0 +1,99 @@
+{
+  "archive": "sparkrobot-lingxi-v1.3.8-arrival-tts-fix-1.0.7-20261019.tar.gz",
+  "sha256": "6fbe5bcac4834ede2bb1643570e20d38afa1129b020234c1396755d45b6e084a",
+  "size_bytes": 10199929,
+  "checked_files": 95,
+  "lf_text_files": 94,
+  "bash_scripts_and_guide_blocks": 7,
+  "java_regression": {
+    "VoiceGateTest": [
+      "VoiceGateTest passed: 1419 assertions"
+    ],
+    "WakeSessionGateTest": [
+      "WakeSessionGateTest passed: 28 assertions"
+    ],
+    "Soc2WakeEvidenceProviderTest": [
+      "Soc2WakeEvidenceProviderTest passed: 8 assertions"
+    ],
+    "AgentSdkInterruptWireTest": [
+      "AgentSdkInterruptWireTest passed: 25 assertions"
+    ],
+    "VoiceRegression": [
+      "VoiceAgentGateRegression passed: 393 assertions",
+      "VoiceRegression passed: 47 assertions plus real Agent gate regression"
+    ],
+    "ModelRecoveryTest": [
+      "ModelRecoveryTest passed: text input, transient retry, auth rejection, malformed intent, bridge outage, next-request recovery"
+    ],
+    "FunctionalControlTest": [
+      "FunctionalControlTest passed: 42 assertions"
+    ],
+    "AgentConnectionStateTest": [
+      "AgentConnectionStateTest passed: early callbacks, auth failure, offline, restart, atomic state"
+    ],
+    "ControlReplyRegressionTest": [
+      "ControlReplyRegressionTest passed: 566 assertions"
+    ],
+    "ControlOwnershipFaultTest": [
+      "ControlOwnershipFaultTest passed: 524 assertions"
+    ],
+    "LoggedModelTimeoutTest": [
+      "LoggedModelTimeoutTest passed: real 15s HTTP timeouts, exact navigation fallback, chat availability, no repeat dispatch"
+    ],
+    "FieldVoiceReplayTest": [
+      "FieldVoiceReplayTest passed: 424 assertions"
+    ],
+    "ControlReplyTextWireTest": [
+      "ControlReplyTextWireTest passed: 1384 assertions"
+    ],
+    "ReferenceControlChannelTest": [
+      "ReferenceControlChannelTest passed: 204 assertions"
+    ],
+    "NavigationTourRoutingTest": [
+      "NavigationTourRoutingTest passed: 165 assertions"
+    ],
+    "TtsAcknowledgementTest": [
+      "TTS acknowledgement checks passed: 56"
+    ]
+  },
+  "final_packaged_python_tests": "173 passed in 6.06s",
+  "packaged_linux_installer_tests": 23,
+  "source_runtime_class_count": 47,
+  "baseline_replay": [
+    {
+      "distance_m": 0.3589467,
+      "shipped_r16": {
+        "completed": false,
+        "elapsed_sec": 120.0
+      },
+      "patched": {
+        "completed": true,
+        "elapsed_sec": 5.0,
+        "reason": "near_goal_stationary"
+      }
+    },
+    {
+      "distance_m": 0.4241447,
+      "shipped_r16": {
+        "completed": false,
+        "elapsed_sec": 120.0
+      },
+      "patched": {
+        "completed": true,
+        "elapsed_sec": 5.0,
+        "reason": "near_goal_stationary"
+      }
+    }
+  ],
+  "changed_runtime_files": [
+    "java/robot-local-navigation-java-all.jar",
+    "navigation/robot_local_navigation_v3/navigation_client.py",
+    "navigation/robot_local_navigation_v3/lingxi_nav_bridge.py",
+    "navigation/robot_local_navigation_v3/tts_speaker.py",
+    "navigation/robot_local_navigation_v3/near_goal_arrival.py",
+    "navigation/robot_local_navigation_v3/tts_receipt.py"
+  ],
+  "cumulative_through": "control-reply-fix-1.0.6-20261019",
+  "hardware_validation": false,
+  "independent_native_speech_interception_verified": false
+}
