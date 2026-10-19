@@ -829,6 +829,7 @@ public final class LingxiNavAgentApp {
         NavigationIntent navigationIntent = LingxiNavAgentApp.taskControlIntentFromText(string2, navBridgeClient);
         if (navigationIntent == null) {
             List<String> pointNames = LingxiNavAgentApp.loadPointNames(navBridgeClient, string);
+            NavigationIntent exactNavigation = NavigationCommandFallback.resolve(string2, pointNames);
             try {
                 navigationIntent = doubaoArkClient.parseInteraction(string2, pointNames);
             } catch (IOException | IllegalArgumentException exception) {
@@ -847,6 +848,12 @@ public final class LingxiNavAgentApp {
                     return new InteractionResult("语音已收到，但问答服务暂时不可用，请稍后再试。", TtsPriority.NORMAL);
                 }
                 log.info("Explicit local control fallback: eventId={}, intent={}", string, navigationIntent.intent);
+            }
+            if (exactNavigation != null && (!navigationIntent.isNavigate()
+                    || !exactNavigation.targetName.equals(navigationIntent.targetName))) {
+                log.warn("Saved-point navigation intent corrected: eventId={}, modelIntent={}, modelTarget={}, target={}",
+                        string, navigationIntent.intent, navigationIntent.targetName, exactNavigation.targetName);
+                navigationIntent = exactNavigation;
             }
         }
         NavigationIntent explicitMotion = presetMotionIntentFromText(string2);
@@ -931,7 +938,8 @@ public final class LingxiNavAgentApp {
 
     private static NavigationIntent taskControlIntentFromText(String string, NavBridgeClient navBridgeClient) {
         String string2 = LingxiNavAgentApp.normalizeText(string);
-        if (string2.isBlank() || isNegatedOrQuotedControl(string)) {
+        if (string2.isBlank() || isNegatedOrQuotedControl(string)
+                || NavigationCommandFallback.isExplanatoryQuestion(string)) {
             return null;
         }
         if (LingxiNavAgentApp.containsAny(string2, "暂停讲解", "暂停任务", "讲解暂停", "先暂停", "暂停一下")) {
@@ -959,6 +967,11 @@ public final class LingxiNavAgentApp {
             return NavigationIntent.chat(taskMatch.getString("message"));
         }
         if (LingxiNavAgentApp.containsAny(string2, "开始讲解", "启动讲解", "开始任务", "开始参观", "启动任务")) {
+            return NavigationIntent.startTask();
+        }
+        String command = NavigationCommandFallback.commandText(string);
+        if (command.matches("(?:开始|启动|执行|开启)(?:一下)?(?:讲解|导览|解说)(?:任务)?(?:一下|吧|好吗)?")
+                || command.matches("(?:讲解|导览|解说)(?:任务)?(?:开始|启动)(?:吧)?")) {
             return NavigationIntent.startTask();
         }
         return null;

@@ -1,0 +1,80 @@
+{
+  "archive": "sparkrobot-lingxi-v1.3.8-control-reply-fix-1.0.6-20261019.tar.gz",
+  "sha256": "c65d76143ee4db799e23a06af2028798839f7091bf8ae645586a5c11c77bccae",
+  "size_bytes": 10045580,
+  "checked_files": 41,
+  "lf_text_files": 40,
+  "bash_scripts_and_guide_blocks": 8,
+  "java_target": 17,
+  "java_regression": {
+    "VoiceGateTest": [
+      "VoiceGateTest passed: 1419 assertions"
+    ],
+    "WakeSessionGateTest": [
+      "WakeSessionGateTest passed: 28 assertions"
+    ],
+    "Soc2WakeEvidenceProviderTest": [
+      "Soc2WakeEvidenceProviderTest passed: 8 assertions"
+    ],
+    "AgentSdkInterruptWireTest": [
+      "AgentSdkInterruptWireTest passed: 25 assertions"
+    ],
+    "VoiceRegression": [
+      "VoiceAgentGateRegression passed: 393 assertions",
+      "VoiceRegression passed: 47 assertions plus real Agent gate regression"
+    ],
+    "ModelRecoveryTest": [
+      "ModelRecoveryTest passed: text input, transient retry, auth rejection, malformed intent, bridge outage, next-request recovery"
+    ],
+    "FunctionalControlTest": [
+      "FunctionalControlTest passed: 42 assertions"
+    ],
+    "AgentConnectionStateTest": [
+      "AgentConnectionStateTest passed: early callbacks, auth failure, offline, restart, atomic state"
+    ],
+    "ControlReplyRegressionTest": [
+      "ControlReplyRegressionTest passed: 566 assertions"
+    ],
+    "ControlOwnershipFaultTest": [
+      "ControlOwnershipFaultTest passed: 524 assertions"
+    ],
+    "LoggedModelTimeoutTest": [
+      "LoggedModelTimeoutTest passed: real 15s HTTP timeouts, exact navigation fallback, chat availability, no repeat dispatch"
+    ],
+    "FieldVoiceReplayTest": [
+      "FieldVoiceReplayTest passed: 424 assertions"
+    ],
+    "ControlReplyTextWireTest": [
+      "ControlReplyTextWireTest passed: 1384 assertions"
+    ],
+    "ReferenceControlChannelTest": [
+      "ReferenceControlChannelTest passed: 204 assertions"
+    ],
+    "NavigationTourRoutingTest": [
+      "NavigationTourRoutingTest passed: 165 assertions"
+    ]
+  },
+  "previous_comparison": {
+    "package": "sparkrobot-lingxi-v1.3.8-control-reply-fix-1.0.5-20261019",
+    "jar_sha256": "183daa4eeb9a658e15b7d157e5c22847206683a53e8c606622e5e2ad3275486b",
+    "suite": "NavigationTourRoutingTest",
+    "result": "Exception in thread \"main\" java.lang.AssertionError: Routing failures 82/165",
+    "test_source_sha256": "8b7da92af0388001ce1955516c4ef979792cf52ed4d8496b2e34bd0fc8783f0a"
+  },
+  "changed_jar_entries_since_1_0_5": [
+    "com/agibot/aiem/nav/LingxiNavAgentApp$AudioResult.class",
+    "com/agibot/aiem/nav/LingxiNavAgentApp$AudioSession.class",
+    "com/agibot/aiem/nav/LingxiNavAgentApp$InteractionResult.class",
+    "com/agibot/aiem/nav/LingxiNavAgentApp$RobotTtsResult.class",
+    "com/agibot/aiem/nav/LingxiNavAgentApp$TtsController.class",
+    "com/agibot/aiem/nav/LingxiNavAgentApp$TtsDecision.class",
+    "com/agibot/aiem/nav/LingxiNavAgentApp$TtsPriority.class",
+    "com/agibot/aiem/nav/LingxiNavAgentApp$WakeGate.class",
+    "com/agibot/aiem/nav/LingxiNavAgentApp.class",
+    "com/agibot/aiem/nav/NavigationCommandFallback.class"
+  ],
+  "packaged_linux_installer_tests": 11,
+  "source_runtime_class_count": 47,
+  "hardware_validation": false,
+  "independent_native_speech_interception_verified": false
+}
