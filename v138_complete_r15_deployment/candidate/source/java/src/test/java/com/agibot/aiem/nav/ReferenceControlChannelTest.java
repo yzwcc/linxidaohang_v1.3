@@ -160,7 +160,11 @@ public final class ReferenceControlChannelTest {
                             .equals(List.of("dispatch:" + current.path)), "single dispatch " + label);
                     check(types.stream().filter(t -> t.contains("interrupt")).count() == (silent ? 1 : 0),
                             "silent start uses one SDK takeover " + label);
-                    check(types.stream().noneMatch(t -> t.contains("llm_response.item.delta")), "single speech owner " + label);
+                    List<String> sdkText = client.messages.stream().map(JSON::parseObject)
+                            .filter(m -> "agentsdk.llm_response.item.delta".equals(m.getString("type")))
+                            .map(m -> m.getString("text")).toList();
+                    check(sdkText.equals(current.intent.equals("start_task") ? List.of("收到") : List.of()),
+                            "single speech owner, with neutral SDK tour receipt " + label);
                     check(types.stream().noneMatch(t -> t.contains("error") || t.contains("skill")), "no SDK error/skill " + label);
                     check(speech.size() == (silent ? 0 : 1), "expected local speech request count " + label);
                     check(trace.contains("agentsdk.llm_response.done"), "SDK completion " + label);

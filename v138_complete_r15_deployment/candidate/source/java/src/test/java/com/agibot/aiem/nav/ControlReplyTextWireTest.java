@@ -150,7 +150,8 @@ public final class ControlReplyTextWireTest {
                             String label = route + "/" + code + "/" + mode + "/" + scenario.intent;
                             boolean silent = scenario.intent.equals("navigate") || scenario.intent.equals("start_task");
                             check(dispatches.get() == before + 1, "one control dispatch " + label);
-                            check(client.replies().equals(silent || route.equals("robot") ? List.of() : List.of(scenario.expected)),
+                            check(client.replies().equals(scenario.intent.equals("start_task") ? List.of("收到")
+                                            : silent || route.equals("robot") ? List.of() : List.of(scenario.expected)),
                                     "configured single SDK/local speech owner " + label);
                             check(client.complete(), "SDK completion retained " + label);
                             check(!client.hasErrorOrSkill(), "no contradictory SDK error/skill " + label);
@@ -183,8 +184,8 @@ public final class ControlReplyTextWireTest {
                             invoke(mode, sdk, client, "uncertain-" + events++, controls.get(1).text,
                                     config, bridge, model, qa);
                             check(dispatches.get() == before + 1, "uncertain receipt is not retried");
-                            check(client.replies().isEmpty() && localSpeech.isEmpty() && !client.hasErrorOrSkill(),
-                                    "uncertain/rejected tour never invents success/failure speech " + mode);
+                            check(client.replies().equals(List.of("收到")) && localSpeech.isEmpty() && !client.hasErrorOrSkill(),
+                                    "uncertain/rejected tour has only input receipt, no success/failure speech " + mode);
                         }
                     }
                 }
@@ -219,7 +220,8 @@ public final class ControlReplyTextWireTest {
                                 check(client.failed, "actual SDK frame exception injected " + label);
                                 check(dispatches.get() == before + 1, "frame fault never retries physical control " + label);
                                 check(localSpeech.isEmpty(), "frame fault cannot cause local receipt speech " + label);
-                                check(client.replies().isEmpty(), "frame fault cannot cause SDK receipt speech " + label);
+                                check(client.replies().equals(scenario.intent.equals("start_task") ? List.of("收到") : List.of()),
+                                        "frame fault cannot cause SDK result speech " + label);
                                 check(client.complete(), "later completion remains attempted " + label);
                                 check(!client.hasErrorOrSkill(), "frame fault never becomes SDK error or skill " + label);
                             }

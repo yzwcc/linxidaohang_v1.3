@@ -28,9 +28,9 @@ public final class SilentStartControlTest {
         if (!value) failures.add(label);
     }
 
-    private static void reset() throws Exception {
+    static void reset() throws Exception {
         for (String name : List.of("LOCAL_COMMAND_DEDUP", "CONTROL_RESPONSE_DEDUP",
-                "NATIVE_INTERRUPT_DEDUP", "SILENT_START_CONTROL_EVENTS")) {
+                "NATIVE_INTERRUPT_DEDUP", "SILENT_START_CONTROL_EVENTS", "TOUR_START_RECEIPTS")) {
             try {
                 Field field = LingxiNavAgentApp.class.getDeclaredField(name);
                 field.setAccessible(true);
@@ -140,9 +140,13 @@ public final class SilentStartControlTest {
                                 String label = route + suppress + mode + text + response;
                                 check(dispatches.size() == 1, "one physical dispatch " + label);
                                 check(speech.isEmpty(), "no local success/failure TTS " + label);
-                                check(client.messages.stream().noneMatch(s -> s.contains("item.delta")
-                                        || s.contains("agentsdk.error") || s.contains("agentsdk.xlm_response.skill")),
-                                        "no SDK text/audio/error/skill " + label);
+                                List<String> replies = client.messages.stream().map(JSON::parseObject)
+                                        .filter(m -> "agentsdk.llm_response.item.delta".equals(m.getString("type")))
+                                        .map(m -> m.getString("text")).toList();
+                                check(replies.equals(intent.equals("start_task") ? List.of("收到") : List.of())
+                                        && client.messages.stream().noneMatch(s -> s.contains("agentsdk.error")
+                                        || s.contains("agentsdk.xlm_response.skill") || s.contains("agentsdk.tts_response.item.delta")),
+                                        "only neutral tour receipt; no result/audio/error/skill " + label);
                                 List<JSONObject> interrupts = client.messages.stream().map(JSON::parseObject)
                                         .filter(m -> m.getString("type").endsWith(".interrupt")).toList();
                                 check(interrupts.size() == 1 && "chat".equals(interrupts.get(0).getString("interruptType"))

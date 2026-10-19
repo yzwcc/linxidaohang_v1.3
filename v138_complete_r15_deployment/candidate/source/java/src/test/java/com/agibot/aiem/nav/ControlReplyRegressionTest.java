@@ -195,8 +195,8 @@ public final class ControlReplyRegressionTest {
                 }
                 check(navs.get() + tours.get() + motions.get() == count + 1,
                         "concurrent callbacks submit one control: " + kind);
-                check(client.replyCount() == (kind.equals("motion") ? 1 : 0),
-                        "concurrent callbacks preserve silent start receipts: " + kind);
+                check(client.replyCount() == (kind.equals("nav") ? 0 : 1),
+                        "concurrent callbacks preserve one neutral tour receipt and silent navigation: " + kind);
             }
             // Replay the field-log rejection through both speech routes and
             // inject failures after the controller has returned its result.

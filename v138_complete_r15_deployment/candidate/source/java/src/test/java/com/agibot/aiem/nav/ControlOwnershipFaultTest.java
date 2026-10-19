@@ -165,7 +165,8 @@ public final class ControlOwnershipFaultTest {
                             check(total(calls) == (kind.equals("dance") ? 0 : 1),
                                     kind.equals("dance") ? "native dance bypasses local endpoint: " + event
                                             : "ambiguous POST never retried: " + event);
-                            check(speech.isEmpty() && !client.hasSpeechOrError(), "unknown acknowledgement silent: " + event);
+                            check(speech.isEmpty() && (kind.equals("tour") ? client.onlyNeutralReceipt() : !client.hasSpeechOrError()),
+                                    "unknown acknowledgement has no result speech: " + event);
                         }
                     }
                 }
@@ -239,6 +240,12 @@ public final class ControlOwnershipFaultTest {
         boolean hasSpeechOrError() {
             return messages.stream().anyMatch(value -> value.contains("agentsdk.llm_response.item.delta")
                     || value.contains("agentsdk.error"));
+        }
+        boolean onlyNeutralReceipt() {
+            return messages.stream().noneMatch(value -> value.contains("agentsdk.error"))
+                    && messages.stream().map(JSONObject::parseObject)
+                    .filter(value -> "agentsdk.llm_response.item.delta".equals(value.getString("type")))
+                    .map(value -> value.getString("text")).toList().equals(List.of("收到"));
         }
         @Override public void sendText(String agent, String event, String payload, String logged) {
             messages.add(payload);
