@@ -1,0 +1,187 @@
+{
+  "package": "sparkrobot-lingxi-v1.3.8-tour-start-reply-fix-1.0.9-20261019",
+  "version": "1.0.9-20261019",
+  "product": "V1.3.8",
+  "baseline_jar_sha256": "4f6e2540fe098eddd30b2e18fd182e416eb270984d8d04d74bdd5370190834dd",
+  "patched_jar_sha256": "61055b65c24e086d2fe9f4459e3050d893dee4ed2c8a20abf54b8a0f6511fdf2",
+  "sdk_sha256": "bd419749b4a3dc635170ce67f33aedcc93cb4298bf931f582b0eaf83004ebe50",
+  "superseded_jar_sha256": [
+    "8cdf57a8f7c384b913d9aa8e47d1232075232f336937453170387955f55ada9e",
+    "f6de60d6b332622bb72a6fdb548e6c8ca01935ca344dfc1b058ab692cdc29f18",
+    "00f190751a23c4f2d4d4fff9b0d3410b3374786743e4b4b5f205376c60bacab9",
+    "5616debd9dbea29c52abfbe4bd7ebdba752233aa1f0156af7333ba165cce9e32",
+    "ac265e6333ef322c527bd8bc96e37a574988b0d9dc424a4c9ad1c6002032fc03",
+    "183daa4eeb9a658e15b7d157e5c22847206683a53e8c606622e5e2ad3275486b",
+    "185438adc472a5ae4a59a4e76d27763a0da3d664453017f76ab79caf51529666",
+    "605f82d00a8ae2b501ad4a9cc4f6cf451e42b2b41e328d514d77c8c02e39e92e",
+    "3140d03c2d81623ef2efb362400699c9e9dae7d4c09409a7431fff42bdb62372"
+  ],
+  "allowed_releases": [
+    "1.0.19-20261017-r15",
+    "1.0.19-20261019-r16"
+  ],
+  "python_baselines": {
+    "navigation/robot_local_navigation_v3/navigation_client.py": "6031205e20784af5f78af4c1534c64ea154d0ff566be34d2217673dad2574adf",
+    "navigation/robot_local_navigation_v3/lingxi_nav_bridge.py": "12214aba22cc55e479b9082f7a6015c084da85110dce4f9624d81cc86db376d4",
+    "navigation/robot_local_navigation_v3/tts_speaker.py": "dc8b01088d4f83492a0cb045f641ad54b498a6a277921cbf4ddf6729c1ec3d4d",
+    "navigation/robot_local_navigation_v3/near_goal_arrival.py": null,
+    "navigation/robot_local_navigation_v3/tts_receipt.py": null
+  },
+  "navigation_control_sha256": "f02aec690785e78c38d21246f0fa524584ca80d988ae6f15b7a599d9b51f7f81",
+  "payload_sha256": {
+    "java/robot-local-navigation-java-all.jar": "61055b65c24e086d2fe9f4459e3050d893dee4ed2c8a20abf54b8a0f6511fdf2",
+    "navigation/robot_local_navigation_v3/navigation_client.py": "383619a06944218f8ac120df37f62abf7167519cb74ff3b0e65f0408a9a8f7c6",
+    "navigation/robot_local_navigation_v3/lingxi_nav_bridge.py": "8f92daff611d6409df95ef42e046dd8f361b1fbc533ca34a047f785050520ee1",
+    "navigation/robot_local_navigation_v3/tts_speaker.py": "6f4716a895288aadf60811012c1bb31f30b46e7e340f002f7c9a5ae1407a58e4",
+    "navigation/robot_local_navigation_v3/near_goal_arrival.py": "0e2c84e07d725fca5fb1bbc4bb7962b43f7724db359100dc4c6d861f6ddc3f2f",
+    "navigation/robot_local_navigation_v3/tts_receipt.py": "b9ab08e36002555ace505812b001d04eef07eeffdacc0d5c6a28aa3660ae9872"
+  },
+  "changed_runtime_files": [
+    "java/robot-local-navigation-java-all.jar",
+    "navigation/robot_local_navigation_v3/navigation_client.py",
+    "navigation/robot_local_navigation_v3/lingxi_nav_bridge.py",
+    "navigation/robot_local_navigation_v3/tts_speaker.py",
+    "navigation/robot_local_navigation_v3/near_goal_arrival.py",
+    "navigation/robot_local_navigation_v3/tts_receipt.py"
+  ],
+  "java_tests": {
+    "VoiceGateTest": [
+      "VoiceGateTest passed: 1419 assertions"
+    ],
+    "WakeSessionGateTest": [
+      "WakeSessionGateTest passed: 28 assertions"
+    ],
+    "Soc2WakeEvidenceProviderTest": [
+      "Soc2WakeEvidenceProviderTest passed: 8 assertions"
+    ],
+    "AgentSdkInterruptWireTest": [
+      "AgentSdkInterruptWireTest passed: 29 assertions"
+    ],
+    "VoiceRegression": [
+      "VoiceAgentGateRegression passed: 393 assertions",
+      "VoiceRegression passed: 47 assertions plus real Agent gate regression"
+    ],
+    "ModelRecoveryTest": [
+      "ModelRecoveryTest passed: text input, transient retry, auth rejection, malformed intent, bridge outage, next-request recovery"
+    ],
+    "FunctionalControlTest": [
+      "FunctionalControlTest passed: 39 assertions"
+    ],
+    "AgentConnectionStateTest": [
+      "AgentConnectionStateTest passed: early callbacks, auth failure, offline, restart, atomic state"
+    ],
+    "ControlReplyRegressionTest": [
+      "ControlReplyRegressionTest passed: 566 assertions"
+    ],
+    "ControlOwnershipFaultTest": [
+      "ControlOwnershipFaultTest passed: 524 assertions"
+    ],
+    "LoggedModelTimeoutTest": [
+      "LoggedModelTimeoutTest passed: real 15s chat timeout, exact navigation without model wait, no repeat dispatch"
+    ],
+    "FieldVoiceReplayTest": [
+      "FieldVoiceReplayTest passed: 424 assertions"
+    ],
+    "ControlReplyTextWireTest": [
+      "ControlReplyTextWireTest passed: 1480 assertions"
+    ],
+    "ReferenceControlChannelTest": [
+      "ReferenceControlChannelTest passed: 204 assertions"
+    ],
+    "NavigationTourRoutingTest": [
+      "NavigationTourRoutingTest passed: 165 assertions"
+    ],
+    "TtsAcknowledgementTest": [
+      "TTS acknowledgement checks passed: 56"
+    ],
+    "SilentStartControlTest": [
+      "SilentStartControlTest passed: 3648 assertions"
+    ],
+    "TourStartTakeoverTest": [
+      "TourStartTakeoverTest passed: 1736 assertions"
+    ]
+  },
+  "python_tests": "183 passed in 6.84s",
+  "changed_jar_entries_since_1_0_6": [
+    "com/agibot/aiem/nav/LingxiNavAgentApp$AudioResult.class",
+    "com/agibot/aiem/nav/LingxiNavAgentApp$AudioSession.class",
+    "com/agibot/aiem/nav/LingxiNavAgentApp$InteractionResult.class",
+    "com/agibot/aiem/nav/LingxiNavAgentApp$RobotTtsResult.class",
+    "com/agibot/aiem/nav/LingxiNavAgentApp$TtsController.class",
+    "com/agibot/aiem/nav/LingxiNavAgentApp$TtsDecision.class",
+    "com/agibot/aiem/nav/LingxiNavAgentApp$TtsPriority.class",
+    "com/agibot/aiem/nav/LingxiNavAgentApp$WakeGate.class",
+    "com/agibot/aiem/nav/LingxiNavAgentApp.class"
+  ],
+  "cumulative_through": "silent-control-fix-1.0.8-20261019",
+  "baseline_full_sha256": "1f17375157f06334ac95ec5836020136005dc178aba4be9de573080b30857069",
+  "source_runtime_class_count": 47,
+  "hardware_validation": false,
+  "independent_native_speech_interception_verified": false,
+  "python_accepted_sha256": {
+    "navigation/robot_local_navigation_v3/navigation_client.py": [
+      "6031205e20784af5f78af4c1534c64ea154d0ff566be34d2217673dad2574adf",
+      "383619a06944218f8ac120df37f62abf7167519cb74ff3b0e65f0408a9a8f7c6"
+    ],
+    "navigation/robot_local_navigation_v3/lingxi_nav_bridge.py": [
+      "12214aba22cc55e479b9082f7a6015c084da85110dce4f9624d81cc86db376d4",
+      "7161f6cdaf7973bee4c274b3f8e26dfec164fb9fe3063dc575d43f1e41399f37",
+      "8f92daff611d6409df95ef42e046dd8f361b1fbc533ca34a047f785050520ee1"
+    ],
+    "navigation/robot_local_navigation_v3/tts_speaker.py": [
+      "dc8b01088d4f83492a0cb045f641ad54b498a6a277921cbf4ddf6729c1ec3d4d",
+      "6f4716a895288aadf60811012c1bb31f30b46e7e340f002f7c9a5ae1407a58e4"
+    ],
+    "navigation/robot_local_navigation_v3/near_goal_arrival.py": [
+      null,
+      "0e2c84e07d725fca5fb1bbc4bb7962b43f7724db359100dc4c6d861f6ddc3f2f"
+    ],
+    "navigation/robot_local_navigation_v3/tts_receipt.py": [
+      null,
+      "b9ab08e36002555ace505812b001d04eef07eeffdacc0d5c6a28aa3660ae9872"
+    ]
+  },
+  "changed_jar_entries_since_1_0_7": [
+    "com/agibot/aiem/nav/LingxiNavAgentApp$4.class",
+    "com/agibot/aiem/nav/LingxiNavAgentApp$5.class",
+    "com/agibot/aiem/nav/LingxiNavAgentApp$6.class",
+    "com/agibot/aiem/nav/LingxiNavAgentApp$7.class",
+    "com/agibot/aiem/nav/LingxiNavAgentApp$8.class",
+    "com/agibot/aiem/nav/LingxiNavAgentApp$9.class",
+    "com/agibot/aiem/nav/LingxiNavAgentApp$AudioResult.class",
+    "com/agibot/aiem/nav/LingxiNavAgentApp$AudioSession.class",
+    "com/agibot/aiem/nav/LingxiNavAgentApp$InteractionResult.class",
+    "com/agibot/aiem/nav/LingxiNavAgentApp$RobotTtsResult.class",
+    "com/agibot/aiem/nav/LingxiNavAgentApp$TtsController.class",
+    "com/agibot/aiem/nav/LingxiNavAgentApp$TtsDecision.class",
+    "com/agibot/aiem/nav/LingxiNavAgentApp$TtsPriority.class",
+    "com/agibot/aiem/nav/LingxiNavAgentApp$WakeGate.class",
+    "com/agibot/aiem/nav/LingxiNavAgentApp.class",
+    "com/agibot/aiem/nav/NavBridgeClient.class",
+    "com/agibot/aiem/nav/NavigationCommandFallback.class"
+  ],
+  "silent_start_control": true,
+  "previous_silent_comparison": "Exception in thread \"main\" java.lang.AssertionError: Silent start failures 1632/3648",
+  "changed_jar_entries_since_1_0_8": [
+    "com/agibot/aiem/nav/LingxiNavAgentApp$4.class",
+    "com/agibot/aiem/nav/LingxiNavAgentApp$5.class",
+    "com/agibot/aiem/nav/LingxiNavAgentApp$6.class",
+    "com/agibot/aiem/nav/LingxiNavAgentApp$7.class",
+    "com/agibot/aiem/nav/LingxiNavAgentApp$8.class",
+    "com/agibot/aiem/nav/LingxiNavAgentApp$9.class",
+    "com/agibot/aiem/nav/LingxiNavAgentApp$AudioResult.class",
+    "com/agibot/aiem/nav/LingxiNavAgentApp$AudioSession.class",
+    "com/agibot/aiem/nav/LingxiNavAgentApp$InteractionResult.class",
+    "com/agibot/aiem/nav/LingxiNavAgentApp$RobotTtsResult.class",
+    "com/agibot/aiem/nav/LingxiNavAgentApp$TourReceipt.class",
+    "com/agibot/aiem/nav/LingxiNavAgentApp$TourStartResponse.class",
+    "com/agibot/aiem/nav/LingxiNavAgentApp$TtsController.class",
+    "com/agibot/aiem/nav/LingxiNavAgentApp$TtsDecision.class",
+    "com/agibot/aiem/nav/LingxiNavAgentApp$TtsPriority.class",
+    "com/agibot/aiem/nav/LingxiNavAgentApp$WakeGate.class",
+    "com/agibot/aiem/nav/LingxiNavAgentApp.class"
+  ],
+  "tour_neutral_receipt": "收到",
+  "tour_response_completes_before_dispatch": true,
+  "previous_tour_comparison": "Exception in thread \"main\" java.lang.AssertionError: Tour takeover failures 860/1736"
+}
