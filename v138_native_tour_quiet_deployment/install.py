@@ -157,10 +157,13 @@ class Installer(runtime.Installer):
 
     def voice_state(self):
         script = self.release / VOICE_SCRIPT
-        manifest = json.loads(regular(self.release / MANIFEST))
-        expected = next((item for item in manifest["files"] if item["path"] == VOICE_SCRIPT), None)
-        if expected is None or digest(regular(script)) != expected["sha256"]:
-            raise RuntimeError("语音 bridge 控制脚本清单不一致")
+        if not script.is_file():
+            raise RuntimeError("语音 bridge 控制脚本不存在：" + str(script))
+        expected = self.meta.get("voice_bridge_control_sha256")
+        if not isinstance(expected, str) or not re.fullmatch(r"[0-9a-f]{64}", expected):
+            raise RuntimeError("缺少语音 bridge 控制脚本 SHA-256")
+        if digest(regular(script)) != expected:
+            raise RuntimeError("语音 bridge 控制脚本 SHA-256 不匹配")
         result = subprocess.run(["bash", str(script), "status"], capture_output=True,
                                 text=True, timeout=30)
         states = re.findall(r"^robot_voice_bridge=(running|stopped)(?: pid=\d+)?$", result.stdout, re.M)

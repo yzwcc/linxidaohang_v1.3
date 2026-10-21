@@ -16,6 +16,9 @@ verify_sums, tar_data, json_data = prior.verify_sums, prior.tar_data, prior.json
 NAME = "sparkrobot-lingxi-v1.3.8-native-tour-quiet-1.0.10-20261019"
 DOCS = ("部署说明.md", "修复与验证说明.md")
 JAVA_TESTS = prior.JAVA_TESTS
+VOICE_BRIDGE_CONTROL_SHA256 = (
+    "94786521c4227900cd5b8f1c6a9e77c684c16f52e09c20b61e5758712edd1d9c"
+)
 
 
 def main():
@@ -36,6 +39,7 @@ def main():
         "cumulative_through": "silent-control-fix-1.0.8-20261019",
         "runtime_identical_to_1_0_8": True,
         "legacy_native_tour_mapping_repair": True,
+        "voice_bridge_control_sha256": VOICE_BRIDGE_CONTROL_SHA256,
         "native_mapping_requires_field_acceptance": True,
         "hardware_validation": False,
         "independent_native_speech_interception_verified": False,
