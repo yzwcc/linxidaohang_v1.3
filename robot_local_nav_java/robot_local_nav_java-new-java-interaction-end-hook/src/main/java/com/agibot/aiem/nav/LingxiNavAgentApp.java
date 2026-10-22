@@ -42,8 +42,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -54,7 +56,7 @@ import org.slf4j.LoggerFactory;
 
 public final class LingxiNavAgentApp {
     private static final Logger log = LoggerFactory.getLogger(LingxiNavAgentApp.class);
-    private static final RetrieverClient RETRIEVER_CLIENT = new RetrieverClient();
+    private static volatile RetrieverClient RETRIEVER_CLIENT = new RetrieverClient();
     private static volatile VoiceGate VOICE_GATE;
     private static volatile WakeSessionGate WAKE_SESSION_GATE;
     private static volatile Soc2WakeEvidenceProvider SOC2_WAKE_EVIDENCE;
@@ -69,6 +71,15 @@ public final class LingxiNavAgentApp {
     private static final AtomicInteger AUDIO_TASKS_IN_FLIGHT = new AtomicInteger();
     private static final ThreadPoolExecutor AUDIO_WORKERS = new ThreadPoolExecutor(3, 3, 0L, TimeUnit.MILLISECONDS, new ArrayBlockingQueue<Runnable>(3), runnable -> {
         Thread thread = new Thread(runnable, "lingxi-audio-worker");
+        thread.setDaemon(true);
+        return thread;
+    }, new ThreadPoolExecutor.AbortPolicy());
+    private static final int KNOWLEDGE_WORKER_THREADS = 2;
+    private static final int KNOWLEDGE_WORKER_QUEUE_CAPACITY = 4;
+    private static final ThreadPoolExecutor KNOWLEDGE_WORKERS = new ThreadPoolExecutor(
+            KNOWLEDGE_WORKER_THREADS, KNOWLEDGE_WORKER_THREADS, 0L, TimeUnit.MILLISECONDS,
+            new ArrayBlockingQueue<Runnable>(KNOWLEDGE_WORKER_QUEUE_CAPACITY), runnable -> {
+        Thread thread = new Thread(runnable, "lingxi-knowledge-worker");
         thread.setDaemon(true);
         return thread;
     }, new ThreadPoolExecutor.AbortPolicy());
@@ -281,7 +292,7 @@ public final class LingxiNavAgentApp {
                     AtomicBoolean atomicBoolean = new AtomicBoolean(false);
                     try {
                         if (LingxiNavAgentApp.shouldIgnoreTextCallback(
-                                "Asr2Llm", string, string2, string3, agentParam, navBridgeClient)) {
+                                "Asr2Llm", string, string2, string3, agentParam, appConfig, navBridgeClient)) {
                             LingxiNavAgentApp.finishIgnoredAsr2Llm(string2, asr2LlmResponse);
                             return;
                         }
@@ -338,7 +349,7 @@ public final class LingxiNavAgentApp {
                     AtomicBoolean atomicBoolean = new AtomicBoolean(false);
                     try {
                         if (LingxiNavAgentApp.shouldIgnoreTextCallback(
-                                "Asr2Tts", string, string2, string3, agentParam, navBridgeClient)) {
+                                "Asr2Tts", string, string2, string3, agentParam, appConfig, navBridgeClient)) {
                             LingxiNavAgentApp.finishIgnoredAsr2Tts(string2, asr2TtsResponse);
                             return;
                         }
@@ -542,6 +553,8 @@ public final class LingxiNavAgentApp {
             }
             if (!(ignoreReason = LingxiNavAgentApp.completedAudioIgnoreReason(audioSession)).isBlank()) {
                 log.info("Audio2Llm completed event ignored: eventId={}, reason={}", eventId, ignoreReason);
+                LingxiNavAgentApp.speakLowConfidencePrompt(
+                        appConfig, eventId, ignoreReason, navBridgeClient);
                 LingxiNavAgentApp.finishIgnoredAudio2Llm(eventId, response);
                 return;
             }
@@ -598,6 +611,8 @@ public final class LingxiNavAgentApp {
             }
             if (!(ignoreReason = LingxiNavAgentApp.completedAudioIgnoreReason(audioSession)).isBlank()) {
                 log.info("Audio2Tts completed event ignored: eventId={}, reason={}", eventId, ignoreReason);
+                LingxiNavAgentApp.speakLowConfidencePrompt(
+                        appConfig, eventId, ignoreReason, navBridgeClient);
                 LingxiNavAgentApp.finishIgnoredAudio2Tts(eventId, audioSession.itemId, response);
                 return;
             }
@@ -697,8 +712,23 @@ public final class LingxiNavAgentApp {
         NavigationIntent navigationIntent = doubaoArkClient.parseInteractionAudio(byArray, list);
         String rawQuestion = navigationIntent.question;
         navigationIntent = LingxiNavAgentApp.verifyVoicePresetMotion(rawQuestion, navigationIntent);
-        NavigationIntent localNavigation = LocalNavigationCommand.resolve(rawQuestion, list);
-        if (localNavigation != null && !navigationIntent.isPresetMotion()) {
+        NavigationIntent stopCommand = LocalNavigationCommand.resolveStopCommand(rawQuestion);
+        if (stopCommand != null) {
+            navigationIntent = stopCommand;
+            log.info("Local stop command matched after audio transcription: eventId={}, intent={}",
+                    string, stopCommand.intent);
+        }
+        LocalNavigationCommand.Resolution localResolution = LocalNavigationCommand.resolveDetailed(
+                rawQuestion, list, navBridgeClient.listAmbiguousPointNames());
+        boolean ambiguousNavigation = localResolution.ambiguous();
+        if (ambiguousNavigation) {
+            navigationIntent = NavigationIntent.chatQuestion(
+                    rawQuestion, LocalNavigationCommand.ambiguousPointReply());
+            log.info("Ambiguous navigation alias clarified after audio transcription: eventId={}, alias={}",
+                    string, localResolution.ambiguousName());
+        } else if (localResolution.matched() && stopCommand == null && !navigationIntent.isPresetMotion()) {
+            NavigationIntent localNavigation = NavigationIntent.navigate(
+                    localResolution.targetName(), rawQuestion);
             log.info("Local navigation alias matched after audio transcription: eventId={}, target={}",
                     string, localNavigation.targetName);
             navigationIntent = localNavigation;
@@ -714,7 +744,10 @@ public final class LingxiNavAgentApp {
             LingxiNavAgentApp.markUserInteraction(string, "audio_asr_final", navigationIntent, navBridgeClient, atomicBoolean);
         }
         InteractionResult interactionResult;
-        if ("chat".equals(navigationIntent.intent) && !navigationIntent.reply.isBlank()) {
+        if (ambiguousNavigation) {
+            interactionResult = new InteractionResult(
+                    LocalNavigationCommand.ambiguousPointReply(), TtsPriority.NORMAL);
+        } else if ("chat".equals(navigationIntent.intent) && !navigationIntent.reply.isBlank()) {
             String directReply = navigationIntent.reply;
             if (LingxiNavAgentApp.mentionsForbiddenIdentity(directReply)) {
                 directReply = doubaoArkClient.identityReply();
@@ -748,6 +781,15 @@ public final class LingxiNavAgentApp {
     }
 
     private static InteractionResult processTextRequest(String string, String string2, AppConfig appConfig, NavBridgeClient navBridgeClient, DoubaoArkClient doubaoArkClient, QaStore qaStore, AtomicBoolean atomicBoolean) throws Exception {
+        NavigationIntent stopCommand = LocalNavigationCommand.resolveStopCommand(string2);
+        if (stopCommand != null) {
+            log.info("Local stop command matched before intent model: eventId={}, intent={}",
+                    string, stopCommand.intent);
+            LingxiNavAgentApp.markUserInteraction(
+                    string, "text_asr_final", stopCommand, navBridgeClient, atomicBoolean);
+            return LingxiNavAgentApp.handleIntent(
+                    string, string2, stopCommand, navBridgeClient, doubaoArkClient, qaStore, true);
+        }
         PresetMotionCatalog.Selection voiceMotion = PresetMotionCatalog.resolveVoiceCommand(string2);
         if (voiceMotion == null) {
             String quickReply = KnowledgeAnswerPolicy.quickReply(string2, appConfig.robotDisplayName);
@@ -769,6 +811,8 @@ public final class LingxiNavAgentApp {
             }
         }
         NavigationIntent navigationIntent;
+        CompletableFuture<String> pendingKnowledgeLookup = null;
+        boolean knowledgeLookupRequested = false;
         if (voiceMotion != null) {
             navigationIntent = NavigationIntent.presetMotion(
                     voiceMotion.motion().name(), voiceMotion.area(), string2);
@@ -776,12 +820,29 @@ public final class LingxiNavAgentApp {
             navigationIntent = LingxiNavAgentApp.taskControlIntentFromText(string2);
             if (navigationIntent == null) {
                 List<String> list = navBridgeClient.listPointNames();
-                NavigationIntent localNavigation = LocalNavigationCommand.resolve(string2, list);
-                if (localNavigation != null) {
-                    navigationIntent = localNavigation;
+                LocalNavigationCommand.Resolution localResolution =
+                        LocalNavigationCommand.resolveDetailed(
+                                string2, list, navBridgeClient.listAmbiguousPointNames());
+                if (localResolution.ambiguous()) {
+                    NavigationIntent clarification = NavigationIntent.chatQuestion(
+                            string2, LocalNavigationCommand.ambiguousPointReply());
+                    log.info("Ambiguous navigation alias clarified before intent model: eventId={}, alias={}",
+                            string, localResolution.ambiguousName());
+                    LingxiNavAgentApp.markUserInteraction(
+                            string, "text_asr_final", clarification, navBridgeClient, atomicBoolean);
+                    return new InteractionResult(
+                            LocalNavigationCommand.ambiguousPointReply(), TtsPriority.NORMAL);
+                } else if (localResolution.matched()) {
+                    navigationIntent = NavigationIntent.navigate(
+                            localResolution.targetName(), string2);
                     log.info("Local navigation command matched: eventId={}, target={}",
-                            string, localNavigation.targetName);
+                            string, navigationIntent.targetName);
                 } else {
+                    knowledgeLookupRequested = KnowledgeAnswerPolicy.shouldLookup(string2);
+                    if (knowledgeLookupRequested) {
+                        pendingKnowledgeLookup =
+                                LingxiNavAgentApp.startKnowledgeLookup(string, string2);
+                    }
                     navigationIntent = doubaoArkClient.parseInteraction(string2, list);
                 }
             } else {
@@ -796,7 +857,9 @@ public final class LingxiNavAgentApp {
         if (!motionOnlyRequest) {
             LingxiNavAgentApp.markUserInteraction(string, "text_asr_final", navigationIntent, navBridgeClient, atomicBoolean);
         }
-        InteractionResult interactionResult = LingxiNavAgentApp.handleIntent(string, string2, navigationIntent, navBridgeClient, doubaoArkClient, qaStore, true);
+        InteractionResult interactionResult = LingxiNavAgentApp.handleIntent(
+                string, string2, navigationIntent, navBridgeClient, doubaoArkClient, qaStore, true,
+                pendingKnowledgeLookup, knowledgeLookupRequested);
         if (interactionResult.markInteractionAfter) {
             LingxiNavAgentApp.markUserInteraction(string, "text_asr_final", navigationIntent, navBridgeClient, atomicBoolean);
         }
@@ -1037,6 +1100,16 @@ public final class LingxiNavAgentApp {
     }
 
     private static InteractionResult handleIntent(String string, String string2, NavigationIntent navigationIntent, NavBridgeClient navBridgeClient, DoubaoArkClient doubaoArkClient, QaStore qaStore, boolean bl) throws Exception {
+        return LingxiNavAgentApp.handleIntent(
+                string, string2, navigationIntent, navBridgeClient, doubaoArkClient, qaStore, bl,
+                null, false);
+    }
+
+    private static InteractionResult handleIntent(
+            String string, String string2, NavigationIntent navigationIntent,
+            NavBridgeClient navBridgeClient, DoubaoArkClient doubaoArkClient, QaStore qaStore,
+            boolean bl, CompletableFuture<String> pendingKnowledgeLookup,
+            boolean knowledgeLookupRequested) throws Exception {
         Object object;
         NavigationIntent navigationIntent2 = LingxiNavAgentApp.localEntertainmentIntentFromRequest(string2, navigationIntent);
         if (navigationIntent2 != null && (navigationIntent.isSing() || navigationIntent.isDance() || "chat".equals(navigationIntent.intent))) {
@@ -1158,7 +1231,10 @@ public final class LingxiNavAgentApp {
             return new InteractionResult(doubaoArkClient.identityReply(), TtsPriority.NORMAL);
         }
         String knowledgeAnswer = KnowledgeAnswerPolicy.shouldLookup(string9)
-                ? LingxiNavAgentApp.knowledgeAnswer(string, string9)
+                ? (knowledgeLookupRequested
+                        ? LingxiNavAgentApp.finishKnowledgeLookup(
+                                string, string9, pendingKnowledgeLookup)
+                        : LingxiNavAgentApp.knowledgeAnswer(string, string9))
                 : null;
         if (knowledgeAnswer != null) {
             log.info("Knowledge base answer selected: eventId={}, question={}", string, LingxiNavAgentApp.abbreviate(string9));
@@ -1198,6 +1274,37 @@ public final class LingxiNavAgentApp {
             log.warn("Knowledge base lookup failed: eventId={}, elapsedMs={}, question={}, error={}",
                     eventId, TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedAtNanos),
                     LingxiNavAgentApp.abbreviate(question), exception.getMessage());
+            return null;
+        }
+    }
+
+    private static CompletableFuture<String> startKnowledgeLookup(String eventId, String question) {
+        try {
+            return CompletableFuture.supplyAsync(
+                    () -> LingxiNavAgentApp.knowledgeAnswer(eventId, question),
+                    KNOWLEDGE_WORKERS);
+        } catch (RejectedExecutionException exception) {
+            log.warn("Knowledge worker queue full; retrieval will run serially after intent parsing: eventId={}",
+                    eventId);
+            return null;
+        }
+    }
+
+    private static String finishKnowledgeLookup(
+            String eventId, String question, CompletableFuture<String> pendingLookup) {
+        if (pendingLookup == null) {
+            return LingxiNavAgentApp.knowledgeAnswer(eventId, question);
+        }
+        try {
+            return pendingLookup.get();
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            log.warn("Knowledge lookup wait interrupted: eventId={}", eventId);
+            return null;
+        } catch (ExecutionException exception) {
+            log.warn("Knowledge lookup task failed: eventId={}, error={}",
+                    eventId, exception.getCause() == null
+                            ? exception.getMessage() : exception.getCause().getMessage());
             return null;
         }
     }
@@ -1325,6 +1432,13 @@ public final class LingxiNavAgentApp {
     private static boolean shouldIgnoreTextCallback(String source, String agentId, String eventId,
                                                     String text, AgentParam agentParam,
                                                     NavBridgeClient navBridgeClient) {
+        return shouldIgnoreTextCallback(
+                source, agentId, eventId, text, agentParam, null, navBridgeClient);
+    }
+
+    private static boolean shouldIgnoreTextCallback(
+            String source, String agentId, String eventId, String text, AgentParam agentParam,
+            AppConfig appConfig, NavBridgeClient navBridgeClient) {
         logVoiceMetadata(source, eventId, agentParam);
         if (LingxiNavAgentApp.looksLikeUrgentStop(text)) {
             LingxiNavAgentApp.resetVoiceGates();
@@ -1347,6 +1461,8 @@ public final class LingxiNavAgentApp {
             if (!voiceDecision.accepted()) {
                 log.info("Text ignored by quality gate: eventId={}, reason={}",
                         eventId, voiceDecision.reason());
+                LingxiNavAgentApp.speakLowConfidencePrompt(
+                        appConfig, eventId, voiceDecision.reason(), navBridgeClient);
                 return true;
             }
         }
@@ -1446,11 +1562,21 @@ public final class LingxiNavAgentApp {
     }
 
     private static boolean looksLikeUrgentStop(String string) {
-        String string2 = LingxiNavAgentApp.normalizeText(string);
-        if ("停".equals(string2)) {
-            return true;
+        return LocalNavigationCommand.resolveStopCommand(string) != null;
+    }
+
+    private static void speakLowConfidencePrompt(
+            AppConfig appConfig, String eventId, String reason, NavBridgeClient navBridgeClient) {
+        if (!"low_asr_confidence".equals(reason)
+                || appConfig == null
+                || navBridgeClient == null
+                || !"robot".equals(appConfig.ttsMode)) {
+            return;
         }
-        return Arrays.asList("\u505c\u4e0b", "\u505c\u6b62", "\u53d6\u6d88\u5bfc\u822a", "\u522b\u8d70", "\u4e0d\u8981\u8d70", "\u6025\u505c", "\u505c\u4e00\u505c", "\u7ed3\u675f\u4efb\u52a1", "\u505c\u6b62\u4efb\u52a1", "\u7ec8\u6b62\u4efb\u52a1", "\u7ed3\u675f\u8bb2\u89e3", "\u5f00\u59cb\u4efb\u52a1", "\u5f00\u59cb\u8bb2\u89e3", "暂停讲解", "暂停任务", "继续讲解", "继续任务", "恢复讲解").stream().anyMatch(string2::contains);
+        RobotTtsResult result = LingxiNavAgentApp.speakIfNeeded(
+                appConfig, eventId, "刚才没有听清，请再说一遍。", TtsPriority.NORMAL, navBridgeClient);
+        log.info("Low-confidence ASR clarification dispatched: eventId={}, requested={}, accepted={}, reason={}",
+                eventId, result.requested, result.accepted, result.reason);
     }
 
     private static void finishIgnoredAudio2Llm(String string, Audio2LlmResponse audio2LlmResponse) {

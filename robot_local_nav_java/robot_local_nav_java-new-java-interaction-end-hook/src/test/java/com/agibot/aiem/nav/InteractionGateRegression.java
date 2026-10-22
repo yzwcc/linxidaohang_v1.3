@@ -93,6 +93,12 @@ final class InteractionGateRegression {
                     "transcript-only wake phrase is not KWS evidence");
             check(shouldIgnore(callback, "filler", "嗯，嗯。", good),
                     "filler rejected before bridge entry");
+            check(shouldIgnore(callback, "low-confidence-start", "开始讲解",
+                    VoiceGateTest.acceptedParams().setDouble("asr_confidence", 0.10)),
+                    "low-confidence task start remains rejected");
+            check(shouldIgnore(callback, "low-confidence-resume", "继续讲解",
+                    VoiceGateTest.acceptedParams().setDouble("asr_confidence", 0.10)),
+                    "low-confidence task resume remains rejected");
 
             check(!shouldIgnore(callback, "kws", "今天星期几", VoiceGateTest.acceptedParams()),
                     "valid KWS and quality reach the existing interaction path");
@@ -108,6 +114,10 @@ final class InteractionGateRegression {
                     AgentParam.create().setBoolean("kws_detected", false)
                             .setDouble("snr_db", Double.NaN)),
                     "single-word urgent stop bypasses invalid quality and wake metadata");
+            check(!shouldIgnore(callback, "polite-urgent-stop", "麻烦你停一下",
+                    AgentParam.create().setBoolean("kws_detected", false)
+                            .setDouble("asr_confidence", 0.0)),
+                    "polite explicit stop bypasses quality and wake rejection");
 
             Method audio = LingxiNavAgentApp.class.getDeclaredMethod(
                     "newAudioSession", String.class, String.class, String.class,

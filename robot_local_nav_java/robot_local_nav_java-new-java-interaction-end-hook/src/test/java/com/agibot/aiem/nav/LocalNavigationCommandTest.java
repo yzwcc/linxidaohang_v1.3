@@ -38,6 +38,8 @@ final class LocalNavigationCommandTest {
         properties.setProperty("doubao.model", "test-model");
         properties.setProperty("doubao.url", modelUrl);
         properties.setProperty("nav.baseUrl", navUrl);
+        properties.setProperty("tts.mode", "robot");
+        properties.setProperty("tts.delayBeforeSpeakMs", "0");
         Constructor<AppConfig> constructor = AppConfig.class.getDeclaredConstructor(Properties.class);
         constructor.setAccessible(true);
         return constructor.newInstance(properties);
@@ -70,6 +72,21 @@ final class LocalNavigationCommandTest {
                 "unknown destinations fall back to the existing intent path");
         check(LocalNavigationCommand.resolve("去大门", List.of()) == null,
                 "empty active-map point list disables the local route");
+
+        LocalNavigationCommand.Resolution ambiguous = LocalNavigationCommand.resolveDetailed(
+                "导航到前台", List.of("前台A", "前台B"), List.of("前台"));
+        check(ambiguous.ambiguous() && !ambiguous.matched(),
+                "an ambiguous voice alias requests clarification rather than selecting a point");
+        check(LocalNavigationCommand.resolveStopCommand("麻烦你停一下").isStop(),
+                "polite explicit navigation stop is recognized locally");
+        check(LocalNavigationCommand.resolveStopCommand("结束讲解任务").isEndTask(),
+                "explicit task-stop command is recognized locally");
+        check(LocalNavigationCommand.resolveStopCommand("开始讲解") == null,
+                "task start is not classified as an urgent stop");
+        check(LocalNavigationCommand.resolveStopCommand("继续讲解") == null,
+                "task resume is not classified as an urgent stop");
+        check(LocalNavigationCommand.resolveStopCommand("不要停") == null,
+                "negated stop wording is not executed");
     }
 
     private static void testTextFastPath() throws Exception {
@@ -159,9 +176,127 @@ final class LocalNavigationCommandTest {
         }
     }
 
+    private static void testAmbiguousAliasAndStopCommandsStayLocal() throws Exception {
+        AtomicInteger modelRequests = new AtomicInteger();
+        AtomicInteger navigationRequests = new AtomicInteger();
+        AtomicInteger stopRequests = new AtomicInteger();
+        HttpServer modelServer = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        modelServer.createContext("/chat/completions", exchange -> {
+            modelRequests.incrementAndGet();
+            String content = "{\"intent\":\"navigate\",\"target_name\":\"前台北\","
+                    + "\"question\":\"导航到前台\",\"reply\":\"模型回复\"}";
+            byte[] body = ("{\"choices\":[{\"message\":{\"content\":"
+                    + com.alibaba.fastjson2.JSON.toJSONString(content) + "}}]}")
+                    .getBytes(StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(200, body.length);
+            exchange.getResponseBody().write(body);
+            exchange.close();
+        });
+        modelServer.start();
+
+        HttpServer navServer = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        navServer.createContext("/", exchange -> {
+            String path = exchange.getRequestURI().getPath();
+            String response;
+            if ("/points".equals(path)) {
+                response = "{\"ok\":true,\"active_map_name\":\"floor-a\","
+                        + "\"point_names\":[\"前台北\",\"前台南\"],"
+                        + "\"ambiguous_point_names\":[\"前台\"]}";
+            } else if ("/interaction/mark".equals(path)) {
+                response = "{\"ok\":true,\"state\":\"active\"}";
+            } else if ("/nav/start".equals(path)) {
+                navigationRequests.incrementAndGet();
+                response = "{\"ok\":true,\"accepted\":true,\"status\":\"accepted\"}";
+            } else if ("/nav/stop".equals(path)) {
+                stopRequests.incrementAndGet();
+                response = "{\"ok\":true,\"cancelled\":true}";
+            } else {
+                response = "{\"ok\":true}";
+            }
+            byte[] body = response.getBytes(StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(200, body.length);
+            exchange.getResponseBody().write(body);
+            exchange.close();
+        });
+        navServer.start();
+
+        try {
+            AppConfig config = config(
+                    "http://127.0.0.1:" + modelServer.getAddress().getPort() + "/chat/completions",
+                    "http://127.0.0.1:" + navServer.getAddress().getPort());
+            Method processText = LingxiNavAgentApp.class.getDeclaredMethod(
+                    "processTextRequest",
+                    String.class, String.class, AppConfig.class, NavBridgeClient.class,
+                    DoubaoArkClient.class, QaStore.class, AtomicBoolean.class);
+            processText.setAccessible(true);
+            NavBridgeClient navBridge = new NavBridgeClient(config);
+            Object clarification = processText.invoke(
+                    null, "ambiguous-alias-test", "导航到前台", config, navBridge,
+                    new DoubaoArkClient(config), null, new AtomicBoolean());
+            Field reply = clarification.getClass().getDeclaredField("reply");
+            reply.setAccessible(true);
+            check(LocalNavigationCommand.ambiguousPointReply().equals(reply.get(clarification)),
+                    "ambiguous point alias returns a clarification prompt");
+            check(modelRequests.get() == 0,
+                    "ambiguous point alias does not call the intent model");
+            check(navigationRequests.get() == 0,
+                    "ambiguous point alias never submits navigation");
+
+            processText.invoke(
+                    null, "local-stop-test", "麻烦你停一下", config, navBridge,
+                    new DoubaoArkClient(config), null, new AtomicBoolean());
+            check(modelRequests.get() == 0, "explicit stop does not call the intent model");
+            check(stopRequests.get() == 1, "explicit stop reaches the local navigation stop API");
+            check(navigationRequests.get() == 0,
+                    "explicit stop does not submit a navigation destination");
+        } finally {
+            navServer.stop(0);
+            modelServer.stop(0);
+        }
+    }
+
+    private static void testLowConfidenceRobotPrompt() throws Exception {
+        AtomicInteger speechRequests = new AtomicInteger();
+        AtomicReference<String> speechText = new AtomicReference<>("");
+        HttpServer navServer = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        navServer.createContext("/tts/speak", exchange -> {
+            speechRequests.incrementAndGet();
+            JSONObject request = JSONObject.parseObject(
+                    new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
+            speechText.set(request.getString("text"));
+            byte[] body = "{\"ok\":true,\"accepted\":true}".getBytes(StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(200, body.length);
+            exchange.getResponseBody().write(body);
+            exchange.close();
+        });
+        navServer.start();
+        try {
+            AppConfig config = config("http://127.0.0.1:1/chat/completions",
+                    "http://127.0.0.1:" + navServer.getAddress().getPort());
+            Method prompt = LingxiNavAgentApp.class.getDeclaredMethod(
+                    "speakLowConfidencePrompt",
+                    AppConfig.class, String.class, String.class, NavBridgeClient.class);
+            prompt.setAccessible(true);
+            prompt.invoke(null, config, "low-confidence-test", "low_asr_confidence",
+                    new NavBridgeClient(config));
+            check(speechRequests.get() == 1,
+                    "low ASR confidence dispatches a robot-side repeat prompt");
+            check("刚才没有听清，请再说一遍。".equals(speechText.get()),
+                    "repeat prompt asks the user to say the command again");
+
+            prompt.invoke(null, config, "low-snr-test", "low_snr", new NavBridgeClient(config));
+            check(speechRequests.get() == 1,
+                    "non-ASR quality rejections do not trigger an extra speech prompt");
+        } finally {
+            navServer.stop(0);
+        }
+    }
+
     public static void main(String[] args) throws Exception {
         testExactCommandsAndGuards();
         testTextFastPath();
+        testAmbiguousAliasAndStopCommandsStayLocal();
+        testLowConfidenceRobotPrompt();
         System.out.println("LocalNavigationCommandTest passed: " + checks + " assertions");
     }
 }

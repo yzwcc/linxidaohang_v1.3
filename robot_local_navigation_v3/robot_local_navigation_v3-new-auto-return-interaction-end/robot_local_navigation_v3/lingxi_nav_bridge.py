@@ -167,6 +167,9 @@ class LingxiNavBridge(Node):
             "ok": True,
             "active_map_name": self.active_map_name,
             "point_names": self.point_catalog.list_voice_names(map_name=self.active_map_name),
+            "ambiguous_point_names": self.point_catalog.list_ambiguous_voice_names(
+                map_name=self.active_map_name
+            ),
         }
 
     def list_linkcraft_resources(self) -> dict[str, Any]:

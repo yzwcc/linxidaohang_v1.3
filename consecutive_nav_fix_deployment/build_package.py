@@ -27,7 +27,7 @@ NAV_ROOT = (
 )
 SOURCE_ROOT = NAV_ROOT / "robot_local_navigation_v3"
 TEST_ROOT = NAV_ROOT / "test"
-VERSION = "1.0.2-20261022"
+VERSION = "1.0.3-20261023"
 NAME = f"sparkrobot-lingxi-consecutive-nav-fix-{VERSION}"
 DIST = HERE / "dist"
 PAYLOAD_FILES = (
@@ -37,6 +37,7 @@ PAYLOAD_FILES = (
     "navigation_client.py",
     "pnc_response.py",
     "voice_preset_motion.py",
+    "point_catalog.py",
 )
 SOURCE_FILES = (
     "install.sh",
@@ -95,6 +96,14 @@ def validate_sources() -> None:
             "has_negation_or_quoted_speech",
             "def submit_voice_preset_motion",
         ),
+        "lingxi_nav_bridge.py": (
+            '"ambiguous_point_names"',
+            "list_ambiguous_voice_names",
+        ),
+        "point_catalog.py": (
+            "def list_ambiguous_voice_names",
+            "def _normalize_voice_name",
+        ),
     }
     content = {
         "lingxi_nav_bridge.py": bridge,
@@ -102,6 +111,9 @@ def validate_sources() -> None:
         "navigation_client.py": client,
         "voice_preset_motion.py": (
             SOURCE_ROOT / "voice_preset_motion.py"
+        ).read_text(encoding="utf-8"),
+        "point_catalog.py": (
+            SOURCE_ROOT / "point_catalog.py"
         ).read_text(encoding="utf-8"),
     }
     for name, markers in required_markers.items():
@@ -200,9 +212,9 @@ def stage_files(stage: Path) -> None:
     release_info = (
         f"version={VERSION}\n"
         "package=sparkrobot-lingxi-consecutive-nav-fix\n"
-        "compatibility=lingxi-v1.3.1-complete-20261022 and later compatible navigation layouts\n"
+        "compatibility=lingxi-v1.3.1-complete-20261023-r12 and later compatible navigation layouts\n"
         f"built_at={datetime.now(timezone.utc).isoformat()}\n"
-        "scope=continuous-navigation-motion-release-bounded-pnc-discovery-runtime-permissions-and-voice-preset-motions\n"
+        "scope=continuous-navigation-motion-release-bounded-pnc-discovery-runtime-permissions-voice-preset-motions-and-ambiguous-point-clarification\n"
     )
     write_file(stage / "release-info.txt", release_info.encode("utf-8"))
 

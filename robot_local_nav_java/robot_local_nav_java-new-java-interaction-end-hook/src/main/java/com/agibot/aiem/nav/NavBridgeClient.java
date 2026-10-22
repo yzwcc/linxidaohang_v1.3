@@ -30,6 +30,7 @@ final class NavBridgeClient {
     private final LongSupplier nanoTime;
     private final long pointNamesCacheTtlNanos;
     private volatile PointNamesSnapshot pointNamesSnapshot;
+    private volatile List<String> ambiguousPointNamesSnapshot = List.of();
 
     NavBridgeClient(AppConfig appConfig) {
         this(appConfig, System::nanoTime, DEFAULT_POINT_NAMES_CACHE_TTL_MS);
@@ -70,7 +71,18 @@ final class NavBridgeClient {
                         }
                     }
                 }
+                JSONArray ambiguousValues = response.getJSONArray("ambiguous_point_names");
+                ArrayList<String> ambiguousNames = new ArrayList<String>();
+                if (ambiguousValues != null) {
+                    for (Object value : ambiguousValues) {
+                        String name = String.valueOf(value).trim();
+                        if (!name.isEmpty()) {
+                            ambiguousNames.add(name);
+                        }
+                    }
+                }
                 List<String> result = List.copyOf(names);
+                this.ambiguousPointNamesSnapshot = List.copyOf(ambiguousNames);
                 this.pointNamesSnapshot = new PointNamesSnapshot(this.nanoTime.getAsLong(), result);
                 log.info("Navigation point names refreshed: count={}, elapsedMs={}",
                         result.size(), (System.nanoTime() - startedAt) / 1_000_000L);
@@ -87,6 +99,11 @@ final class NavBridgeClient {
                 return cached == null ? List.of() : cached.names;
             }
         }
+    }
+
+    List<String> listAmbiguousPointNames() {
+        this.listPointNames();
+        return this.ambiguousPointNamesSnapshot;
     }
 
     private boolean isFresh(PointNamesSnapshot snapshot, long now) {

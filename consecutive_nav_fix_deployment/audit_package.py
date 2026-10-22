@@ -14,7 +14,7 @@ from pathlib import Path, PurePosixPath
 
 
 HERE = Path(__file__).resolve().parent
-VERSION = "1.0.2-20261022"
+VERSION = "1.0.3-20261023"
 NAME = f"sparkrobot-lingxi-consecutive-nav-fix-{VERSION}"
 DIST = HERE / "dist"
 REQUIRED = {
@@ -30,6 +30,7 @@ REQUIRED = {
     "payload/navigation_client.py",
     "payload/pnc_response.py",
     "payload/voice_preset_motion.py",
+    "payload/point_catalog.py",
 }
 EXECUTABLES = {"install.sh", "control.sh"}
 
@@ -51,7 +52,7 @@ def verify_contents(contents: dict[str, bytes], modes: dict[str, int], label: st
             f"{label} 文件清单不一致；缺失={sorted(REQUIRED-set(contents))}，额外={sorted(set(contents)-REQUIRED)}"
         )
     manifest = json.loads(contents["manifest.json"].decode("utf-8"))
-    if manifest.get("version") != VERSION or manifest.get("payload_count") != 6:
+    if manifest.get("version") != VERSION or manifest.get("payload_count") != 7:
         raise RuntimeError(f"{label} manifest 版本或 payload 数量错误")
     listed = {item["path"]: item for item in manifest.get("files", [])}
     if set(listed) != REQUIRED - {"manifest.json"}:
@@ -72,6 +73,7 @@ def verify_contents(contents: dict[str, bytes], modes: dict[str, int], label: st
     policy = contents["payload/motion_option_policy.py"].decode("utf-8")
     client = contents["payload/navigation_client.py"].decode("utf-8")
     voice_motion = contents["payload/voice_preset_motion.py"].decode("utf-8")
+    point_catalog = contents["payload/point_catalog.py"].decode("utf-8")
     control = contents["control.sh"].decode("utf-8")
     installer = contents["install.sh"].decode("utf-8")
     for forbidden in (
@@ -92,6 +94,11 @@ def verify_contents(contents: dict[str, bytes], modes: dict[str, int], label: st
     ):
         if marker not in voice_motion:
             raise RuntimeError(f"{label} 缺少语音预置动作拒识策略：{marker}")
+    for marker in ("def list_ambiguous_voice_names", "def _normalize_voice_name"):
+        if marker not in point_catalog:
+            raise RuntimeError(f"{label} 缺少歧义语音点位名解析：{marker}")
+    if '"ambiguous_point_names"' not in bridge:
+        raise RuntimeError(f"{label} 没有向 Java Agent 提供活动地图歧义别名")
     if "def _fail_async" not in client or "def _fail(" not in client:
         raise RuntimeError(f"{label} PNC 失败回调缺少异步失败处理方法")
     if "is_bridge_process" not in control or "绝不会停止该进程" not in control:
@@ -169,6 +176,7 @@ def run_shell_and_install_smoke(contents: dict[str, bytes], modes: dict[str, int
             "motion_option_policy.py",
             "sdk_motion_controller.py",
             "navigation_client.py",
+            "point_catalog.py",
         ):
             data = contents[f"payload/{name}"] + b"\n# audit-old-fixture\n"
             original[name] = data
@@ -205,6 +213,7 @@ def run_shell_and_install_smoke(contents: dict[str, bytes], modes: dict[str, int
             "navigation_client.py",
             "pnc_response.py",
             "voice_preset_motion.py",
+            "point_catalog.py",
         ):
             if (nav_dir / name).read_bytes() != contents[f"payload/{name}"]:
                 raise RuntimeError(f"安装器没有正确替换 {name}")

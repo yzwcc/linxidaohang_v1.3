@@ -58,6 +58,10 @@ final class NavigationIntent {
         return new NavigationIntent("navigate", targetName, "", command, "");
     }
 
+    static NavigationIntent stop() {
+        return new NavigationIntent("stop_navigation", "", "", "");
+    }
+
     static NavigationIntent sing(String string) {
         return new NavigationIntent("sing", "", "", string);
     }

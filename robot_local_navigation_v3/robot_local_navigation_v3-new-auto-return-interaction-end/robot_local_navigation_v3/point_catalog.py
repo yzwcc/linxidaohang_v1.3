@@ -55,6 +55,28 @@ class PointCatalog:
                 seen.add(normalized)
         return names
 
+    def list_ambiguous_voice_names(self, map_name: str | None = None) -> list[str]:
+        owners: dict[str, set[str]] = defaultdict(set)
+        display_names: dict[str, str] = {}
+        for point in self.list_points(map_name):
+            if not point.voice.enabled:
+                continue
+            per_point: set[str] = set()
+            candidates = [point.voice.display_name or point.name, point.name, *point.aliases]
+            for candidate in candidates:
+                name = str(candidate or "").strip()
+                key = self._normalize_voice_name(name)
+                if not key or key in per_point:
+                    continue
+                per_point.add(key)
+                owners[key].add(point.id)
+                display_names.setdefault(key, name)
+        return [
+            display_names[key]
+            for key in sorted(owners)
+            if len(owners[key]) > 1
+        ]
+
     def get_start_point(self, map_name: str | None = None) -> NavPoint | None:
         for point in self.list_points(map_name):
             if point.is_start:
@@ -117,3 +139,7 @@ class PointCatalog:
             result.append(normalized)
             seen.add(normalized)
         return result
+
+    @staticmethod
+    def _normalize_voice_name(name: str) -> str:
+        return "".join(str(name or "").lower().split())

@@ -45,6 +45,7 @@ TEST_FILES = (
     "RetrieverClientTest.java",
     "LingxiChatFlowTest.java",
     "LocalNavigationCommandTest.java",
+    "KnowledgeRetrievalConcurrencyTest.java",
 )
 TEST_MAINS = (
     "VoiceGateTest",
@@ -58,6 +59,7 @@ TEST_MAINS = (
     "RetrieverClientTest",
     "LingxiChatFlowTest",
     "LocalNavigationCommandTest",
+    "KnowledgeRetrievalConcurrencyTest",
 )
 REQUIRED_CLASSES = {
     "com/agibot/aiem/nav/AppConfig.class",

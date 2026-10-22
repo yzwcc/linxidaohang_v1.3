@@ -8,7 +8,7 @@ import zipfile
 from pathlib import Path, PurePosixPath
 
 HERE = Path(__file__).resolve().parent
-VERSION = "1.0.6-20261023"
+VERSION = "1.0.7-20261023"
 NAME = f"sparkrobot-lingxi-kb-{VERSION}"
 ARCHIVE = HERE / "dist" / f"{NAME}.zip"
 VOICE_GATE_CLASSES = {
@@ -50,6 +50,14 @@ RESPONSE_POLICY = {
     "tts_delay_changed": False,
     "known_point_navigation_fast_path": "exact_active_map_voice_name_before_intent_model",
     "raw_audio_navigation_still_requires_transcription_model": True,
+    "local_stop_commands_before_intent_model": True,
+    "ambiguous_navigation_alias": "clarify_without_navigation_submission",
+    "low_asr_confidence": "robot_tts_repeat_prompt_without_navigation_submission",
+    "start_resume_commands_require_asr_confidence_gate": True,
+    "factual_retrieval_strategy": "parallel_with_intent_parsing",
+    "factual_retrieval_worker_threads": 2,
+    "factual_retrieval_queue_capacity": 4,
+    "factual_retrieval_queue_full_fallback": "serial_after_intent_parsing",
 }
 
 
@@ -126,7 +134,7 @@ def main() -> int:
                 )
             if "com/agibot/aiem/nav/KnowledgeAnswerPolicyTest.class" in agent.namelist():
                 raise RuntimeError("知识库 Java Agent 不应包含回归测试类")
-        for marker in (b"St87591540", b"ROBOT_SSH_PASSWORD=1", b"1.0.5"):
+        for marker in (b"St87591540", b"ROBOT_SSH_PASSWORD=1", b"1.0.6"):
             for member in names:
                 if member.endswith((".zip", ".gz", ".7z")):
                     continue
