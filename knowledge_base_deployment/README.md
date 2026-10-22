@@ -1,6 +1,6 @@
 # 灵心知识库检索与语音接入部署包
 
-版本：`sparkrobot-lingxi-kb-1.0.5-20261023`
+版本：`sparkrobot-lingxi-kb-1.0.6-20261023`
 
 本包包含两部分：独立 Retriever Proxy 服务，以及已验证的 Java Agent 知识库接入更新。它不包含导航、地图、AIMDK 或直播项目配置。
 
@@ -14,6 +14,7 @@
 - `kb-search` 命令行查询。
 - 独立 systemd 服务，监听机器人本机 `127.0.0.1:18084`。
 - Java Agent 对本地/实时事实使用知识库支撑回答；普通聊天复用意图解析的首轮答复。
+- 对当前活动地图中精确匹配的明确文本导航命令，先走本地规则并跳过一次意图模型请求；原始音频仍需模型转写。
 - Java Agent 集成 V1.3.8 输入拒识策略：填充词/重复片段/播报回声过滤、可用质量元数据校验和真实唤醒会话门控。
 - Java Agent 支持 18 种明确语音祈使口令的预置动作识别，并对问句、否定、引用和条件表达拒识。
 - Java Agent 更新前自动备份，可从备份 JAR 回滚。
@@ -23,7 +24,7 @@
 在机器人 `run` 账号执行：
 
 ```bash
-cd /home/run/sparkrobot-lingxi-kb-1.0.5-20261023
+cd /home/run/sparkrobot-lingxi-kb-1.0.6-20261023
 sudo ./install.sh --from-lingxi --agent-code AI_AGENT_你的智能体Code
 sudo ./install_voice_agent.sh
 ```
@@ -99,6 +100,10 @@ sudo /usr/local/sbin/sparkrobot-lingxi-kb uninstall
 本版对机器人/场馆/企业/地点和实时状态类问题先查知识库。相关度至少 0.60 才使用命中答案；未命中、低分或检索超时则回复无法核实，不让模型补猜。开放式闲聊和一般常识不再多等一次知识库请求。文本 ASR 的意图解析会同时生成最终答复并直接复用，只有该答复为空才额外调用聊天兜底。
 
 点位列表缓存 10 秒；知识库请求最多等待 1.2 秒，关闭 rerank 和 QA 前置检查以减少额外计算。该策略降低无依据回答风险，不保证模型对所有一般知识都绝无错误；重要场馆信息应以维护后的知识库和现场确认为准。
+
+文本识别后的明确导航命令可按当前活动地图的完整点位语音名称/别名精确匹配，命中才跳过意图模型；未知目标、部分匹配、疑问、否定、条件或引用表达会回到既有模型路径。导航 bridge 仍负责最终校验。
+
+这不是离线 ASR。原始音频仍先交给当前配置的转写/意图模型，本版本不承诺音频不经过云端；TTS 等待时间也没有变化。
 
 当前未实现模型流式输出或 TTS 分段播放，机器人配置中的原有 800 ms 播报等待保持不变。排查延迟时通过 `sudo journalctl -u lingxi-java-agent-robot.service --since "30 min ago" --no-pager` 检查 `Doubao request completed`、`Knowledge lookup finished`、`Text chat answer source`、`Robot TTS dispatch timing`，并使用同一 `eventId` 对齐阶段。
 

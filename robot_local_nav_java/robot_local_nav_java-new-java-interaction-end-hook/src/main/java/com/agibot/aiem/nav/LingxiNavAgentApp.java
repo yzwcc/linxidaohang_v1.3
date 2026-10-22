@@ -697,6 +697,12 @@ public final class LingxiNavAgentApp {
         NavigationIntent navigationIntent = doubaoArkClient.parseInteractionAudio(byArray, list);
         String rawQuestion = navigationIntent.question;
         navigationIntent = LingxiNavAgentApp.verifyVoicePresetMotion(rawQuestion, navigationIntent);
+        NavigationIntent localNavigation = LocalNavigationCommand.resolve(rawQuestion, list);
+        if (localNavigation != null && !navigationIntent.isPresetMotion()) {
+            log.info("Local navigation alias matched after audio transcription: eventId={}, target={}",
+                    string, localNavigation.targetName);
+            navigationIntent = localNavigation;
+        }
         log.info("Audio request parsed by Doubao: eventId={}, elapsedMs={}", string,
                 TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - modelStartedAtNanos));
         String string2 = LingxiNavAgentApp.describeIntent(navigationIntent);
@@ -767,10 +773,17 @@ public final class LingxiNavAgentApp {
             navigationIntent = NavigationIntent.presetMotion(
                     voiceMotion.motion().name(), voiceMotion.area(), string2);
         } else {
-            List<String> list = navBridgeClient.listPointNames();
             navigationIntent = LingxiNavAgentApp.taskControlIntentFromText(string2);
             if (navigationIntent == null) {
-                navigationIntent = doubaoArkClient.parseInteraction(string2, list);
+                List<String> list = navBridgeClient.listPointNames();
+                NavigationIntent localNavigation = LocalNavigationCommand.resolve(string2, list);
+                if (localNavigation != null) {
+                    navigationIntent = localNavigation;
+                    log.info("Local navigation command matched: eventId={}, target={}",
+                            string, localNavigation.targetName);
+                } else {
+                    navigationIntent = doubaoArkClient.parseInteraction(string2, list);
+                }
             } else {
                 log.info("Local tour control rule matched: eventId={}, intent={}, text={}", string, navigationIntent.intent, LingxiNavAgentApp.abbreviate(string2));
             }

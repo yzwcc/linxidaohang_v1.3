@@ -54,6 +54,10 @@ final class NavigationIntent {
         return new NavigationIntent("chat", "", "", string);
     }
 
+    static NavigationIntent navigate(String targetName, String command) {
+        return new NavigationIntent("navigate", targetName, "", command, "");
+    }
+
     static NavigationIntent sing(String string) {
         return new NavigationIntent("sing", "", "", string);
     }

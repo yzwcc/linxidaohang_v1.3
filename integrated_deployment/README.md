@@ -1,6 +1,6 @@
 # 灵犀 v1.3.1 完整部署包
 
-版本：v1.3.1-complete-20261023-r10
+版本：v1.3.1-complete-20261023-r11
 适用对象：内部部署人员  
 目标系统：Ubuntu 22.04 ARM64、ROS 2 Humble、智元 X2 系列机器人
 
@@ -12,8 +12,9 @@
 - 导航主包：sparkrobot-lingxi-nav-internal-1.0.7-20260901。
 - 地图服务、导航 bridge、网页控制台、语音兼容网关和灵心 Java Agent。
 - 灵创动作、表情和可选舞蹈资源编排能力：1.0.3-20260902。
-- 灵心知识库检索和语音接入：1.0.5-20261023。
+- 灵心知识库检索和语音接入：sparkrobot-lingxi-kb-1.0.6-20261023。
 - 回答提速与事实约束：点位列表 10 秒缓存；跳过普通闲聊的额外检索；文本问答复用首轮意图解析答复；本地/实时事实优先检索，低相关或无资料时明确拒答。
+- 已知地图点位的明确文本导航命令会先按当前地图语音名称和别名精确匹配，命中后跳过一次意图模型请求；未知或非明确表达仍走原模型路径。
 - Java Agent 启用 V1.3.8 交互拒识策略：填充词、重复 ASR 片段和播报回声过滤；质量元数据校验；真实 KWS/新鲜唤醒会话门控。
 - 语音预置动作：支持 18 种白名单动作，如“请和我握个手”“请双手比心”；只在导航和讲解任务空闲时提交。
 - 连续导航卡住修复：1.0.2-20261022，必须最后覆盖导航文件。
@@ -35,8 +36,8 @@
 
 ~~~powershell
 $RobotIp = "172.20.10.2"
-$Package = ".\lingxi-v1.3.1-complete-20261023-r10-deployment.tar.gz"
-$Checksum = ".\lingxi-v1.3.1-complete-20261023-r10-deployment.tar.gz.sha256"
+$Package = ".\lingxi-v1.3.1-complete-20261023-r11-deployment.tar.gz"
+$Checksum = ".\lingxi-v1.3.1-complete-20261023-r11-deployment.tar.gz.sha256"
 scp $Package ("run@" + $RobotIp + ":/home/run/")
 scp $Checksum ("run@" + $RobotIp + ":/home/run/")
 ~~~
@@ -45,9 +46,9 @@ scp $Checksum ("run@" + $RobotIp + ":/home/run/")
 
 ~~~bash
 cd /home/run
-sha256sum -c lingxi-v1.3.1-complete-20261023-r10-deployment.tar.gz.sha256
-tar -xzf lingxi-v1.3.1-complete-20261023-r10-deployment.tar.gz
-cd lingxi-v1.3.1-complete-20261023-r10-deployment
+sha256sum -c lingxi-v1.3.1-complete-20261023-r11-deployment.tar.gz.sha256
+tar -xzf lingxi-v1.3.1-complete-20261023-r11-deployment.tar.gz
+cd lingxi-v1.3.1-complete-20261023-r11-deployment
 chmod +x install_all.sh control_all.sh
 bash ./install_all.sh prepare
 ~~~
@@ -69,7 +70,7 @@ bash ./01-replace-aimdk.sh
 ### 4. run 用户安装导航主包
 
 ~~~bash
-cd /home/run/lingxi-v1.3.1-complete-20261023-r10-deployment
+cd /home/run/lingxi-v1.3.1-complete-20261023-r11-deployment
 bash ./install_all.sh install-navigation
 ~~~
 
@@ -124,8 +125,8 @@ python .\integrated_deployment\audit_package.py
 交付给 Linux 机器人优先使用：
 
 ~~~text
-integrated_deployment/dist/lingxi-v1.3.1-complete-20261023-r10-deployment.tar.gz
-integrated_deployment/dist/lingxi-v1.3.1-complete-20261023-r10-deployment.tar.gz.sha256
+integrated_deployment/dist/lingxi-v1.3.1-complete-20261023-r11-deployment.tar.gz
+integrated_deployment/dist/lingxi-v1.3.1-complete-20261023-r11-deployment.tar.gz.sha256
 ~~~
 
 ZIP 可用于 Windows 传输或查看，但机器人端仍建议使用 TAR.GZ。每台新机器人都必须独立完成定位、急停、短距离导航和语音验收；离线审计不能替代现场安全验收。
@@ -136,4 +137,10 @@ ZIP 可用于 Windows 传输或查看，但机器人端仍建议使用 TAR.GZ。
 
 ## 语音回答策略
 
-普通文本问答会复用首轮意图解析中的最终答复；首轮未提供答复时才走聊天兜底。机器人专属、场馆和实时事实先查知识库，低于 0.60 分或超时则明确表示无法核实。该策略降低无依据回答的概率，但不等同于零幻觉保证。原始音频识别仍需一次模型请求；本包没有启用流式模型/TTS，现有 800 ms 播报等待保持不变。完整策略和延迟日志见部署教程第 10.4、15 节。
+普通文本问答会复用首轮意图解析中的最终答复；首轮未提供答复时才走聊天兜底。机器人专属、场馆和实时事实先查知识库，低于 0.60 分或超时则明确表示无法核实。该策略降低无依据回答的概率，但不等同于零幻觉保证。本地导航快速路径只优化已经得到的识别文本；原始音频仍需调用当前配置的转写/意图模型。本包没有启用流式模型/TTS，现有 800 ms 播报等待保持不变。完整策略和延迟日志见部署教程第 10.4、10.5、15 节。
+
+## 已知点位导航快速路径
+
+文本识别结果只有在命令明确、目标与当前活动地图点位语音名称或别名精确匹配时，才会绕过意图模型并直接提交导航。部分匹配、未知地点、疑问、否定、条件或引用表达不会走本地快速路径。机器人导航 bridge 仍会按当前地图复核目标，拒绝无效或歧义名称。
+
+这不是离线语音识别：原始音频仍由当前配置的模型端点转写；本版不能保证音频不发送到云端。具体边界见完整部署教程第 10.5 节。

@@ -12,7 +12,7 @@ import zipfile
 from pathlib import Path, PurePosixPath
 
 HERE = Path(__file__).resolve().parent
-VERSION = "1.0.5-20261023"
+VERSION = "1.0.6-20261023"
 NAME = f"sparkrobot-lingxi-kb-{VERSION}"
 DIST = HERE / "dist"
 PRESET_MOTION_NAMES = (
@@ -101,6 +101,8 @@ def main() -> int:
                 "blank_intent_reply_uses_chat_fallback": True,
                 "streaming_model_output": False,
                 "tts_delay_changed": False,
+                "known_point_navigation_fast_path": "exact_active_map_voice_name_before_intent_model",
+                "raw_audio_navigation_still_requires_transcription_model": True,
             },
             "preset_motion_policy": {
                 "action_count": len(PRESET_MOTION_NAMES),

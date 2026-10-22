@@ -20,6 +20,7 @@ TEST_SOURCE = HERE / "src" / "test" / "java" / "com" / "agibot" / "aiem" / "nav"
 MAIN_FILES = (
     "AppConfig.java",
     "LingxiNavAgentApp.java",
+    "LocalNavigationCommand.java",
     "VoiceGate.java",
     "WakeSessionGate.java",
     "SpeechInputPolicy.java",
@@ -43,6 +44,7 @@ TEST_FILES = (
     "NavBridgeClientTest.java",
     "RetrieverClientTest.java",
     "LingxiChatFlowTest.java",
+    "LocalNavigationCommandTest.java",
 )
 TEST_MAINS = (
     "VoiceGateTest",
@@ -55,10 +57,12 @@ TEST_MAINS = (
     "NavBridgeClientTest",
     "RetrieverClientTest",
     "LingxiChatFlowTest",
+    "LocalNavigationCommandTest",
 )
 REQUIRED_CLASSES = {
     "com/agibot/aiem/nav/AppConfig.class",
     "com/agibot/aiem/nav/LingxiNavAgentApp.class",
+    "com/agibot/aiem/nav/LocalNavigationCommand.class",
     "com/agibot/aiem/nav/VoiceGate.class",
     "com/agibot/aiem/nav/WakeSessionGate.class",
     "com/agibot/aiem/nav/SpeechInputPolicy.class",

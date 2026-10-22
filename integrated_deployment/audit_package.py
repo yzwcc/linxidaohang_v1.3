@@ -10,7 +10,7 @@ from pathlib import Path, PurePosixPath
 
 
 HERE = Path(__file__).resolve().parent
-VERSION = "1.3.1-complete-20261023-r10"
+VERSION = "1.3.1-complete-20261023-r11"
 NAME = f"lingxi-v{VERSION}-deployment"
 DIST = HERE / "dist"
 REQUIRED = {
@@ -25,7 +25,7 @@ REQUIRED = {
     "components/lingxi-v1.3.1-full-deployment-20260901.zip",
     "components/aimdk-aarch64-1bde262f-artifacts.7z",
     "components/sparkrobot-lingxi-nav-internal-1.0.7-20260901.tar.gz",
-    "components/sparkrobot-lingxi-kb-1.0.5-20261023.zip",
+    "components/sparkrobot-lingxi-kb-1.0.6-20261023.zip",
     "components/sparkrobot-lingxi-linkcraft-addon-1.0.3-20260902.tar.gz",
     "components/sparkrobot-lingxi-consecutive-nav-fix-1.0.2-20261022.tar.gz",
 }
@@ -48,10 +48,22 @@ INSTALLER_REQUIRED_SNIPPETS = (
     'sudo rm -rf -- "${staging}"',
     'sudo bash "${LINKCRAFT_ROOT}/install.sh" --no-restart',
     'sudo bash "${FIX_ROOT}/install.sh"',
-    'KB_NAME="sparkrobot-lingxi-kb-1.0.5-20261023.zip"',
-    'KB_ROOT="${staging}/sparkrobot-lingxi-kb-1.0.5-20261023"',
+    'KB_NAME="sparkrobot-lingxi-kb-1.0.6-20261023.zip"',
+    'KB_ROOT="${staging}/sparkrobot-lingxi-kb-1.0.6-20261023"',
     "repair-permissions",
     "sudo systemctl restart lingxi-nav-console.service",
+)
+README_REQUIRED_SNIPPETS = (
+    "v1.3.1-complete-20261023-r11",
+    "sparkrobot-lingxi-kb-1.0.6-20261023",
+    "已知点位导航快速路径",
+    "原始音频仍需调用当前配置的转写/意图模型",
+)
+GUIDE_REQUIRED_SNIPPETS = (
+    "v1.3.1-complete-20261023-r11",
+    "sparkrobot-lingxi-kb-1.0.6-20261023",
+    "### 10.5 已知点位导航快速路径",
+    "r11 没有实现端侧离线 ASR",
 )
 
 
@@ -128,6 +140,18 @@ def audit_installer(value: bytes, label: str) -> None:
         raise RuntimeError(f"{label} 网页控制台必须在连续导航修复之后重启")
 
 
+def audit_documentation(reader) -> None:
+    documents = {
+        "README.md": README_REQUIRED_SNIPPETS,
+        "docs/灵犀完整部署教程-v1.3.1-complete.md": GUIDE_REQUIRED_SNIPPETS,
+    }
+    for relative, snippets in documents.items():
+        text = reader(f"{NAME}/{relative}").decode("utf-8")
+        missing = [snippet for snippet in snippets if snippet not in text]
+        if missing:
+            raise RuntimeError(f"部署文档 {relative} 缺少 r11 说明：{missing}")
+
+
 def audit_fix_component(reader) -> None:
     name = "sparkrobot-lingxi-consecutive-nav-fix-1.0.2-20261022.tar.gz"
     data = reader(f"{NAME}/components/{name}")
@@ -145,14 +169,14 @@ def audit_fix_component(reader) -> None:
 
 
 def audit_kb_component(reader) -> None:
-    name = "sparkrobot-lingxi-kb-1.0.5-20261023.zip"
+    name = "sparkrobot-lingxi-kb-1.0.6-20261023.zip"
     with zipfile.ZipFile(io.BytesIO(reader(f"{NAME}/components/{name}"))) as archive:
-        root = "sparkrobot-lingxi-kb-1.0.5-20261023/"
+        root = "sparkrobot-lingxi-kb-1.0.6-20261023/"
         manifest = json.loads(archive.read(f"{root}manifest.json"))
-        if manifest.get("version") != "1.0.5-20261023":
+        if manifest.get("version") != "1.0.6-20261023":
             raise RuntimeError("知识库组件版本不正确")
         release_info = archive.read(f"{root}release-info.txt").decode("utf-8")
-        if "VERSION=1.0.5-20261023" not in release_info:
+        if "VERSION=1.0.6-20261023" not in release_info:
             raise RuntimeError("知识库 release-info.txt 版本不正确")
         expected_response_policy = {
             "point_names_cache_ttl_ms": 10000,
@@ -168,6 +192,8 @@ def audit_kb_component(reader) -> None:
             "blank_intent_reply_uses_chat_fallback": True,
             "streaming_model_output": False,
             "tts_delay_changed": False,
+            "known_point_navigation_fast_path": "exact_active_map_voice_name_before_intent_model",
+            "raw_audio_navigation_still_requires_transcription_model": True,
         }
         if manifest.get("voice_response_policy") != expected_response_policy:
             raise RuntimeError("知识库组件语音响应策略清单不正确")
@@ -205,6 +231,7 @@ def audit_kb_component(reader) -> None:
     required_classes = {
         "com/agibot/aiem/nav/AppConfig.class",
         "com/agibot/aiem/nav/LingxiNavAgentApp.class",
+        "com/agibot/aiem/nav/LocalNavigationCommand.class",
         "com/agibot/aiem/nav/VoiceGate.class",
         "com/agibot/aiem/nav/WakeSessionGate.class",
         "com/agibot/aiem/nav/SpeechInputPolicy.class",
@@ -297,6 +324,7 @@ def main() -> int:
             raise RuntimeError("安装顺序元数据错误")
         audit_manifest_components(manifest, archive.read)
         audit_installer(archive.read(f"{NAME}/install_all.sh"), "ZIP")
+        audit_documentation(archive.read)
         audit_kb_component(archive.read)
         audit_fix_component(archive.read)
         audit_base_bundle(archive.read)
@@ -309,6 +337,7 @@ def main() -> int:
             raise RuntimeError("TAR 版本或秘密标记错误")
         audit_manifest_components(manifest, lambda name: read_tar_member(archive, name))
         audit_installer(read_tar_member(archive, f"{NAME}/install_all.sh"), "TAR")
+        audit_documentation(lambda name: read_tar_member(archive, name))
         audit_kb_component(lambda name: read_tar_member(archive, name))
     print("完整导航部署包审计通过：AIMDK、导航和附加组件完整，现场修复保护、路径安全、Linux 换行、外层校验和无真实密钥标记均正常")
     print(f"TAR SHA-256：{digest(tar_path)}")
