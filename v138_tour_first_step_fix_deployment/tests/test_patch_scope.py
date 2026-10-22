@@ -1,4 +1,5 @@
 import ast
+import os
 from pathlib import Path
 
 
@@ -12,9 +13,12 @@ def methods(path):
             for node in cls.body if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))}
 
 
-def test_patch_preserves_r20_voice_suppression_and_unrelated_methods():
-    baseline = methods(HERE / "reference/runtime/navigation/robot_local_navigation_v3/lingxi_nav_bridge.py")
-    patched = methods(HERE / "source/navigation/robot_local_navigation_v3/lingxi_nav_bridge.py")
+def test_patch_preserves_baseline_voice_behavior_and_unrelated_methods():
+    reference = Path(os.environ.get("LINGXI_REFERENCE_ROOT", HERE / "reference"))
+    baseline = methods(reference / "runtime/navigation/robot_local_navigation_v3/lingxi_nav_bridge.py")
+    patched = methods(Path(os.environ.get(
+        "LINGXI_BRIDGE_SOURCE", HERE / "source/navigation/robot_local_navigation_v3/lingxi_nav_bridge.py",
+    )))
     permitted = {
         "__init__", "start_task", "handle_navigation_event", "_load_tour_task_points",
         "_start_task_step", "_queue_task_navigation_retry", "_on_task_navigation_retry",

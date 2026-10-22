@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections import namedtuple
+from concurrent.futures import Future
 import importlib.util
 import os
 from pathlib import Path
@@ -13,7 +14,7 @@ import pytest
 
 
 HERE = Path(__file__).resolve().parent.parent
-NAV_SOURCE = HERE / "reference/navigation"
+NAV_SOURCE = Path(os.environ.get("LINGXI_REFERENCE_ROOT", HERE / "reference")) / "navigation"
 sys.path.insert(0, str(NAV_SOURCE))
 
 
@@ -145,6 +146,10 @@ def rig(bridge_module):
     bridge._auto_return_target_id = ""
     bridge._auto_return_reason = ""
     bridge._task_silent_receipts = False
+    bridge._tts_lock = threading.Lock()
+    bridge._last_tts_at = 0.0
+    bridge._tts_min_interval_sec = 0.0
+    bridge.tts_speaker = SimpleNamespace(speak=Mock(return_value=Future()))
     bridge._finish_arrival_motion_after_wait = Mock(
         return_value={"ok": True, "release_guard_sec": 0.0}
     )

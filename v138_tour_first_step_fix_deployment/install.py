@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Transactional r20 tour first-step fix. No robot motion is issued here."""
+"""Transactional tour first-step fix. No robot motion is issued here."""
 from __future__ import annotations
 
 import argparse
@@ -165,11 +165,12 @@ class Installer:
             raise RuntimeError("current 不是软链接")
         release = current.resolve(strict=True)
         if release.parent != self.base / "releases" or release.name not in self.meta["allowed_releases"]:
-            raise RuntimeError("本增量只支持 V1.3.8 r20，当前为：" + release.name + "；未覆盖文件")
+            raise RuntimeError("本增量只支持 " + ", ".join(self.meta["allowed_releases"])
+                               + "，当前为：" + release.name + "；未覆盖文件")
         self.release = release
         previous = regular(release / BRIDGE)
         if digest(previous) not in {self.meta["baseline_bridge_sha256"], self.meta["patched_bridge_sha256"]}:
-            raise RuntimeError("bridge 与 r20 基线或本补丁不一致，拒绝覆盖未知修改")
+            raise RuntimeError("bridge 与本包基线或本补丁不一致，拒绝覆盖未知修改")
         for relative, key in ((CLIENT, "client_sha256"), (CONTROL, "controller_sha256")):
             if digest(regular(release / relative)) != self.meta[key]:
                 raise RuntimeError("运行依赖与验证版本不一致：" + relative)

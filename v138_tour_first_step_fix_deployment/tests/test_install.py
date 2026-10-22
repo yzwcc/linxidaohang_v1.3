@@ -13,6 +13,7 @@ import unittest
 from unittest.mock import patch
 
 HERE = Path(__file__).resolve().parents[1]
+REFERENCE = Path(os.environ.get("LINGXI_REFERENCE_ROOT", HERE / "reference"))
 spec = importlib.util.spec_from_file_location("first_step_installer", HERE / "install.py")
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
@@ -59,7 +60,9 @@ class InstallerTests(unittest.TestCase):
         self.root = Path(self.temp.name) / "robot"
         self.package = Path(self.temp.name) / "package"
         self.package.mkdir()
-        archive = next((HERE / "dist").glob("*.tar.gz"))
+        archive = Path(os.environ["LINGXI_ARCHIVE"]) if "LINGXI_ARCHIVE" in os.environ else next(
+            (HERE / "dist").glob("*tour-first-step-fix-1.*.tar.gz")
+        )
         with tarfile.open(archive, "r:gz") as tar:
             for member in tar.getmembers():
                 relative = member.name.split("/", 1)[1]
@@ -72,11 +75,11 @@ class InstallerTests(unittest.TestCase):
         self.release.mkdir(parents=True)
         (self.release.parent.parent / "current").symlink_to(self.release, target_is_directory=True)
         files = {
-            BRIDGE: (HERE / "reference/runtime" / BRIDGE).read_bytes(),
-            CLIENT: (HERE / "reference/navigation" / CLIENT.removeprefix("navigation/")).read_bytes(),
-            CONTROL: (HERE / "reference/runtime" / CONTROL).read_bytes(),
+            BRIDGE: (REFERENCE / "runtime" / BRIDGE).read_bytes(),
+            CLIENT: (REFERENCE / "navigation" / CLIENT.removeprefix("navigation/")).read_bytes(),
+            CONTROL: (REFERENCE / "runtime" / CONTROL).read_bytes(),
         }
-        manifest = json.loads((HERE / "reference/runtime/payload-manifest.json").read_bytes())
+        manifest = json.loads((REFERENCE / "runtime/payload-manifest.json").read_bytes())
         for relative, content in files.items():
             path = self.release / relative
             path.parent.mkdir(parents=True, exist_ok=True)
@@ -106,8 +109,10 @@ class InstallerTests(unittest.TestCase):
         self.assertTrue(self.installer.active)
         self.assertEqual(self.installer.actions, ["stop", "start"])
         after = json.loads((self.release / MANIFEST).read_bytes())
-        self.assertEqual(after["voice_control_silent_fix"], before["voice_control_silent_fix"])
-        self.assertEqual(after["control_reply_fix"], before["control_reply_fix"])
+        self.assertEqual(
+            {k: v for k, v in after.items() if k not in {"files", "tour_first_step_fix"}},
+            {k: v for k, v in before.items() if k != "files"},
+        )
         self.assertEqual(after["tour_first_step_fix"], "1.0.0-20261022")
         for name in (BRIDGE, MANIFEST):
             self.assertEqual((self.release / name).stat().st_mode & 0o777, 0o640)
@@ -198,6 +203,18 @@ class InstallerTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "拒绝覆盖"):
             self.installer.install()
         self.assertEqual(self.installer.actions, [])
+
+    def test_other_release_is_rejected_before_stopping_or_backup(self):
+        current = self.release.parent.parent / "current"
+        other = self.release.parent / "unsupported-release"
+        other.mkdir()
+        current.unlink()
+        current.symlink_to(other, target_is_directory=True)
+        with self.assertRaisesRegex(RuntimeError, "本增量只支持"):
+            self.installer.install()
+        self.assertEqual(self.installer.actions, [])
+        self.assertFalse(self.installer.backups.exists())
+        self.assert_original()
 
     def test_damaged_manifest_is_rejected(self):
         manifest = json.loads(self.original[MANIFEST])

@@ -21,3 +21,18 @@ python -m unittest discover -s tests -p test_install.py -v
 
 `build.py` 校验完整包 SHA256，并从发货包提取依赖；不使用工作区中未发布的导航源码。
 Linux 安装事务测试应在 Linux/WSL 上执行。构建产物位于 `dist/`，不进入 Git。
+
+## r16 适配
+
+`python build_r16.py` 从固定 SHA256 的 r16 完整包读取运行文件，仅移植上述任务调度方法；
+适配时逐方法核对基线，禁止引入 r20 的 TTS 和播报改动。
+包名包含 `-r16-`，部署说明见 `docs/部署说明-r16.md`。
+
+```bash
+python build_r16.py
+python verify_r16.py
+python verify_r16.py --linux
+```
+
+最后一条在 Linux/WSL 执行；`python verify_r16.py --original` 可验证原版 r16 的缺陷复现，
+该命令预期失败，不对机器人发出动作或导航指令。

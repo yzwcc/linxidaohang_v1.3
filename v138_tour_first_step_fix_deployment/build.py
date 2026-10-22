@@ -79,22 +79,26 @@ def build(manifest):
     files["SHA256SUMS"] = "".join(
         f"{digest(data)}  {name}\n" for name, data in sorted(files.items())
     ).encode()
+    write_archive(files, NAME, "部署说明.md")
+
+
+def write_archive(files, name, guide_name):
     output = HERE / "dist"
     output.mkdir(exist_ok=True)
-    archive = output / (NAME + ".tar.gz")
+    archive = output / (name + ".tar.gz")
     with archive.open("wb") as raw:
         with gzip.GzipFile(filename="", fileobj=raw, mode="wb", mtime=0) as compressed:
             with tarfile.open(fileobj=compressed, mode="w") as tar:
-                for name, data in sorted(files.items()):
-                    info = tarfile.TarInfo(NAME + "/" + name)
+                for relative, data in sorted(files.items()):
+                    info = tarfile.TarInfo(name + "/" + relative)
                     info.size = len(data)
-                    info.mode = 0o755 if name.endswith(".sh") else 0o644
+                    info.mode = 0o755 if relative.endswith(".sh") else 0o644
                     info.mtime = 0
                     tar.addfile(info, io.BytesIO(data))
     archive.with_name(archive.name + ".sha256").write_bytes(
         f"{digest(archive.read_bytes())}  {archive.name}\n".encode()
     )
-    (output / "部署说明.md").write_bytes(files["docs/部署说明.md"])
+    (output / guide_name).write_bytes(files["docs/部署说明.md"])
     print(archive)
     print("SHA256=" + digest(archive.read_bytes()))
 

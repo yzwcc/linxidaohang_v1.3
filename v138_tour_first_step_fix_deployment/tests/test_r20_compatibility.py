@@ -1,11 +1,16 @@
 """Reuse the shipped r20 tour behavior suite against this patch."""
 from pathlib import Path
+import os
 
 HERE = Path(__file__).resolve().parents[1]
-baseline = HERE / "reference/navigation/test/test_tour_bridge_behavior.py"
+reference = Path(os.environ.get("LINGXI_REFERENCE_ROOT", HERE / "reference"))
+baseline = reference / "navigation/test/test_tour_bridge_behavior.py"
 source = baseline.read_text(encoding="utf-8")
 old_path = 'Path(__file__).resolve().parents[1] / "robot_local_navigation_v3" / "lingxi_nav_bridge.py"'
-new_path = 'Path(__file__).resolve().parents[1] / "source/navigation/robot_local_navigation_v3/lingxi_nav_bridge.py"'
+candidate = Path(os.environ.get(
+    "LINGXI_BRIDGE_SOURCE", HERE / "source/navigation/robot_local_navigation_v3/lingxi_nav_bridge.py",
+))
+new_path = "Path(" + repr(str(candidate)) + ")"
 assert source.count(old_path) == 1
 source = source.replace(old_path, new_path)
 marker = '    bridge._begin_task_arrival_action(event)\n'
