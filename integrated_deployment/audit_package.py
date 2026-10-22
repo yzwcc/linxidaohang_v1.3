@@ -10,7 +10,7 @@ from pathlib import Path, PurePosixPath
 
 
 HERE = Path(__file__).resolve().parent
-VERSION = "1.3.1-complete-20261022-r8"
+VERSION = "1.3.1-complete-20261022-r9"
 NAME = f"lingxi-v{VERSION}-deployment"
 DIST = HERE / "dist"
 REQUIRED = {
@@ -25,9 +25,9 @@ REQUIRED = {
     "components/lingxi-v1.3.1-full-deployment-20260901.zip",
     "components/aimdk-aarch64-1bde262f-artifacts.7z",
     "components/sparkrobot-lingxi-nav-internal-1.0.7-20260901.tar.gz",
-    "components/sparkrobot-lingxi-kb-1.0.3-20261022.zip",
+    "components/sparkrobot-lingxi-kb-1.0.4-20261022.zip",
     "components/sparkrobot-lingxi-linkcraft-addon-1.0.3-20260902.tar.gz",
-    "components/sparkrobot-lingxi-consecutive-nav-fix-1.0.1-20260907.tar.gz",
+    "components/sparkrobot-lingxi-consecutive-nav-fix-1.0.2-20261022.tar.gz",
 }
 LINUX_TEXT_FILES = {
     "SHA256SUMS.txt",
@@ -48,8 +48,8 @@ INSTALLER_REQUIRED_SNIPPETS = (
     'sudo rm -rf -- "${staging}"',
     'sudo bash "${LINKCRAFT_ROOT}/install.sh" --no-restart',
     'sudo bash "${FIX_ROOT}/install.sh"',
-    'KB_NAME="sparkrobot-lingxi-kb-1.0.3-20261022.zip"',
-    'KB_ROOT="${staging}/sparkrobot-lingxi-kb-1.0.3-20261022"',
+    'KB_NAME="sparkrobot-lingxi-kb-1.0.4-20261022.zip"',
+    'KB_ROOT="${staging}/sparkrobot-lingxi-kb-1.0.4-20261022"',
     "repair-permissions",
     "sudo systemctl restart lingxi-nav-console.service",
 )
@@ -129,24 +129,27 @@ def audit_installer(value: bytes, label: str) -> None:
 
 
 def audit_fix_component(reader) -> None:
-    name = "sparkrobot-lingxi-consecutive-nav-fix-1.0.1-20260907.tar.gz"
+    name = "sparkrobot-lingxi-consecutive-nav-fix-1.0.2-20261022.tar.gz"
     data = reader(f"{NAME}/components/{name}")
     with tarfile.open(fileobj=io.BytesIO(data), mode="r:gz") as archive:
-        prefix = f"sparkrobot-lingxi-consecutive-nav-fix-1.0.1-20260907/"
+        prefix = f"sparkrobot-lingxi-consecutive-nav-fix-1.0.2-20261022/"
         control = read_tar_member(archive, prefix + "control.sh").decode("utf-8")
         installer = read_tar_member(archive, prefix + "install.sh").decode("utf-8")
         if "repair_runtime_permissions" not in control or "resolve_bridge_run_user" not in control:
             raise RuntimeError("连续导航修复组件缺少运行目录权限保护")
         if "repair_runtime_permissions" not in installer:
             raise RuntimeError("连续导航修复组件安装器缺少权限修复")
+        members = {member.name for member in archive.getmembers() if member.isfile()}
+        if prefix + "payload/voice_preset_motion.py" not in members:
+            raise RuntimeError("连续导航修复组件缺少语音预置动作模块")
 
 
 def audit_kb_component(reader) -> None:
-    name = "sparkrobot-lingxi-kb-1.0.3-20261022.zip"
+    name = "sparkrobot-lingxi-kb-1.0.4-20261022.zip"
     with zipfile.ZipFile(io.BytesIO(reader(f"{NAME}/components/{name}"))) as archive:
-        root = "sparkrobot-lingxi-kb-1.0.3-20261022/"
+        root = "sparkrobot-lingxi-kb-1.0.4-20261022/"
         manifest = json.loads(archive.read(f"{root}manifest.json"))
-        if manifest.get("version") != "1.0.3-20261022":
+        if manifest.get("version") != "1.0.4-20261022":
             raise RuntimeError("知识库组件版本不正确")
         for item in manifest.get("files", []):
             member = f"{root}{item['path']}"
@@ -161,6 +164,21 @@ def audit_kb_component(reader) -> None:
             or voice_policy.get("acoustic_dsp_included") is not False
         ):
             raise RuntimeError("知识库组件语音策略清单不正确")
+        motion_policy = manifest.get("preset_motion_policy", {})
+        expected_motions = {
+            "wave", "handshake", "raise_hand", "flying_kiss", "sweetheart", "high_five",
+            "salute", "horizontal_arm", "hug", "cheer", "clap", "handx", "chestwave",
+            "bow", "bye", "lightwave", "scratch_head", "scratch_back",
+        }
+        if (
+            motion_policy.get("action_count") != 18
+            or set(motion_policy.get("actions", [])) != expected_motions
+            or motion_policy.get("execution_mode") != "explicit_imperative_only"
+            or motion_policy.get("busy_navigation_or_tour") != "reject"
+            or motion_policy.get("live_danmu") != "disabled"
+            or motion_policy.get("acknowledgement") != "submission_only"
+        ):
+            raise RuntimeError("知识库组件预置动作策略清单不正确")
         agent_bytes = archive.read(
             f"{root}agent/robot-local-navigation-java-all-kb.jar"
         )
@@ -172,6 +190,12 @@ def audit_kb_component(reader) -> None:
         "com/agibot/aiem/nav/SpeechInputPolicy.class",
         "com/agibot/aiem/nav/Soc2WakeEvidenceProvider.class",
         "com/agibot/aiem/nav/VoiceMetadataDiagnostics.class",
+        "com/agibot/aiem/nav/NavigationIntent.class",
+        "com/agibot/aiem/nav/PresetMotionCatalog.class",
+        "com/agibot/aiem/nav/PresetMotionCatalog$Motion.class",
+        "com/agibot/aiem/nav/PresetMotionCatalog$Selection.class",
+        "com/agibot/aiem/nav/NavBridgeClient.class",
+        "com/agibot/aiem/nav/DoubaoArkClient.class",
     }
     with zipfile.ZipFile(io.BytesIO(agent_bytes)) as agent:
         missing = required_classes - set(agent.namelist())

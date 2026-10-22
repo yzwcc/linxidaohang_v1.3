@@ -12,6 +12,7 @@ def test_interaction_and_tts_use_protected_navigation_bridge():
     assert uses_navigation_upstream("POST", "/interaction/mark")
     assert uses_navigation_upstream("POST", "/interaction/end")
     assert uses_navigation_upstream("POST", "/motion/stop")
+    assert uses_navigation_upstream("POST", "/motion/play")
     assert uses_navigation_upstream("POST", "/tts/speak")
 
 

@@ -9,14 +9,20 @@ import com.alibaba.fastjson2.JSONObject;
 final class NavigationIntent {
     final String intent;
     final String targetName;
+    final String motionArea;
     final String question;
     final String reply;
 
     private NavigationIntent(String string, String string2, String string3, String string4) {
+        this(string, string2, "", string3, string4);
+    }
+
+    private NavigationIntent(String string, String string2, String string3, String string4, String string5) {
         this.intent = NavigationIntent.normalize(string);
         this.targetName = string2 == null ? "" : string2.trim();
-        this.question = string3 == null ? "" : string3.trim();
-        this.reply = string4 == null ? "" : string4.trim();
+        this.motionArea = string3 == null ? "" : string3.trim();
+        this.question = string4 == null ? "" : string4.trim();
+        this.reply = string5 == null ? "" : string5.trim();
     }
 
     static NavigationIntent fromJsonText(String string) {
@@ -27,13 +33,21 @@ final class NavigationIntent {
             throw new IllegalArgumentException("LLM JSON missing required field: intent");
         }
         String string4 = NavigationIntent.normalize(string3);
-        if (!("navigate".equals(string4) || "stop_navigation".equals(string4) || "start_task".equals(string4) || "pause_task".equals(string4) || "resume_task".equals(string4) || "end_task".equals(string4) || "sing".equals(string4) || "dance".equals(string4) || "chat".equals(string4))) {
+        if (!("navigate".equals(string4) || "stop_navigation".equals(string4) || "start_task".equals(string4) || "pause_task".equals(string4) || "resume_task".equals(string4) || "end_task".equals(string4) || "sing".equals(string4) || "dance".equals(string4) || "preset_motion".equals(string4) || "chat".equals(string4))) {
             throw new IllegalArgumentException("Unsupported LLM intent: " + string3);
         }
         if ("navigate".equals(string4) && ((string2 = jSONObject.getString("target_name")) == null || string2.isBlank())) {
             throw new IllegalArgumentException("LLM JSON missing target_name for navigate intent");
         }
-        return new NavigationIntent(string4, jSONObject.getString("target_name"), jSONObject.getString("question"), jSONObject.getString("reply"));
+        String question = jSONObject.getString("question");
+        if ("preset_motion".equals(string4)) {
+            PresetMotionCatalog.Selection selection = PresetMotionCatalog.resolveVoiceCommand(question);
+            if (selection == null) {
+                return new NavigationIntent("chat", "", "", question, jSONObject.getString("reply"));
+            }
+            return presetMotion(selection.motion().name(), selection.area(), question);
+        }
+        return new NavigationIntent(string4, jSONObject.getString("target_name"), "", question, jSONObject.getString("reply"));
     }
 
     static NavigationIntent chat(String string) {
@@ -50,6 +64,16 @@ final class NavigationIntent {
 
     static NavigationIntent dance(String string, String string2) {
         return new NavigationIntent("dance", string, "", string2);
+    }
+
+    static NavigationIntent presetMotion(String motion, String area, String command) {
+        PresetMotionCatalog.Selection selection = PresetMotionCatalog.resolve(motion, area);
+        if (selection == null) throw new IllegalArgumentException("Unsupported preset motion: " + motion);
+        return new NavigationIntent("preset_motion", selection.motion().name(), selection.area(), command, "");
+    }
+
+    static NavigationIntent chatQuestion(String question, String reply) {
+        return new NavigationIntent("chat", "", "", question, reply);
     }
 
     static NavigationIntent startTask() {
@@ -100,6 +124,10 @@ final class NavigationIntent {
         return "dance".equals(this.intent);
     }
 
+    boolean isPresetMotion() {
+        return "preset_motion".equals(this.intent);
+    }
+
     String replyOrDefault(String string) {
         return this.reply.isBlank() ? string : this.reply;
     }
@@ -134,6 +162,10 @@ final class NavigationIntent {
         }
         if ("dancing".equals(string2) || "perform_dance".equals(string2) || "show_dance".equals(string2)) {
             return "dance";
+        }
+        if ("motion".equals(string2) || "gesture".equals(string2) || "action".equals(string2)
+                || "preset_action".equals(string2)) {
+            return "preset_motion";
         }
         return string2.isBlank() ? "chat" : string2;
     }

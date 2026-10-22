@@ -1,6 +1,6 @@
 # 灵犀 v1.3.1 完整部署包
 
-版本：v1.3.1-complete-20261022-r8
+版本：v1.3.1-complete-20261022-r9
 适用对象：内部部署人员  
 目标系统：Ubuntu 22.04 ARM64、ROS 2 Humble、智元 X2 系列机器人
 
@@ -12,9 +12,10 @@
 - 导航主包：sparkrobot-lingxi-nav-internal-1.0.7-20260901。
 - 地图服务、导航 bridge、网页控制台、语音兼容网关和灵心 Java Agent。
 - 灵创动作、表情和可选舞蹈资源编排能力：1.0.3-20260902。
-- 灵心知识库检索和语音接入：1.0.3-20261022。
+- 灵心知识库检索和语音接入：1.0.4-20261022。
 - Java Agent 启用 V1.3.8 交互拒识策略：填充词、重复 ASR 片段和播报回声过滤；质量元数据校验；真实 KWS/新鲜唤醒会话门控。
-- 连续导航卡住修复：1.0.1-20260907，必须最后覆盖导航文件。
+- 语音预置动作：支持 18 种白名单动作，如“请和我握个手”“请双手比心”；只在导航和讲解任务空闲时提交。
+- 连续导航卡住修复：1.0.2-20261022，必须最后覆盖导航文件。
 - 中文部署教程和客户日常使用手册。
 
 完整包内部已经包含 AIMDK 和导航主包，不需要另外下载或上传这两个组件。components/ 中的副本用于校验和安装，不能删掉。
@@ -33,8 +34,8 @@
 
 ~~~powershell
 $RobotIp = "172.20.10.2"
-$Package = ".\lingxi-v1.3.1-complete-20261022-r8-deployment.tar.gz"
-$Checksum = ".\lingxi-v1.3.1-complete-20261022-r8-deployment.tar.gz.sha256"
+$Package = ".\lingxi-v1.3.1-complete-20261022-r9-deployment.tar.gz"
+$Checksum = ".\lingxi-v1.3.1-complete-20261022-r9-deployment.tar.gz.sha256"
 scp $Package ("run@" + $RobotIp + ":/home/run/")
 scp $Checksum ("run@" + $RobotIp + ":/home/run/")
 ~~~
@@ -43,9 +44,9 @@ scp $Checksum ("run@" + $RobotIp + ":/home/run/")
 
 ~~~bash
 cd /home/run
-sha256sum -c lingxi-v1.3.1-complete-20261022-r8-deployment.tar.gz.sha256
-tar -xzf lingxi-v1.3.1-complete-20261022-r8-deployment.tar.gz
-cd lingxi-v1.3.1-complete-20261022-r8-deployment
+sha256sum -c lingxi-v1.3.1-complete-20261022-r9-deployment.tar.gz.sha256
+tar -xzf lingxi-v1.3.1-complete-20261022-r9-deployment.tar.gz
+cd lingxi-v1.3.1-complete-20261022-r9-deployment
 chmod +x install_all.sh control_all.sh
 bash ./install_all.sh prepare
 ~~~
@@ -67,7 +68,7 @@ bash ./01-replace-aimdk.sh
 ### 4. run 用户安装导航主包
 
 ~~~bash
-cd /home/run/lingxi-v1.3.1-complete-20261022-r8-deployment
+cd /home/run/lingxi-v1.3.1-complete-20261022-r9-deployment
 bash ./install_all.sh install-navigation
 ~~~
 
@@ -115,15 +116,17 @@ python .\integrated_deployment\build_package.py
 python .\integrated_deployment\audit_package.py
 ~~~
 
-构建机需要 Python 3 和 JDK 17（`java`、`javac`、`jar` 在 PATH）。完整包构建会先重编 V1.3.8 交互拒识 Agent 并运行 Java 回归测试，再生成 KB ZIP 和完整包。
+构建机需要 Python 3 和 JDK 17（`java`、`javac`、`jar` 在 PATH）。完整包构建会先重编含 V1.3.8 交互拒识和语音预置动作支持的 Java Agent 并运行 Java 回归测试，再生成 KB ZIP 和完整包。
 
 交付给 Linux 机器人优先使用：
 
 ~~~text
-integrated_deployment/dist/lingxi-v1.3.1-complete-20261022-r8-deployment.tar.gz
-integrated_deployment/dist/lingxi-v1.3.1-complete-20261022-r8-deployment.tar.gz.sha256
+integrated_deployment/dist/lingxi-v1.3.1-complete-20261022-r9-deployment.tar.gz
+integrated_deployment/dist/lingxi-v1.3.1-complete-20261022-r9-deployment.tar.gz.sha256
 ~~~
 
 ZIP 可用于 Windows 传输或查看，但机器人端仍建议使用 TAR.GZ。每台新机器人都必须独立完成定位、急停、短距离导航和语音验收；离线审计不能替代现场安全验收。
 
 语音拒识默认在兼容模式下接受缺失的声学质量元数据，但会校验已提供的值；唤醒门控默认 enforce，需要真实 SDK KWS/状态事件或可核验的新鲜 SOC2 唤醒证据。该策略是输入门控，不包含端侧 RNNoise、AEC 或实际 DOA 音频滤波；声学链路需由现场单独验收。
+
+语音预置动作包含挥手、握手、举手、飞吻、比心、击掌、敬礼、平举、拥抱、加油、鼓掌、双手打叉、胸前挥手、鞠躬、拜拜、动感光波、挠头和抓屁股。仅明确祈使口令会触发；动作问句、否定、引用/转述和条件表达拒识，直播弹幕不触发。导航中或讲解进行/暂停时不会下发动作；语音回复只表示请求已提交，不代表动作执行完成。

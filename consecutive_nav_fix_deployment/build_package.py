@@ -27,7 +27,7 @@ NAV_ROOT = (
 )
 SOURCE_ROOT = NAV_ROOT / "robot_local_navigation_v3"
 TEST_ROOT = NAV_ROOT / "test"
-VERSION = "1.0.1-20260907"
+VERSION = "1.0.2-20261022"
 NAME = f"sparkrobot-lingxi-consecutive-nav-fix-{VERSION}"
 DIST = HERE / "dist"
 PAYLOAD_FILES = (
@@ -36,6 +36,7 @@ PAYLOAD_FILES = (
     "sdk_motion_controller.py",
     "navigation_client.py",
     "pnc_response.py",
+    "voice_preset_motion.py",
 )
 SOURCE_FILES = (
     "install.sh",
@@ -77,6 +78,7 @@ def validate_sources() -> None:
             "_finish_arrival_motion_after_wait",
             "Tour task motion release wait started",
             "Arrival empty motion ignored",
+            'self.path == "/motion/play"',
         ),
         "motion_option_policy.py": (
             "CONTINUOUS_MOTION_IDS = frozenset({6001})",
@@ -87,11 +89,20 @@ def validate_sources() -> None:
             "get_publishers_info_by_topic",
             "claim_bounded_retry",
         ),
+        "voice_preset_motion.py": (
+            "VOICE_PRESET_MOTIONS",
+            "def resolve_voice_command",
+            "has_negation_or_quoted_speech",
+            "def submit_voice_preset_motion",
+        ),
     }
     content = {
         "lingxi_nav_bridge.py": bridge,
         "motion_option_policy.py": policy,
         "navigation_client.py": client,
+        "voice_preset_motion.py": (
+            SOURCE_ROOT / "voice_preset_motion.py"
+        ).read_text(encoding="utf-8"),
     }
     for name, markers in required_markers.items():
         for marker in markers:
@@ -189,9 +200,9 @@ def stage_files(stage: Path) -> None:
     release_info = (
         f"version={VERSION}\n"
         "package=sparkrobot-lingxi-consecutive-nav-fix\n"
-        "compatibility=lingxi-v1.3.1-complete-20260906 and later compatible navigation layouts\n"
+        "compatibility=lingxi-v1.3.1-complete-20261022 and later compatible navigation layouts\n"
         f"built_at={datetime.now(timezone.utc).isoformat()}\n"
-        "scope=continuous-navigation-motion-release-bounded-pnc-discovery-and-runtime-permissions\n"
+        "scope=continuous-navigation-motion-release-bounded-pnc-discovery-runtime-permissions-and-voice-preset-motions\n"
     )
     write_file(stage / "release-info.txt", release_info.encode("utf-8"))
 

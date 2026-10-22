@@ -14,7 +14,7 @@ from pathlib import Path, PurePosixPath
 
 
 HERE = Path(__file__).resolve().parent
-VERSION = "1.0.1-20260907"
+VERSION = "1.0.2-20261022"
 NAME = f"sparkrobot-lingxi-consecutive-nav-fix-{VERSION}"
 DIST = HERE / "dist"
 REQUIRED = {
@@ -29,6 +29,7 @@ REQUIRED = {
     "payload/sdk_motion_controller.py",
     "payload/navigation_client.py",
     "payload/pnc_response.py",
+    "payload/voice_preset_motion.py",
 }
 EXECUTABLES = {"install.sh", "control.sh"}
 
@@ -50,7 +51,7 @@ def verify_contents(contents: dict[str, bytes], modes: dict[str, int], label: st
             f"{label} 文件清单不一致；缺失={sorted(REQUIRED-set(contents))}，额外={sorted(set(contents)-REQUIRED)}"
         )
     manifest = json.loads(contents["manifest.json"].decode("utf-8"))
-    if manifest.get("version") != VERSION or manifest.get("payload_count") != 5:
+    if manifest.get("version") != VERSION or manifest.get("payload_count") != 6:
         raise RuntimeError(f"{label} manifest 版本或 payload 数量错误")
     listed = {item["path"]: item for item in manifest.get("files", [])}
     if set(listed) != REQUIRED - {"manifest.json"}:
@@ -70,6 +71,7 @@ def verify_contents(contents: dict[str, bytes], modes: dict[str, int], label: st
     bridge = contents["payload/lingxi_nav_bridge.py"].decode("utf-8")
     policy = contents["payload/motion_option_policy.py"].decode("utf-8")
     client = contents["payload/navigation_client.py"].decode("utf-8")
+    voice_motion = contents["payload/voice_preset_motion.py"].decode("utf-8")
     control = contents["control.sh"].decode("utf-8")
     installer = contents["install.sh"].decode("utf-8")
     for forbidden in (
@@ -83,6 +85,13 @@ def verify_contents(contents: dict[str, bytes], modes: dict[str, int], label: st
         raise RuntimeError(f"{label} 缺少 6001 持续动作策略")
     if "PNC_RESPONSE_MAX_RETRIES = 15" not in client:
         raise RuntimeError(f"{label} 缺少 PNC 有界重试策略")
+    for marker in (
+        "def resolve_voice_command",
+        "has_negation_or_quoted_speech",
+        "def submit_voice_preset_motion",
+    ):
+        if marker not in voice_motion:
+            raise RuntimeError(f"{label} 缺少语音预置动作拒识策略：{marker}")
     if "def _fail_async" not in client or "def _fail(" not in client:
         raise RuntimeError(f"{label} PNC 失败回调缺少异步失败处理方法")
     if "is_bridge_process" not in control or "绝不会停止该进程" not in control:
@@ -195,6 +204,7 @@ def run_shell_and_install_smoke(contents: dict[str, bytes], modes: dict[str, int
             "sdk_motion_controller.py",
             "navigation_client.py",
             "pnc_response.py",
+            "voice_preset_motion.py",
         ):
             if (nav_dir / name).read_bytes() != contents[f"payload/{name}"]:
                 raise RuntimeError(f"安装器没有正确替换 {name}")
@@ -241,6 +251,8 @@ def run_shell_and_install_smoke(contents: dict[str, bytes], modes: dict[str, int
                 raise RuntimeError(f"备份恢复没有还原 {name}")
         if (nav_dir / "pnc_response.py").exists():
             raise RuntimeError("备份恢复没有删除原本不存在的 pnc_response.py")
+        if (nav_dir / "voice_preset_motion.py").exists():
+            raise RuntimeError("备份恢复没有删除原本不存在的 voice_preset_motion.py")
         if (fixture / "state" / "installed-manifest.json").exists():
             raise RuntimeError("备份恢复没有还原安装状态")
 

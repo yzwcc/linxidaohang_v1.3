@@ -1,6 +1,6 @@
 # 灵心知识库检索与语音接入部署包
 
-版本：`sparkrobot-lingxi-kb-1.0.3-20261022`
+版本：`sparkrobot-lingxi-kb-1.0.4-20261022`
 
 本包包含两部分：独立 Retriever Proxy 服务，以及已验证的 Java Agent 知识库接入更新。它不包含导航、地图、AIMDK 或直播项目配置。
 
@@ -15,6 +15,7 @@
 - 独立 systemd 服务，监听机器人本机 `127.0.0.1:18084`。
 - Java Agent 按“本地问答 -> 灵心知识库 -> 大模型”顺序回答普通问题。
 - Java Agent 集成 V1.3.8 输入拒识策略：填充词/重复片段/播报回声过滤、可用质量元数据校验和真实唤醒会话门控。
+- Java Agent 支持 18 种明确语音祈使口令的预置动作识别，并对问句、否定、引用和条件表达拒识。
 - Java Agent 更新前自动备份，可从备份 JAR 回滚。
 
 ## 在已部署灵犀导航的机器人上安装
@@ -22,7 +23,7 @@
 在机器人 `run` 账号执行：
 
 ```bash
-cd /home/run/sparkrobot-lingxi-kb-1.0.3-20261022
+cd /home/run/sparkrobot-lingxi-kb-1.0.4-20261022
 sudo ./install.sh --from-lingxi --agent-code AI_AGENT_你的智能体Code
 sudo ./install_voice_agent.sh
 ```
@@ -127,3 +128,9 @@ voice.gate.sessionWindowMs=8000
 这是 ASR/SDK 元数据上的软件拒识策略，不会对 PCM 音频做 RNNoise、AEC 或真实 DOA 滤波，也不能替代机器人硬件急停。现场验收仍须测试正常唤醒、背景噪声、播报回声、侧后方说话与短指令，并由现场人员确认硬件急停有效。
 
 拒识原因可从 `lingxi-java-agent-robot.service` 日志排查；回滚方法见上方“语音接入回滚”，只替换 Java Agent JAR，不删除知识库服务和配置。
+
+### 语音预置动作
+
+支持动作：挥手、握手、举手、飞吻、比心、击掌、敬礼、平举、拥抱、加油、鼓掌、双手打叉、胸前挥手、鞠躬、拜拜、动感光波、挠头、抓屁股。例如可以在正常唤醒后说“请和我握个手”或“请双手比心”。只有导航空闲且没有进行或暂停中的讲解任务时才会提交；问句、否定、引用/转述和条件表达不会触发，直播弹幕不支持触发动作。
+
+机器人回复“已受理/已提交”只表示动作请求进入服务，不保证动作已经完成。此 Java Agent 需要搭配导航增量包 `sparkrobot-lingxi-consecutive-nav-fix-1.0.2-20261022` 才能调用机器人动作桥接接口；单独升级知识库包不会安装导航端接口。

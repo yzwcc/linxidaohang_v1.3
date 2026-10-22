@@ -107,6 +107,17 @@ final class NavBridgeClient {
         return this.postJson("/entertainment/dance", jSONObject);
     }
 
+    JSONObject presetMotion(String eventId, String motion, String area, String text)
+            throws IOException, InterruptedException {
+        JSONObject payload = new JSONObject();
+        payload.put("event_id", eventId);
+        payload.put("motion", motion);
+        payload.put("area", area);
+        payload.put("text", text);
+        log.info("Robot bridge /motion/play request: eventId={}, motion={}, area={}", eventId, motion, area);
+        return this.postJson("/motion/play", payload);
+    }
+
     JSONObject markInteraction(String string, String string2, String string3) throws IOException, InterruptedException {
         JSONObject jSONObject = new JSONObject();
         jSONObject.put("event_id", string);
@@ -153,7 +164,7 @@ final class NavBridgeClient {
     private JSONObject send(HttpRequest httpRequest) throws IOException, InterruptedException {
         HttpResponse<String> httpResponse = this.httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
         String string = httpRequest.uri().getPath();
-        if (string.endsWith("/nav/start") || string.endsWith("/nav/stop") || string.endsWith("/task/start") || string.endsWith("/task/pause") || string.endsWith("/task/resume") || string.endsWith("/task/stop") || string.endsWith("/entertainment/sing") || string.endsWith("/entertainment/dance") || string.endsWith("/tts/speak") || string.endsWith("/interaction/end") || string.endsWith("/interaction/mark") || string.endsWith("/interaction/wake")) {
+        if (string.endsWith("/nav/start") || string.endsWith("/nav/stop") || string.endsWith("/task/start") || string.endsWith("/task/pause") || string.endsWith("/task/resume") || string.endsWith("/task/stop") || string.endsWith("/entertainment/sing") || string.endsWith("/entertainment/dance") || string.endsWith("/motion/play") || string.endsWith("/tts/speak") || string.endsWith("/interaction/end") || string.endsWith("/interaction/mark") || string.endsWith("/interaction/wake")) {
             log.info("Robot bridge {} response: httpStatus={}, body={}", string, httpResponse.statusCode(), httpResponse.body());
         }
         if (httpResponse.statusCode() < 200 || httpResponse.statusCode() >= 300) {

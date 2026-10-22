@@ -12,15 +12,35 @@ import zipfile
 from pathlib import Path, PurePosixPath
 
 HERE = Path(__file__).resolve().parent
-VERSION = "1.0.3-20261022"
+VERSION = "1.0.4-20261022"
 NAME = f"sparkrobot-lingxi-kb-{VERSION}"
 DIST = HERE / "dist"
+PRESET_MOTION_NAMES = (
+    "wave",
+    "handshake",
+    "raise_hand",
+    "flying_kiss",
+    "sweetheart",
+    "high_five",
+    "salute",
+    "horizontal_arm",
+    "hug",
+    "cheer",
+    "clap",
+    "handx",
+    "chestwave",
+    "bow",
+    "bye",
+    "lightwave",
+    "scratch_head",
+    "scratch_back",
+)
 JAVA_AGENT_DIR = (
     HERE.parent / "robot_local_nav_java"
     / "robot_local_nav_java-new-java-interaction-end-hook"
 )
 JAVA_AGENT_BUILDER = JAVA_AGENT_DIR / "build_voice_gate_agent.py"
-JAVA_AGENT_JAR = JAVA_AGENT_DIR / "target" / "robot-local-navigation-java-0.1.0-all-kb-voice-gate-20261022.jar"
+JAVA_AGENT_JAR = JAVA_AGENT_DIR / "target" / "robot-local-navigation-java-0.1.0-all-kb-voice-motion-20261022.jar"
 
 
 def digest(path: Path) -> str:
@@ -66,6 +86,14 @@ def main() -> int:
                 "wake_signal_max_age_ms": 8000,
                 "session_window_ms": 8000,
                 "acoustic_dsp_included": False,
+            },
+            "preset_motion_policy": {
+                "action_count": len(PRESET_MOTION_NAMES),
+                "actions": list(PRESET_MOTION_NAMES),
+                "execution_mode": "explicit_imperative_only",
+                "busy_navigation_or_tour": "reject",
+                "live_danmu": "disabled",
+                "acknowledgement": "submission_only",
             },
             "files": manifest,
         }

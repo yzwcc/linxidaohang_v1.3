@@ -40,6 +40,7 @@ from robot_local_navigation_v3.tour_interaction_policy import (
     wake_interaction_action,
 )
 from robot_local_navigation_v3.tts_speaker import TtsSpeaker
+from robot_local_navigation_v3.voice_preset_motion import submit_voice_preset_motion
 
 
 # 自动返航状态机。状态值会出现在 /nav/status 返回里，外部调用方可能依赖这些字符串。
@@ -1013,6 +1014,28 @@ class LingxiNavBridge(Node):
 
         reason = str(payload.get("reason", "manual_request")).strip() or "manual_request"
         return self._stop_arrival_motion(reason, force=bool(payload.get("force", False)))
+
+    def play_voice_preset_motion(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """Submit a whitelisted voice action only while navigation and tours are idle."""
+
+        event_id = str(payload.get("event_id", "")).strip()
+        navigation_status = self.navigation_client.get_status().get("status", "unknown")
+        task_active = bool(self._task_status().get("active", True))
+        result = submit_voice_preset_motion(
+            payload.get("text"),
+            payload.get("motion"),
+            payload.get("area"),
+            navigation_status,
+            task_active,
+            self.motion_controller,
+        )
+        self.get_logger().info(
+            f"/motion/play result: event_id={event_id or '<none>'}, "
+            f"motion={result.get('motion', payload.get('motion', ''))}, "
+            f"area={result.get('area', payload.get('area', ''))}, "
+            f"status={result.get('status')}, accepted={result.get('accepted')}"
+        )
+        return result
 
     def _stop_arrival_motion(self, reason: str, *, force: bool = False) -> dict[str, Any]:
         with self._auto_return_lock:
@@ -2299,6 +2322,9 @@ class NavHttpHandler(BaseHTTPRequestHandler):
                 return
             if self.path == "/motion/stop":
                 self.write_json(200, self.server.bridge.stop_arrival_motion(payload))
+                return
+            if self.path == "/motion/play":
+                self.write_json(200, self.server.bridge.play_voice_preset_motion(payload))
                 return
             if self.path == "/tts/speak":
                 self.write_json(200, self.server.bridge.speak(payload))

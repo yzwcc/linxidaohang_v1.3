@@ -8,7 +8,7 @@ import zipfile
 from pathlib import Path, PurePosixPath
 
 HERE = Path(__file__).resolve().parent
-VERSION = "1.0.3-20261022"
+VERSION = "1.0.4-20261022"
 NAME = f"sparkrobot-lingxi-kb-{VERSION}"
 ARCHIVE = HERE / "dist" / f"{NAME}.zip"
 VOICE_GATE_CLASSES = {
@@ -19,6 +19,17 @@ VOICE_GATE_CLASSES = {
     "com/agibot/aiem/nav/SpeechInputPolicy.class",
     "com/agibot/aiem/nav/Soc2WakeEvidenceProvider.class",
     "com/agibot/aiem/nav/VoiceMetadataDiagnostics.class",
+    "com/agibot/aiem/nav/NavigationIntent.class",
+    "com/agibot/aiem/nav/PresetMotionCatalog.class",
+    "com/agibot/aiem/nav/PresetMotionCatalog$Motion.class",
+    "com/agibot/aiem/nav/PresetMotionCatalog$Selection.class",
+    "com/agibot/aiem/nav/NavBridgeClient.class",
+    "com/agibot/aiem/nav/DoubaoArkClient.class",
+}
+PRESET_MOTION_NAMES = {
+    "wave", "handshake", "raise_hand", "flying_kiss", "sweetheart", "high_five",
+    "salute", "horizontal_arm", "hug", "cheer", "clap", "handx", "chestwave",
+    "bow", "bye", "lightwave", "scratch_head", "scratch_back",
 }
 
 
@@ -64,6 +75,16 @@ def main() -> int:
             or voice_policy.get("acoustic_dsp_included") is not False
         ):
             raise RuntimeError("语音拒识策略清单与默认实现不一致")
+        motion_policy = manifest.get("preset_motion_policy", {})
+        if (
+            motion_policy.get("action_count") != 18
+            or set(motion_policy.get("actions", [])) != PRESET_MOTION_NAMES
+            or motion_policy.get("execution_mode") != "explicit_imperative_only"
+            or motion_policy.get("busy_navigation_or_tour") != "reject"
+            or motion_policy.get("live_danmu") != "disabled"
+            or motion_policy.get("acknowledgement") != "submission_only"
+        ):
+            raise RuntimeError("预置动作策略清单与实现不一致")
         for item in manifest["files"]:
             member = f"{NAME}/{item['path']}"
             with archive.open(member) as handle:

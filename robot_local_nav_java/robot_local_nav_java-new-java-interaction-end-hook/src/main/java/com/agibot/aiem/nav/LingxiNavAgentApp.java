@@ -683,10 +683,17 @@ public final class LingxiNavAgentApp {
         long l2 = System.currentTimeMillis();
         log.info("Audio request point names loaded: eventId={}, audioBytes={}, points={}, elapsedMs={}", string, byArray.length, list.size(), l2 - l);
         NavigationIntent navigationIntent = doubaoArkClient.parseInteractionAudio(byArray, list);
+        String rawQuestion = navigationIntent.question;
+        navigationIntent = LingxiNavAgentApp.verifyVoicePresetMotion(rawQuestion, navigationIntent);
         log.info("Audio request parsed by Doubao: eventId={}, elapsedMs={}", (Object)string, (Object)(System.currentTimeMillis() - l2));
         String string2 = LingxiNavAgentApp.describeIntent(navigationIntent);
         LingxiNavAgentApp.logIntent("audio_asr_final", string, string2, navigationIntent);
-        LingxiNavAgentApp.markUserInteraction(string, "audio_asr_final", navigationIntent, navBridgeClient, atomicBoolean);
+        boolean motionRelated = PresetMotionCatalog.mentionsMotionText(rawQuestion);
+        boolean motionOnlyRequest = motionRelated
+                && ("chat".equals(navigationIntent.intent) || navigationIntent.isPresetMotion());
+        if (!motionOnlyRequest) {
+            LingxiNavAgentApp.markUserInteraction(string, "audio_asr_final", navigationIntent, navBridgeClient, atomicBoolean);
+        }
         InteractionResult interactionResult;
         if ("chat".equals(navigationIntent.intent) && !navigationIntent.reply.isBlank()) {
             String directReply = navigationIntent.reply;
@@ -707,20 +714,39 @@ public final class LingxiNavAgentApp {
         } else {
             interactionResult = LingxiNavAgentApp.handleIntent(string, string2, navigationIntent, navBridgeClient, doubaoArkClient, qaStore, true);
         }
+        if (interactionResult.markInteractionAfter) {
+            LingxiNavAgentApp.markUserInteraction(string, "audio_asr_final", navigationIntent, navBridgeClient, atomicBoolean);
+        }
         return new AudioResult(string2, interactionResult.reply, interactionResult.ttsPriority, interactionResult.skillAction);
     }
 
     private static InteractionResult processTextRequest(String string, String string2, AppConfig appConfig, NavBridgeClient navBridgeClient, DoubaoArkClient doubaoArkClient, QaStore qaStore, AtomicBoolean atomicBoolean) throws Exception {
-        List<String> list = navBridgeClient.listPointNames();
-        NavigationIntent navigationIntent = LingxiNavAgentApp.taskControlIntentFromText(string2);
-        if (navigationIntent == null) {
-            navigationIntent = doubaoArkClient.parseInteraction(string2, list);
+        PresetMotionCatalog.Selection voiceMotion = PresetMotionCatalog.resolveVoiceCommand(string2);
+        NavigationIntent navigationIntent;
+        if (voiceMotion != null) {
+            navigationIntent = NavigationIntent.presetMotion(
+                    voiceMotion.motion().name(), voiceMotion.area(), string2);
         } else {
-            log.info("Local tour control rule matched: eventId={}, intent={}, text={}", string, navigationIntent.intent, LingxiNavAgentApp.abbreviate(string2));
+            List<String> list = navBridgeClient.listPointNames();
+            navigationIntent = LingxiNavAgentApp.taskControlIntentFromText(string2);
+            if (navigationIntent == null) {
+                navigationIntent = doubaoArkClient.parseInteraction(string2, list);
+            } else {
+                log.info("Local tour control rule matched: eventId={}, intent={}, text={}", string, navigationIntent.intent, LingxiNavAgentApp.abbreviate(string2));
+            }
+            navigationIntent = LingxiNavAgentApp.verifyVoicePresetMotion(string2, navigationIntent);
         }
         LingxiNavAgentApp.logIntent("text_asr_final", string, string2, navigationIntent);
-        LingxiNavAgentApp.markUserInteraction(string, "text_asr_final", navigationIntent, navBridgeClient, atomicBoolean);
+        boolean motionRelated = PresetMotionCatalog.mentionsMotionText(string2);
+        boolean motionOnlyRequest = motionRelated
+                && ("chat".equals(navigationIntent.intent) || navigationIntent.isPresetMotion());
+        if (!motionOnlyRequest) {
+            LingxiNavAgentApp.markUserInteraction(string, "text_asr_final", navigationIntent, navBridgeClient, atomicBoolean);
+        }
         InteractionResult interactionResult = LingxiNavAgentApp.handleIntent(string, string2, navigationIntent, navBridgeClient, doubaoArkClient, qaStore, true);
+        if (interactionResult.markInteractionAfter) {
+            LingxiNavAgentApp.markUserInteraction(string, "text_asr_final", navigationIntent, navBridgeClient, atomicBoolean);
+        }
         return interactionResult;
     }
 
@@ -732,6 +758,10 @@ public final class LingxiNavAgentApp {
     }
 
     private static InteractionResult processLiveTextRequest(String string, String string2, AppConfig appConfig, NavBridgeClient navBridgeClient, DoubaoArkClient doubaoArkClient, QaStore qaStore) throws Exception {
+        PresetMotionCatalog.Selection voiceMotion = PresetMotionCatalog.resolveVoiceCommand(string2);
+        if (voiceMotion != null) {
+            return new InteractionResult("直播弹幕暂不支持触发机器人预置动作。", TtsPriority.NORMAL);
+        }
         NavigationIntent navigationIntent = LingxiNavAgentApp.entertainmentIntentFromText(string2);
         if (navigationIntent != null) {
             log.info("Live entertainment rule matched: eventId={}, intent={}, text={}", string, navigationIntent.intent, LingxiNavAgentApp.abbreviate(string2));
@@ -742,6 +772,9 @@ public final class LingxiNavAgentApp {
         LingxiNavAgentApp.logIntent("live_danmu", string, string2, navigationIntent);
         if (!appConfig.liveAllowNavigation && LingxiNavAgentApp.isRobotControlIntent(navigationIntent)) {
             return new InteractionResult("\u76f4\u64ad\u5f39\u5e55\u6682\u4e0d\u652f\u6301\u63a7\u5236\u673a\u5668\u4eba\u79fb\u52a8\u3002", TtsPriority.NORMAL);
+        }
+        if (navigationIntent.isPresetMotion()) {
+            return new InteractionResult("直播弹幕暂不支持触发机器人预置动作。", TtsPriority.NORMAL);
         }
         if (!appConfig.liveAllowEntertainment && LingxiNavAgentApp.isRobotEntertainmentIntent(navigationIntent)) {
             return new InteractionResult("\u76f4\u64ad\u5f39\u5e55\u6682\u4e0d\u652f\u6301\u89e6\u53d1\u673a\u5668\u4eba\u8868\u6f14\u3002", TtsPriority.NORMAL);
@@ -784,6 +817,18 @@ public final class LingxiNavAgentApp {
             return NavigationIntent.startTask();
         }
         return null;
+    }
+
+    private static NavigationIntent verifyVoicePresetMotion(String rawText, NavigationIntent intent) {
+        PresetMotionCatalog.Selection selection = PresetMotionCatalog.resolveVoiceCommand(rawText);
+        if (selection != null) {
+            return NavigationIntent.presetMotion(
+                    selection.motion().name(), selection.area(), rawText);
+        }
+        if (intent.isPresetMotion()) {
+            return NavigationIntent.chatQuestion(rawText, intent.reply);
+        }
+        return intent;
     }
 
     private static NavigationIntent localEntertainmentIntentFromRequest(String string, NavigationIntent navigationIntent) {
@@ -1012,6 +1057,31 @@ public final class LingxiNavAgentApp {
             String string8 = jSONObject.getString("message") == null ? navigationIntent.replyOrDefault("\u8df3\u821e\u8bf7\u6c42\u6ca1\u6709\u88ab\u673a\u5668\u4eba\u63a5\u53d7\u3002") : jSONObject.getString("message");
             return new InteractionResult(string8, TtsPriority.NORMAL);
         }
+        if (navigationIntent.isPresetMotion()) {
+            PresetMotionCatalog.Selection selection = PresetMotionCatalog.resolveVoiceCommand(string2);
+            if (selection == null
+                    || !selection.motion().name().equals(navigationIntent.targetName)
+                    || !selection.area().equals(navigationIntent.motionArea)) {
+                return new InteractionResult("动作口令未通过白名单核验。", TtsPriority.NORMAL);
+            }
+            JSONObject result = navBridgeClient.presetMotion(
+                    string, selection.motion().name(), selection.area(), string2);
+            boolean accepted = result.getBooleanValue("accepted");
+            boolean submitted = result.getBooleanValue("submitted");
+            if (accepted && submitted) {
+                String message = result.getString("message");
+                return new InteractionResult(
+                        message == null || message.isBlank() ? "动作请求已提交" : message,
+                        TtsPriority.NORMAL, "", true);
+            }
+            if (accepted) {
+                return new InteractionResult("动作请求状态不明确，未能确认提交。", TtsPriority.NORMAL);
+            }
+            String message = result.getString("message");
+            return new InteractionResult(
+                    message == null || message.isBlank() ? "动作请求未受理。" : message,
+                    TtsPriority.NORMAL);
+        }
         String string9 = navigationIntent.questionOrDefault(string2);
         if (LingxiNavAgentApp.isDateQuestion(string9)) {
             return new InteractionResult(LingxiNavAgentApp.dateReply(), TtsPriority.NORMAL);
@@ -1129,6 +1199,9 @@ public final class LingxiNavAgentApp {
         }
         if (navigationIntent.isDance()) {
             return navigationIntent.targetName.isBlank() ? "\u8df3\u821e" : "\u8df3" + navigationIntent.targetName;
+        }
+        if (navigationIntent.isPresetMotion()) {
+            return navigationIntent.questionOrDefault("预置动作");
         }
         return navigationIntent.questionOrDefault("\u666e\u901a\u95ee\u7b54");
     }
@@ -1520,9 +1593,14 @@ public final class LingxiNavAgentApp {
     private record WakeGate(boolean handled, boolean accepted, String state, String reason) {
     }
 
-    private record InteractionResult(String reply, TtsPriority ttsPriority, String skillAction) {
+    private record InteractionResult(
+            String reply, TtsPriority ttsPriority, String skillAction, boolean markInteractionAfter) {
         private InteractionResult(String string, TtsPriority ttsPriority) {
-            this(string, ttsPriority, "");
+            this(string, ttsPriority, "", false);
+        }
+
+        private InteractionResult(String string, TtsPriority ttsPriority, String skillAction) {
+            this(string, ttsPriority, skillAction, false);
         }
     }
 

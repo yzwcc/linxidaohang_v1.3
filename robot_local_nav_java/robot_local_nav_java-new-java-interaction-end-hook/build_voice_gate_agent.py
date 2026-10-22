@@ -13,7 +13,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 TARGET = HERE / "target"
 BASE_JAR = TARGET / "robot-local-navigation-java-0.1.0-all-kb-20260902.jar"
-OUTPUT_JAR = TARGET / "robot-local-navigation-java-0.1.0-all-kb-voice-gate-20261022.jar"
+OUTPUT_JAR = TARGET / "robot-local-navigation-java-0.1.0-all-kb-voice-motion-20261022.jar"
 SDK_JAR = HERE / "linksoul-agentsdk-1.4.0-SNAPSHOT.jar"
 MAIN_SOURCE = HERE / "src" / "main" / "java" / "com" / "agibot" / "aiem" / "nav"
 TEST_SOURCE = HERE / "src" / "test" / "java" / "com" / "agibot" / "aiem" / "nav"
@@ -25,6 +25,10 @@ MAIN_FILES = (
     "SpeechInputPolicy.java",
     "Soc2WakeEvidenceProvider.java",
     "VoiceMetadataDiagnostics.java",
+    "NavigationIntent.java",
+    "PresetMotionCatalog.java",
+    "NavBridgeClient.java",
+    "DoubaoArkClient.java",
 )
 TEST_FILES = (
     "VoiceGateTest.java",
@@ -32,6 +36,7 @@ TEST_FILES = (
     "Soc2WakeEvidenceProviderTest.java",
     "SpeechInputPolicyTest.java",
     "InteractionGateRegression.java",
+    "PresetMotionCatalogTest.java",
 )
 TEST_MAINS = (
     "VoiceGateTest",
@@ -39,6 +44,7 @@ TEST_MAINS = (
     "Soc2WakeEvidenceProviderTest",
     "SpeechInputPolicyTest",
     "InteractionGateRegression",
+    "PresetMotionCatalogTest",
 )
 REQUIRED_CLASSES = {
     "com/agibot/aiem/nav/AppConfig.class",
@@ -48,6 +54,12 @@ REQUIRED_CLASSES = {
     "com/agibot/aiem/nav/SpeechInputPolicy.class",
     "com/agibot/aiem/nav/Soc2WakeEvidenceProvider.class",
     "com/agibot/aiem/nav/VoiceMetadataDiagnostics.class",
+    "com/agibot/aiem/nav/NavigationIntent.class",
+    "com/agibot/aiem/nav/PresetMotionCatalog.class",
+    "com/agibot/aiem/nav/PresetMotionCatalog$Motion.class",
+    "com/agibot/aiem/nav/PresetMotionCatalog$Selection.class",
+    "com/agibot/aiem/nav/NavBridgeClient.class",
+    "com/agibot/aiem/nav/DoubaoArkClient.class",
 }
 MANIFEST = "META-INF/MANIFEST.MF"
 
