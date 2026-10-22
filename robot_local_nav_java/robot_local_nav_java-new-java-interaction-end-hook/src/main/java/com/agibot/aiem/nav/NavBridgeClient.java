@@ -16,35 +16,92 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.LongSupplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 final class NavBridgeClient {
+    private static final long DEFAULT_POINT_NAMES_CACHE_TTL_MS = 10_000L;
     private static final Logger log = LoggerFactory.getLogger(NavBridgeClient.class);
     private final HttpClient httpClient;
     private final String baseUrl;
     private final Duration timeout;
+    private final Object pointNamesLock = new Object();
+    private final LongSupplier nanoTime;
+    private final long pointNamesCacheTtlNanos;
+    private volatile PointNamesSnapshot pointNamesSnapshot;
 
     NavBridgeClient(AppConfig appConfig) {
+        this(appConfig, System::nanoTime, DEFAULT_POINT_NAMES_CACHE_TTL_MS);
+    }
+
+    NavBridgeClient(AppConfig appConfig, LongSupplier nanoTime, long pointNamesCacheTtlMs) {
         this.httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofMillis(appConfig.navTimeoutMs)).build();
         this.baseUrl = appConfig.navBaseUrl;
         this.timeout = Duration.ofMillis(appConfig.navTimeoutMs);
+        this.nanoTime = nanoTime;
+        this.pointNamesCacheTtlNanos = Duration.ofMillis(Math.max(0L, pointNamesCacheTtlMs)).toNanos();
     }
 
     List<String> listPointNames() {
-        try {
-            JSONObject jSONObject = this.getJson("/points");
-            JSONArray jSONArray = jSONObject.getJSONArray("point_names");
-            ArrayList<String> arrayList = new ArrayList<String>();
-            if (jSONArray != null) {
-                for (Object e : jSONArray) {
-                    arrayList.add(String.valueOf(e));
-                }
-            }
-            return arrayList;
+        long now = this.nanoTime.getAsLong();
+        PointNamesSnapshot cached = this.pointNamesSnapshot;
+        if (this.isFresh(cached, now)) {
+            log.debug("Navigation point names served from cache: count={}", cached.names.size());
+            return cached.names;
         }
-        catch (Exception exception) {
-            return List.of();
+        synchronized (this.pointNamesLock) {
+            now = this.nanoTime.getAsLong();
+            cached = this.pointNamesSnapshot;
+            if (this.isFresh(cached, now)) {
+                log.debug("Navigation point names served from cache: count={}", cached.names.size());
+                return cached.names;
+            }
+            long startedAt = System.nanoTime();
+            try {
+                JSONObject response = this.getJson("/points");
+                JSONArray values = response.getJSONArray("point_names");
+                ArrayList<String> names = new ArrayList<String>();
+                if (values != null) {
+                    for (Object value : values) {
+                        String name = String.valueOf(value).trim();
+                        if (!name.isEmpty()) {
+                            names.add(name);
+                        }
+                    }
+                }
+                List<String> result = List.copyOf(names);
+                this.pointNamesSnapshot = new PointNamesSnapshot(this.nanoTime.getAsLong(), result);
+                log.info("Navigation point names refreshed: count={}, elapsedMs={}",
+                        result.size(), (System.nanoTime() - startedAt) / 1_000_000L);
+                return result;
+            } catch (Exception exception) {
+                if (exception instanceof InterruptedException) {
+                    Thread.currentThread().interrupt();
+                }
+                cached = this.pointNamesSnapshot;
+                log.warn("Navigation point lookup failed: elapsedMs={}, usingCached={}, error={}",
+                        (System.nanoTime() - startedAt) / 1_000_000L,
+                        cached != null,
+                        exception.getMessage());
+                return cached == null ? List.of() : cached.names;
+            }
+        }
+    }
+
+    private boolean isFresh(PointNamesSnapshot snapshot, long now) {
+        return snapshot != null
+                && this.pointNamesCacheTtlNanos > 0L
+                && now - snapshot.refreshedAtNanos < this.pointNamesCacheTtlNanos;
+    }
+
+    private static final class PointNamesSnapshot {
+        private final long refreshedAtNanos;
+        private final List<String> names;
+
+        private PointNamesSnapshot(long refreshedAtNanos, List<String> names) {
+            this.refreshedAtNanos = refreshedAtNanos;
+            this.names = names;
         }
     }
 

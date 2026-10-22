@@ -15,12 +15,12 @@ from pathlib import Path, PurePosixPath
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
-VERSION = "1.3.1-complete-20261022-r9"
+VERSION = "1.3.1-complete-20261023-r10"
 NAME = f"lingxi-v{VERSION}-deployment"
 DIST = HERE / "dist"
 COMPONENTS = {
     "lingxi-v1.3.1-full-deployment-20260901.zip": ROOT / "lingxi_v1.3.1_deployment/dist/lingxi-v1.3.1-full-deployment-20260901.zip",
-    "sparkrobot-lingxi-kb-1.0.4-20261022.zip": ROOT / "knowledge_base_deployment/dist/sparkrobot-lingxi-kb-1.0.4-20261022.zip",
+    "sparkrobot-lingxi-kb-1.0.5-20261023.zip": ROOT / "knowledge_base_deployment/dist/sparkrobot-lingxi-kb-1.0.5-20261023.zip",
     "sparkrobot-lingxi-linkcraft-addon-1.0.3-20260902.tar.gz": ROOT / "linkcraft_deployment/dist/sparkrobot-lingxi-linkcraft-addon-1.0.3-20260902.tar.gz",
     "sparkrobot-lingxi-consecutive-nav-fix-1.0.2-20261022.tar.gz": ROOT / "consecutive_nav_fix_deployment/dist/sparkrobot-lingxi-consecutive-nav-fix-1.0.2-20261022.tar.gz",
 }
@@ -81,12 +81,12 @@ def validate_component(name: str, path: Path) -> None:
                 raise RuntimeError("基础导航包的 AIMDK 替换脚本缺少 ROS nounset 兼容修复")
     if name.startswith("sparkrobot-lingxi-kb"):
         with zipfile.ZipFile(path) as archive:
-            root = "sparkrobot-lingxi-kb-1.0.4-20261022/"
+            root = "sparkrobot-lingxi-kb-1.0.5-20261023/"
             agent_member = f"{root}agent/robot-local-navigation-java-all-kb.jar"
             if agent_member not in archive.namelist():
                 raise RuntimeError("知识库包缺少 Java Agent JAR")
             manifest = json.loads(archive.read(f"{root}manifest.json"))
-            if manifest.get("version") != "1.0.4-20261022":
+            if manifest.get("version") != "1.0.5-20261023":
                 raise RuntimeError("知识库包版本清单不正确")
             agent_bytes = archive.read(agent_member)
             required_classes = {
@@ -103,6 +103,8 @@ def validate_component(name: str, path: Path) -> None:
                 "com/agibot/aiem/nav/PresetMotionCatalog$Selection.class",
                 "com/agibot/aiem/nav/NavBridgeClient.class",
                 "com/agibot/aiem/nav/DoubaoArkClient.class",
+                "com/agibot/aiem/nav/RetrieverClient.class",
+                "com/agibot/aiem/nav/KnowledgeAnswerPolicy.class",
             }
             with zipfile.ZipFile(io.BytesIO(agent_bytes)) as agent:
                 if not required_classes.issubset(agent.namelist()):

@@ -10,7 +10,7 @@ from pathlib import Path, PurePosixPath
 
 
 HERE = Path(__file__).resolve().parent
-VERSION = "1.3.1-complete-20261022-r9"
+VERSION = "1.3.1-complete-20261023-r10"
 NAME = f"lingxi-v{VERSION}-deployment"
 DIST = HERE / "dist"
 REQUIRED = {
@@ -25,7 +25,7 @@ REQUIRED = {
     "components/lingxi-v1.3.1-full-deployment-20260901.zip",
     "components/aimdk-aarch64-1bde262f-artifacts.7z",
     "components/sparkrobot-lingxi-nav-internal-1.0.7-20260901.tar.gz",
-    "components/sparkrobot-lingxi-kb-1.0.4-20261022.zip",
+    "components/sparkrobot-lingxi-kb-1.0.5-20261023.zip",
     "components/sparkrobot-lingxi-linkcraft-addon-1.0.3-20260902.tar.gz",
     "components/sparkrobot-lingxi-consecutive-nav-fix-1.0.2-20261022.tar.gz",
 }
@@ -48,8 +48,8 @@ INSTALLER_REQUIRED_SNIPPETS = (
     'sudo rm -rf -- "${staging}"',
     'sudo bash "${LINKCRAFT_ROOT}/install.sh" --no-restart',
     'sudo bash "${FIX_ROOT}/install.sh"',
-    'KB_NAME="sparkrobot-lingxi-kb-1.0.4-20261022.zip"',
-    'KB_ROOT="${staging}/sparkrobot-lingxi-kb-1.0.4-20261022"',
+    'KB_NAME="sparkrobot-lingxi-kb-1.0.5-20261023.zip"',
+    'KB_ROOT="${staging}/sparkrobot-lingxi-kb-1.0.5-20261023"',
     "repair-permissions",
     "sudo systemctl restart lingxi-nav-console.service",
 )
@@ -145,12 +145,32 @@ def audit_fix_component(reader) -> None:
 
 
 def audit_kb_component(reader) -> None:
-    name = "sparkrobot-lingxi-kb-1.0.4-20261022.zip"
+    name = "sparkrobot-lingxi-kb-1.0.5-20261023.zip"
     with zipfile.ZipFile(io.BytesIO(reader(f"{NAME}/components/{name}"))) as archive:
-        root = "sparkrobot-lingxi-kb-1.0.4-20261022/"
+        root = "sparkrobot-lingxi-kb-1.0.5-20261023/"
         manifest = json.loads(archive.read(f"{root}manifest.json"))
-        if manifest.get("version") != "1.0.4-20261022":
+        if manifest.get("version") != "1.0.5-20261023":
             raise RuntimeError("知识库组件版本不正确")
+        release_info = archive.read(f"{root}release-info.txt").decode("utf-8")
+        if "VERSION=1.0.5-20261023" not in release_info:
+            raise RuntimeError("知识库 release-info.txt 版本不正确")
+        expected_response_policy = {
+            "point_names_cache_ttl_ms": 10000,
+            "retriever_timeout_ms": 1200,
+            "retriever_min_score": 0.60,
+            "retriever_rerank": False,
+            "retriever_qa_precheck": False,
+            "text_input_greetings_use_deterministic_reply": True,
+            "local_or_current_facts_require_grounding": True,
+            "unsupported_grounded_facts": "refuse",
+            "legacy_generated_qa_cache": "disabled_for_answer_selection",
+            "text_chat_reuses_intent_reply": True,
+            "blank_intent_reply_uses_chat_fallback": True,
+            "streaming_model_output": False,
+            "tts_delay_changed": False,
+        }
+        if manifest.get("voice_response_policy") != expected_response_policy:
+            raise RuntimeError("知识库组件语音响应策略清单不正确")
         for item in manifest.get("files", []):
             member = f"{root}{item['path']}"
             if digest_bytes(archive.read(member)) != item["sha256"]:
@@ -196,6 +216,8 @@ def audit_kb_component(reader) -> None:
         "com/agibot/aiem/nav/PresetMotionCatalog$Selection.class",
         "com/agibot/aiem/nav/NavBridgeClient.class",
         "com/agibot/aiem/nav/DoubaoArkClient.class",
+        "com/agibot/aiem/nav/RetrieverClient.class",
+        "com/agibot/aiem/nav/KnowledgeAnswerPolicy.class",
     }
     with zipfile.ZipFile(io.BytesIO(agent_bytes)) as agent:
         missing = required_classes - set(agent.namelist())

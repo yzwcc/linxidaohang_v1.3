@@ -34,12 +34,12 @@ import com.alibaba.fastjson2.JSONWriter;
 import java.io.ByteArrayOutputStream;
 import java.net.http.HttpTimeoutException;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
@@ -475,10 +475,14 @@ public final class LingxiNavAgentApp {
     }
 
     private static boolean submitAudioTask(String string, String string2, Runnable runnable) {
+        long submittedAtNanos = System.nanoTime();
         AUDIO_TASKS_IN_FLIGHT.incrementAndGet();
         try {
             AUDIO_WORKERS.execute(() -> {
                 int n;
+                long queueWaitMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - submittedAtNanos);
+                log.info("{} audio task started: eventId={}, queueWaitMs={}, active={}, queued={}",
+                        string, string2, queueWaitMs, AUDIO_WORKERS.getActiveCount(), AUDIO_WORKERS.getQueue().size());
                 try {
                     runnable.run();
                     n = AUDIO_TASKS_IN_FLIGHT.decrementAndGet();
@@ -613,6 +617,7 @@ public final class LingxiNavAgentApp {
      * WARNING - Removed try catching itself - possible behaviour change.
      */
     private static void processCompletedAudio2Llm(String string, AudioSession audioSession, Audio2LlmResponse audio2LlmResponse, AppConfig appConfig, NavBridgeClient navBridgeClient, DoubaoArkClient doubaoArkClient, QaStore qaStore) {
+        long startedAtNanos = System.nanoTime();
         AtomicBoolean atomicBoolean = new AtomicBoolean(false);
         try {
             AudioResult audioResult = LingxiNavAgentApp.processAudioRequest(string, audioSession, appConfig, navBridgeClient, doubaoArkClient, qaStore, atomicBoolean);
@@ -627,6 +632,8 @@ public final class LingxiNavAgentApp {
             audio2LlmResponse.onLlmDone(string);
             LingxiNavAgentApp.dispatchSkillIfNeeded(audio2LlmResponse, string, audioSession.itemId, audioResult.skillAction);
             LingxiNavAgentApp.speakIfNeeded(appConfig, string, audioResult.reply, audioResult.ttsPriority, navBridgeClient);
+            log.info("Audio2Llm response dispatch finished: eventId={}, elapsedMs={}",
+                    string, TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedAtNanos));
         }
         catch (Exception exception) {
             LingxiNavAgentApp.logAudioHandlingFailure("Audio2Llm", string, audioSession, exception);
@@ -644,6 +651,7 @@ public final class LingxiNavAgentApp {
      * WARNING - Removed try catching itself - possible behaviour change.
      */
     private static void processCompletedAudio2Tts(String string, AudioSession audioSession, Audio2TtsResponse audio2TtsResponse, AppConfig appConfig, NavBridgeClient navBridgeClient, DoubaoArkClient doubaoArkClient, QaStore qaStore) {
+        long startedAtNanos = System.nanoTime();
         AtomicBoolean atomicBoolean = new AtomicBoolean(false);
         try {
             AudioResult audioResult = LingxiNavAgentApp.processAudioRequest(string, audioSession, appConfig, navBridgeClient, doubaoArkClient, qaStore, atomicBoolean);
@@ -658,6 +666,8 @@ public final class LingxiNavAgentApp {
             audio2TtsResponse.onLlmDone(string);
             LingxiNavAgentApp.dispatchSkillIfNeeded(audio2TtsResponse, string, audioSession.itemId, audioResult.skillAction);
             LingxiNavAgentApp.speakIfNeeded(appConfig, string, audioResult.reply, audioResult.ttsPriority, navBridgeClient);
+            log.info("Audio2Tts response dispatch finished: eventId={}, elapsedMs={}",
+                    string, TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedAtNanos));
             audio2TtsResponse.onTtsItemDone(string, audioSession.itemId);
             audio2TtsResponse.onTtsDone(string);
         }
@@ -678,14 +688,17 @@ public final class LingxiNavAgentApp {
         if (byArray.length == 0) {
             throw new IllegalArgumentException("\u97f3\u9891\u4e3a\u7a7a");
         }
-        long l = System.currentTimeMillis();
+        long l = System.nanoTime();
         List<String> list = navBridgeClient.listPointNames();
-        long l2 = System.currentTimeMillis();
-        log.info("Audio request point names loaded: eventId={}, audioBytes={}, points={}, elapsedMs={}", string, byArray.length, list.size(), l2 - l);
+        long l2 = System.nanoTime();
+        log.info("Audio request point names loaded: eventId={}, audioBytes={}, points={}, elapsedMs={}",
+                string, byArray.length, list.size(), TimeUnit.NANOSECONDS.toMillis(l2 - l));
+        long modelStartedAtNanos = System.nanoTime();
         NavigationIntent navigationIntent = doubaoArkClient.parseInteractionAudio(byArray, list);
         String rawQuestion = navigationIntent.question;
         navigationIntent = LingxiNavAgentApp.verifyVoicePresetMotion(rawQuestion, navigationIntent);
-        log.info("Audio request parsed by Doubao: eventId={}, elapsedMs={}", (Object)string, (Object)(System.currentTimeMillis() - l2));
+        log.info("Audio request parsed by Doubao: eventId={}, elapsedMs={}", string,
+                TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - modelStartedAtNanos));
         String string2 = LingxiNavAgentApp.describeIntent(navigationIntent);
         LingxiNavAgentApp.logIntent("audio_asr_final", string, string2, navigationIntent);
         boolean motionRelated = PresetMotionCatalog.mentionsMotionText(rawQuestion);
@@ -701,15 +714,23 @@ public final class LingxiNavAgentApp {
                 directReply = doubaoArkClient.identityReply();
             }
             String question = navigationIntent.questionOrDefault(string2);
-            if (!LingxiNavAgentApp.isIdentityQuestion(question)) {
-                String knowledgeAnswer = LingxiNavAgentApp.knowledgeAnswer(question);
+            if (LingxiNavAgentApp.isIdentityQuestion(question)) {
+                directReply = doubaoArkClient.identityReply();
+            } else if (LingxiNavAgentApp.isDateQuestion(question)) {
+                directReply = LingxiNavAgentApp.dateReply();
+            } else if (LingxiNavAgentApp.isTimeQuestion(question)) {
+                directReply = LingxiNavAgentApp.timeReply();
+            } else {
+                String knowledgeAnswer = KnowledgeAnswerPolicy.shouldLookup(question)
+                        ? LingxiNavAgentApp.knowledgeAnswer(string, question)
+                        : null;
                 if (knowledgeAnswer != null) {
-                    directReply = knowledgeAnswer;
-                    log.info("Audio knowledge base answer selected: eventId={}", (Object)string);
+                    log.info("Audio knowledge base answer selected: eventId={}", string);
                 }
-                qaStore.savePair(question, directReply);
+                directReply = KnowledgeAnswerPolicy.chooseReply(question, directReply, knowledgeAnswer);
             }
-            log.info("Audio chat answered in one model request: eventId={}", (Object)string);
+            log.info("Audio chat answered: eventId={}, grounded={}",
+                    string, KnowledgeAnswerPolicy.requiresGrounding(question));
             interactionResult = new InteractionResult(directReply, TtsPriority.NORMAL);
         } else {
             interactionResult = LingxiNavAgentApp.handleIntent(string, string2, navigationIntent, navBridgeClient, doubaoArkClient, qaStore, true);
@@ -722,6 +743,25 @@ public final class LingxiNavAgentApp {
 
     private static InteractionResult processTextRequest(String string, String string2, AppConfig appConfig, NavBridgeClient navBridgeClient, DoubaoArkClient doubaoArkClient, QaStore qaStore, AtomicBoolean atomicBoolean) throws Exception {
         PresetMotionCatalog.Selection voiceMotion = PresetMotionCatalog.resolveVoiceCommand(string2);
+        if (voiceMotion == null) {
+            String quickReply = KnowledgeAnswerPolicy.quickReply(string2, appConfig.robotDisplayName);
+            if (quickReply != null) {
+                LingxiNavAgentApp.markUserInteraction(string, "text_asr_final", NavigationIntent.chat(string2), navBridgeClient, atomicBoolean);
+                return new InteractionResult(quickReply, TtsPriority.NORMAL);
+            }
+            if (LingxiNavAgentApp.isIdentityQuestion(string2)) {
+                LingxiNavAgentApp.markUserInteraction(string, "text_asr_final", NavigationIntent.chat(string2), navBridgeClient, atomicBoolean);
+                return new InteractionResult(doubaoArkClient.identityReply(), TtsPriority.NORMAL);
+            }
+            if (LingxiNavAgentApp.isDateQuestion(string2)) {
+                LingxiNavAgentApp.markUserInteraction(string, "text_asr_final", NavigationIntent.chat(string2), navBridgeClient, atomicBoolean);
+                return new InteractionResult(LingxiNavAgentApp.dateReply(), TtsPriority.NORMAL);
+            }
+            if (LingxiNavAgentApp.isTimeQuestion(string2)) {
+                LingxiNavAgentApp.markUserInteraction(string, "text_asr_final", NavigationIntent.chat(string2), navBridgeClient, atomicBoolean);
+                return new InteractionResult(LingxiNavAgentApp.timeReply(), TtsPriority.NORMAL);
+            }
+        }
         NavigationIntent navigationIntent;
         if (voiceMotion != null) {
             navigationIntent = NavigationIntent.presetMotion(
@@ -946,8 +986,11 @@ public final class LingxiNavAgentApp {
             return RobotTtsResult.skipped(ttsDecision.reason);
         }
         boolean bl = false;
+        long delayStartedAtNanos = System.nanoTime();
+        long bridgeStartedAtNanos = 0L;
         try {
             LingxiNavAgentApp.delayBeforeRobotTts(appConfig);
+            bridgeStartedAtNanos = System.nanoTime();
             // Lingxi submits an L6 placeholder for the same audio turn. Keep every
             // robot-local reply at L7 so the placeholder cannot preempt playback.
             JSONObject jSONObject = navBridgeClient.speak(string, string2, ttsDecision.interrupt, true);
@@ -961,6 +1004,15 @@ public final class LingxiNavAgentApp {
         }
         finally {
             TTS_CONTROLLER.finish(ttsDecision, bl);
+            long now = System.nanoTime();
+            long delayMs = bridgeStartedAtNanos == 0L
+                    ? TimeUnit.NANOSECONDS.toMillis(now - delayStartedAtNanos)
+                    : TimeUnit.NANOSECONDS.toMillis(bridgeStartedAtNanos - delayStartedAtNanos);
+            long bridgeMs = bridgeStartedAtNanos == 0L
+                    ? 0L
+                    : TimeUnit.NANOSECONDS.toMillis(now - bridgeStartedAtNanos);
+            log.info("Robot TTS dispatch timing: eventId={}, delayMs={}, bridgeMs={}, accepted={}",
+                    string, delayMs, bridgeMs, bl);
         }
         return new RobotTtsResult(true, bl, bl ? ttsDecision.estimatedPlaybackMillis : 0L, ttsDecision.reason);
     }
@@ -1086,37 +1138,53 @@ public final class LingxiNavAgentApp {
         if (LingxiNavAgentApp.isDateQuestion(string9)) {
             return new InteractionResult(LingxiNavAgentApp.dateReply(), TtsPriority.NORMAL);
         }
-        boolean bl7 = LingxiNavAgentApp.isIdentityQuestion(string9);
-        if (!bl7 && ((Optional)(object = qaStore.getAnswer(string9))).isPresent()) {
-            return new InteractionResult((String)((Optional)object).get(), TtsPriority.NORMAL);
+        if (LingxiNavAgentApp.isTimeQuestion(string9)) {
+            return new InteractionResult(LingxiNavAgentApp.timeReply(), TtsPriority.NORMAL);
         }
-        String knowledgeAnswer = LingxiNavAgentApp.knowledgeAnswer(string9);
+        if (LingxiNavAgentApp.isIdentityQuestion(string9)) {
+            return new InteractionResult(doubaoArkClient.identityReply(), TtsPriority.NORMAL);
+        }
+        String knowledgeAnswer = KnowledgeAnswerPolicy.shouldLookup(string9)
+                ? LingxiNavAgentApp.knowledgeAnswer(string, string9)
+                : null;
         if (knowledgeAnswer != null) {
             log.info("Knowledge base answer selected: eventId={}, question={}", string, LingxiNavAgentApp.abbreviate(string9));
-            if (!bl7) {
-                qaStore.savePair(string9, knowledgeAnswer);
-            }
             return new InteractionResult(knowledgeAnswer, TtsPriority.NORMAL);
         }
-        object = doubaoArkClient.chat(string9);
+        if (KnowledgeAnswerPolicy.requiresGrounding(string9)) {
+            log.info("Grounded answer unavailable; refusing unsupported reply: eventId={}, question={}",
+                    string, LingxiNavAgentApp.abbreviate(string9));
+            return new InteractionResult(KnowledgeAnswerPolicy.GROUNDED_FALLBACK, TtsPriority.NORMAL);
+        }
+        String modelReply = navigationIntent.reply;
+        if (modelReply.isBlank()) {
+            modelReply = doubaoArkClient.chat(string9);
+        }
+        log.info("Text chat answer source: eventId={}, source={}",
+                string, navigationIntent.reply.isBlank() ? "fallback_chat" : "intent_reply");
+        object = KnowledgeAnswerPolicy.chooseReply(string9, modelReply, null);
         if (LingxiNavAgentApp.mentionsForbiddenIdentity((String)object)) {
             object = doubaoArkClient.identityReply();
-        }
-        if (!bl7 && !LingxiNavAgentApp.mentionsForbiddenIdentity((String)object)) {
-            qaStore.savePair(string9, (String)object);
         }
         return new InteractionResult((String)object, TtsPriority.NORMAL);
     }
 
-    private static String knowledgeAnswer(String question) {
+    private static String knowledgeAnswer(String eventId, String question) {
+        long startedAtNanos = System.nanoTime();
         try {
-            return RETRIEVER_CLIENT.findAnswer(question);
+            String answer = RETRIEVER_CLIENT.findAnswer(question);
+            log.info("Knowledge lookup finished: eventId={}, elapsedMs={}, matched={}",
+                    eventId, TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedAtNanos),
+                    answer != null);
+            return answer;
         }
         catch (Exception exception) {
             if (exception instanceof InterruptedException) {
                 Thread.currentThread().interrupt();
             }
-            log.warn("Knowledge base lookup failed; falling back to normal dialog: question={}, error={}", LingxiNavAgentApp.abbreviate(question), exception.getMessage());
+            log.warn("Knowledge base lookup failed: eventId={}, elapsedMs={}, question={}, error={}",
+                    eventId, TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedAtNanos),
+                    LingxiNavAgentApp.abbreviate(question), exception.getMessage());
             return null;
         }
     }
@@ -1134,7 +1202,19 @@ public final class LingxiNavAgentApp {
             return false;
         }
         String string2 = string.replaceAll("\\s+", "");
-        return string2.contains("\u4eca\u5929\u661f\u671f\u51e0") || string2.contains("\u4eca\u5929\u5468\u51e0") || string2.contains("\u4eca\u5929\u793c\u62dc\u51e0") || string2.contains("\u4eca\u5929\u51e0\u53f7") || string2.contains("\u4eca\u5929\u65e5\u671f") || string2.contains("\u73b0\u5728\u661f\u671f\u51e0") || string2.contains("\u73b0\u5728\u5468\u51e0") || string2.contains("\u73b0\u5728\u51e0\u53f7");
+        return string2.contains("\u4eca\u5929\u661f\u671f\u51e0") || string2.contains("\u4eca\u5929\u5468\u51e0") || string2.contains("\u4eca\u5929\u793c\u62dc\u51e0") || string2.contains("\u4eca\u5929\u51e0\u53f7") || string2.contains("\u4eca\u5929\u65e5\u671f") || string2.contains("\u73b0\u5728\u661f\u671f\u51e0") || string2.contains("\u73b0\u5728\u5468\u51e0") || string2.contains("\u73b0\u5728\u51e0\u53f7") || string2.contains("\u73b0\u5728\u65e5\u671f");
+    }
+
+    private static boolean isTimeQuestion(String string) {
+        if (string == null) {
+            return false;
+        }
+        String normalized = string.replaceAll("\\s+", "");
+        return normalized.contains("\u73b0\u5728\u51e0\u70b9")
+                || normalized.contains("\u73b0\u5728\u51e0\u70b9\u949f")
+                || normalized.contains("\u5f53\u524d\u65f6\u95f4")
+                || normalized.contains("\u73b0\u5728\u65f6\u95f4")
+                || normalized.contains("\u51e0\u70b9\u4e86");
     }
 
     private static String dateReply() {
@@ -1142,6 +1222,11 @@ public final class LingxiNavAgentApp {
         String[] stringArray = new String[]{"\u4e00", "\u4e8c", "\u4e09", "\u56db", "\u4e94", "\u516d", "\u65e5"};
         String string = stringArray[localDate.getDayOfWeek().getValue() - 1];
         return "\u4eca\u5929\u662f" + localDate.format(DateTimeFormatter.ofPattern("yyyy\u5e74M\u6708d\u65e5")) + "\uff0c\u661f\u671f" + string + "\u3002";
+    }
+
+    private static String timeReply() {
+        return "\u73b0\u5728\u662f" + LocalTime.now(ZoneId.of("Asia/Shanghai"))
+                .format(DateTimeFormatter.ofPattern("HH:mm")) + "\u3002";
     }
 
     private static boolean mentionsForbiddenIdentity(String string) {

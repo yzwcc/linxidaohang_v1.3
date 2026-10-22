@@ -12,10 +12,25 @@ import java.time.Duration;
 
 /** Calls the independent local Retriever Proxy; app secrets remain in the Python service. */
 final class RetrieverClient {
-    private final HttpClient httpClient = HttpClient.newBuilder()
-            .connectTimeout(Duration.ofMillis(500))
-            .build();
-    private final URI endpoint = URI.create("http://127.0.0.1:18084/search");
+    private static final double MIN_SCORE = 0.60;
+    private static final Duration REQUEST_TIMEOUT = Duration.ofMillis(1200);
+    private final HttpClient httpClient;
+    private final URI endpoint;
+    private final Duration requestTimeout;
+    private final double minScore;
+
+    RetrieverClient() {
+        this(URI.create("http://127.0.0.1:18084/search"), REQUEST_TIMEOUT, MIN_SCORE);
+    }
+
+    RetrieverClient(URI endpoint, Duration requestTimeout, double minScore) {
+        this.httpClient = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofMillis(500))
+                .build();
+        this.endpoint = endpoint;
+        this.requestTimeout = requestTimeout;
+        this.minScore = minScore;
+    }
 
     String findAnswer(String query) throws IOException, InterruptedException {
         if (query == null || query.isBlank()) {
@@ -24,13 +39,11 @@ final class RetrieverClient {
         JSONObject body = new JSONObject();
         body.put("query", query.trim());
         body.put("top_k", 3);
-        // Keep the lookup within the voice interaction deadline. The upstream
-        // QA pre-check and reranker can each outlive the 2.5-second client timeout.
         body.put("rerank", false);
         body.put("check_qa_first", false);
-        body.put("score_threshold", 0.45);
+        body.put("score_threshold", this.minScore);
         HttpRequest request = HttpRequest.newBuilder(endpoint)
-                .timeout(Duration.ofMillis(2500))
+                .timeout(this.requestTimeout)
                 .header("Content-Type", "application/json; charset=utf-8")
                 .POST(HttpRequest.BodyPublishers.ofString(body.toJSONString(), StandardCharsets.UTF_8))
                 .build();
@@ -52,7 +65,7 @@ final class RetrieverClient {
         }
         for (int index = 0; index < results.size(); index++) {
             JSONObject item = results.getJSONObject(index);
-            if (item == null || item.getDoubleValue("score") < 0.45) {
+            if (item == null || item.getDoubleValue("score") < this.minScore) {
                 continue;
             }
             String answer = extractText(item.getString("answer"));

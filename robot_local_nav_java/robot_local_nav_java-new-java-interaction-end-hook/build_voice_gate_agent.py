@@ -13,7 +13,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 TARGET = HERE / "target"
 BASE_JAR = TARGET / "robot-local-navigation-java-0.1.0-all-kb-20260902.jar"
-OUTPUT_JAR = TARGET / "robot-local-navigation-java-0.1.0-all-kb-voice-motion-20261022.jar"
+OUTPUT_JAR = TARGET / "robot-local-navigation-java-0.1.0-all-kb-voice-latency-20261023.jar"
 SDK_JAR = HERE / "linksoul-agentsdk-1.4.0-SNAPSHOT.jar"
 MAIN_SOURCE = HERE / "src" / "main" / "java" / "com" / "agibot" / "aiem" / "nav"
 TEST_SOURCE = HERE / "src" / "test" / "java" / "com" / "agibot" / "aiem" / "nav"
@@ -29,6 +29,8 @@ MAIN_FILES = (
     "PresetMotionCatalog.java",
     "NavBridgeClient.java",
     "DoubaoArkClient.java",
+    "RetrieverClient.java",
+    "KnowledgeAnswerPolicy.java",
 )
 TEST_FILES = (
     "VoiceGateTest.java",
@@ -37,6 +39,10 @@ TEST_FILES = (
     "SpeechInputPolicyTest.java",
     "InteractionGateRegression.java",
     "PresetMotionCatalogTest.java",
+    "KnowledgeAnswerPolicyTest.java",
+    "NavBridgeClientTest.java",
+    "RetrieverClientTest.java",
+    "LingxiChatFlowTest.java",
 )
 TEST_MAINS = (
     "VoiceGateTest",
@@ -45,6 +51,10 @@ TEST_MAINS = (
     "SpeechInputPolicyTest",
     "InteractionGateRegression",
     "PresetMotionCatalogTest",
+    "KnowledgeAnswerPolicyTest",
+    "NavBridgeClientTest",
+    "RetrieverClientTest",
+    "LingxiChatFlowTest",
 )
 REQUIRED_CLASSES = {
     "com/agibot/aiem/nav/AppConfig.class",
@@ -60,6 +70,8 @@ REQUIRED_CLASSES = {
     "com/agibot/aiem/nav/PresetMotionCatalog$Selection.class",
     "com/agibot/aiem/nav/NavBridgeClient.class",
     "com/agibot/aiem/nav/DoubaoArkClient.class",
+    "com/agibot/aiem/nav/RetrieverClient.class",
+    "com/agibot/aiem/nav/KnowledgeAnswerPolicy.class",
 }
 MANIFEST = "META-INF/MANIFEST.MF"
 

@@ -12,7 +12,7 @@ import zipfile
 from pathlib import Path, PurePosixPath
 
 HERE = Path(__file__).resolve().parent
-VERSION = "1.0.4-20261022"
+VERSION = "1.0.5-20261023"
 NAME = f"sparkrobot-lingxi-kb-{VERSION}"
 DIST = HERE / "dist"
 PRESET_MOTION_NAMES = (
@@ -40,7 +40,7 @@ JAVA_AGENT_DIR = (
     / "robot_local_nav_java-new-java-interaction-end-hook"
 )
 JAVA_AGENT_BUILDER = JAVA_AGENT_DIR / "build_voice_gate_agent.py"
-JAVA_AGENT_JAR = JAVA_AGENT_DIR / "target" / "robot-local-navigation-java-0.1.0-all-kb-voice-motion-20261022.jar"
+JAVA_AGENT_JAR = JAVA_AGENT_DIR / "target" / "robot-local-navigation-java-0.1.0-all-kb-voice-latency-20261023.jar"
 
 
 def digest(path: Path) -> str:
@@ -86,6 +86,21 @@ def main() -> int:
                 "wake_signal_max_age_ms": 8000,
                 "session_window_ms": 8000,
                 "acoustic_dsp_included": False,
+            },
+            "voice_response_policy": {
+                "point_names_cache_ttl_ms": 10000,
+                "retriever_timeout_ms": 1200,
+                "retriever_min_score": 0.60,
+                "retriever_rerank": False,
+                "retriever_qa_precheck": False,
+                "text_input_greetings_use_deterministic_reply": True,
+                "local_or_current_facts_require_grounding": True,
+                "unsupported_grounded_facts": "refuse",
+                "legacy_generated_qa_cache": "disabled_for_answer_selection",
+                "text_chat_reuses_intent_reply": True,
+                "blank_intent_reply_uses_chat_fallback": True,
+                "streaming_model_output": False,
+                "tts_delay_changed": False,
             },
             "preset_motion_policy": {
                 "action_count": len(PRESET_MOTION_NAMES),

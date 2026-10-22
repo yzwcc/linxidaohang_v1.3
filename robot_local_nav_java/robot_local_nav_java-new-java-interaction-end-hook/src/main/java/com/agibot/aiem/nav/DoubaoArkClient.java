@@ -42,7 +42,8 @@ final class DoubaoArkClient {
                 .replace(
                         "navigate|stop_navigation|start_task|end_task|sing|dance|chat",
                         "navigate|stop_navigation|start_task|pause_task|resume_task|end_task|sing|dance|preset_motion|chat")
-                + DoubaoArkClient.buildPresetMotionPrompt();
+                + DoubaoArkClient.buildPresetMotionPrompt()
+                + DoubaoArkClient.buildChatReplyPrompt();
         String string2 = this.callModel(DoubaoArkClient.buildTextMessages(prompt, string), 0.0);
         return NavigationIntent.fromJsonText(string2);
     }
@@ -70,8 +71,13 @@ final class DoubaoArkClient {
     }
 
     String chat(String string) throws IOException, InterruptedException {
-        String string2 = "\u4f60\u662f\u673a\u5668\u4eba\u201c%s\u201d\u7684\u8bed\u97f3\u52a9\u624b\u3002\n\u4f60\u5bf9\u5916\u53ea\u80fd\u81ea\u79f0\u201c%s\u201d\uff0c\u4e0d\u8981\u81ea\u79f0\u8c46\u5305\u3001Doubao\u3001AI \u6a21\u578b\u6216\u5b57\u8282\u8df3\u52a8\u52a9\u624b\u3002\n\u5f53\u7528\u6237\u95ee\u201c\u4f60\u662f\u8c01\u201d\u201c\u4f60\u53eb\u4ec0\u4e48\u201d\u201c\u4f60\u7528\u7684\u662f\u4ec0\u4e48\u6a21\u578b\u201d\u65f6\uff0c\u56de\u7b54\u4f60\u662f\u201c%s\u201d\uff0c\u662f\u73b0\u573a\u670d\u52a1\u548c\u4e92\u52a8\u673a\u5668\u4eba\u3002\n\u8bf7\u7528\u7b80\u6d01\u3001\u81ea\u7136\u3001\u53e3\u8bed\u5316\u7684\u4e2d\u6587\u56de\u7b54\u7528\u6237\u95ee\u9898\u3002\n\u4e0d\u8981\u8f93\u51fa JSON\uff0c\u4e0d\u8981\u8f93\u51fa Markdown\u3002\n\u5982\u679c\u95ee\u9898\u548c\u5bfc\u822a\u65e0\u5173\uff0c\u4e5f\u8981\u6b63\u5e38\u56de\u7b54\u3002\n".formatted(this.robotDisplayName, this.robotDisplayName, this.robotDisplayName);
-        return this.callModel(DoubaoArkClient.buildTextMessages(string2, string), 0.4);
+        String systemPrompt = """
+                你是机器人“%s”的中文语音助手，对外只自称“%s”，不要提及底层模型或供应商。
+                用自然、简洁的口语回答，通常不超过两句话。不要输出 JSON 或 Markdown。
+                不要编造实时状态、场馆/企业信息、机器人能力、价格、时间或地点。
+                对缺少可靠依据的问题，明确说目前无法核实；对听不清或含义不明的问题，先简短询问澄清。
+                """.formatted(this.robotDisplayName, this.robotDisplayName);
+        return this.callModel(DoubaoArkClient.buildTextMessages(systemPrompt, string), 0.2);
     }
 
     String identityReply() {
@@ -94,7 +100,12 @@ final class DoubaoArkClient {
         jSONObject2.put("type", "disabled");
         jSONObject.put("thinking", jSONObject2);
         HttpRequest httpRequest = HttpRequest.newBuilder().uri(URI.create(this.url)).timeout(Duration.ofSeconds(15L)).header("Content-Type", "application/json; charset=utf-8").header("Authorization", "Bearer " + this.apiKey).POST(HttpRequest.BodyPublishers.ofString(jSONObject.toJSONString(new JSONWriter.Feature[0]), StandardCharsets.UTF_8)).build();
+        long startedAtNanos = System.nanoTime();
         HttpResponse<String> httpResponse = this.httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+        long elapsedMs = java.util.concurrent.TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedAtNanos);
+        org.slf4j.LoggerFactory.getLogger(DoubaoArkClient.class).info(
+                "Doubao request completed: model={}, status={}, elapsedMs={}, streaming=false",
+                this.model, httpResponse.statusCode(), elapsedMs);
         if (httpResponse.statusCode() < 200 || httpResponse.statusCode() >= 300) {
             throw new IOException("Doubao HTTP " + httpResponse.statusCode() + ": " + httpResponse.body());
         }
@@ -129,13 +140,25 @@ final class DoubaoArkClient {
         return "识别语音原话，question 保留原文；按系统要求分类并严格输出一个 JSON 对象。";
     }
 
+    private static String buildChatReplyPrompt() {
+        return """
+
+                普通问答回复规则：
+                - intent=chat 时，reply 必须是机器人最终要说的简短口语回答，不要留空；通常不超过两句话。
+                - 不要编造机器人状态、场馆/企业资料、开放时间、价格、电话、地址、时间、地点或能力。
+                - 上下文和可用资料没有依据时，明确说目前无法核实；听不清或含义不明时先询问澄清。
+                - reply 中不要输出 JSON、Markdown 或对分类过程的说明。
+                """;
+    }
+
     private String buildAudioSystemPrompt(List<String> list) {
         String string = list == null || list.isEmpty() ? "[]" : JSON.toJSONString(list);
         return ("你是机器人“%s”的中文语音助手。一次完成语音识别、意图判断和回答，不要输出 Markdown。\n"
                 + "只输出 JSON：{\"intent\":\"navigate|stop_navigation|start_task|pause_task|resume_task|end_task|sing|dance|preset_motion|chat\","
                 + "\"target_name\":\"\",\"question\":\"识别出的用户原话\",\"reply\":\"机器人最终要说的话\"}\n"
                 + "导航点：%s。导航时 target_name 必须使用列表原名，reply 为“收到，正在前往<点位>。”。\n"
-                + "停止导航、开始讲解、暂停讲解、继续讲解、停止讲解、唱歌或跳舞按对应 intent。暂停讲解必须是 pause_task，继续讲解必须是 resume_task。其他问题全部为 chat，并在 reply 中直接给出简洁自然的中文答案，不能留空。"
+                + "停止导航、开始讲解、暂停讲解、继续讲解、停止讲解、唱歌或跳舞按对应 intent。暂停讲解必须是 pause_task，继续讲解必须是 resume_task。"
+                + "其他问题全部为 chat。reply 用简洁口语中文回答，通常不超过两句话；不确定、听不清或涉及实时、场馆、企业、机器人专属事实且上下文没有依据时，不要猜测，明确说目前无法核实。"
         ).formatted(this.robotDisplayName, string);
     }
 

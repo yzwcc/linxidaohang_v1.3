@@ -8,7 +8,7 @@ import zipfile
 from pathlib import Path, PurePosixPath
 
 HERE = Path(__file__).resolve().parent
-VERSION = "1.0.4-20261022"
+VERSION = "1.0.5-20261023"
 NAME = f"sparkrobot-lingxi-kb-{VERSION}"
 ARCHIVE = HERE / "dist" / f"{NAME}.zip"
 VOICE_GATE_CLASSES = {
@@ -25,11 +25,28 @@ VOICE_GATE_CLASSES = {
     "com/agibot/aiem/nav/PresetMotionCatalog$Selection.class",
     "com/agibot/aiem/nav/NavBridgeClient.class",
     "com/agibot/aiem/nav/DoubaoArkClient.class",
+    "com/agibot/aiem/nav/RetrieverClient.class",
+    "com/agibot/aiem/nav/KnowledgeAnswerPolicy.class",
 }
 PRESET_MOTION_NAMES = {
     "wave", "handshake", "raise_hand", "flying_kiss", "sweetheart", "high_five",
     "salute", "horizontal_arm", "hug", "cheer", "clap", "handx", "chestwave",
     "bow", "bye", "lightwave", "scratch_head", "scratch_back",
+}
+RESPONSE_POLICY = {
+    "point_names_cache_ttl_ms": 10000,
+    "retriever_timeout_ms": 1200,
+    "retriever_min_score": 0.60,
+    "retriever_rerank": False,
+    "retriever_qa_precheck": False,
+    "text_input_greetings_use_deterministic_reply": True,
+    "local_or_current_facts_require_grounding": True,
+    "unsupported_grounded_facts": "refuse",
+    "legacy_generated_qa_cache": "disabled_for_answer_selection",
+    "text_chat_reuses_intent_reply": True,
+    "blank_intent_reply_uses_chat_fallback": True,
+    "streaming_model_output": False,
+    "tts_delay_changed": False,
 }
 
 
@@ -66,6 +83,9 @@ def main() -> int:
         manifest = json.loads(archive.read(f"{NAME}/manifest.json"))
         if manifest["version"] != VERSION:
             raise RuntimeError("版本清单不正确")
+        release_info = archive.read(f"{NAME}/release-info.txt").decode("utf-8")
+        if f"VERSION={VERSION}" not in release_info:
+            raise RuntimeError("release-info.txt 版本不正确")
         voice_policy = manifest.get("voice_interaction_policy", {})
         if (
             voice_policy.get("wake_mode") != "enforce"
@@ -75,6 +95,8 @@ def main() -> int:
             or voice_policy.get("acoustic_dsp_included") is not False
         ):
             raise RuntimeError("语音拒识策略清单与默认实现不一致")
+        if manifest.get("voice_response_policy") != RESPONSE_POLICY:
+            raise RuntimeError("语音响应策略清单与默认实现不一致")
         motion_policy = manifest.get("preset_motion_policy", {})
         if (
             motion_policy.get("action_count") != 18
@@ -99,6 +121,8 @@ def main() -> int:
                 raise RuntimeError(
                     "Java Agent 缺少交互拒识类：" + ", ".join(sorted(missing_gate))
                 )
+            if "com/agibot/aiem/nav/KnowledgeAnswerPolicyTest.class" in agent.namelist():
+                raise RuntimeError("知识库 Java Agent 不应包含回归测试类")
         for marker in (b"St87591540", b"ROBOT_SSH_PASSWORD=1", b"1.0.6"):
             for member in names:
                 if member.endswith((".zip", ".gz", ".7z")):
