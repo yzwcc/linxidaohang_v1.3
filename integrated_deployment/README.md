@@ -1,6 +1,6 @@
 # 灵犀 v1.3.1 完整部署包
 
-版本：v1.3.1-complete-20260907-r7  
+版本：v1.3.1-complete-20261022-r8
 适用对象：内部部署人员  
 目标系统：Ubuntu 22.04 ARM64、ROS 2 Humble、智元 X2 系列机器人
 
@@ -12,7 +12,8 @@
 - 导航主包：sparkrobot-lingxi-nav-internal-1.0.7-20260901。
 - 地图服务、导航 bridge、网页控制台、语音兼容网关和灵心 Java Agent。
 - 灵创动作、表情和可选舞蹈资源编排能力：1.0.3-20260902。
-- 灵心知识库检索和语音接入：1.0.2-20260902。
+- 灵心知识库检索和语音接入：1.0.3-20261022。
+- Java Agent 启用 V1.3.8 交互拒识策略：填充词、重复 ASR 片段和播报回声过滤；质量元数据校验；真实 KWS/新鲜唤醒会话门控。
 - 连续导航卡住修复：1.0.1-20260907，必须最后覆盖导航文件。
 - 中文部署教程和客户日常使用手册。
 
@@ -32,8 +33,8 @@
 
 ~~~powershell
 $RobotIp = "172.20.10.2"
-$Package = ".\lingxi-v1.3.1-complete-20260907-r7-deployment.tar.gz"
-$Checksum = ".\lingxi-v1.3.1-complete-20260907-r7-deployment.tar.gz.sha256"
+$Package = ".\lingxi-v1.3.1-complete-20261022-r8-deployment.tar.gz"
+$Checksum = ".\lingxi-v1.3.1-complete-20261022-r8-deployment.tar.gz.sha256"
 scp $Package ("run@" + $RobotIp + ":/home/run/")
 scp $Checksum ("run@" + $RobotIp + ":/home/run/")
 ~~~
@@ -42,9 +43,9 @@ scp $Checksum ("run@" + $RobotIp + ":/home/run/")
 
 ~~~bash
 cd /home/run
-sha256sum -c lingxi-v1.3.1-complete-20260907-r7-deployment.tar.gz.sha256
-tar -xzf lingxi-v1.3.1-complete-20260907-r7-deployment.tar.gz
-cd lingxi-v1.3.1-complete-20260907-r7-deployment
+sha256sum -c lingxi-v1.3.1-complete-20261022-r8-deployment.tar.gz.sha256
+tar -xzf lingxi-v1.3.1-complete-20261022-r8-deployment.tar.gz
+cd lingxi-v1.3.1-complete-20261022-r8-deployment
 chmod +x install_all.sh control_all.sh
 bash ./install_all.sh prepare
 ~~~
@@ -66,7 +67,7 @@ bash ./01-replace-aimdk.sh
 ### 4. run 用户安装导航主包
 
 ~~~bash
-cd /home/run/lingxi-v1.3.1-complete-20260907-r7-deployment
+cd /home/run/lingxi-v1.3.1-complete-20261022-r8-deployment
 bash ./install_all.sh install-navigation
 ~~~
 
@@ -114,11 +115,15 @@ python .\integrated_deployment\build_package.py
 python .\integrated_deployment\audit_package.py
 ~~~
 
+构建机需要 Python 3 和 JDK 17（`java`、`javac`、`jar` 在 PATH）。完整包构建会先重编 V1.3.8 交互拒识 Agent 并运行 Java 回归测试，再生成 KB ZIP 和完整包。
+
 交付给 Linux 机器人优先使用：
 
 ~~~text
-integrated_deployment/dist/lingxi-v1.3.1-complete-20260907-r7-deployment.tar.gz
-integrated_deployment/dist/lingxi-v1.3.1-complete-20260907-r7-deployment.tar.gz.sha256
+integrated_deployment/dist/lingxi-v1.3.1-complete-20261022-r8-deployment.tar.gz
+integrated_deployment/dist/lingxi-v1.3.1-complete-20261022-r8-deployment.tar.gz.sha256
 ~~~
 
 ZIP 可用于 Windows 传输或查看，但机器人端仍建议使用 TAR.GZ。每台新机器人都必须独立完成定位、急停、短距离导航和语音验收；离线审计不能替代现场安全验收。
+
+语音拒识默认在兼容模式下接受缺失的声学质量元数据，但会校验已提供的值；唤醒门控默认 enforce，需要真实 SDK KWS/状态事件或可核验的新鲜 SOC2 唤醒证据。该策略是输入门控，不包含端侧 RNNoise、AEC 或实际 DOA 音频滤波；声学链路需由现场单独验收。

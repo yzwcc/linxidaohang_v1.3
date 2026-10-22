@@ -10,7 +10,7 @@ from pathlib import Path, PurePosixPath
 
 
 HERE = Path(__file__).resolve().parent
-VERSION = "1.3.1-complete-20260907-r7"
+VERSION = "1.3.1-complete-20261022-r8"
 NAME = f"lingxi-v{VERSION}-deployment"
 DIST = HERE / "dist"
 REQUIRED = {
@@ -25,7 +25,7 @@ REQUIRED = {
     "components/lingxi-v1.3.1-full-deployment-20260901.zip",
     "components/aimdk-aarch64-1bde262f-artifacts.7z",
     "components/sparkrobot-lingxi-nav-internal-1.0.7-20260901.tar.gz",
-    "components/sparkrobot-lingxi-kb-1.0.2-20260902.zip",
+    "components/sparkrobot-lingxi-kb-1.0.3-20261022.zip",
     "components/sparkrobot-lingxi-linkcraft-addon-1.0.3-20260902.tar.gz",
     "components/sparkrobot-lingxi-consecutive-nav-fix-1.0.1-20260907.tar.gz",
 }
@@ -48,6 +48,8 @@ INSTALLER_REQUIRED_SNIPPETS = (
     'sudo rm -rf -- "${staging}"',
     'sudo bash "${LINKCRAFT_ROOT}/install.sh" --no-restart',
     'sudo bash "${FIX_ROOT}/install.sh"',
+    'KB_NAME="sparkrobot-lingxi-kb-1.0.3-20261022.zip"',
+    'KB_ROOT="${staging}/sparkrobot-lingxi-kb-1.0.3-20261022"',
     "repair-permissions",
     "sudo systemctl restart lingxi-nav-console.service",
 )
@@ -139,6 +141,46 @@ def audit_fix_component(reader) -> None:
             raise RuntimeError("连续导航修复组件安装器缺少权限修复")
 
 
+def audit_kb_component(reader) -> None:
+    name = "sparkrobot-lingxi-kb-1.0.3-20261022.zip"
+    with zipfile.ZipFile(io.BytesIO(reader(f"{NAME}/components/{name}"))) as archive:
+        root = "sparkrobot-lingxi-kb-1.0.3-20261022/"
+        manifest = json.loads(archive.read(f"{root}manifest.json"))
+        if manifest.get("version") != "1.0.3-20261022":
+            raise RuntimeError("知识库组件版本不正确")
+        for item in manifest.get("files", []):
+            member = f"{root}{item['path']}"
+            if digest_bytes(archive.read(member)) != item["sha256"]:
+                raise RuntimeError(f"知识库组件文件 SHA-256 不一致：{item['path']}")
+        voice_policy = manifest.get("voice_interaction_policy", {})
+        if (
+            voice_policy.get("wake_mode") != "enforce"
+            or voice_policy.get("metadata_required") is not False
+            or voice_policy.get("wake_signal_max_age_ms") != 8000
+            or voice_policy.get("session_window_ms") != 8000
+            or voice_policy.get("acoustic_dsp_included") is not False
+        ):
+            raise RuntimeError("知识库组件语音策略清单不正确")
+        agent_bytes = archive.read(
+            f"{root}agent/robot-local-navigation-java-all-kb.jar"
+        )
+    required_classes = {
+        "com/agibot/aiem/nav/AppConfig.class",
+        "com/agibot/aiem/nav/LingxiNavAgentApp.class",
+        "com/agibot/aiem/nav/VoiceGate.class",
+        "com/agibot/aiem/nav/WakeSessionGate.class",
+        "com/agibot/aiem/nav/SpeechInputPolicy.class",
+        "com/agibot/aiem/nav/Soc2WakeEvidenceProvider.class",
+        "com/agibot/aiem/nav/VoiceMetadataDiagnostics.class",
+    }
+    with zipfile.ZipFile(io.BytesIO(agent_bytes)) as agent:
+        missing = required_classes - set(agent.namelist())
+        if missing:
+            raise RuntimeError(
+                f"知识库 Java Agent 缺少交互拒识类：{sorted(missing)}"
+            )
+
+
 def audit_base_bundle(reader) -> None:
     base_bytes = reader(f"{NAME}/components/{BASE_BUNDLE}")
     with zipfile.ZipFile(io.BytesIO(base_bytes)) as archive:
@@ -209,6 +251,7 @@ def main() -> int:
             raise RuntimeError("安装顺序元数据错误")
         audit_manifest_components(manifest, archive.read)
         audit_installer(archive.read(f"{NAME}/install_all.sh"), "ZIP")
+        audit_kb_component(archive.read)
         audit_fix_component(archive.read)
         audit_base_bundle(archive.read)
     with tarfile.open(tar_path, "r:gz") as archive:
@@ -220,6 +263,7 @@ def main() -> int:
             raise RuntimeError("TAR 版本或秘密标记错误")
         audit_manifest_components(manifest, lambda name: read_tar_member(archive, name))
         audit_installer(read_tar_member(archive, f"{NAME}/install_all.sh"), "TAR")
+        audit_kb_component(lambda name: read_tar_member(archive, name))
     print("完整导航部署包审计通过：AIMDK、导航和附加组件完整，现场修复保护、路径安全、Linux 换行、外层校验和无真实密钥标记均正常")
     print(f"TAR SHA-256：{digest(tar_path)}")
     print(f"ZIP SHA-256：{digest(zip_path)}")

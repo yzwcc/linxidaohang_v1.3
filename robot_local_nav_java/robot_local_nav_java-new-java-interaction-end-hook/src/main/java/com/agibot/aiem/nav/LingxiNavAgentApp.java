@@ -55,10 +55,14 @@ import org.slf4j.LoggerFactory;
 public final class LingxiNavAgentApp {
     private static final Logger log = LoggerFactory.getLogger(LingxiNavAgentApp.class);
     private static final RetrieverClient RETRIEVER_CLIENT = new RetrieverClient();
+    private static volatile VoiceGate VOICE_GATE;
+    private static volatile WakeSessionGate WAKE_SESSION_GATE;
+    private static volatile Soc2WakeEvidenceProvider SOC2_WAKE_EVIDENCE;
     private static final String FIXED_DIALOG_TTS_EVENT_ID = "normal_dialog_test";
     private static final String FIXED_DIALOG_TTS_TEXT = "\u6536\u5230\uff0c\u6211\u6765\u56de\u7b54\u4f60\u3002";
     private static final Map<String, AudioSession> AUDIO_2_LLM_SESSIONS = new ConcurrentHashMap<String, AudioSession>();
     private static final Map<String, AudioSession> AUDIO_2_TTS_SESSIONS = new ConcurrentHashMap<String, AudioSession>();
+    private static final AtomicInteger VOICE_METADATA_LOGS = new AtomicInteger();
     private static final TtsController TTS_CONTROLLER = new TtsController(1000L, 1800L, 6500L, 0.86);
     private static final int AUDIO_WORKER_THREADS = 3;
     private static final int AUDIO_WORKER_QUEUE_CAPACITY = 3;
@@ -81,6 +85,10 @@ public final class LingxiNavAgentApp {
             return;
         }
         DoubaoArkClient doubaoArkClient = new DoubaoArkClient(appConfig);
+        VOICE_GATE = new VoiceGate(appConfig);
+        WAKE_SESSION_GATE = new WakeSessionGate(appConfig);
+        SOC2_WAKE_EVIDENCE = new Soc2WakeEvidenceProvider(appConfig);
+        SOC2_WAKE_EVIDENCE.warmup();
         QaStore qaStore = new QaStore(appConfig.qaStorePath);
         LiveDanmuServer liveDanmuServer = null;
         if (appConfig.liveEnabled) {
@@ -106,6 +114,15 @@ public final class LingxiNavAgentApp {
         }
         agentSdk.initialize();
         log.info("Lingxi navigation agent started. navBaseUrl={}, ttsMode={}, callbacks={}", appConfig.navBaseUrl, appConfig.ttsMode, appConfig.lingxiCallbacks);
+        log.info("Voice gate policy: metadataRequired={}, frontHalfAngleDeg={}, minSnrDb={}, maxEchoRms={}, minVadProbability={}, minAsrConfidence={}",
+                appConfig.voiceGateMetadataRequired, appConfig.voiceGateFrontHalfAngleDeg,
+                appConfig.voiceGateMinSnrDb, appConfig.voiceGateMaxEchoRms,
+                appConfig.voiceGateMinVadProbability, appConfig.voiceGateMinAsrConfidence);
+        log.info("Wake-word policy: mode={}, textAliasFallback={}, wakeSignalMaxAgeMs={}, sessionWindowMs={}",
+                appConfig.voiceGateWakeMode,
+                appConfig.voiceGateAllowAddressedWake && "observe".equals(appConfig.voiceGateWakeMode),
+                appConfig.voiceGateWakeSignalMaxAgeMs, appConfig.voiceGateSessionWindowMs);
+        log.info("SOC2 wake evidence source: {}", SOC2_WAKE_EVIDENCE.description());
         log.info("Speech output policy: tts.mode={} means local robot speech is {}. suppressLingxiText={}, fixedDialogTest={}, delayBeforeSpeakMs={}", appConfig.ttsMode, "robot".equals(appConfig.ttsMode) ? "sent to Python bridge /tts/speak" : "not sent to Python bridge", appConfig.ttsSuppressLingxiText, appConfig.ttsFixedDialogTest, appConfig.ttsDelayBeforeSpeakMs);
         if (liveDanmuServer != null) {
             log.info("Live danmu input enabled: inputMode={}, address=ws://{}:{}/, replyMode={}, allowNavigation={}, allowEntertainment={}, maxQueueSize={}, minIntervalMs={}, maxTextLength={}", appConfig.liveInputMode, appConfig.liveHost, appConfig.livePort, appConfig.liveReplyMode, appConfig.liveAllowNavigation, appConfig.liveAllowEntertainment, appConfig.liveMaxQueueSize, appConfig.liveMinIntervalMs, appConfig.liveMaxTextLength);
@@ -133,6 +150,43 @@ public final class LingxiNavAgentApp {
         new CountDownLatch(1).await();
     }
 
+    private static void handleRobotOnline(String source, String agentId, AgentMeta agentMeta) {
+        if (WAKE_SESSION_GATE == null) {
+            log.info("Robot online({}): agentId={}", source, agentId);
+            return;
+        }
+        WakeSessionGate.OnlineObservation observation = WAKE_SESSION_GATE.onRobotOnline(agentId, agentMeta);
+        log.info("Robot online({}): agentId={}, wakeMode={}, wakeWords={}, aliasCount={}",
+                source, agentId, observation.mode(), observation.reportedWakeWords(),
+                observation.normalizedAliases().size());
+    }
+
+    private static void handleRobotOffline(String source, String agentId) {
+        if (WAKE_SESSION_GATE != null) WAKE_SESSION_GATE.onRobotOffline(agentId);
+        if (VOICE_GATE != null) VOICE_GATE.reset();
+        log.info("Robot offline({}): agentId={}, wake session closed", source, agentId);
+    }
+
+    private static void handleRobotState(String source, String agentId, String eventId,
+                                         String stateName, String stateValue) {
+        if (WAKE_SESSION_GATE == null) {
+            log.debug("Robot state ignored before wake gate initialization: source={}, stateName={}",
+                    source, stateName);
+            return;
+        }
+        WakeSessionGate.StateObservation observation = WAKE_SESSION_GATE.onState(
+                agentId, eventId, stateName, stateValue);
+        if (!observation.relevant()) {
+            int length = stateValue == null ? 0 : stateValue.length();
+            log.debug("Robot state ignored: source={}, agentId={}, eventId={}, stateName={}, payloadLength={}",
+                    source, agentId, eventId, stateName, length);
+            return;
+        }
+        log.info("Wake state: source={}, agentId={}, callbackEventId={}, payloadEventId={}, state={}, wakeupState={}, awake={}, result={}",
+                source, agentId, eventId, observation.eventId(), observation.listeningState(),
+                observation.wakeupState(), observation.awake(), observation.result());
+    }
+
     private static void registerAudioCallbacks(AgentSdk agentSdk, final AppConfig appConfig, final NavBridgeClient navBridgeClient, final DoubaoArkClient doubaoArkClient, final QaStore qaStore) {
         if (!appConfig.isCallbackEnabled("audio2llm") && !appConfig.isCallbackEnabled("audio2tts")) {
             log.info("Audio callbacks disabled by lingxi.callbacks={}", (Object)appConfig.lingxiCallbacks);
@@ -143,18 +197,23 @@ public final class LingxiNavAgentApp {
 
                 @Override
                 public void onRobotOnline(String string, AgentMeta agentMeta) {
-                    log.info("Robot online(audio2llm): agentId={}, meta={}", (Object)string, (Object)agentMeta);
+                    LingxiNavAgentApp.handleRobotOnline("audio2llm", string, agentMeta);
                 }
 
                 @Override
                 public void onRobotOffline(String string) {
-                    log.info("Robot offline(audio2llm): agentId={}", (Object)string);
+                    LingxiNavAgentApp.handleRobotOffline("audio2llm", string);
+                }
+
+                @Override
+                public void onState(String agentId, String eventId, String stateName, String stateValue) {
+                    LingxiNavAgentApp.handleRobotState("audio2llm", agentId, eventId, stateName, stateValue);
                 }
 
                 @Override
                 public void onRequest(String string, String string2, int n, byte[] byArray, AgentParam agentParam, Audio2LlmResponse audio2LlmResponse) {
                     LingxiNavAgentApp.logAudioRequest("Audio2Llm", string, string2, null, n, byArray);
-                    LingxiNavAgentApp.handleAudio2LlmChunk(string2, n, byArray, audio2LlmResponse, appConfig, navBridgeClient, doubaoArkClient, qaStore);
+                    LingxiNavAgentApp.handleAudio2LlmChunk(string, string2, n, byArray, agentParam, audio2LlmResponse, appConfig, navBridgeClient, doubaoArkClient, qaStore);
                 }
             });
         } else {
@@ -165,18 +224,23 @@ public final class LingxiNavAgentApp {
 
                 @Override
                 public void onRobotOnline(String string, AgentMeta agentMeta) {
-                    log.info("Robot online(audio2tts): agentId={}, meta={}", (Object)string, (Object)agentMeta);
+                    LingxiNavAgentApp.handleRobotOnline("audio2tts", string, agentMeta);
                 }
 
                 @Override
                 public void onRobotOffline(String string) {
-                    log.info("Robot offline(audio2tts): agentId={}", (Object)string);
+                    LingxiNavAgentApp.handleRobotOffline("audio2tts", string);
+                }
+
+                @Override
+                public void onState(String agentId, String eventId, String stateName, String stateValue) {
+                    LingxiNavAgentApp.handleRobotState("audio2tts", agentId, eventId, stateName, stateValue);
                 }
 
                 @Override
                 public void onRequest(String string, String string2, String string3, int n, byte[] byArray, AgentParam agentParam, Audio2TtsResponse audio2TtsResponse) {
                     LingxiNavAgentApp.logAudioRequest("Audio2Tts", string, string2, string3, n, byArray);
-                    LingxiNavAgentApp.handleAudio2TtsChunk(string2, string3, n, byArray, audio2TtsResponse, appConfig, navBridgeClient, doubaoArkClient, qaStore);
+                    LingxiNavAgentApp.handleAudio2TtsChunk(string, string2, string3, n, byArray, agentParam, audio2TtsResponse, appConfig, navBridgeClient, doubaoArkClient, qaStore);
                 }
             });
         } else {
@@ -194,12 +258,17 @@ public final class LingxiNavAgentApp {
 
                 @Override
                 public void onRobotOnline(String string, AgentMeta agentMeta) {
-                    log.info("Robot online(asr2llm): agentId={}, meta={}", (Object)string, (Object)agentMeta);
+                    LingxiNavAgentApp.handleRobotOnline("asr2llm", string, agentMeta);
                 }
 
                 @Override
                 public void onRobotOffline(String string) {
-                    log.info("Robot offline(asr2llm): agentId={}", (Object)string);
+                    LingxiNavAgentApp.handleRobotOffline("asr2llm", string);
+                }
+
+                @Override
+                public void onState(String agentId, String eventId, String stateName, String stateValue) {
+                    LingxiNavAgentApp.handleRobotState("asr2llm", agentId, eventId, stateName, stateValue);
                 }
 
                 /*
@@ -211,7 +280,8 @@ public final class LingxiNavAgentApp {
                     String string4 = LingxiNavAgentApp.newItemId();
                     AtomicBoolean atomicBoolean = new AtomicBoolean(false);
                     try {
-                        if (LingxiNavAgentApp.shouldIgnoreTextCallback("Asr2Llm", string2, string3, navBridgeClient)) {
+                        if (LingxiNavAgentApp.shouldIgnoreTextCallback(
+                                "Asr2Llm", string, string2, string3, agentParam, navBridgeClient)) {
                             LingxiNavAgentApp.finishIgnoredAsr2Llm(string2, asr2LlmResponse);
                             return;
                         }
@@ -245,12 +315,17 @@ public final class LingxiNavAgentApp {
 
                 @Override
                 public void onRobotOnline(String string, AgentMeta agentMeta) {
-                    log.info("Robot online(asr2tts): agentId={}, meta={}", (Object)string, (Object)agentMeta);
+                    LingxiNavAgentApp.handleRobotOnline("asr2tts", string, agentMeta);
                 }
 
                 @Override
                 public void onRobotOffline(String string) {
-                    log.info("Robot offline(asr2tts): agentId={}", (Object)string);
+                    LingxiNavAgentApp.handleRobotOffline("asr2tts", string);
+                }
+
+                @Override
+                public void onState(String agentId, String eventId, String stateName, String stateValue) {
+                    LingxiNavAgentApp.handleRobotState("asr2tts", agentId, eventId, stateName, stateValue);
                 }
 
                 /*
@@ -262,7 +337,8 @@ public final class LingxiNavAgentApp {
                     String string4 = LingxiNavAgentApp.newItemId();
                     AtomicBoolean atomicBoolean = new AtomicBoolean(false);
                     try {
-                        if (LingxiNavAgentApp.shouldIgnoreTextCallback("Asr2Tts", string2, string3, navBridgeClient)) {
+                        if (LingxiNavAgentApp.shouldIgnoreTextCallback(
+                                "Asr2Tts", string, string2, string3, agentParam, navBridgeClient)) {
                             LingxiNavAgentApp.finishIgnoredAsr2Tts(string2, asr2TtsResponse);
                             return;
                         }
@@ -340,15 +416,48 @@ public final class LingxiNavAgentApp {
         log.info("{} request: agentId={}, eventId={}, itemId={}, flag={}, audioLen={}", string, string2, string3, string4, n, n2);
     }
 
-    private static AudioSession newAudioSession(String string, String string2, String string3, NavBridgeClient navBridgeClient) {
-        WakeGate wakeGate = LingxiNavAgentApp.checkTourWake(string2, string3, navBridgeClient);
-        String string4;
-        if (wakeGate.handled) {
-            string4 = wakeGate.accepted ? "" : wakeGate.reason;
-        } else {
-            string4 = LingxiNavAgentApp.busyInteractionIgnoreReason();
+    private static AudioSession newAudioSession(String itemId, String agentId, String eventId,
+                                                String source, AgentParam agentParam,
+                                                NavBridgeClient navBridgeClient) {
+        logVoiceMetadata(source, eventId, agentParam);
+        if (VOICE_GATE != null) {
+            VoiceGate.Decision voiceDecision = VOICE_GATE.admit(null, agentParam);
+            if (!voiceDecision.accepted()) {
+                log.info("Audio session rejected by quality gate: eventId={}, reason={}",
+                        eventId, voiceDecision.reason());
+                return new AudioSession(itemId, voiceDecision.reason());
+            }
         }
-        return new AudioSession(string, string4);
+        if (WAKE_SESSION_GATE != null) {
+            WakeSessionGate.Decision wakeDecision = WAKE_SESSION_GATE.admit(
+                    agentId, eventId, null, agentParam);
+            if (!wakeDecision.accepted()) {
+                log.info("Audio session rejected by wake gate: eventId={}, reason={}",
+                        eventId, wakeDecision.reason());
+                return new AudioSession(itemId, wakeDecision.reason());
+            }
+            if (wakeDecision.wouldReject()) {
+                log.warn("Audio wake gate observe mode accepted request that enforce mode would reject: eventId={}, reason={}",
+                        eventId, wakeDecision.reason());
+            }
+        }
+        WakeGate wakeGate = LingxiNavAgentApp.checkTourWake(eventId, source, navBridgeClient);
+        String ignoreReason = wakeGate.handled
+                ? (wakeGate.accepted ? "" : wakeGate.reason)
+                : LingxiNavAgentApp.busyInteractionIgnoreReason();
+        if (!ignoreReason.isBlank()) LingxiNavAgentApp.resetVoiceGates();
+        return new AudioSession(itemId, ignoreReason);
+    }
+
+    private static AudioSession newAudioSession(String itemId, String eventId,
+                                                String source, AgentParam agentParam,
+                                                NavBridgeClient navBridgeClient) {
+        return newAudioSession(itemId, "", eventId, source, agentParam, navBridgeClient);
+    }
+
+    private static AudioSession newAudioSession(String itemId, String eventId,
+                                                String source, NavBridgeClient navBridgeClient) {
+        return newAudioSession(itemId, "", eventId, source, null, navBridgeClient);
     }
 
     private static String busyInteractionIgnoreReason() {
@@ -390,88 +499,114 @@ public final class LingxiNavAgentApp {
         }
     }
 
-    private static void handleAudio2LlmChunk(String string2, int n, byte[] byArray, Audio2LlmResponse audio2LlmResponse, AppConfig appConfig, NavBridgeClient navBridgeClient, DoubaoArkClient doubaoArkClient, QaStore qaStore) {
-        if (n == 0) {
-            AudioSession audioSession = LingxiNavAgentApp.newAudioSession(LingxiNavAgentApp.newItemId(), string2, "audio2llm_wake", navBridgeClient);
+    private static void handleAudio2LlmChunk(String agentId, String eventId, int flag, byte[] audio,
+                                              AgentParam agentParam, Audio2LlmResponse response,
+                                              AppConfig appConfig, NavBridgeClient navBridgeClient,
+                                              DoubaoArkClient doubaoArkClient, QaStore qaStore) {
+        if (flag == 0) {
+            AudioSession audioSession = LingxiNavAgentApp.newAudioSession(
+                    LingxiNavAgentApp.newItemId(), agentId, eventId, "audio2llm_wake", agentParam, navBridgeClient);
             if (!audioSession.shouldIgnore()) {
-                LingxiNavAgentApp.appendAudio(audioSession, byArray);
+                LingxiNavAgentApp.appendAudio(audioSession, audio);
             }
-            AUDIO_2_LLM_SESSIONS.put(string2, audioSession);
+            AUDIO_2_LLM_SESSIONS.put(eventId, audioSession);
             if (audioSession.shouldIgnore()) {
-                log.info("Audio2Llm event ignored: eventId={}, reason={}", (Object)string2, (Object)audioSession.ignoreReason);
+                log.info("Audio2Llm event ignored: eventId={}, reason={}", eventId, audioSession.ignoreReason);
             }
             return;
         }
-        if (n == 1) {
-            AudioSession audioSession = AUDIO_2_LLM_SESSIONS.computeIfAbsent(string2, string -> LingxiNavAgentApp.newAudioSession(LingxiNavAgentApp.newItemId(), string2, "audio2llm_wake", navBridgeClient));
+        if (flag == 1) {
+            AudioSession audioSession = AUDIO_2_LLM_SESSIONS.computeIfAbsent(eventId,
+                    ignored -> LingxiNavAgentApp.newAudioSession(
+                            LingxiNavAgentApp.newItemId(), agentId, eventId,
+                            "audio2llm_wake", agentParam, navBridgeClient));
             if (!audioSession.shouldIgnore()) {
-                LingxiNavAgentApp.appendAudio(audioSession, byArray);
+                LingxiNavAgentApp.appendAudio(audioSession, audio);
             }
             return;
         }
-        if (n == 2) {
-            String string3;
-            AudioSession audioSession = AUDIO_2_LLM_SESSIONS.remove(string2);
+        if (flag == 2) {
+            String ignoreReason;
+            AudioSession audioSession = AUDIO_2_LLM_SESSIONS.remove(eventId);
             if (audioSession == null) {
-                audioSession = LingxiNavAgentApp.newAudioSession(LingxiNavAgentApp.newItemId(), string2, "audio2llm_wake", navBridgeClient);
+                audioSession = LingxiNavAgentApp.newAudioSession(
+                        LingxiNavAgentApp.newItemId(), agentId, eventId,
+                        "audio2llm_wake", agentParam, navBridgeClient);
             }
             if (!audioSession.shouldIgnore()) {
-                LingxiNavAgentApp.appendAudio(audioSession, byArray);
+                LingxiNavAgentApp.appendAudio(audioSession, audio);
             }
-            if (!(string3 = LingxiNavAgentApp.completedAudioIgnoreReason(audioSession)).isBlank()) {
-                log.info("Audio2Llm completed event ignored: eventId={}, reason={}", (Object)string2, (Object)string3);
-                LingxiNavAgentApp.finishIgnoredAudio2Llm(string2, audio2LlmResponse);
+            if (!(ignoreReason = LingxiNavAgentApp.completedAudioIgnoreReason(audioSession)).isBlank()) {
+                log.info("Audio2Llm completed event ignored: eventId={}, reason={}", eventId, ignoreReason);
+                LingxiNavAgentApp.finishIgnoredAudio2Llm(eventId, response);
                 return;
             }
             AudioSession audioSession2 = audioSession;
-            if (!LingxiNavAgentApp.submitAudioTask("Audio2Llm", string2, () -> LingxiNavAgentApp.processCompletedAudio2Llm(string2, audioSession2, audio2LlmResponse, appConfig, navBridgeClient, doubaoArkClient, qaStore))) {
-                LingxiNavAgentApp.finishIgnoredAudio2Llm(string2, audio2LlmResponse);
+            if (!LingxiNavAgentApp.submitAudioTask("Audio2Llm", eventId,
+                    () -> LingxiNavAgentApp.processCompletedAudio2Llm(
+                            eventId, audioSession2, response, appConfig, navBridgeClient,
+                            doubaoArkClient, qaStore))) {
+                LingxiNavAgentApp.finishIgnoredAudio2Llm(eventId, response);
             }
             return;
         }
-        audio2LlmResponse.onError(string2, 4001, "\u672a\u77e5 Audio2Llm flag: " + n);
+        response.onError(eventId, 4001, "\u672a\u77e5 Audio2Llm flag: " + flag);
     }
 
-    private static void handleAudio2TtsChunk(String string, String string3, int n, byte[] byArray, Audio2TtsResponse audio2TtsResponse, AppConfig appConfig, NavBridgeClient navBridgeClient, DoubaoArkClient doubaoArkClient, QaStore qaStore) {
-        if (n == 0) {
-            AudioSession audioSession = LingxiNavAgentApp.newAudioSession(LingxiNavAgentApp.normalizeItemId(string3), string, "audio2tts_wake", navBridgeClient);
+    private static void handleAudio2TtsChunk(String agentId, String eventId, String itemId,
+                                              int flag, byte[] audio, AgentParam agentParam,
+                                              Audio2TtsResponse response, AppConfig appConfig,
+                                              NavBridgeClient navBridgeClient,
+                                              DoubaoArkClient doubaoArkClient, QaStore qaStore) {
+        if (flag == 0) {
+            AudioSession audioSession = LingxiNavAgentApp.newAudioSession(
+                    LingxiNavAgentApp.normalizeItemId(itemId), agentId, eventId,
+                    "audio2tts_wake", agentParam, navBridgeClient);
             if (!audioSession.shouldIgnore()) {
-                LingxiNavAgentApp.appendAudio(audioSession, byArray);
+                LingxiNavAgentApp.appendAudio(audioSession, audio);
             }
-            AUDIO_2_TTS_SESSIONS.put(string, audioSession);
+            AUDIO_2_TTS_SESSIONS.put(eventId, audioSession);
             if (audioSession.shouldIgnore()) {
-                log.info("Audio2Tts event ignored: eventId={}, reason={}", (Object)string, (Object)audioSession.ignoreReason);
+                log.info("Audio2Tts event ignored: eventId={}, reason={}", eventId, audioSession.ignoreReason);
             }
             return;
         }
-        if (n == 1) {
-            AudioSession audioSession = AUDIO_2_TTS_SESSIONS.computeIfAbsent(string, string2 -> LingxiNavAgentApp.newAudioSession(LingxiNavAgentApp.normalizeItemId(string3), string, "audio2tts_wake", navBridgeClient));
+        if (flag == 1) {
+            AudioSession audioSession = AUDIO_2_TTS_SESSIONS.computeIfAbsent(eventId,
+                    ignored -> LingxiNavAgentApp.newAudioSession(
+                            LingxiNavAgentApp.normalizeItemId(itemId), agentId, eventId,
+                            "audio2tts_wake", agentParam, navBridgeClient));
             if (!audioSession.shouldIgnore()) {
-                LingxiNavAgentApp.appendAudio(audioSession, byArray);
+                LingxiNavAgentApp.appendAudio(audioSession, audio);
             }
             return;
         }
-        if (n == 2) {
-            String string4;
-            AudioSession audioSession = AUDIO_2_TTS_SESSIONS.remove(string);
+        if (flag == 2) {
+            String ignoreReason;
+            AudioSession audioSession = AUDIO_2_TTS_SESSIONS.remove(eventId);
             if (audioSession == null) {
-                audioSession = LingxiNavAgentApp.newAudioSession(LingxiNavAgentApp.normalizeItemId(string3), string, "audio2tts_wake", navBridgeClient);
+                audioSession = LingxiNavAgentApp.newAudioSession(
+                        LingxiNavAgentApp.normalizeItemId(itemId), agentId, eventId,
+                        "audio2tts_wake", agentParam, navBridgeClient);
             }
             if (!audioSession.shouldIgnore()) {
-                LingxiNavAgentApp.appendAudio(audioSession, byArray);
+                LingxiNavAgentApp.appendAudio(audioSession, audio);
             }
-            if (!(string4 = LingxiNavAgentApp.completedAudioIgnoreReason(audioSession)).isBlank()) {
-                log.info("Audio2Tts completed event ignored: eventId={}, reason={}", (Object)string, (Object)string4);
-                LingxiNavAgentApp.finishIgnoredAudio2Tts(string, audioSession.itemId, audio2TtsResponse);
+            if (!(ignoreReason = LingxiNavAgentApp.completedAudioIgnoreReason(audioSession)).isBlank()) {
+                log.info("Audio2Tts completed event ignored: eventId={}, reason={}", eventId, ignoreReason);
+                LingxiNavAgentApp.finishIgnoredAudio2Tts(eventId, audioSession.itemId, response);
                 return;
             }
             AudioSession audioSession2 = audioSession;
-            if (!LingxiNavAgentApp.submitAudioTask("Audio2Tts", string, () -> LingxiNavAgentApp.processCompletedAudio2Tts(string, audioSession2, audio2TtsResponse, appConfig, navBridgeClient, doubaoArkClient, qaStore))) {
-                LingxiNavAgentApp.finishIgnoredAudio2Tts(string, audioSession2.itemId, audio2TtsResponse);
+            if (!LingxiNavAgentApp.submitAudioTask("Audio2Tts", eventId,
+                    () -> LingxiNavAgentApp.processCompletedAudio2Tts(
+                            eventId, audioSession2, response, appConfig, navBridgeClient,
+                            doubaoArkClient, qaStore))) {
+                LingxiNavAgentApp.finishIgnoredAudio2Tts(eventId, audioSession2.itemId, response);
             }
             return;
         }
-        audio2TtsResponse.onError(string, 4001, "\u672a\u77e5 Audio2Tts flag: " + n);
+        response.onError(eventId, 4001, "\u672a\u77e5 Audio2Tts flag: " + flag);
     }
 
     /*
@@ -1006,25 +1141,116 @@ public final class LingxiNavAgentApp {
         return "item_" + UUID.randomUUID().toString().replace("-", "");
     }
 
-    private static boolean shouldIgnoreTextCallback(String string, String string2, String string3, NavBridgeClient navBridgeClient) {
-        WakeGate wakeGate = LingxiNavAgentApp.checkTourWake(string2, string.toLowerCase() + "_wake", navBridgeClient);
-        if (wakeGate.handled) {
-            if (wakeGate.accepted) {
-                return false;
-            }
-            log.info("{} ignored during protected tour stage: eventId={}, reason={}, state={}, text={}", string, string2, wakeGate.reason, wakeGate.state, LingxiNavAgentApp.abbreviate(string3));
+    private static boolean shouldIgnoreTextCallback(String source, String eventId, String text,
+                                                    NavBridgeClient navBridgeClient) {
+        return shouldIgnoreTextCallback(source, "", eventId, text, null, navBridgeClient);
+    }
+
+    private static boolean shouldIgnoreTextCallback(String source, String eventId, String text,
+                                                    AgentParam agentParam, NavBridgeClient navBridgeClient) {
+        return shouldIgnoreTextCallback(source, "", eventId, text, agentParam, navBridgeClient);
+    }
+
+    private static boolean shouldIgnoreTextCallback(String source, String agentId, String eventId,
+                                                    String text, AgentParam agentParam,
+                                                    NavBridgeClient navBridgeClient) {
+        logVoiceMetadata(source, eventId, agentParam);
+        if (LingxiNavAgentApp.looksLikeUrgentStop(text)) {
+            LingxiNavAgentApp.resetVoiceGates();
+            log.info("{} urgent stop bypasses voice rejection: eventId={}, text={}",
+                    source, eventId, LingxiNavAgentApp.abbreviate(text));
+            return false;
+        }
+        if (SpeechInputPolicy.isFiller(text)) {
+            log.info("Text ignored: eventId={}, reason=filler", eventId);
             return true;
         }
-        String string4 = LingxiNavAgentApp.busyInteractionIgnoreReason();
-        if (string4.isBlank()) {
-            return false;
+        if (TTS_CONTROLLER.isInputEcho(text)) {
+            log.info("Text ignored: eventId={}, reason=playback_echo", eventId);
+            return true;
         }
-        if (LingxiNavAgentApp.looksLikeUrgentStop(string3)) {
-            log.info("{} allowed during busy interaction as urgent stop: eventId={}, reason={}, text={}", string, string2, string4, LingxiNavAgentApp.abbreviate(string3));
-            return false;
+        boolean playbackUnaddressed = TTS_CONTROLLER.isSilentWindowActive()
+                && !SpeechInputPolicy.isAddressed(text);
+        if (VOICE_GATE != null) {
+            VoiceGate.Decision voiceDecision = VOICE_GATE.admit(text, agentParam);
+            if (!voiceDecision.accepted()) {
+                log.info("Text ignored by quality gate: eventId={}, reason={}",
+                        eventId, voiceDecision.reason());
+                return true;
+            }
         }
-        log.info("{} ignored during busy interaction: eventId={}, reason={}, text={}", string, string2, string4, LingxiNavAgentApp.abbreviate(string3));
+
+        boolean freshWake = false;
+        if (WAKE_SESSION_GATE != null) {
+            WakeSessionGate.Decision wakeDecision = WAKE_SESSION_GATE.admit(
+                    agentId, eventId, text, agentParam);
+            if (!wakeDecision.accepted() && shouldProbeSoc2Wake(wakeDecision)
+                    && SOC2_WAKE_EVIDENCE != null) {
+                Soc2WakeEvidenceProvider.Evidence evidence = SOC2_WAKE_EVIDENCE.find(eventId);
+                if (evidence.found()) {
+                    wakeDecision = WAKE_SESSION_GATE.admitVerifiedSoc2Wake(
+                            agentId, eventId, evidence.ageMs());
+                    log.info("SOC2 wake evidence matched: agentId={}, eventId={}, ageMs={}, accepted={}, reason={}",
+                            agentId, eventId, evidence.ageMs(),
+                            wakeDecision.accepted(), wakeDecision.reason());
+                } else {
+                    log.info("SOC2 wake evidence unavailable: agentId={}, eventId={}, reason={}",
+                            agentId, eventId, evidence.reason());
+                }
+            }
+            if (!wakeDecision.accepted()) {
+                log.info("Text ignored by wake gate: eventId={}, reason={}",
+                        eventId, wakeDecision.reason());
+                return true;
+            }
+            freshWake = switch (wakeDecision.reason()) {
+                case "metadata_wake", "state_wake_event_match", "state_wake_recent",
+                        "soc2_log_wake_verified" -> true;
+                default -> false;
+            };
+            if (wakeDecision.wouldReject()) {
+                log.warn("Wake gate observe mode accepted request that enforce mode would reject: eventId={}, reason={}",
+                        eventId, wakeDecision.reason());
+            }
+        }
+        if (playbackUnaddressed && !freshWake) {
+            LingxiNavAgentApp.resetVoiceGates();
+            log.info("Text ignored: eventId={}, reason=playback_not_addressed", eventId);
+            return true;
+        }
+
+        WakeGate wakeGate = LingxiNavAgentApp.checkTourWake(
+                eventId, source.toLowerCase() + "_wake", navBridgeClient);
+        if (wakeGate.handled) {
+            if (wakeGate.accepted) return false;
+            log.info("{} ignored during protected tour stage: eventId={}, reason={}, state={}, text={}",
+                    source, eventId, wakeGate.reason, wakeGate.state,
+                    LingxiNavAgentApp.abbreviate(text));
+            LingxiNavAgentApp.resetVoiceGates();
+            return true;
+        }
+        String busyReason = LingxiNavAgentApp.busyInteractionIgnoreReason();
+        if (busyReason.isBlank()) return false;
+        log.info("{} ignored during busy interaction: eventId={}, reason={}, text={}",
+                source, eventId, busyReason, LingxiNavAgentApp.abbreviate(text));
+        LingxiNavAgentApp.resetVoiceGates();
         return true;
+    }
+
+    private static boolean shouldProbeSoc2Wake(WakeSessionGate.Decision decision) {
+        return "wake_required_or_session_expired".equals(decision.reason())
+                || "text_wake_fallback_disabled".equals(decision.reason());
+    }
+
+    private static void resetVoiceGates() {
+        if (VOICE_GATE != null) VOICE_GATE.reset();
+        if (WAKE_SESSION_GATE != null) WAKE_SESSION_GATE.reset();
+    }
+
+    private static void logVoiceMetadata(String source, String eventId, AgentParam agentParam) {
+        if (VOICE_METADATA_LOGS.getAndIncrement() >= 128) return;
+        log.info("Voice metadata probe: source={}, eventId={}, {}",
+                source, eventId, VoiceMetadataDiagnostics.summarize(agentParam));
     }
 
     private static WakeGate checkTourWake(String string, String string2, NavBridgeClient navBridgeClient) {
@@ -1050,6 +1276,9 @@ public final class LingxiNavAgentApp {
 
     private static boolean looksLikeUrgentStop(String string) {
         String string2 = LingxiNavAgentApp.normalizeText(string);
+        if ("停".equals(string2)) {
+            return true;
+        }
         return Arrays.asList("\u505c\u4e0b", "\u505c\u6b62", "\u53d6\u6d88\u5bfc\u822a", "\u522b\u8d70", "\u4e0d\u8981\u8d70", "\u6025\u505c", "\u505c\u4e00\u505c", "\u7ed3\u675f\u4efb\u52a1", "\u505c\u6b62\u4efb\u52a1", "\u7ec8\u6b62\u4efb\u52a1", "\u7ed3\u675f\u8bb2\u89e3", "\u5f00\u59cb\u4efb\u52a1", "\u5f00\u59cb\u8bb2\u89e3", "暂停讲解", "暂停任务", "继续讲解", "继续任务", "恢复讲解").stream().anyMatch(string2::contains);
     }
 
@@ -1147,6 +1376,14 @@ public final class LingxiNavAgentApp {
             Object object = this.lock;
             synchronized (object) {
                 return System.currentTimeMillis() < this.silentUntilMillis;
+            }
+        }
+
+        boolean isInputEcho(String text) {
+            Object object = this.lock;
+            synchronized (object) {
+                return System.currentTimeMillis() < this.silentUntilMillis
+                        && SpeechInputPolicy.isEcho(text, this.lastNormalizedText);
             }
         }
 

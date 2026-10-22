@@ -5,21 +5,22 @@ import hashlib
 import json
 import shutil
 import stat
+import subprocess
+import sys
 import tempfile
 import zipfile
 from pathlib import Path, PurePosixPath
 
 HERE = Path(__file__).resolve().parent
-VERSION = "1.0.2-20260902"
+VERSION = "1.0.3-20261022"
 NAME = f"sparkrobot-lingxi-kb-{VERSION}"
 DIST = HERE / "dist"
-JAVA_AGENT_JAR = (
-    HERE.parent
-    / "robot_local_nav_java"
+JAVA_AGENT_DIR = (
+    HERE.parent / "robot_local_nav_java"
     / "robot_local_nav_java-new-java-interaction-end-hook"
-    / "target"
-    / "robot-local-navigation-java-0.1.0-all-kb-20260902.jar"
 )
+JAVA_AGENT_BUILDER = JAVA_AGENT_DIR / "build_voice_gate_agent.py"
+JAVA_AGENT_JAR = JAVA_AGENT_DIR / "target" / "robot-local-navigation-java-0.1.0-all-kb-voice-gate-20261022.jar"
 
 
 def digest(path: Path) -> str:
@@ -33,6 +34,7 @@ def digest(path: Path) -> str:
 def main() -> int:
     DIST.mkdir(exist_ok=True)
     output = DIST / f"{NAME}.zip"
+    subprocess.run([sys.executable, str(JAVA_AGENT_BUILDER)], check=True)
     with tempfile.TemporaryDirectory(prefix=".kb-build-", dir=DIST) as temp:
         stage = Path(temp) / NAME
         stage.mkdir()
@@ -50,7 +52,27 @@ def main() -> int:
         manifest = []
         for path in sorted(item for item in stage.rglob("*") if item.is_file()):
             manifest.append({"path": path.relative_to(stage).as_posix(), "sha256": digest(path), "size": path.stat().st_size})
-        (stage / "manifest.json").write_text(json.dumps({"format": "sparkrobot-lingxi-kb-v1", "version": VERSION, "files": manifest}, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        package_manifest = {
+            "format": "sparkrobot-lingxi-kb-v1",
+            "version": VERSION,
+            "voice_interaction_policy": {
+                "wake_mode": "enforce",
+                "metadata_required": False,
+                "front_half_angle_deg": 60,
+                "min_snr_db": 6,
+                "max_echo_rms": 0.12,
+                "min_vad_probability": 0.70,
+                "min_asr_confidence": 0.65,
+                "wake_signal_max_age_ms": 8000,
+                "session_window_ms": 8000,
+                "acoustic_dsp_included": False,
+            },
+            "files": manifest,
+        }
+        (stage / "manifest.json").write_text(
+            json.dumps(package_manifest, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
         output.unlink(missing_ok=True)
         with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=6) as archive:
             for path in sorted(item for item in stage.rglob("*") if item.is_file()):

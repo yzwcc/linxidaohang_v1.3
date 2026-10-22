@@ -1,5 +1,7 @@
 # 灵心知识库检索与语音接入部署包
 
+版本：`sparkrobot-lingxi-kb-1.0.3-20261022`
+
 本包包含两部分：独立 Retriever Proxy 服务，以及已验证的 Java Agent 知识库接入更新。它不包含导航、地图、AIMDK 或直播项目配置。
 
 完整部署步骤见 `docs/灵心知识库独立部署教程.md`。
@@ -12,6 +14,7 @@
 - `kb-search` 命令行查询。
 - 独立 systemd 服务，监听机器人本机 `127.0.0.1:18084`。
 - Java Agent 按“本地问答 -> 灵心知识库 -> 大模型”顺序回答普通问题。
+- Java Agent 集成 V1.3.8 输入拒识策略：填充词/重复片段/播报回声过滤、可用质量元数据校验和真实唤醒会话门控。
 - Java Agent 更新前自动备份，可从备份 JAR 回滚。
 
 ## 在已部署灵犀导航的机器人上安装
@@ -19,7 +22,7 @@
 在机器人 `run` 账号执行：
 
 ```bash
-cd /home/run/sparkrobot-lingxi-kb-1.0.2-20260902
+cd /home/run/sparkrobot-lingxi-kb-1.0.3-20261022
 sudo ./install.sh --from-lingxi --agent-code AI_AGENT_你的智能体Code
 sudo ./install_voice_agent.sh
 ```
@@ -89,3 +92,38 @@ sudo /usr/local/sbin/sparkrobot-lingxi-kb doctor
 ```bash
 sudo /usr/local/sbin/sparkrobot-lingxi-kb uninstall
 ```
+
+## 语音交互拒识策略
+
+Java Agent 默认过滤无信息填充词、重复 ASR 片段、播报回声和静音窗口中未唤醒的输入。真实唤醒后 8 秒内可连续交流；离开窗口后需新的 SDK KWS/唤醒状态事件，或能按 event ID 核验且不超过 8 秒的 SOC2 唤醒记录。仅仅在识别文本中说出“你好灵犀”不会伪造唤醒证据。
+
+默认质量门控兼容 SDK 未提供声学元数据的情况；若字段存在，仍执行以下阈值检查：
+
+| 元数据 | 默认门槛 |
+| --- | --- |
+| DOA 正前方半角 | 60° |
+| SNR | 不低于 6 dB |
+| AEC 残余回声 RMS | 不高于 0.12 |
+| VAD 语音概率 | 不低于 0.70 |
+| ASR 置信度 | 不低于 0.65 |
+
+对应的 properties 默认值如下：
+
+```properties
+voice.gate.metadataRequired=false
+voice.gate.frontHalfAngleDeg=60
+voice.gate.minSnrDb=6
+voice.gate.maxEchoRms=0.12
+voice.gate.minVadProbability=0.70
+voice.gate.minAsrConfidence=0.65
+voice.gate.wakeMode=enforce
+voice.gate.allowAddressedWake=false
+voice.gate.wakeSignalMaxAgeMs=8000
+voice.gate.sessionWindowMs=8000
+```
+
+只有现场 SDK 确实提供并完成标定后，才可设置 `voice.gate.metadataRequired=true`；严格模式会拒绝缺失任一必要元数据的输入。Java Agent 从其 `WorkingDirectory/config/lingxi-nav.properties` 读取 properties，也支持对应的 `VOICE_GATE_*` 环境变量。修改前先用 `systemctl show -p WorkingDirectory --value lingxi-java-agent-robot.service` 确认实际工作目录，不要盲改导航服务配置文件。
+
+这是 ASR/SDK 元数据上的软件拒识策略，不会对 PCM 音频做 RNNoise、AEC 或真实 DOA 滤波，也不能替代机器人硬件急停。现场验收仍须测试正常唤醒、背景噪声、播报回声、侧后方说话与短指令，并由现场人员确认硬件急停有效。
+
+拒识原因可从 `lingxi-java-agent-robot.service` 日志排查；回滚方法见上方“语音接入回滚”，只替换 Java Agent JAR，不删除知识库服务和配置。

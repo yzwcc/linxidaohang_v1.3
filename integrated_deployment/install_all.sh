@@ -3,7 +3,7 @@ set -Eeuo pipefail
 umask 077
 
 PACKAGE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-VERSION="v1.3.1-complete-deployment-20260907-r7"
+VERSION="v1.3.1-complete-deployment-20261022-r8"
 WORK_ROOT="${WORK_ROOT:-/home/run/${VERSION}}"
 BASE_ROOT="${WORK_ROOT}/base/lingxi-v1.3.1-full-deployment-20260901"
 BASE_ARCHIVE="${PACKAGE_DIR}/components/lingxi-v1.3.1-full-deployment-20260901.zip"
@@ -11,7 +11,7 @@ AIMDK_NAME="aimdk-aarch64-1bde262f-artifacts.7z"
 NAV_NAME="sparkrobot-lingxi-nav-internal-1.0.7-20260901.tar.gz"
 LINKCRAFT_NAME="sparkrobot-lingxi-linkcraft-addon-1.0.3-20260902.tar.gz"
 FIX_NAME="sparkrobot-lingxi-consecutive-nav-fix-1.0.1-20260907.tar.gz"
-KB_NAME="sparkrobot-lingxi-kb-1.0.2-20260902.zip"
+KB_NAME="sparkrobot-lingxi-kb-1.0.3-20261022.zip"
 
 die() { echo "失败：$*" >&2; exit 1; }
 need_run() { [[ "$(id -un)" == "run" ]] || die "请使用 run 用户执行此阶段"; }
@@ -100,7 +100,7 @@ extract_addons() {
   safe_extract_zip "$(component "${KB_NAME}")" "${staging}"
   LINKCRAFT_ROOT="${staging}/sparkrobot-lingxi-linkcraft-addon-1.0.3-20260902"
   FIX_ROOT="${staging}/sparkrobot-lingxi-consecutive-nav-fix-1.0.1-20260907"
-  KB_ROOT="${staging}/sparkrobot-lingxi-kb-1.0.2-20260902"
+  KB_ROOT="${staging}/sparkrobot-lingxi-kb-1.0.3-20261022"
   for path in "${LINKCRAFT_ROOT}" "${FIX_ROOT}" "${KB_ROOT}"; do [[ -d "${path}" ]] || die "附加包解压失败：${path}"; done
 }
 

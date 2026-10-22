@@ -2,14 +2,24 @@
 from __future__ import annotations
 
 import hashlib
+import io
 import json
 import zipfile
 from pathlib import Path, PurePosixPath
 
 HERE = Path(__file__).resolve().parent
-VERSION = "1.0.2-20260902"
+VERSION = "1.0.3-20261022"
 NAME = f"sparkrobot-lingxi-kb-{VERSION}"
 ARCHIVE = HERE / "dist" / f"{NAME}.zip"
+VOICE_GATE_CLASSES = {
+    "com/agibot/aiem/nav/AppConfig.class",
+    "com/agibot/aiem/nav/LingxiNavAgentApp.class",
+    "com/agibot/aiem/nav/VoiceGate.class",
+    "com/agibot/aiem/nav/WakeSessionGate.class",
+    "com/agibot/aiem/nav/SpeechInputPolicy.class",
+    "com/agibot/aiem/nav/Soc2WakeEvidenceProvider.class",
+    "com/agibot/aiem/nav/VoiceMetadataDiagnostics.class",
+}
 
 
 def digest(path: Path) -> str:
@@ -45,11 +55,29 @@ def main() -> int:
         manifest = json.loads(archive.read(f"{NAME}/manifest.json"))
         if manifest["version"] != VERSION:
             raise RuntimeError("版本清单不正确")
+        voice_policy = manifest.get("voice_interaction_policy", {})
+        if (
+            voice_policy.get("wake_mode") != "enforce"
+            or voice_policy.get("metadata_required") is not False
+            or voice_policy.get("wake_signal_max_age_ms") != 8000
+            or voice_policy.get("session_window_ms") != 8000
+            or voice_policy.get("acoustic_dsp_included") is not False
+        ):
+            raise RuntimeError("语音拒识策略清单与默认实现不一致")
         for item in manifest["files"]:
             member = f"{NAME}/{item['path']}"
             with archive.open(member) as handle:
                 if hashlib.sha256(handle.read()).hexdigest() != item["sha256"]:
                     raise RuntimeError(f"文件校验失败：{item['path']}")
+        agent_bytes = archive.read(
+            f"{NAME}/agent/robot-local-navigation-java-all-kb.jar"
+        )
+        with zipfile.ZipFile(io.BytesIO(agent_bytes)) as agent:
+            missing_gate = VOICE_GATE_CLASSES - set(agent.namelist())
+            if missing_gate:
+                raise RuntimeError(
+                    "Java Agent 缺少交互拒识类：" + ", ".join(sorted(missing_gate))
+                )
         for marker in (b"St87591540", b"ROBOT_SSH_PASSWORD=1", b"1.0.6"):
             for member in names:
                 if member.endswith((".zip", ".gz", ".7z")):

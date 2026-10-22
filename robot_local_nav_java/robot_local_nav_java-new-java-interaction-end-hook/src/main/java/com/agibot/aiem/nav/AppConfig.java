@@ -41,6 +41,22 @@ final class AppConfig {
     final int liveMaxQueueSize;
     final long liveMinIntervalMs;
     final int liveMaxTextLength;
+    final boolean voiceGateMetadataRequired;
+    final double voiceGateFrontHalfAngleDeg;
+    final double voiceGateMinSnrDb;
+    final double voiceGateMaxEchoRms;
+    final double voiceGateMinVadProbability;
+    final double voiceGateMinAsrConfidence;
+    final long voiceGateSessionWindowMs;
+    final String voiceGateWakeMode;
+    final boolean voiceGateAllowAddressedWake;
+    final long voiceGateWakeSignalMaxAgeMs;
+    final Set<String> voiceGateAddressAliases;
+    final boolean voiceGateSoc2LogEnabled;
+    final String voiceGateSoc2LogRoot;
+    final int voiceGateSoc2LogAttempts;
+    final long voiceGateSoc2LogRetryMs;
+    final int voiceGateSoc2LogTailBytes;
 
     private AppConfig(Properties properties) {
         this.lingxiUrl = AppConfig.read(properties, "lingxi.url", "LINGXI_URL", "wss://open.agibot.com/api/V1/open-portal/app/wss/agent-sdk");
@@ -70,6 +86,22 @@ final class AppConfig {
         this.liveMaxQueueSize = AppConfig.parseIntInRange(AppConfig.read(properties, "live.maxQueueSize", "LIVE_MAX_QUEUE_SIZE", "20"), "live.maxQueueSize", 1, 1000);
         this.liveMinIntervalMs = AppConfig.parseLongAtLeast(AppConfig.read(properties, "live.minIntervalMs", "LIVE_MIN_INTERVAL_MS", "3000"), "live.minIntervalMs", 0L);
         this.liveMaxTextLength = AppConfig.parseIntInRange(AppConfig.read(properties, "live.maxTextLength", "LIVE_MAX_TEXT_LENGTH", "80"), "live.maxTextLength", 1, 1000);
+        this.voiceGateMetadataRequired = Boolean.parseBoolean(AppConfig.read(properties, "voice.gate.metadataRequired", "VOICE_GATE_METADATA_REQUIRED", "false"));
+        this.voiceGateFrontHalfAngleDeg = AppConfig.parseDoubleInRange(AppConfig.read(properties, "voice.gate.frontHalfAngleDeg", "VOICE_GATE_FRONT_HALF_ANGLE_DEG", "60"), "voice.gate.frontHalfAngleDeg", 1, 180);
+        this.voiceGateMinSnrDb = AppConfig.parseDoubleInRange(AppConfig.read(properties, "voice.gate.minSnrDb", "VOICE_GATE_MIN_SNR_DB", "6"), "voice.gate.minSnrDb", -100, 100);
+        this.voiceGateMaxEchoRms = AppConfig.parseDoubleInRange(AppConfig.read(properties, "voice.gate.maxEchoRms", "VOICE_GATE_MAX_ECHO_RMS", "0.12"), "voice.gate.maxEchoRms", 0, 1);
+        this.voiceGateMinVadProbability = AppConfig.parseDoubleInRange(AppConfig.read(properties, "voice.gate.minVadProbability", "VOICE_GATE_MIN_VAD_PROBABILITY", "0.70"), "voice.gate.minVadProbability", 0, 1);
+        this.voiceGateMinAsrConfidence = AppConfig.parseDoubleInRange(AppConfig.read(properties, "voice.gate.minAsrConfidence", "VOICE_GATE_MIN_ASR_CONFIDENCE", "0.65"), "voice.gate.minAsrConfidence", 0, 1);
+        this.voiceGateSessionWindowMs = AppConfig.parseLongInRange(AppConfig.read(properties, "voice.gate.sessionWindowMs", "VOICE_GATE_SESSION_WINDOW_MS", "8000"), "voice.gate.sessionWindowMs", 1000, 30000);
+        this.voiceGateWakeMode = AppConfig.normalizeWakeMode(AppConfig.read(properties, "voice.gate.wakeMode", "VOICE_GATE_WAKE_MODE", "enforce"));
+        this.voiceGateAllowAddressedWake = Boolean.parseBoolean(AppConfig.read(properties, "voice.gate.allowAddressedWake", "VOICE_GATE_ALLOW_ADDRESSED_WAKE", "false"));
+        this.voiceGateWakeSignalMaxAgeMs = AppConfig.parseLongInRange(AppConfig.read(properties, "voice.gate.wakeSignalMaxAgeMs", "VOICE_GATE_WAKE_SIGNAL_MAX_AGE_MS", "8000"), "voice.gate.wakeSignalMaxAgeMs", 1000, 30000);
+        this.voiceGateAddressAliases = AppConfig.parseTextSet(AppConfig.read(properties, "voice.gate.addressAliases", "VOICE_GATE_ADDRESS_ALIASES", "\u4f60\u597d\u7075\u7280,\u7075\u7280\u7075\u7280,\u55e8\u7075\u7280,\u54c8\u55bd\u9732\u7c73,\u7075\u6eaa\u7075\u6eaa,\u55e8\u7075\u6eaa,hello lumi,hi lumi,hey lumi"));
+        this.voiceGateSoc2LogEnabled = Boolean.parseBoolean(AppConfig.read(properties, "voice.gate.soc2LogEnabled", "VOICE_GATE_SOC2_LOG_ENABLED", "true"));
+        this.voiceGateSoc2LogRoot = AppConfig.read(properties, "voice.gate.soc2LogRoot", "VOICE_GATE_SOC2_LOG_ROOT", "/agibot/nfs/soc2/log");
+        this.voiceGateSoc2LogAttempts = AppConfig.parseIntInRange(AppConfig.read(properties, "voice.gate.soc2LogAttempts", "VOICE_GATE_SOC2_LOG_ATTEMPTS", "4"), "voice.gate.soc2LogAttempts", 1, 8);
+        this.voiceGateSoc2LogRetryMs = AppConfig.parseLongInRange(AppConfig.read(properties, "voice.gate.soc2LogRetryMs", "VOICE_GATE_SOC2_LOG_RETRY_MS", "40"), "voice.gate.soc2LogRetryMs", 0, 500);
+        this.voiceGateSoc2LogTailBytes = AppConfig.parseIntInRange(AppConfig.read(properties, "voice.gate.soc2LogTailBytes", "VOICE_GATE_SOC2_LOG_TAIL_BYTES", "1048576"), "voice.gate.soc2LogTailBytes", 65536, 8388608);
         if (this.doubaoApiKey.isBlank() && (string == null || string.isBlank())) {
             throw new IllegalArgumentException("Missing doubao.apiKey or ARK_API_KEY/DOUBAO_API_KEY");
         }
@@ -175,6 +207,45 @@ final class AppConfig {
             throw new IllegalArgumentException(string2 + " must be between " + n + " and " + n2);
         }
         return n3;
+    }
+
+    private static long parseLongInRange(String value, String name, long min, long max) {
+        long parsed = parseLongAtLeast(value, name, min);
+        if (parsed > max) {
+            throw new IllegalArgumentException(name + " must be between " + min + " and " + max);
+        }
+        return parsed;
+    }
+
+    private static double parseDoubleInRange(String value, String name, double min, double max) {
+        final double parsed;
+        try {
+            parsed = Double.parseDouble(value);
+        } catch (NumberFormatException exception) {
+            throw new IllegalArgumentException(name + " must be a number", exception);
+        }
+        if (!Double.isFinite(parsed) || parsed < min || parsed > max) {
+            throw new IllegalArgumentException(name + " must be between " + min + " and " + max);
+        }
+        return parsed;
+    }
+
+    private static String normalizeWakeMode(String value) {
+        String normalized = value == null ? "" : value.trim().toLowerCase();
+        if (normalized.isBlank()) normalized = "enforce";
+        if (!(normalized.equals("off") || normalized.equals("observe") || normalized.equals("enforce"))) {
+            throw new IllegalArgumentException("voice.gate.wakeMode must be off, observe, or enforce");
+        }
+        return normalized;
+    }
+
+    private static Set<String> parseTextSet(String value) {
+        LinkedHashSet<String> entries = new LinkedHashSet<>();
+        Arrays.stream((value == null ? "" : value).split("[,，;；|]+"))
+                .map(String::trim)
+                .filter(entry -> !entry.isBlank())
+                .forEach(entries::add);
+        return Set.copyOf(entries);
     }
 
     private static long parseLongAtLeast(String string, String string2, long l) {
