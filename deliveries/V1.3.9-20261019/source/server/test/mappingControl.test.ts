@@ -49,6 +49,7 @@ describe("robot mapping control", () => {
     runRobotSshCommand.mockResolvedValue([
       "agibot_software=active", "hal_sensor_running=1", "slam_running=1",
       "lidar_publishers=1", "imu_publishers=1", "odom_publishers=1",
+      "lidar_data=1", "imu_data=1", "odom_data=1",
       "topic=/slam/lidar_odom [nav_msgs/msg/Odometry]", "service=/map/save [example/srv/Save]",
       "prerequisite_rectifier=1", "prerequisite_fast_lio=1", "prerequisite_open3d=0",
       "prerequisite_octomap=1", "prerequisite_map_saver=1"
@@ -58,6 +59,9 @@ describe("robot mapping control", () => {
     expect(result.lidar_publishers).toBe(1);
     expect(result.imu_publishers).toBe(1);
     expect(result.odom_publishers).toBe(1);
+    expect(result.lidar_data_available).toBe(true);
+    expect(result.imu_data_available).toBe(true);
+    expect(result.odom_data_available).toBe(true);
     expect(result.mapping_related_topics).toContain("/slam/lidar_odom [nav_msgs/msg/Odometry]");
     expect(result.mapping_related_services).toContain("/map/save [example/srv/Save]");
     expect(result.mapping_backend_available).toBe(false);
@@ -74,24 +78,56 @@ describe("robot mapping control", () => {
   it("reports missing sensor feeds without issuing robot mutations", async () => {
     runRobotSshCommand.mockResolvedValue([
       "agibot_software=active", "hal_sensor_running=1", "slam_running=1",
-      "lidar_publishers=0", "imu_publishers=1", "odom_publishers=1"
+      "lidar_publishers=0", "imu_publishers=1", "odom_publishers=1",
+      "lidar_data=0", "imu_data=1", "odom_data=1"
     ].join("\n"));
     const { getMappingHealth } = await import("../src/mappingControl.js");
     const result = await getMappingHealth(config);
     expect(result.ok).toBe(false);
     expect(result.lidar_publishers).toBe(0);
+    expect(result.lidar_data_available).toBe(false);
     expect(runRobotSshCommand).toHaveBeenCalledTimes(1);
   });
 
   it("does not report a healthy mapping chain without a live localization output", async () => {
     runRobotSshCommand.mockResolvedValue([
       "agibot_software=active", "hal_sensor_running=1", "slam_running=1",
-      "lidar_publishers=1", "imu_publishers=1", "odom_publishers=0"
+      "lidar_publishers=1", "imu_publishers=1", "odom_publishers=0",
+      "lidar_data=1", "imu_data=1", "odom_data=0"
     ].join("\n"));
     const { getMappingHealth } = await import("../src/mappingControl.js");
     const result = await getMappingHealth(config);
     expect(result.ok).toBe(false);
+    expect(result.odom_data_available).toBe(false);
     expect(result.diagnosis).toContain("未确认 SLAM 定位输出");
+  });
+
+  it("does not call live sampling successful when topics have publishers but no frame arrives", async () => {
+    runRobotSshCommand.mockResolvedValue([
+      "agibot_software=active", "hal_sensor_running=1", "slam_running=1",
+      "lidar_publishers=1", "imu_publishers=1", "odom_publishers=1",
+      "lidar_data=0", "imu_data=1", "odom_data=1"
+    ].join("\n"));
+    const { getMappingHealth } = await import("../src/mappingControl.js");
+    const result = await getMappingHealth(config);
+    expect(result.ok).toBe(false);
+    expect(result.lidar_publishers).toBe(1);
+    expect(result.lidar_data_available).toBe(false);
+    expect(result.diagnosis).toContain("雷达点云和 IMU 数据");
+  });
+
+  it("skips frame sampling when ROS reports no publisher and bounds topic echo waits", async () => {
+    runRobotSshCommand.mockResolvedValue([
+      "agibot_software=active", "hal_sensor_running=1", "slam_running=1",
+      "lidar_publishers=0", "imu_publishers=0", "odom_publishers=0",
+      "lidar_data=0", "imu_data=0", "odom_data=0"
+    ].join("\n"));
+    const { getMappingHealth } = await import("../src/mappingControl.js");
+    await getMappingHealth(config);
+    const command = runRobotSshCommand.mock.calls[0][0] as string;
+    expect(command).toContain('if [ "$lidar_publishers" -gt 0 ]');
+    expect(command).toContain("timeout 3 ros2 topic echo --once");
+    expect(command).toContain('if [ "$odom_publishers" -gt 0 ]');
   });
 
   it("blocks mapping mutation until a verified robot adapter exists", async () => {

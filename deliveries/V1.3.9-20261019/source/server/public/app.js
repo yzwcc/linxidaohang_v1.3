@@ -649,10 +649,10 @@ function renderMappingHealth() {
   setText("mappingBadge", ready ? "传感器就绪" : "未就绪");
   setClass("mappingBadge", `badge ${ready ? "ok" : "bad"}`);
   setText("mappingSoftware", health.agibot_software || "未知");
-  setText("mappingLidar", `${health.lidar_publishers || 0} 个发布者`);
-  setText("mappingImu", `${health.imu_publishers || 0} 个发布者`);
+  setText("mappingLidar", `${health.lidar_data_available ? "有实时数据" : "无实时数据"} · ${health.lidar_publishers || 0} 个发布者`);
+  setText("mappingImu", `${health.imu_data_available ? "有实时数据" : "无实时数据"} · ${health.imu_publishers || 0} 个发布者`);
   setText("mappingSlam", health.slam_running ? "运行中" : "未运行");
-  setText("mappingOdom", `${health.odom_publishers || 0} 个发布者`);
+  setText("mappingOdom", `${health.odom_data_available ? "有实时数据" : "无实时数据"} · ${health.odom_publishers || 0} 个发布者`);
   setText("mappingBackend", health.mapping_backend_available ? "已验证" : "未验证");
   setText("mappingTopics", (health.mapping_related_topics || []).join("\n") || "未发现相关话题");
   setText("mappingServices", (health.mapping_related_services || []).join("\n") || "未发现相关服务");
