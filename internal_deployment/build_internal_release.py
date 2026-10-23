@@ -19,7 +19,7 @@ from pathlib import Path, PurePosixPath
 ROOT = Path(__file__).resolve().parents[1]
 HERE = ROOT / "internal_deployment"
 PRODUCT_ID = "sparkrobot-lingxi-nav-internal"
-DEFAULT_VERSION = "1.0.7-20260901"
+DEFAULT_VERSION = "1.0.8-20261023-r16"
 FIELD_VERIFIED_JAVA_SHA256 = "d3858827d71aa54dc4b7cc794a0d8446cf0168d65e4cca0a2e686b6f7012dd04"
 VERSION_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
 DEV_NODE_MODULES = {
@@ -202,6 +202,13 @@ def audit(stage: Path) -> None:
         "payload/console/dist/public/index.html",
         "payload/navigation/robot_local_navigation_v3/lingxi_nav_bridge.py",
         "payload/navigation/robot_local_navigation_v3/arrival_hysteresis.py",
+        "payload/navigation/robot_local_navigation_v3/path_clearance.py",
+        "payload/navigation/robot_local_navigation_v3/models.py",
+        "payload/navigation/robot_local_navigation_v3/navigation_client.py",
+        "source/navigation/robot_local_navigation_v3/path_clearance.py",
+        "source/navigation/robot_local_navigation_v3/navigation_client.py",
+        "source/navigation/test/test_path_clearance.py",
+        "source/navigation/test/test_pnc_discovery.py",
         "payload/navigation/robot_local_navigation_v3/robot_lingxi_bridge.py",
         "payload/java/robot-local-navigation-java-all.jar",
         "payload/java/linksoul-agentsdk-1.4.0.jar",
@@ -217,6 +224,39 @@ def audit(stage: Path) -> None:
             raise RuntimeError(f"发布包缺少：{relative}")
     if (stage / "payload" / "java" / "robot-local-navigation-java-all.jar").read_bytes()[:4] != b"PK\x03\x04":
         raise RuntimeError("Java JAR 格式无效")
+    path_clearance = (
+        stage / "payload" / "navigation" / "robot_local_navigation_v3" / "path_clearance.py"
+    ).read_text(encoding="utf-8")
+    models = (
+        stage / "payload" / "navigation" / "robot_local_navigation_v3" / "models.py"
+    ).read_text(encoding="utf-8")
+    navigation_client = (
+        stage / "payload" / "navigation" / "robot_local_navigation_v3" / "navigation_client.py"
+    ).read_text(encoding="utf-8")
+    path_clearance_tests = (
+        stage / "source" / "navigation" / "test" / "test_path_clearance.py"
+    ).read_text(encoding="utf-8")
+    pnc_discovery_tests = (
+        stage / "source" / "navigation" / "test" / "test_pnc_discovery.py"
+    ).read_text(encoding="utf-8")
+    for marker in ("class PathClearanceError", "def plan_reference_line", "inflate_obstacles"):
+        if marker not in path_clearance:
+            raise RuntimeError(f"安全路径模块缺少实现：{marker}")
+    if "class PathSafetyConfig" not in models:
+        raise RuntimeError("导航模型缺少安全路径配置：PathSafetyConfig")
+    for marker in (
+        "reference_line",
+        "path_safety",
+        "point.navigation.task_type == 2 and point.navigation.pnc_mode == 0",
+        "if not hasattr(msg, \"reference_line\")",
+        "msg.reference_line = reference_line",
+    ):
+        if marker not in navigation_client:
+            raise RuntimeError(f"导航客户端缺少安全参考线实现：{marker}")
+    if "test_reference_line_detours_around_inflated_static_obstacle" not in path_clearance_tests:
+        raise RuntimeError("导航源码缺少静态障碍净空绕行测试")
+    if "test_start_request_contains_the_planned_reference_line" not in pnc_discovery_tests:
+        raise RuntimeError("导航源码缺少 reference_line 请求测试")
     for path in stage.rglob("*"):
         if not path.is_file() or path.suffix.lower() in {".jar", ".zip", ".gz", ".png", ".jpg", ".so", ".node"}:
             continue

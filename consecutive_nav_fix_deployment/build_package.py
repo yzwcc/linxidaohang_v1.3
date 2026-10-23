@@ -7,13 +7,11 @@ import json
 import os
 import runpy
 import shutil
-import stat
 import subprocess
 import sys
 import tarfile
 import tempfile
 import unittest
-import zipfile
 from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath
 
@@ -27,7 +25,7 @@ NAV_ROOT = (
 )
 SOURCE_ROOT = NAV_ROOT / "robot_local_navigation_v3"
 TEST_ROOT = NAV_ROOT / "test"
-VERSION = "1.0.5-20261023"
+VERSION = "1.0.6-20261023-r16"
 NAME = f"sparkrobot-lingxi-consecutive-nav-fix-{VERSION}"
 DIST = HERE / "dist"
 PAYLOAD_FILES = (
@@ -40,6 +38,8 @@ PAYLOAD_FILES = (
     "point_catalog.py",
     "tts_stream_protocol.py",
     "tts_speaker.py",
+    "models.py",
+    "path_clearance.py",
 )
 SOURCE_FILES = (
     "install.sh",
@@ -93,7 +93,11 @@ def validate_sources() -> None:
             "PNC_RESPONSE_MAX_RETRIES = 15",
             "get_publishers_info_by_topic",
             "claim_bounded_retry",
+            "point.navigation.task_type == 2 and point.navigation.pnc_mode == 0",
+            "msg.reference_line = reference_line",
         ),
+        "models.py": ("class PathSafetyConfig", "path_safety: PathSafetyConfig"),
+        "path_clearance.py": ("def plan_reference_line", "def inflate_obstacles"),
         "voice_preset_motion.py": (
             "VOICE_PRESET_MOTIONS",
             "def resolve_voice_command",
@@ -119,6 +123,8 @@ def validate_sources() -> None:
         "lingxi_nav_bridge.py": bridge,
         "motion_option_policy.py": policy,
         "navigation_client.py": client,
+        "models.py": (SOURCE_ROOT / "models.py").read_text(encoding="utf-8"),
+        "path_clearance.py": (SOURCE_ROOT / "path_clearance.py").read_text(encoding="utf-8"),
         "voice_preset_motion.py": (
             SOURCE_ROOT / "voice_preset_motion.py"
         ).read_text(encoding="utf-8"),
@@ -228,9 +234,9 @@ def stage_files(stage: Path) -> None:
     release_info = (
         f"version={VERSION}\n"
         "package=sparkrobot-lingxi-consecutive-nav-fix\n"
-        "compatibility=lingxi-v1.3.1-complete-20261023-r14 and later compatible navigation layouts\n"
+        "compatibility=lingxi-v1.3.1-complete-20261023-r16\n"
         f"built_at={datetime.now(timezone.utc).isoformat()}\n"
-        "scope=continuous-navigation-motion-release-bounded-pnc-discovery-runtime-permissions-voice-preset-motions-ambiguous-point-clarification-and-atomic-streaming-tts-preemption\n"
+        "scope=continuous-navigation-motion-release-bounded-pnc-discovery-runtime-permissions-voice-preset-motions-ambiguous-point-clarification-atomic-streaming-tts-preemption-and-global-path-clearance\n"
     )
     write_file(stage / "release-info.txt", release_info.encode("utf-8"))
 
@@ -256,20 +262,6 @@ def write_manifest(stage: Path) -> None:
         stage / "manifest.json",
         (json.dumps(manifest, ensure_ascii=False, indent=2) + "\n").encode("utf-8"),
     )
-
-
-def write_zip(stage: Path, output: Path) -> None:
-    output.unlink(missing_ok=True)
-    with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
-        for path in sorted(item for item in stage.rglob("*") if item.is_file()):
-            relative = PurePosixPath(NAME) / PurePosixPath(path.relative_to(stage).as_posix())
-            info = zipfile.ZipInfo(relative.as_posix())
-            info.date_time = (2026, 9, 7, 0, 0, 0)
-            info.create_system = 3
-            mode = 0o755 if path.name in EXECUTABLES else 0o644
-            info.external_attr = (stat.S_IFREG | mode) << 16
-            info.compress_type = zipfile.ZIP_DEFLATED
-            archive.writestr(info, path.read_bytes())
 
 
 def write_tar(stage: Path, output: Path) -> None:
@@ -304,17 +296,17 @@ def main() -> int:
         stage.mkdir()
         stage_files(stage)
         write_manifest(stage)
-        zip_path = DIST / f"{NAME}.zip"
         tar_path = DIST / f"{NAME}.tar.gz"
-        write_zip(stage, zip_path)
         write_tar(stage, tar_path)
-    write_checksum(zip_path)
+    for legacy_path in (
+        DIST / f"{NAME}.zip",
+        DIST / f"{NAME}.zip.sha256",
+    ):
+        legacy_path.unlink(missing_ok=True)
     write_checksum(tar_path)
     print(f"导航离线测试通过：{test_count} 项")
     print(f"已生成：{tar_path}")
     print(f"TAR SHA-256：{digest(tar_path)}")
-    print(f"已生成：{zip_path}")
-    print(f"ZIP SHA-256：{digest(zip_path)}")
     return 0
 
 

@@ -14,7 +14,7 @@ from pathlib import Path, PurePosixPath
 
 
 HERE = Path(__file__).resolve().parent
-VERSION = "1.3.1-complete-20261023-r15"
+VERSION = "1.3.1-complete-20261023-r16"
 NAME = f"lingxi-v{VERSION}-deployment"
 DIST = HERE / "dist"
 REQUIRED = {
@@ -26,13 +26,13 @@ REQUIRED = {
     "control_all.sh",
     "docs/灵犀完整部署教程-v1.3.1-complete.md",
     "docs/客户日常使用手册-v1.3.1.md",
-    "docs/已有AIMDK部署说明-v1.3.1-r15.md",
-    "components/lingxi-v1.3.1-full-deployment-20260901.zip",
+    "docs/已有AIMDK部署说明-v1.3.1-r16.md",
+    "components/lingxi-v1.3.1-full-deployment-20261023-r16.zip",
     "components/aimdk-aarch64-1bde262f-artifacts.7z",
-    "components/sparkrobot-lingxi-nav-internal-1.0.7-20260901.tar.gz",
+    "components/sparkrobot-lingxi-nav-internal-1.0.8-20261023-r16.tar.gz",
     "components/sparkrobot-lingxi-kb-1.0.10-20261023.zip",
     "components/sparkrobot-lingxi-linkcraft-addon-1.0.3-20260902.tar.gz",
-    "components/sparkrobot-lingxi-consecutive-nav-fix-1.0.5-20261023.tar.gz",
+    "components/sparkrobot-lingxi-consecutive-nav-fix-1.0.6-20261023-r16.tar.gz",
 }
 LINUX_TEXT_FILES = {
     "SHA256SUMS.txt",
@@ -41,31 +41,31 @@ LINUX_TEXT_FILES = {
     "README.md",
     "docs/灵犀完整部署教程-v1.3.1-complete.md",
     "docs/客户日常使用手册-v1.3.1.md",
-    "docs/已有AIMDK部署说明-v1.3.1-r15.md",
+    "docs/已有AIMDK部署说明-v1.3.1-r16.md",
 }
-BASE_BUNDLE = "lingxi-v1.3.1-full-deployment-20260901.zip"
-BASE_ROOT = "lingxi-v1.3.1-full-deployment-20260901"
+BASE_BUNDLE = "lingxi-v1.3.1-full-deployment-20261023-r16.zip"
+BASE_ROOT = "lingxi-v1.3.1-full-deployment-20261023-r16"
 AIMDK_NAME = "aimdk-aarch64-1bde262f-artifacts.7z"
-NAV_NAME = "sparkrobot-lingxi-nav-internal-1.0.7-20260901.tar.gz"
+NAV_NAME = "sparkrobot-lingxi-nav-internal-1.0.8-20261023-r16.tar.gz"
 INSTALLER_REQUIRED_SNIPPETS = (
     "verify_aimdk_runtime",
     "sudo test -f /etc/sparkrobot/lingxi-nav/lingxi-nav.properties",
     'resolved="$(realpath -m -- "${WORK_ROOT}")"',
     '[[ "${resolved}" == /home/run/* ]]',
     'WORK_ROOT="${resolved}"',
-    'BASE_ROOT="${WORK_ROOT}/base/lingxi-v1.3.1-full-deployment-20260901"',
+    'BASE_ROOT="${WORK_ROOT}/base/lingxi-v1.3.1-full-deployment-20261023-r16"',
     'sudo rm -rf -- "${staging}"',
     'sudo bash "${LINKCRAFT_ROOT}/install.sh" --no-restart',
     'sudo bash "${FIX_ROOT}/install.sh"',
     'KB_NAME="sparkrobot-lingxi-kb-1.0.10-20261023.zip"',
     'KB_ROOT="${staging}/sparkrobot-lingxi-kb-1.0.10-20261023"',
-    'FIX_NAME="sparkrobot-lingxi-consecutive-nav-fix-1.0.5-20261023.tar.gz"',
-    'FIX_ROOT="${staging}/sparkrobot-lingxi-consecutive-nav-fix-1.0.5-20261023"',
+    'FIX_NAME="sparkrobot-lingxi-consecutive-nav-fix-1.0.6-20261023-r16.tar.gz"',
+    'FIX_ROOT="${staging}/sparkrobot-lingxi-consecutive-nav-fix-1.0.6-20261023-r16"',
     "repair-permissions",
     "sudo systemctl restart lingxi-nav-console.service",
 )
 README_REQUIRED_SNIPPETS = (
-    "v1.3.1-complete-20261023-r15",
+    "v1.3.1-complete-20261023-r16",
     "sparkrobot-lingxi-kb-1.0.10-20261023",
     "普通常识、科学原理、语言、历史、观点和开放问题",
     "使用模型已有知识正常回答",
@@ -81,12 +81,19 @@ README_REQUIRED_SNIPPETS = (
     "原始音频仍需调用当前配置的转写/意图模型",
     "并行",
     "停止指令",
+    "全局路径净空",
+    "机器人实测外接半径",
+    "额外障碍净空",
+    "task_type=2、pnc_mode=0",
+    "reference_line",
+    "静态占用地图",
+    "target_pose_radius",
 )
 GUIDE_REQUIRED_SNIPPETS = (
-    "v1.3.1-complete-20261023-r15",
+    "v1.3.1-complete-20261023-r16",
     "sparkrobot-lingxi-kb-1.0.10-20261023",
     "### 10.5 已知点位导航快速路径",
-    "r15 仍未实现端侧离线 ASR",
+    "r16 仍未实现端侧离线 ASR",
     "### 10.6 命令路由与并行检索",
     "### 10.7 可选流式回复",
     "### 10.8 流式会话所有权保护",
@@ -99,13 +106,20 @@ GUIDE_REQUIRED_SNIPPETS = (
     "不具备撤回或停止能力",
     "该值会保留",
     "不要因为当前上下文或知识库没有提供常识答案而拒答",
+    "### 13.4 R16 全局路径净空",
+    "机器人实测外接半径",
+    "额外障碍净空",
+    "reference_line",
+    "静态占用地图",
+    "不会代替现场导航验收",
 )
 AIMDK_GUIDE_REQUIRED_SNIPPETS = (
-    "v1.3.1-complete-20261023-r15",
+    "v1.3.1-complete-20261023-r16",
     "保留现有 `/home/agi/aimdk`",
     "该脚本用于编译并替换 AIMDK",
     "sparkrobot-lingxi-kb-1.0.10-20261023",
-    "sparkrobot-lingxi-consecutive-nav-fix-1.0.5-20261023",
+    "sparkrobot-lingxi-nav-internal-1.0.8-20261023-r16",
+    "sparkrobot-lingxi-consecutive-nav-fix-1.0.6-20261023-r16",
     "普通常识、科学原理、语言、历史、观点和开放问题",
     "使用模型已有知识正常回答",
     "doubao.streamingReplies=false",
@@ -115,6 +129,12 @@ AIMDK_GUIDE_REQUIRED_SNIPPETS = (
     "call_async",
     "stream_action=end",
     "不具备撤回或停止能力",
+    "### 7. R16 全局路径净空与导航安全",
+    "pnc_mode=0",
+    "target_pose_radius",
+    "reference_line",
+    "机器人实测外接半径",
+    "额外障碍净空",
 )
 
 
@@ -276,7 +296,7 @@ die() { echo "$*" >&2; exit 1; }
 realpath() {
   [[ "${1:-}" == "-m" && "${2:-}" == "--" ]] || return 2
   case "${3:-}" in
-    /home/run/r15) printf '%s\n' /home/run/r15 ;;
+    /home/run/r16) printf '%s\n' /home/run/r16 ;;
     /home/run) printf '%s\n' /home/run ;;
     /home/run/../outside) printf '%s\n' /home/outside ;;
     /home/run/../../tmp) printf '%s\n' /tmp ;;
@@ -286,10 +306,10 @@ realpath() {
 }
 source <(sed -n '/^assert_work_root() {/,/^}/p' "$1")
 BASE_ROOT=/stale
-WORK_ROOT=/home/run/r15
+WORK_ROOT=/home/run/r16
 assert_work_root
-[[ "${WORK_ROOT}" == /home/run/r15 ]]
-[[ "${BASE_ROOT}" == /home/run/r15/base/lingxi-v1.3.1-full-deployment-20260901 ]]
+[[ "${WORK_ROOT}" == /home/run/r16 ]]
+[[ "${BASE_ROOT}" == /home/run/r16/base/lingxi-v1.3.1-full-deployment-20261023-r16 ]]
 for candidate in /home/run /home/run/../outside /home/run/../../tmp /home/run/link; do
   if ( WORK_ROOT="${candidate}"; assert_work_root ) >/dev/null 2>&1; then
     echo "WORK_ROOT escaped its allowed directory: ${candidate}" >&2
@@ -315,7 +335,7 @@ done
 def audit_addon_path_collisions(reader) -> None:
     components = (
         ("LinkCraft", "components/sparkrobot-lingxi-linkcraft-addon-1.0.3-20260902.tar.gz", "tar"),
-        ("连续导航修复", "components/sparkrobot-lingxi-consecutive-nav-fix-1.0.5-20261023.tar.gz", "tar"),
+        ("连续导航修复", "components/sparkrobot-lingxi-consecutive-nav-fix-1.0.6-20261023-r16.tar.gz", "tar"),
         ("知识库", "components/sparkrobot-lingxi-kb-1.0.10-20261023.zip", "zip"),
     )
     extracted_paths: list[tuple[str, set[str]]] = []
@@ -357,27 +377,27 @@ def audit_documentation(reader) -> None:
     documents = {
         "README.md": README_REQUIRED_SNIPPETS,
         "docs/灵犀完整部署教程-v1.3.1-complete.md": GUIDE_REQUIRED_SNIPPETS,
-        "docs/已有AIMDK部署说明-v1.3.1-r15.md": AIMDK_GUIDE_REQUIRED_SNIPPETS,
+        "docs/已有AIMDK部署说明-v1.3.1-r16.md": AIMDK_GUIDE_REQUIRED_SNIPPETS,
     }
     for relative, snippets in documents.items():
         text = reader(f"{NAME}/{relative}").decode("utf-8")
         missing = [snippet for snippet in snippets if snippet not in text]
         if missing:
-            raise RuntimeError(f"部署文档 {relative} 缺少 r15 说明：{missing}")
+            raise RuntimeError(f"部署文档 {relative} 缺少 r16 说明：{missing}")
 
 
 def audit_fix_component(reader) -> None:
-    name = "sparkrobot-lingxi-consecutive-nav-fix-1.0.5-20261023.tar.gz"
+    name = "sparkrobot-lingxi-consecutive-nav-fix-1.0.6-20261023-r16.tar.gz"
     data = reader(f"{NAME}/components/{name}")
     with tarfile.open(fileobj=io.BytesIO(data), mode="r:gz") as archive:
-        prefix = f"sparkrobot-lingxi-consecutive-nav-fix-1.0.5-20261023/"
+        prefix = f"sparkrobot-lingxi-consecutive-nav-fix-1.0.6-20261023-r16/"
         control = read_tar_member(archive, prefix + "control.sh").decode("utf-8")
         installer = read_tar_member(archive, prefix + "install.sh").decode("utf-8")
         manifest = json.loads(read_tar_member(archive, prefix + "manifest.json"))
         release_info = read_tar_member(archive, prefix + "release-info.txt").decode("utf-8")
-        if manifest.get("version") != "1.0.5-20261023" or manifest.get("payload_count") != 9:
+        if manifest.get("version") != "1.0.6-20261023-r16" or manifest.get("payload_count") != 11:
             raise RuntimeError("连续导航修复组件版本或 payload 数量不正确")
-        if "version=1.0.5-20261023" not in release_info:
+        if "version=1.0.6-20261023-r16" not in release_info:
             raise RuntimeError("连续导航修复组件 release-info 版本不正确")
         if "repair_runtime_permissions" not in control or "resolve_bridge_run_user" not in control:
             raise RuntimeError("连续导航修复组件缺少运行目录权限保护")
@@ -390,6 +410,10 @@ def audit_fix_component(reader) -> None:
             raise RuntimeError("连续导航修复组件缺少 TTS 流式序号协议模块")
         if prefix + "payload/tts_speaker.py" not in members:
             raise RuntimeError("连续导航修复组件缺少原子派发 TTS 适配器")
+        if prefix + "payload/models.py" not in members:
+            raise RuntimeError("连续导航修复组件缺少 R16 路径安全配置模型")
+        if prefix + "payload/path_clearance.py" not in members:
+            raise RuntimeError("连续导航修复组件缺少 R16 路径净空规划器")
         if (
             "tts_stream_protocol.py" not in installer
             or "tts_stream_protocol.py" not in control
@@ -419,6 +443,47 @@ def audit_fix_component(reader) -> None:
             or "request_submitter" not in speaker
         ):
             raise RuntimeError("连续导航修复组件的 TTS 序号协议缺少实现")
+        models = read_tar_member(archive, prefix + "payload/models.py").decode("utf-8")
+        path_clearance = read_tar_member(
+            archive, prefix + "payload/path_clearance.py"
+        ).decode("utf-8")
+        if "class PathSafetyConfig" not in models:
+            raise RuntimeError("连续导航修复组件的路径安全模型缺少 PathSafetyConfig")
+        if (
+            "def plan_reference_line" not in path_clearance
+            or "def inflate_obstacles" not in path_clearance
+        ):
+            raise RuntimeError("连续导航修复组件的路径净空模块缺少规划实现")
+
+
+def audit_navigation_fix_consistency(reader) -> None:
+    nav_name = NAV_NAME
+    fix_name = "sparkrobot-lingxi-consecutive-nav-fix-1.0.6-20261023-r16.tar.gz"
+    nav_root = nav_name.removesuffix(".tar.gz")
+    fix_root = fix_name.removesuffix(".tar.gz")
+    nav_data = reader(f"{NAME}/components/{nav_name}")
+    fix_data = reader(f"{NAME}/components/{fix_name}")
+    with (
+        tarfile.open(fileobj=io.BytesIO(nav_data), mode="r:gz") as nav_archive,
+        tarfile.open(fileobj=io.BytesIO(fix_data), mode="r:gz") as fix_archive,
+    ):
+        for relative in (
+            "lingxi_nav_bridge.py",
+            "navigation_client.py",
+            "models.py",
+            "path_clearance.py",
+        ):
+            nav_member = (
+                f"{nav_root}/payload/navigation/robot_local_navigation_v3/{relative}"
+            )
+            fix_member = f"{fix_root}/payload/{relative}"
+            nav_bytes = read_tar_member(nav_archive, nav_member)
+            fix_bytes = read_tar_member(fix_archive, fix_member)
+            if nav_bytes != fix_bytes:
+                raise RuntimeError(
+                    "R16 导航主包与最后覆盖的连续导航修复包不一致："
+                    f"{relative}"
+                )
 
 
 def audit_kb_component(reader) -> None:
@@ -563,6 +628,78 @@ def audit_base_bundle(reader) -> None:
     if digest_bytes(nested_nav) != digest_bytes(direct_nav):
         raise RuntimeError("顶层导航主包与基础套件内导航主包不一致")
 
+    nav_root = NAV_NAME.removesuffix(".tar.gz")
+    with tarfile.open(fileobj=io.BytesIO(direct_nav), mode="r:gz") as archive:
+        prefix = f"{nav_root}/"
+        required = {
+            prefix + "payload/navigation/robot_local_navigation_v3/path_clearance.py",
+            prefix + "payload/navigation/robot_local_navigation_v3/navigation_client.py",
+            prefix + "payload/navigation/robot_local_navigation_v3/models.py",
+            prefix + "source/navigation/robot_local_navigation_v3/path_clearance.py",
+            prefix + "source/navigation/robot_local_navigation_v3/navigation_client.py",
+            prefix + "source/navigation/test/test_path_clearance.py",
+            prefix + "source/navigation/test/test_pnc_discovery.py",
+            prefix + "templates/unified_nav_config.json",
+            prefix + "SHA256SUMS",
+        }
+        members = {
+            member.name: member
+            for member in archive.getmembers()
+            if member.isfile()
+        }
+        missing = sorted(required - set(members))
+        if missing:
+            raise RuntimeError(f"R16 导航包缺少路径净空运行文件、源码或测试：{missing}")
+
+        def nav_text(relative: str) -> str:
+            return read_tar_member(archive, prefix + relative).decode("utf-8")
+
+        client = nav_text("payload/navigation/robot_local_navigation_v3/navigation_client.py")
+        source_client = nav_text("source/navigation/robot_local_navigation_v3/navigation_client.py")
+        path_module = nav_text("payload/navigation/robot_local_navigation_v3/path_clearance.py")
+        path_test = nav_text("source/navigation/test/test_path_clearance.py")
+        pnc_test = nav_text("source/navigation/test/test_pnc_discovery.py")
+        for marker in (
+            "point.navigation.task_type == 2 and point.navigation.pnc_mode == 0",
+            "if not hasattr(msg, \"reference_line\")",
+            "msg.reference_line = reference_line",
+        ):
+            if marker not in client:
+                raise RuntimeError(f"R16 导航客户端缺少路径净空保护：{marker}")
+        if client != source_client:
+            raise RuntimeError("R16 导航运行代码与交付源码中的 navigation_client.py 不一致")
+        for marker in ("def plan_reference_line", "def inflate_obstacles"):
+            if marker not in path_module:
+                raise RuntimeError(f"R16 路径规划模块缺少实现：{marker}")
+        if "test_reference_line_detours_around_inflated_static_obstacle" not in path_test:
+            raise RuntimeError("R16 导航包缺少静态障碍绕行测试")
+        if "test_start_request_contains_the_planned_reference_line" not in pnc_test:
+            raise RuntimeError("R16 导航包缺少 reference_line 请求测试")
+        config = json.loads(nav_text("templates/unified_nav_config.json"))
+        safety = config.get("navigation", {}).get("path_safety", {})
+        if (
+            safety.get("robot_radius_m") is not None
+            or safety.get("extra_clearance_m") != 0.1
+            or safety.get("occupied_threshold") != 205
+        ):
+            raise RuntimeError("R16 全局路径净空默认参数不正确")
+
+        checksum_text = nav_text("SHA256SUMS")
+        checksum_entries: dict[str, str] = {}
+        for line in checksum_text.splitlines():
+            if not line:
+                continue
+            fields = line.split("  ", 1)
+            if len(fields) != 2:
+                raise RuntimeError("R16 导航包 SHA256SUMS 行格式错误")
+            checksum, relative = fields
+            member_name = prefix + relative
+            if member_name not in members or digest_bytes(read_tar_member(archive, member_name)) != checksum:
+                raise RuntimeError(f"R16 导航包 SHA-256 校验失败：{relative}")
+            checksum_entries[member_name] = checksum
+        if set(checksum_entries) != set(members) - {prefix + "SHA256SUMS"}:
+            raise RuntimeError("R16 导航包 SHA256SUMS 未覆盖全部普通文件")
+
 
 def audit_sidecar(path: Path) -> None:
     sidecar = path.with_suffix(path.suffix + ".sha256")
@@ -589,70 +726,12 @@ def audit_archive(path: Path, label: str) -> None:
     check_safe_names(names)
 
 
-def audit_tar_zip_equivalence(tar_path: Path, zip_path: Path) -> None:
-    with tarfile.open(tar_path, "r:gz") as tar_archive, zipfile.ZipFile(zip_path) as zip_archive:
-        tar_members = {
-            member.name: member
-            for member in tar_archive.getmembers()
-            if member.isfile()
-        }
-        zip_names = {
-            name for name in zip_archive.namelist()
-            if name and not name.endswith("/")
-        }
-        if set(tar_members) != zip_names:
-            raise RuntimeError(
-                "TAR/ZIP 文件清单不一致："
-                f"TAR 缺少={sorted(zip_names-set(tar_members))}，"
-                f"ZIP 缺少={sorted(set(tar_members)-zip_names)}"
-            )
-        for name, member in tar_members.items():
-            tar_handle = tar_archive.extractfile(member)
-            if tar_handle is None:
-                raise RuntimeError(f"TAR/ZIP 对照无法读取：{name}")
-            with tar_handle, zip_archive.open(name) as zip_handle:
-                if digest_stream(tar_handle) != digest_stream(zip_handle):
-                    raise RuntimeError(f"TAR/ZIP 文件内容不一致：{name}")
-
-
 def main() -> int:
     tar_path = DIST / f"{NAME}.tar.gz"
-    zip_path = DIST / f"{NAME}.zip"
-    for path in (tar_path, zip_path):
-        if not path.is_file():
-            raise RuntimeError(f"缺少最终归档：{path}")
-        audit_archive(path, path.name)
-        audit_sidecar(path)
-    with zipfile.ZipFile(zip_path) as archive:
-        zip_names = {name for name in archive.namelist() if not name.endswith("/")}
-        audit_names(zip_names, "ZIP")
-        audit_internal_checksums(zip_names, archive.read, "ZIP")
-        for relative in LINUX_TEXT_FILES:
-            check_linux_text(relative, archive.read(f"{NAME}/{relative}"), "ZIP")
-        manifest = json.loads(archive.read(f"{NAME}/bundle-manifest.json"))
-        if manifest.get("version") != VERSION or manifest.get("contains_real_secrets") is not False:
-            raise RuntimeError("版本或秘密标记错误")
-        expected_order = [
-            "prepare_environment",
-            "replace_aimdk",
-            "install_navigation",
-            "install_linkcraft",
-            "install_knowledge_base",
-            "install_consecutive_navigation_fix_last",
-        ]
-        if manifest.get("installation_order") != expected_order:
-            raise RuntimeError("安装顺序元数据错误")
-        audit_manifest_components(manifest, archive.read)
-        audit_installer(archive.read(f"{NAME}/install_all.sh"), "ZIP")
-        audit_shell_syntax(
-            archive.read(f"{NAME}/control_all.sh"),
-            "ZIP control_all.sh",
-        )
-        audit_documentation(archive.read)
-        audit_kb_component(archive.read)
-        audit_fix_component(archive.read)
-        audit_base_bundle(archive.read)
-        audit_addon_path_collisions(archive.read)
+    if not tar_path.is_file():
+        raise RuntimeError(f"缺少最终 TAR.GZ 归档：{tar_path}")
+    audit_archive(tar_path, tar_path.name)
+    audit_sidecar(tar_path)
     with tarfile.open(tar_path, "r:gz") as archive:
         tar_names = {
             member.name for member in archive.getmembers() if member.isfile()
@@ -677,12 +756,11 @@ def main() -> int:
         audit_documentation(lambda name: read_tar_member(archive, name))
         audit_kb_component(lambda name: read_tar_member(archive, name))
         audit_fix_component(lambda name: read_tar_member(archive, name))
+        audit_navigation_fix_consistency(lambda name: read_tar_member(archive, name))
         audit_base_bundle(lambda name: read_tar_member(archive, name))
         audit_addon_path_collisions(lambda name: read_tar_member(archive, name))
-    audit_tar_zip_equivalence(tar_path, zip_path)
-    print("完整导航部署包审计通过：AIMDK、导航和附加组件完整，现场修复保护、路径安全、Linux 换行、外层校验和无真实密钥标记均正常")
+    print("完整导航部署包 TAR.GZ 审计通过：AIMDK、导航和附加组件完整，现场修复保护、路径安全、Linux 换行、外层校验和无真实密钥标记均正常")
     print(f"TAR SHA-256：{digest(tar_path)}")
-    print(f"ZIP SHA-256：{digest(zip_path)}")
     return 0
 
 

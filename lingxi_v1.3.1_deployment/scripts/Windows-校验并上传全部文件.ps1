@@ -8,11 +8,11 @@ param(
 $ErrorActionPreference = 'Stop'
 $BundleRoot = Split-Path -Parent $PSScriptRoot
 $AimdkName = 'aimdk-aarch64-1bde262f-artifacts.7z'
-$NavName = 'sparkrobot-lingxi-nav-internal-1.0.7-20260901.tar.gz'
+$NavName = 'sparkrobot-lingxi-nav-internal-1.0.8-20261023-r16.tar.gz'
 $AimdkPath = Join-Path $BundleRoot "packages\$AimdkName"
 $NavPath = Join-Path $BundleRoot "packages\$NavName"
+$NavChecksumPath = "$NavPath.sha256"
 $AimdkExpected = 'f13147a175bc3fb621fb118698aae0353c097adda38bba640f9a39c01433cc98'
-$NavExpected = '35acbc60fb6135fda778b65f58ae0a4c71e8806dd3a0213649a25bdc80e07c94'
 
 function Assert-Command([string]$Name) {
     if (-not (Get-Command $Name -ErrorAction SilentlyContinue)) {
@@ -41,6 +41,7 @@ function Invoke-Checked([string]$Program, [string[]]$Arguments) {
 Assert-Command 'ssh'
 Assert-Command 'scp'
 Assert-Hash $AimdkPath $AimdkExpected
+$NavExpected = ((Get-Content -LiteralPath $NavChecksumPath -Raw).Trim() -split '\s+')[0].ToLowerInvariant()
 Assert-Hash $NavPath $NavExpected
 
 Write-Host "检查机器人账号连接：$RobotIp" -ForegroundColor Cyan

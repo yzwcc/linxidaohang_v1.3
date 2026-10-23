@@ -9,12 +9,11 @@ import subprocess
 import sys
 import tarfile
 import tempfile
-import zipfile
 from pathlib import Path, PurePosixPath
 
 
 HERE = Path(__file__).resolve().parent
-VERSION = "1.0.5-20261023"
+VERSION = "1.0.6-20261023-r16"
 NAME = f"sparkrobot-lingxi-consecutive-nav-fix-{VERSION}"
 DIST = HERE / "dist"
 REQUIRED = {
@@ -33,6 +32,8 @@ REQUIRED = {
     "payload/point_catalog.py",
     "payload/tts_stream_protocol.py",
     "payload/tts_speaker.py",
+    "payload/models.py",
+    "payload/path_clearance.py",
 }
 EXECUTABLES = {"install.sh", "control.sh"}
 
@@ -54,7 +55,7 @@ def verify_contents(contents: dict[str, bytes], modes: dict[str, int], label: st
             f"{label} 文件清单不一致；缺失={sorted(REQUIRED-set(contents))}，额外={sorted(set(contents)-REQUIRED)}"
         )
     manifest = json.loads(contents["manifest.json"].decode("utf-8"))
-    if manifest.get("version") != VERSION or manifest.get("payload_count") != 9:
+    if manifest.get("version") != VERSION or manifest.get("payload_count") != 11:
         raise RuntimeError(f"{label} manifest 版本或 payload 数量错误")
     listed = {item["path"]: item for item in manifest.get("files", [])}
     if set(listed) != REQUIRED - {"manifest.json"}:
@@ -78,6 +79,8 @@ def verify_contents(contents: dict[str, bytes], modes: dict[str, int], label: st
     point_catalog = contents["payload/point_catalog.py"].decode("utf-8")
     tts_stream_protocol = contents["payload/tts_stream_protocol.py"].decode("utf-8")
     tts_speaker = contents["payload/tts_speaker.py"].decode("utf-8")
+    models = contents["payload/models.py"].decode("utf-8")
+    path_clearance = contents["payload/path_clearance.py"].decode("utf-8")
     control = contents["control.sh"].decode("utf-8")
     installer = contents["install.sh"].decode("utf-8")
     for forbidden in (
@@ -99,6 +102,17 @@ def verify_contents(contents: dict[str, bytes], modes: dict[str, int], label: st
         raise RuntimeError(f"{label} 缺少 6001 持续动作策略")
     if "PNC_RESPONSE_MAX_RETRIES = 15" not in client:
         raise RuntimeError(f"{label} 缺少 PNC 有界重试策略")
+    for marker in (
+        "point.navigation.task_type == 2 and point.navigation.pnc_mode == 0",
+        "if not hasattr(msg, \"reference_line\")",
+        "msg.reference_line = reference_line",
+    ):
+        if marker not in client:
+            raise RuntimeError(f"{label} 缺少 R16 全局路径净空保护：{marker}")
+    if "class PathSafetyConfig" not in models:
+        raise RuntimeError(f"{label} 缺少 R16 路径安全配置模型")
+    if "def plan_reference_line" not in path_clearance or "def inflate_obstacles" not in path_clearance:
+        raise RuntimeError(f"{label} 缺少 R16 静态地图路径净空规划器")
     for marker in (
         "def resolve_voice_command",
         "has_negation_or_quoted_speech",
@@ -202,6 +216,8 @@ def run_shell_and_install_smoke(contents: dict[str, bytes], modes: dict[str, int
             "navigation_client.py",
             "point_catalog.py",
             "tts_speaker.py",
+            "models.py",
+            "path_clearance.py",
         ):
             data = contents[f"payload/{name}"] + b"\n# audit-old-fixture\n"
             original[name] = data
@@ -241,6 +257,8 @@ def run_shell_and_install_smoke(contents: dict[str, bytes], modes: dict[str, int
             "point_catalog.py",
             "tts_stream_protocol.py",
             "tts_speaker.py",
+            "models.py",
+            "path_clearance.py",
         ):
             if (nav_dir / name).read_bytes() != contents[f"payload/{name}"]:
                 raise RuntimeError(f"安装器没有正确替换 {name}")
@@ -313,43 +331,27 @@ def read_tar(path: Path) -> tuple[dict[str, bytes], dict[str, int]]:
     return contents, modes
 
 
-def read_zip(path: Path) -> tuple[dict[str, bytes], dict[str, int]]:
-    contents: dict[str, bytes] = {}
-    modes: dict[str, int] = {}
-    with zipfile.ZipFile(path) as archive:
-        for info in archive.infolist():
-            if info.is_dir():
-                continue
-            relative = relative_name(info.filename)
-            mode = info.external_attr >> 16
-            if stat.S_ISLNK(mode):
-                raise RuntimeError(f"zip 不允许符号链接：{info.filename}")
-            contents[relative] = archive.read(info)
-            modes[relative] = mode
-    return contents, modes
-
-
 def main() -> int:
     tar_path = DIST / f"{NAME}.tar.gz"
-    zip_path = DIST / f"{NAME}.zip"
-    for path in (tar_path, zip_path):
-        if not path.is_file():
-            raise RuntimeError(f"缺少归档：{path}")
-        checksum_path = path.with_suffix(path.suffix + ".sha256")
-        line = checksum_path.read_text(encoding="ascii").strip()
-        expected_hash, expected_name = line.split(None, 1)
-        if expected_name.strip() != path.name or sha256(path.read_bytes()) != expected_hash:
-            raise RuntimeError(f"外部 SHA-256 文件错误：{checksum_path}")
+    if not tar_path.is_file():
+        raise RuntimeError(f"缺少 TAR.GZ 归档：{tar_path}")
+    checksum_path = tar_path.with_suffix(tar_path.suffix + ".sha256")
+    line = checksum_path.read_text(encoding="ascii").strip()
+    expected_hash, expected_name = line.split(None, 1)
+    if expected_name.strip() != tar_path.name or sha256(tar_path.read_bytes()) != expected_hash:
+        raise RuntimeError(f"外部 SHA-256 文件错误：{checksum_path}")
+    for legacy_path in (
+        DIST / f"{NAME}.zip",
+        DIST / f"{NAME}.zip.sha256",
+    ):
+        if legacy_path.exists():
+            raise RuntimeError(f"R16 修复包不应生成 ZIP：{legacy_path}")
 
     tar_contents, tar_modes = read_tar(tar_path)
-    zip_contents, zip_modes = read_zip(zip_path)
     verify_contents(tar_contents, tar_modes, "tar.gz")
-    verify_contents(zip_contents, zip_modes, "zip")
-    if tar_contents != zip_contents:
-        raise RuntimeError("tar.gz 与 zip 文件内容不一致")
     run_shell_and_install_smoke(tar_contents, tar_modes)
     print(
-        "增量包审计通过：双格式内容一致、路径安全、LF、权限、manifest、"
+        "增量包 TAR.GZ 审计通过：路径安全、LF、权限、manifest、"
         "SHA-256、Python/Bash 语法、安装和备份恢复均正常"
     )
     return 0

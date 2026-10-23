@@ -15,16 +15,16 @@ from pathlib import Path, PurePosixPath
 ROOT = Path(__file__).resolve().parents[1]
 HERE = Path(__file__).resolve().parent
 VERSION = "1.3.1"
-RELEASE_DATE = "20260901"
-BUNDLE_NAME = f"lingxi-v{VERSION}-full-deployment-{RELEASE_DATE}"
+RELEASE_TAG = "20261023-r16"
+RELEASE_DATE = "2026-10-23"
+BUNDLE_NAME = f"lingxi-v{VERSION}-full-deployment-{RELEASE_TAG}"
 
 AIMDK_SOURCE = Path(r"E:\1资料\0火花机器人资料\内部资料\aimdk-aarch64-1bde262f-artifacts.7z")
 AIMDK_NAME = AIMDK_SOURCE.name
 AIMDK_SHA256 = "f13147a175bc3fb621fb118698aae0353c097adda38bba640f9a39c01433cc98"
 
-NAV_NAME = "sparkrobot-lingxi-nav-internal-1.0.7-20260901.tar.gz"
+NAV_NAME = "sparkrobot-lingxi-nav-internal-1.0.8-20261023-r16.tar.gz"
 NAV_SOURCE = ROOT / "internal_deployment" / "dist" / NAV_NAME
-NAV_SHA256 = "35acbc60fb6135fda778b65f58ae0a4c71e8806dd3a0213649a25bdc80e07c94"
 
 FULL_GUIDE_SOURCE = ROOT / "新机器人完整部署命令手册-AIMDK与灵犀导航-2026-09-01.md"
 ACCEPTANCE_SOURCE = ROOT / "internal_deployment" / "docs" / "新机器人验收清单.md"
@@ -58,9 +58,10 @@ def write_text(path: Path, value: str) -> None:
 
 def build_stage(stage: Path) -> None:
     require_file(AIMDK_SOURCE, AIMDK_SHA256)
-    require_file(NAV_SOURCE, NAV_SHA256)
+    require_file(NAV_SOURCE)
     require_file(FULL_GUIDE_SOURCE)
     require_file(ACCEPTANCE_SOURCE)
+    nav_sha256 = digest(NAV_SOURCE)
 
     copy_file(HERE / "README-先看我.md", stage / "README-先看我.md")
     copy_file(HERE / "docs" / "组件版本与验收边界.md", stage / "docs" / "组件版本与验收边界.md")
@@ -77,9 +78,9 @@ def build_stage(stage: Path) -> None:
     guide_header = f"""# 灵犀 v{VERSION} 完整部署教程
 
 套件版本：`v{VERSION}`  
-套件发布日期：`2026-09-01`  
+套件发布日期：`2026-10-23`  
 内含 AIMDK：`aimdk v0.0.0-g1bde262`  
-内含导航运行组件：`1.0.7-20260901`
+内含导航运行组件：`1.0.8-20261023-r16`
 
 本文档是 v1.3.1 离线套件的完整教程。先按根目录《README-先看我》执行最短流程；需要逐步部署或排障时，按以下完整手册操作。
 
@@ -93,12 +94,12 @@ def build_stage(stage: Path) -> None:
     copy_file(AIMDK_SOURCE, packages / AIMDK_NAME)
     copy_file(NAV_SOURCE, packages / NAV_NAME)
     write_text(packages / f"{AIMDK_NAME}.sha256", f"{AIMDK_SHA256}  {AIMDK_NAME}\n")
-    write_text(packages / f"{NAV_NAME}.sha256", f"{NAV_SHA256}  {NAV_NAME}\n")
+    write_text(packages / f"{NAV_NAME}.sha256", f"{nav_sha256}  {NAV_NAME}\n")
     write_text(
         packages / "README.md",
         "# 安装组件\n\n"
         "- `aimdk-aarch64-1bde262f-artifacts.7z`：AIMDK ARM64 原始构建包。\n"
-        "- `sparkrobot-lingxi-nav-internal-1.0.7-20260901.tar.gz`：导航、地图、语音、网页和完整源码。\n\n"
+        "- `sparkrobot-lingxi-nav-internal-1.0.8-20261023-r16.tar.gz`：导航、地图、语音、网页和完整源码。\n\n"
         "不要重命名组件文件；自动上传和安装脚本会校验固定文件名与 SHA-256。\n",
     )
 
@@ -106,7 +107,7 @@ def build_stage(stage: Path) -> None:
         "format": "sparkrobot-lingxi-full-deployment-v1",
         "bundle_name": BUNDLE_NAME,
         "bundle_version": VERSION,
-        "release_date": "2026-09-01",
+        "release_date": RELEASE_DATE,
         "architecture": "aarch64",
         "target": "Agibot X2 Ultra / Ubuntu 22.04 / ROS 2 Humble",
         "contains_real_secrets": False,
@@ -117,9 +118,9 @@ def build_stage(stage: Path) -> None:
                 "sha256": AIMDK_SHA256,
             },
             "lingxi_navigation": {
-                "version": "1.0.7-20260901",
+                "version": "1.0.8-20261023-r16",
                 "file": f"packages/{NAV_NAME}",
-                "sha256": NAV_SHA256,
+                "sha256": nav_sha256,
                 "includes_source": True,
             },
         },
@@ -160,7 +161,7 @@ def audit_stage(stage: Path) -> None:
 
     if digest(stage / "packages" / AIMDK_NAME) != AIMDK_SHA256:
         raise RuntimeError("套件内 AIMDK 校验失败")
-    if digest(stage / "packages" / NAV_NAME) != NAV_SHA256:
+    if digest(stage / "packages" / NAV_NAME) != digest(NAV_SOURCE):
         raise RuntimeError("套件内导航包校验失败")
 
     forbidden = ("sk-", "AKLT", "BEGIN OPENSSH PRIVATE KEY", "BEGIN RSA PRIVATE KEY")

@@ -5,10 +5,11 @@ import time
 from dataclasses import dataclass
 import math
 import os
+from pathlib import Path
 from typing import Any
 
 from aimdk_msgs.msg import MessageHeader, PncTaskRequest
-from geometry_msgs.msg import PoseStamped
+from geometry_msgs.msg import Pose2D, PoseStamped
 from nav_msgs.msg import Odometry
 from rclpy.qos import QoSDurabilityPolicy, QoSProfile, QoSReliabilityPolicy
 
@@ -31,6 +32,7 @@ from robot_local_navigation_v3.pnc_response import (
     classify_pnc_response_support_error,
     parse_pnc_task_response,
 )
+from robot_local_navigation_v3.path_clearance import PathClearanceError, plan_reference_line
 
 
 TASK_REQUEST_START = 1
@@ -61,6 +63,7 @@ class NavigationClient:
         mode: str = "execute",
         topic_name: str = "/aima/te/pnc_task_request",
         odom_topic: str = "/slam/lidar_odom",
+        map_root: str | None = None,
         republish_period_sec: float = 1.0,
         progress_period_sec: float = 1.0,
     ):
@@ -69,10 +72,15 @@ class NavigationClient:
         self.node = node
         self.defaults = defaults
         self.mode = mode
+        self.map_root = map_root or os.environ.get(
+            "ROBOT_LOCAL_NAV_MAP_ROOT",
+            "/agibot/data/var/MapManagerModule/",
+        )
         self.republish_period_sec = max(0.1, float(republish_period_sec))
         self.progress_period_sec = max(0.1, float(progress_period_sec))
         self._lock = threading.RLock()
         self._active_session: NavigationSession | None = None
+        self._planning_goal = False
         self._last_pose: dict[str, object] | None = None
         self._last_pose_at: float | None = None
         self.pnc_response_topic = (
@@ -128,9 +136,15 @@ class NavigationClient:
         allow_initial_arrival_hysteresis: bool = False,
     ) -> NavigationSessionHandle:
         with self._lock:
-            if self._active_session is not None and self._active_session.is_active:
+            if self._planning_goal or (
+                self._active_session is not None and self._active_session.is_active
+            ):
                 session = self._active_session
-                reason = f"navigation is busy with task_id={session.task_id}"
+                reason = (
+                    "navigation is preparing a safe route"
+                    if self._planning_goal
+                    else f"navigation is busy with task_id={session.task_id}"
+                )
                 event = NavigationEvent(
                     type=NavigationEventType.REJECTED,
                     task_id=None,
@@ -148,22 +162,126 @@ class NavigationClient:
                     status="busy",
                     reason=reason,
                 )
+            self._planning_goal = True
 
-            session = NavigationSession(
-                node=self.node,
-                publisher=self.publisher,
-                defaults=self.defaults,
-                point=point,
-                listener=listener,
-                mode=self.mode,
-                republish_period_sec=self.republish_period_sec,
-                progress_period_sec=self.progress_period_sec,
-                timeout_sec=timeout_sec or self.defaults.timeout_sec,
-                allow_initial_arrival_hysteresis=allow_initial_arrival_hysteresis,
-                on_finished=self._clear_session,
-            )
-            self._active_session = session
+        try:
+            if self.mode == "dry-run" or not self._requires_global_path_safety(point):
+                safe_reference_line: list[tuple[float, float]] = []
+            else:
+                safe_reference_line = self.plan_safe_reference_line(point)
+                self._verify_planning_pose_still_valid(safe_reference_line[0])
+
+            with self._lock:
+                if self._active_session is not None and self._active_session.is_active:
+                    reason = f"navigation is busy with task_id={self._active_session.task_id}"
+                    return NavigationSessionHandle(
+                        task_id=None,
+                        goal_id=point.id,
+                        point_name=point.name,
+                        accepted=False,
+                        status="busy",
+                        reason=reason,
+                    )
+                session = NavigationSession(
+                    node=self.node,
+                    publisher=self.publisher,
+                    defaults=self.defaults,
+                    point=point,
+                    listener=listener,
+                    mode=self.mode,
+                    republish_period_sec=self.republish_period_sec,
+                    progress_period_sec=self.progress_period_sec,
+                    timeout_sec=timeout_sec or self.defaults.timeout_sec,
+                    allow_initial_arrival_hysteresis=allow_initial_arrival_hysteresis,
+                    safe_reference_line=safe_reference_line,
+                    on_finished=self._clear_session,
+                )
+                self._active_session = session
             return session.start()
+        except (PathClearanceError, OSError, ValueError) as exc:
+            reason = str(exc)
+            emit_safely(
+                listener,
+                NavigationEvent(
+                    type=NavigationEventType.REJECTED,
+                    task_id=None,
+                    goal_id=point.id,
+                    point_name=point.name,
+                    status="path_safety_rejected",
+                    reason=reason,
+                ),
+                logger=self.node.get_logger(),
+            )
+            self.node.get_logger().warning(
+                f"Navigation rejected by global path safety: point={point.name}, reason={reason}"
+            )
+            return NavigationSessionHandle(
+                task_id=None,
+                goal_id=point.id,
+                point_name=point.name,
+                accepted=False,
+                status="path_safety_rejected",
+                reason=reason,
+            )
+        finally:
+            with self._lock:
+                self._planning_goal = False
+
+    def plan_safe_reference_line(self, point: NavPoint) -> list[tuple[float, float]]:
+        with self._lock:
+            pose = self._last_pose
+            updated_at = self._last_pose_at
+        safety = self.defaults.path_safety
+        if safety.robot_radius_m is None:
+            raise PathClearanceError("尚未配置机器人实测外接半径，已拒绝下发导航")
+        if pose is None or updated_at is None:
+            raise PathClearanceError("尚未收到 /slam/lidar_odom 定位，已拒绝下发导航")
+        age = time.time() - updated_at
+        if age > safety.max_odom_age_sec:
+            raise PathClearanceError(
+                f"/slam/lidar_odom 定位已过期 {age:.2f}s（上限 {safety.max_odom_age_sec:.2f}s），已拒绝下发导航"
+            )
+        position = pose["position"]
+        try:
+            start_x = float(position["x"])
+            start_y = float(position["y"])
+        except (KeyError, TypeError, ValueError) as exc:
+            raise PathClearanceError("当前定位数据无效，已拒绝下发导航") from exc
+        return plan_reference_line(
+            map_dir=Path(self.map_root).expanduser() / str(point.map_id),
+            start_x=start_x,
+            start_y=start_y,
+            goal_x=float(point.pose.position.x),
+            goal_y=float(point.pose.position.y),
+            config=safety,
+        )
+
+    @staticmethod
+    def _requires_global_path_safety(point: NavPoint) -> bool:
+        return point.navigation.task_type == 2 and point.navigation.pnc_mode == 0
+
+    def _verify_planning_pose_still_valid(self, planned_start: tuple[float, float]) -> None:
+        with self._lock:
+            pose = self._last_pose
+            updated_at = self._last_pose_at
+        if pose is None or updated_at is None:
+            raise PathClearanceError("规划期间定位数据丢失，已拒绝下发导航")
+        age = time.time() - updated_at
+        limit = self.defaults.path_safety.max_odom_age_sec
+        if age > limit:
+            raise PathClearanceError(
+                f"规划完成时 /slam/lidar_odom 已过期 {age:.2f}s（上限 {limit:.2f}s），已拒绝下发导航"
+            )
+        position = pose["position"]
+        drift = math.hypot(
+            float(position["x"]) - planned_start[0],
+            float(position["y"]) - planned_start[1],
+        )
+        if drift > self.defaults.path_safety.max_start_drift_m:
+            raise PathClearanceError(
+                f"规划期间机器人已移动 {drift:.2f}m（上限 "
+                f"{self.defaults.path_safety.max_start_drift_m:.2f}m），请重新下发导航"
+            )
 
     def cancel(self, reason: str = "cancelled") -> bool:
         with self._lock:
@@ -380,6 +498,7 @@ class NavigationSession:
         progress_period_sec: float,
         timeout_sec: float,
         allow_initial_arrival_hysteresis: bool,
+        safe_reference_line: list[tuple[float, float]],
         on_finished,
     ):
         self.node = node
@@ -392,6 +511,7 @@ class NavigationSession:
         self.progress_period_sec = progress_period_sec
         self.timeout_sec = max(1.0, float(timeout_sec))
         self.allow_initial_arrival_hysteresis = bool(allow_initial_arrival_hysteresis)
+        self.safe_reference_line = list(safe_reference_line)
         self.on_finished = on_finished
         self.task_id = int(time.time() * 1000)
         self._lock = threading.RLock()
@@ -669,11 +789,25 @@ class NavigationSession:
         msg.target_pose_radius = self.point.navigation.target_pose_radius
         msg.reserve_info = [0] * 64
         msg.target_pose = self._make_pose()
+        reference_line = []
+        if NavigationClient._requires_global_path_safety(self.point):
+            if not self.safe_reference_line:
+                raise PathClearanceError("安全参考线为空，已拒绝下发导航")
+            if not hasattr(msg, "reference_line"):
+                raise PathClearanceError("当前 AIMDK 的 PncTaskRequest 不支持 reference_line，已拒绝下发导航")
+            for x, y in self.safe_reference_line:
+                pose = Pose2D()
+                pose.x = float(x)
+                pose.y = float(y)
+                pose.theta = 0.0
+                reference_line.append(pose)
+            msg.reference_line = reference_line
 
         self.node.get_logger().info(
             "Navigation task started: "
             f"name={self.point.name}, task_id={self.task_id}, map_id={self.point.map_id}, "
-            f"x={self.point.pose.position.x:.3f}, y={self.point.pose.position.y:.3f}"
+            f"x={self.point.pose.position.x:.3f}, y={self.point.pose.position.y:.3f}, "
+            f"safe_reference_points={len(reference_line)}"
         )
         self._start_publishing(msg)
 

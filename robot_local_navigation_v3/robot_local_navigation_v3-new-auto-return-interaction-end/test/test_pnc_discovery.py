@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib
 import os
 import sys
+import threading
 from types import ModuleType, SimpleNamespace
 
 
@@ -11,7 +12,11 @@ def _install_ros_stubs() -> dict[str, object]:
         aimdk_msgs = ModuleType("aimdk_msgs")
         aimdk_msg = ModuleType("aimdk_msgs.msg")
         aimdk_msg.MessageHeader = type("MessageHeader", (), {})
-        aimdk_msg.PncTaskRequest = type("PncTaskRequest", (), {})
+        class PncTaskRequest:
+            def __init__(self):
+                self.reference_line = []
+
+        aimdk_msg.PncTaskRequest = PncTaskRequest
         aimdk_msgs.msg = aimdk_msg
         sys.modules["aimdk_msgs"] = aimdk_msgs
         sys.modules["aimdk_msgs.msg"] = aimdk_msg
@@ -19,7 +24,22 @@ def _install_ros_stubs() -> dict[str, object]:
     if "geometry_msgs.msg" not in sys.modules:
         geometry_msgs = ModuleType("geometry_msgs")
         geometry_msg = ModuleType("geometry_msgs.msg")
-        geometry_msg.PoseStamped = type("PoseStamped", (), {})
+        class Pose2D:
+            def __init__(self):
+                self.x = 0.0
+                self.y = 0.0
+                self.theta = 0.0
+
+        class PoseStamped:
+            def __init__(self):
+                self.header = SimpleNamespace(stamp=None, frame_id="")
+                self.pose = SimpleNamespace(
+                    position=SimpleNamespace(x=0.0, y=0.0, z=0.0),
+                    orientation=SimpleNamespace(x=0.0, y=0.0, z=0.0, w=1.0),
+                )
+
+        geometry_msg.Pose2D = Pose2D
+        geometry_msg.PoseStamped = PoseStamped
         geometry_msgs.msg = geometry_msg
         sys.modules["geometry_msgs"] = geometry_msgs
         sys.modules["geometry_msgs.msg"] = geometry_msg
@@ -99,9 +119,10 @@ class FakeNode:
         self.logger = FakeLogger()
         self.subscriptions: list[str] = []
         self.timers: list[FakeTimer] = []
+        self.published_messages: list[object] = []
 
     def create_publisher(self, *_args, **_kwargs):
-        return SimpleNamespace(publish=lambda _message: None)
+        return SimpleNamespace(publish=self.published_messages.append)
 
     def create_subscription(self, _message_type, topic: str, _callback, **_kwargs):
         self.subscriptions.append(topic)
@@ -125,6 +146,11 @@ class FakeNode:
 
     def get_logger(self):
         return self.logger
+
+    def get_clock(self):
+        return SimpleNamespace(
+            now=lambda: SimpleNamespace(to_msg=lambda: "test-stamp")
+        )
 
 
 def _make_client(node: FakeNode, retries: int = 15):
@@ -200,3 +226,49 @@ def test_publisher_appearing_during_retry_enables_the_subscription():
     assert client._pnc_response_retry_timer is None
     assert timer.cancelled
     assert node.subscriptions == ["/slam/lidar_odom", navigation_client.PNC_RESPONSE_TOPIC]
+
+
+def test_task_type_two_normal_mode_requires_the_safe_reference_line():
+    point = SimpleNamespace(navigation=SimpleNamespace(task_type=2, pnc_mode=0))
+    assert navigation_client.NavigationClient._requires_global_path_safety(point)
+
+    point.navigation.pnc_mode = 1
+    assert not navigation_client.NavigationClient._requires_global_path_safety(point)
+
+
+def test_start_request_contains_the_planned_reference_line():
+    node = FakeNode()
+    session = navigation_client.NavigationSession.__new__(
+        navigation_client.NavigationSession
+    )
+    session.node = node
+    session.publisher = SimpleNamespace(publish=node.published_messages.append)
+    session.point = SimpleNamespace(
+        id="point-1",
+        name="test-point",
+        map_id=7,
+        navigation=SimpleNamespace(
+            task_type=2,
+            pnc_mode=0,
+            max_forward_speed=0.3,
+            target_pose_radius=0.15,
+        ),
+        pose=SimpleNamespace(
+            position=SimpleNamespace(x=2.0, y=3.0, z=0.0),
+            orientation=SimpleNamespace(x=0.0, y=0.0, z=0.0, w=1.0),
+        ),
+    )
+    session.safe_reference_line = [(1.0, 2.0), (2.0, 3.0)]
+    session.task_id = 123
+    session.republish_period_sec = 1.0
+    session._lock = threading.RLock()
+    session._current_msg = None
+    session._republish_timer = None
+
+    session._send_start()
+
+    message = node.published_messages[0]
+    assert [(pose.x, pose.y, pose.theta) for pose in message.reference_line] == [
+        (1.0, 2.0, 0.0),
+        (2.0, 3.0, 0.0),
+    ]

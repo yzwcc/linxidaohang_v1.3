@@ -165,7 +165,7 @@ def main() -> int:
                 raise RuntimeError("Java Agent 未包含普通问题由大模型回答的提示策略")
             if "com/agibot/aiem/nav/KnowledgeAnswerPolicyTest.class" in agent.namelist():
                 raise RuntimeError("知识库 Java Agent 不应包含回归测试类")
-        for marker in (b"St87591540", b"ROBOT_SSH_PASSWORD=1", b"1.0.6"):
+        for marker in (b"St87591540", b"ROBOT_SSH_PASSWORD=1", b"1.0.5-20261023"):
             for member in names:
                 if member.endswith((".zip", ".gz", ".7z")):
                     continue

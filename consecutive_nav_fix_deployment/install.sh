@@ -16,6 +16,8 @@ FILES=(
   point_catalog.py
   tts_stream_protocol.py
   tts_speaker.py
+  models.py
+  path_clearance.py
 )
 NO_RESTART=false
 REQUESTED_NAV_DIR=""
@@ -59,7 +61,7 @@ export NAV_DIR
 for file in "${FILES[@]}"; do
   [[ -f "${PACKAGE_DIR}/payload/${file}" ]] || die "安装包缺少 payload/${file}"
 done
-for file in lingxi_nav_bridge.py motion_option_policy.py sdk_motion_controller.py navigation_client.py; do
+for file in lingxi_nav_bridge.py motion_option_policy.py sdk_motion_controller.py navigation_client.py models.py path_clearance.py; do
   [[ -f "${NAV_DIR}/${file}" ]] || die "正式导航目录缺少 ${file}，请先安装完整导航版本"
 done
 

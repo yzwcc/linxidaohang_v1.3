@@ -91,7 +91,7 @@ HTML_PAGE = """<!doctype html>
     </div>
     <div class="row">
       <div>
-        <label for="radius">到达半径</label>
+        <label for="radius">到达半径（到点判定）</label>
         <input id="radius" value="0.15">
       </div>
       <div>
@@ -219,6 +219,14 @@ HTML_PAGE = """<!doctype html>
 
   <div class="panel">
     <h1>v3 导航桥接</h1>
+    <h2>全局路径安全</h2>
+    <div class="hint">此处与点位“到达半径”分开。真实全局导航按静态地图规划安全参考线；机器人外接半径必须实测填写，未填写时会拒绝下发 task_type=2、pnc_mode=0 导航。</div>
+    <label for="robotRadius">机器人实测外接半径（米）</label>
+    <input id="robotRadius" type="number" min="0.01" max="2" step="0.01" placeholder="测量后填写">
+    <label for="extraClearance">额外障碍净空（米）</label>
+    <input id="extraClearance" type="number" min="0" max="2" step="0.01" value="0.10">
+    <label for="occupiedThreshold">地图占用灰度阈值</label>
+    <input id="occupiedThreshold" type="number" min="1" max="254" step="1" value="205">
     <label for="navMode">导航模式</label>
     <select id="navMode">
       <option value="dry-run">dry-run</option>
@@ -327,6 +335,9 @@ const arrivalEmojiModeInput = document.getElementById("arrivalEmojiMode");
 const isStartPointInput = document.getElementById("isStartPoint");
 const configPathEl = document.getElementById("configPath");
 const navModeInput = document.getElementById("navMode");
+const robotRadiusInput = document.getElementById("robotRadius");
+const extraClearanceInput = document.getElementById("extraClearance");
+const occupiedThresholdInput = document.getElementById("occupiedThreshold");
 const bridgeStatusEl = document.getElementById("bridgeStatus");
 const relocMapIdInput = document.getElementById("relocMapId");
 const relocTimeoutInput = document.getElementById("relocTimeout");
@@ -998,14 +1009,27 @@ async function loadConfigInfo() {
 async function loadSettings() {
   const resp = await fetch("/api/settings");
   const payload = await resp.json();
-  if (resp.ok) navModeInput.value = payload.nav_mode;
+  if (resp.ok) {
+    navModeInput.value = payload.nav_mode;
+    const safety = payload.path_safety || {};
+    robotRadiusInput.value = safety.robot_radius_m ?? "";
+    extraClearanceInput.value = safety.extra_clearance_m ?? 0.10;
+    occupiedThresholdInput.value = safety.occupied_threshold ?? 205;
+  }
 }
 
 async function saveSettings() {
   const resp = await fetch("/api/settings", {
     method: "POST",
     headers: {"Content-Type": "application/json"},
-    body: JSON.stringify({nav_mode: navModeInput.value})
+    body: JSON.stringify({
+      nav_mode: navModeInput.value,
+      path_safety: {
+        robot_radius_m: robotRadiusInput.value === "" ? null : Number(robotRadiusInput.value),
+        extra_clearance_m: Number(extraClearanceInput.value),
+        occupied_threshold: Number(occupiedThresholdInput.value)
+      }
+    })
   });
   const payload = await resp.json();
   if (!resp.ok) {
@@ -1013,7 +1037,7 @@ async function saveSettings() {
     return;
   }
   navModeInput.value = payload.nav_mode;
-  setBridgeStatus(`导航模式已保存：${payload.nav_mode}`);
+  setBridgeStatus(`导航模式和全局路径安全参数已保存：${payload.nav_mode}`);
 }
 
 async function refreshBridgeStatus() {
@@ -1160,16 +1184,27 @@ class V3LabelApp:
         return payload
 
     def get_settings(self) -> dict[str, object]:
-        return self.config_store.load().app.__dict__
+        config = self.config_store.load()
+        return {**config.app.__dict__, "path_safety": config.navigation.path_safety.__dict__}
 
     def save_settings(self, payload: dict[str, object]) -> dict[str, object]:
         config = self.config_store.load()
         merged = config.app.__dict__.copy()
-        merged.update(payload)
+        merged.update({key: value for key, value in payload.items() if key != "path_safety"})
         config.app = AppSettings.from_dict(merged)
+        path_safety = payload.get("path_safety")
+        if path_safety is not None:
+            if not isinstance(path_safety, dict):
+                raise ValueError("path_safety must be an object")
+            safety_payload = config.navigation.path_safety.__dict__.copy()
+            safety_payload.update(path_safety)
+            config.navigation.path_safety = config.navigation.path_safety.from_dict(safety_payload)
         self.config_store.save(config)
-        self.bridge_manager.set_nav_mode(config.app.nav_mode)
-        return config.app.__dict__
+        self.bridge_manager.set_nav_mode(
+            config.app.nav_mode,
+            path_safety=config.navigation.path_safety.__dict__,
+        )
+        return {**config.app.__dict__, "path_safety": config.navigation.path_safety.__dict__}
 
     def get_bridge_status(self) -> dict[str, object]:
         return self.bridge_manager.status()
@@ -1515,8 +1550,16 @@ class BridgeServiceManager:
         self._remove_pid_file()
         return self.status()
 
-    def set_nav_mode(self, mode: str) -> None:
-        self._post_json("/nav/mode", {"nav_mode": mode})
+    def set_nav_mode(
+        self,
+        mode: str,
+        *,
+        path_safety: dict[str, object] | None = None,
+    ) -> None:
+        payload: dict[str, object] = {"nav_mode": mode}
+        if path_safety is not None:
+            payload["path_safety"] = path_safety
+        self._post_json("/nav/mode", payload)
 
     def set_active_map(self, map_name: str) -> None:
         self._post_json("/nav/map", {"active_map_name": map_name})

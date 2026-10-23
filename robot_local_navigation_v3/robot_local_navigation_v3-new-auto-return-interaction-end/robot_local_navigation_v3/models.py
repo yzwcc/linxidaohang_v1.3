@@ -147,6 +147,43 @@ class StopPolicyConfig:
 
 
 @dataclass
+class PathSafetyConfig:
+    robot_radius_m: float | None = None
+    extra_clearance_m: float = 0.10
+    occupied_threshold: int = 205
+    max_odom_age_sec: float = 1.5
+    max_start_drift_m: float = 0.10
+    max_reference_points: int = 256
+
+    @classmethod
+    def from_dict(cls, payload: dict[str, Any] | None) -> "PathSafetyConfig":
+        payload = payload or {}
+        raw_radius = payload.get("robot_radius_m")
+        radius = None if raw_radius in (None, "") else float(raw_radius)
+        result = cls(
+            robot_radius_m=radius,
+            extra_clearance_m=float(payload.get("extra_clearance_m", 0.10)),
+            occupied_threshold=int(payload.get("occupied_threshold", 205)),
+            max_odom_age_sec=float(payload.get("max_odom_age_sec", 1.5)),
+            max_start_drift_m=float(payload.get("max_start_drift_m", 0.10)),
+            max_reference_points=int(payload.get("max_reference_points", 256)),
+        )
+        if radius is not None and (not math.isfinite(radius) or radius <= 0 or radius > 2.0):
+            raise ValueError("path_safety.robot_radius_m must be measured and in (0, 2.0]")
+        if not math.isfinite(result.extra_clearance_m) or not 0 <= result.extra_clearance_m <= 2.0:
+            raise ValueError("path_safety.extra_clearance_m must be in [0, 2.0]")
+        if not 1 <= result.occupied_threshold <= 254:
+            raise ValueError("path_safety.occupied_threshold must be in [1, 254]")
+        if not math.isfinite(result.max_odom_age_sec) or not 0.1 <= result.max_odom_age_sec <= 10:
+            raise ValueError("path_safety.max_odom_age_sec must be in [0.1, 10]")
+        if not math.isfinite(result.max_start_drift_m) or not 0 <= result.max_start_drift_m <= 2.0:
+            raise ValueError("path_safety.max_start_drift_m must be in [0, 2.0]")
+        if not 2 <= result.max_reference_points <= 4096:
+            raise ValueError("path_safety.max_reference_points must be in [2, 4096]")
+        return result
+
+
+@dataclass
 class NavigationDefaults:
     default_task_type: int = DEFAULT_TASK_TYPE
     default_target_pose_radius: float = DEFAULT_TARGET_POSE_RADIUS
@@ -154,6 +191,7 @@ class NavigationDefaults:
     default_pnc_mode: int = DEFAULT_PNC_MODE
     arrival_policy: ArrivalPolicyConfig = field(default_factory=ArrivalPolicyConfig)
     stop_policy: StopPolicyConfig = field(default_factory=StopPolicyConfig)
+    path_safety: PathSafetyConfig = field(default_factory=PathSafetyConfig)
     timeout_sec: float = 120.0
 
     @classmethod
@@ -170,6 +208,7 @@ class NavigationDefaults:
             default_pnc_mode=int(payload.get("default_pnc_mode", DEFAULT_PNC_MODE)),
             arrival_policy=ArrivalPolicyConfig.from_dict(payload.get("arrival_policy")),
             stop_policy=StopPolicyConfig.from_dict(payload.get("stop_policy")),
+            path_safety=PathSafetyConfig.from_dict(payload.get("path_safety")),
             timeout_sec=max(1.0, float(payload.get("timeout_sec", 120.0))),
         )
 

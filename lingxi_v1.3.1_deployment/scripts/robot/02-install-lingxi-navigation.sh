@@ -3,13 +3,15 @@ set -euo pipefail
 
 [[ "$(id -un)" == "run" ]] || { echo "请使用 run 账号执行本脚本" >&2; exit 1; }
 
-ARCHIVE=/home/run/sparkrobot-lingxi-nav-internal-1.0.7-20260901.tar.gz
-EXPECTED=35acbc60fb6135fda778b65f58ae0a4c71e8806dd3a0213649a25bdc80e07c94
-PACKAGE_DIR=/home/run/sparkrobot-lingxi-nav-internal-1.0.7-20260901
+ARCHIVE=/home/run/sparkrobot-lingxi-nav-internal-1.0.8-20261023-r16.tar.gz
+CHECKSUM_FILE=${ARCHIVE}.sha256
+PACKAGE_DIR=/home/run/sparkrobot-lingxi-nav-internal-1.0.8-20261023-r16
 SECRETS=${PACKAGE_DIR}/secrets.env
 
 [[ -f "${ARCHIVE}" ]] || { echo "缺少 ${ARCHIVE}" >&2; exit 1; }
+[[ -f "${CHECKSUM_FILE}" ]] || { echo "缺少 ${CHECKSUM_FILE}" >&2; exit 1; }
 ACTUAL="$(sha256sum "${ARCHIVE}" | awk '{print $1}')"
+EXPECTED="$(awk 'NF >= 1 {print tolower($1); exit}' "${CHECKSUM_FILE}")"
 [[ "${ACTUAL}" == "${EXPECTED}" ]] || { echo "导航包 SHA-256 校验失败" >&2; exit 1; }
 
 rm -rf -- "${PACKAGE_DIR}"
@@ -22,7 +24,7 @@ trap 'rm -f -- "${SECRETS}"' EXIT
 chmod 600 "${SECRETS}"
 
 INSTALL_ARGS=(--secrets "${SECRETS}" --setup-soc2)
-if [[ -d /opt/sparkrobot/lingxi-nav/releases/1.0.7-20260901 ]]; then
+if [[ -d /opt/sparkrobot/lingxi-nav/releases/1.0.8-20261023-r16 ]]; then
   INSTALL_ARGS+=(--reinstall)
 fi
 sudo ./install.sh "${INSTALL_ARGS[@]}"

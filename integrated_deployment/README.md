@@ -1,6 +1,6 @@
 # 灵犀 v1.3.1 完整部署包
 
-版本：v1.3.1-complete-20261023-r15
+版本：v1.3.1-complete-20261023-r16
 适用对象：内部部署人员  
 目标系统：Ubuntu 22.04 ARM64、ROS 2 Humble、智元 X2 系列机器人
 
@@ -9,7 +9,7 @@
 ## 包含内容
 
 - 新 AIMDK：aimdk-aarch64-1bde262f-artifacts.7z，版本 aimdk v0.0.0-g1bde262。
-- 导航主包：sparkrobot-lingxi-nav-internal-1.0.7-20260901。
+- 导航主包：sparkrobot-lingxi-nav-internal-1.0.8-20261023-r16。
 - 地图服务、导航 bridge、网页控制台、语音兼容网关和灵心 Java Agent。
 - 灵创动作、表情和可选舞蹈资源编排能力：1.0.3-20260902。
 - 灵心知识库检索和语音接入：sparkrobot-lingxi-kb-1.0.10-20261023。
@@ -21,7 +21,8 @@
 - 低 ASR 置信度时不执行普通命令并提示重说；本地事实检索与意图解析并行，检索队列有界，队列满时串行回退。
 - Java Agent 启用 V1.3.8 交互拒识策略：填充词、重复 ASR 片段和播报回声过滤；质量元数据校验；真实 KWS/新鲜唤醒会话门控。
 - 语音预置动作：支持 18 种白名单动作，如“请和我握个手”“请双手比心”；只在导航和讲解任务空闲时提交。
-- 连续导航卡住修复：1.0.5-20261023，必须最后覆盖导航文件。
+- 连续导航卡住修复：1.0.6-20261023-r16，必须最后覆盖导航文件。
+- R16 全局路径净空：对 `task_type=2、pnc_mode=0` 使用静态占用地图、机器人实测外接半径和额外障碍净空生成 `reference_line`；未填写实测半径、定位过期或找不到安全路线时拒绝下发。
 - 可选流式聊天回复：能力随 KB Java Agent 提供，但 `doubao.streamingReplies=false` 默认关闭；只有目标机器人完成 AIMDK PlayTts 连续分段队列验收后才可手动开启。
 - R14 流式 TTS 使用 stream ID 墓碑、派发代次复核和 Java owner token；普通新回复也可接管旧流 owner，旧流失去所有权后不会继续提交后续段或回放完整旧答复。已调用 `call_async` 提交到 PlayTts 的请求，本桥接层不具备撤回或停止能力；`stream_action=end` 仅关闭软件流状态。
 - 中文部署教程和客户日常使用手册。
@@ -42,8 +43,8 @@
 
 ~~~powershell
 $RobotIp = "172.20.10.2"
-$Package = ".\lingxi-v1.3.1-complete-20261023-r15-deployment.tar.gz"
-$Checksum = ".\lingxi-v1.3.1-complete-20261023-r15-deployment.tar.gz.sha256"
+$Package = ".\lingxi-v1.3.1-complete-20261023-r16-deployment.tar.gz"
+$Checksum = ".\lingxi-v1.3.1-complete-20261023-r16-deployment.tar.gz.sha256"
 scp $Package ("run@" + $RobotIp + ":/home/run/")
 scp $Checksum ("run@" + $RobotIp + ":/home/run/")
 ~~~
@@ -52,9 +53,9 @@ scp $Checksum ("run@" + $RobotIp + ":/home/run/")
 
 ~~~bash
 cd /home/run
-sha256sum -c lingxi-v1.3.1-complete-20261023-r15-deployment.tar.gz.sha256
-tar -xzf lingxi-v1.3.1-complete-20261023-r15-deployment.tar.gz
-cd lingxi-v1.3.1-complete-20261023-r15-deployment
+sha256sum -c lingxi-v1.3.1-complete-20261023-r16-deployment.tar.gz.sha256
+tar -xzf lingxi-v1.3.1-complete-20261023-r16-deployment.tar.gz
+cd lingxi-v1.3.1-complete-20261023-r16-deployment
 chmod +x install_all.sh control_all.sh
 bash ./install_all.sh prepare
 ~~~
@@ -76,7 +77,7 @@ bash ./01-replace-aimdk.sh
 ### 4. run 用户安装导航主包
 
 ~~~bash
-cd /home/run/lingxi-v1.3.1-complete-20261023-r15-deployment
+cd /home/run/lingxi-v1.3.1-complete-20261023-r16-deployment
 bash ./install_all.sh install-navigation
 ~~~
 
@@ -113,7 +114,7 @@ http://机器人当前IP:3000/console/
 ## 文档
 
 - 完整部署教程：docs/灵犀完整部署教程-v1.3.1-complete.md。内容包括上传、安装、验收、排障和回滚。
-- 已有 AIMDK 部署说明：docs/已有AIMDK部署说明-v1.3.1-r15.md。该路径保留现有 `/home/agi/aimdk`，跳过 AIMDK 替换。
+- 已有 AIMDK 部署说明：docs/已有AIMDK部署说明-v1.3.1-r16.md。该路径保留现有 `/home/agi/aimdk`，跳过 AIMDK 替换。
 - 客户日常使用手册：docs/客户日常使用手册-v1.3.1.md。面向没有电脑基础的客户。
 
 ## 交付前检查
@@ -132,11 +133,11 @@ python .\integrated_deployment\audit_package.py
 交付给 Linux 机器人优先使用：
 
 ~~~text
-integrated_deployment/dist/lingxi-v1.3.1-complete-20261023-r15-deployment.tar.gz
-integrated_deployment/dist/lingxi-v1.3.1-complete-20261023-r15-deployment.tar.gz.sha256
+integrated_deployment/dist/lingxi-v1.3.1-complete-20261023-r16-deployment.tar.gz
+integrated_deployment/dist/lingxi-v1.3.1-complete-20261023-r16-deployment.tar.gz.sha256
 ~~~
 
-ZIP 可用于 Windows 传输或查看，但机器人端仍建议使用 TAR.GZ。每台新机器人都必须独立完成定位、急停、短距离导航和语音验收；离线审计不能替代现场安全验收。
+本次外层交付只生成 TAR.GZ 和对应 `.sha256`；内部基础套件 ZIP 仅作为 components/ 中的安装组件和一致性校验副本保留。每台新机器人都必须独立完成定位、急停、短距离导航和语音验收；离线审计不能替代现场安全验收。
 
 语音拒识默认在兼容模式下接受缺失的声学质量元数据，但会校验已提供的值；唤醒门控默认 enforce，需要真实 SDK KWS/状态事件或可核验的新鲜 SOC2 唤醒证据。该策略是输入门控，不包含端侧 RNNoise、AEC 或实际 DOA 音频滤波；声学链路需由现场单独验收。
 
@@ -161,3 +162,11 @@ R14 通过 stream ID 墓碑阻止已停止流的迟到首段复活；PlayTts 服
 文本识别结果只有在命令明确、目标与当前活动地图点位语音名称或别名精确匹配且没有别名歧义时，才会绕过意图模型并直接提交导航。歧义时机器人只追问目标，不下发导航；部分匹配、未知地点、疑问、否定、条件或引用表达不会走本地快速路径。
 
 这不是离线语音识别：原始音频仍由当前配置的模型端点转写；本版不能保证音频不发送到云端。具体边界见完整部署教程第 10.5 节。
+
+## R16 全局路径净空
+
+R16 修复的是 V1.3.1 的全局路径贴近静态障碍物问题，不涉及 V1.3.9。对 `task_type=2、pnc_mode=0` 的全局导航，导航客户端会读取当前地图的静态占用地图，按机器人实测外接半径加额外障碍净空膨胀障碍物，并生成 `reference_line` 后再提交 AIMDK PNC。这样可以让全局路线在进入局部避障触发区之前绕开静态障碍，而不是只依赖局部避障临时处理。
+
+在网页“全局路径安全”区域填写“机器人实测外接半径（米）”，默认“额外障碍净空（米）”为 `0.10`，默认“地图占用灰度阈值”为 `205`，保存后再做导航验收。半径必须按机器人实际外接轮廓测量；未填写半径时，R16 会拒绝下发这类真实全局导航。`target_pose_radius` 只是到达判定容差，不是障碍物安全距离。
+
+若定位数据过期、起点或终点已落入膨胀障碍物、静态地图不可读或找不到安全参考线，系统会拒绝下发并记录原因，不会退回未经净空保护的全局路线。该保护不替代现场地图、定位、底盘 PNC 和急停验收。

@@ -29,6 +29,7 @@ from robot_local_navigation_v3.map_point_store import MapPointStore
 from robot_local_navigation_v3.motion_option_policy import ArrivalMotionTracker, is_empty_motion
 from robot_local_navigation_v3.navigation_client import NavigationClient, NavigationSessionHandle
 from robot_local_navigation_v3.navigation_events import NavigationEvent, NavigationEventType
+from robot_local_navigation_v3.models import PathSafetyConfig
 from robot_local_navigation_v3.point_catalog import PointCatalog, PointCatalogError
 from robot_local_navigation_v3.sdk_motion_controller import DEFAULT_EMOJI_PRIORITY, SdkMotionController
 from robot_local_navigation_v3.tour_step_actions import merge_task_arrival_actions
@@ -103,6 +104,10 @@ class LingxiNavBridge(Node):
             defaults=self.config.navigation,
             mode=nav_mode or self.config.app.nav_mode,
             odom_topic=self.odom_topic,
+            map_root=os.environ.get(
+                "ROBOT_LOCAL_NAV_MAP_ROOT",
+                "/agibot/data/var/MapManagerModule/",
+            ),
         )
         # 语音播报和动作控制都通过本地 AimDK/ROS2 服务完成。
         self.tts_speaker = TtsSpeaker(self)
@@ -844,15 +849,30 @@ class LingxiNavBridge(Node):
         }
 
     def set_nav_mode(self, payload: dict[str, Any]) -> dict[str, Any]:
-        """切换导航模式：execute 实际执行，dry-run 只模拟流程。"""
+        """更新导航模式及可热加载的全局路径安全参数。"""
 
         mode = str(payload.get("nav_mode", "")).strip()
         if mode not in {"execute", "dry-run"}:
             return {"ok": False, "message": "nav_mode must be execute or dry-run"}
+        path_safety = self.config.navigation.path_safety
+        if "path_safety" in payload:
+            raw_path_safety = payload["path_safety"]
+            if not isinstance(raw_path_safety, dict):
+                return {"ok": False, "message": "path_safety must be an object"}
+            try:
+                path_safety = PathSafetyConfig.from_dict(raw_path_safety)
+            except (TypeError, ValueError) as exc:
+                return {"ok": False, "message": str(exc)}
         self.config.app.nav_mode = mode
+        self.config.navigation.path_safety = path_safety
         self.config_store.save(self.config)
         self.navigation_client.mode = mode
-        return {"ok": True, "nav_mode": mode}
+        self.navigation_client.defaults.path_safety = path_safety
+        return {
+            "ok": True,
+            "nav_mode": mode,
+            "path_safety": path_safety.__dict__,
+        }
 
     def set_active_map(self, payload: dict[str, Any]) -> dict[str, Any]:
         """切换当前生效地图，并重新加载点位目录。"""

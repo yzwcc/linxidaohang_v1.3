@@ -12,15 +12,14 @@ from pathlib import Path, PurePosixPath
 
 
 HERE = Path(__file__).resolve().parent
-NAME = "lingxi-v1.3.1-full-deployment-20260901"
+NAME = "lingxi-v1.3.1-full-deployment-20261023-r16"
 ARCHIVE = HERE / "dist" / f"{NAME}.zip"
 SIDECAR = ARCHIVE.with_suffix(ARCHIVE.suffix + ".sha256")
 PREFIX = f"{NAME}/"
 AIMDK = "packages/aimdk-aarch64-1bde262f-artifacts.7z"
-NAV_VERSION = "1.0.7-20260901"
+NAV_VERSION = "1.0.8-20261023-r16"
 NAV_ROOT = f"sparkrobot-lingxi-nav-internal-{NAV_VERSION}"
 NAV = f"packages/{NAV_ROOT}.tar.gz"
-NAV_SHA256 = "35acbc60fb6135fda778b65f58ae0a4c71e8806dd3a0213649a25bdc80e07c94"
 
 
 def stream_digest(handle) -> str:
@@ -74,7 +73,9 @@ def main() -> int:
         if manifest["bundle_version"] != "1.3.1" or manifest["contains_real_secrets"]:
             raise RuntimeError("套件版本或秘密标记不正确")
         nav_manifest = manifest["components"]["lingxi_navigation"]
-        if nav_manifest["version"] != NAV_VERSION or nav_manifest["sha256"] != NAV_SHA256:
+        with archive.open(PREFIX + NAV) as nav_handle:
+            nav_sha256 = stream_digest(nav_handle)
+        if nav_manifest["version"] != NAV_VERSION or nav_manifest["sha256"] != nav_sha256:
             raise RuntimeError("导航组件版本或 SHA-256 不正确")
 
         checksum_lines = archive.read(PREFIX + "SHA256SUMS.txt").decode("utf-8").splitlines()
@@ -110,6 +111,13 @@ def main() -> int:
         nav_required = {
             f"{NAV_ROOT}/payload/console/dist/public/index.html",
             f"{NAV_ROOT}/payload/navigation/robot_local_navigation_v3/lingxi_nav_bridge.py",
+            f"{NAV_ROOT}/payload/navigation/robot_local_navigation_v3/path_clearance.py",
+            f"{NAV_ROOT}/payload/navigation/robot_local_navigation_v3/models.py",
+            f"{NAV_ROOT}/payload/navigation/robot_local_navigation_v3/navigation_client.py",
+            f"{NAV_ROOT}/source/navigation/robot_local_navigation_v3/path_clearance.py",
+            f"{NAV_ROOT}/source/navigation/robot_local_navigation_v3/navigation_client.py",
+            f"{NAV_ROOT}/source/navigation/test/test_path_clearance.py",
+            f"{NAV_ROOT}/source/navigation/test/test_pnc_discovery.py",
             f"{NAV_ROOT}/payload/java/robot-local-navigation-java-all.jar",
             f"{NAV_ROOT}/source/navigation/setup.py",
             f"{NAV_ROOT}/source/java/pom.xml",

@@ -11,8 +11,8 @@ python internal_deployment\build_internal_release.py --force
 
 默认输出：
 
-- `internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.6-20260901.tar.gz`
-- `internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.6-20260901.zip`
+- `internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.8-20261023-r16.tar.gz`
+- `internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.8-20261023-r16.zip`
 - 两个归档对应的 `.sha256`
 
 ## 构建输入
