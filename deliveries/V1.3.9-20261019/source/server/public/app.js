@@ -652,9 +652,11 @@ function renderMappingHealth() {
   setText("mappingLidar", `${health.lidar_publishers || 0} 个发布者`);
   setText("mappingImu", `${health.imu_publishers || 0} 个发布者`);
   setText("mappingSlam", health.slam_running ? "运行中" : "未运行");
-  setText("mappingTopic", `${health.map_topic || "/projected_map"} · ${health.map_publishers || 0}`);
-  setText("mappingSaver", health.map_saver_available ? "已安装" : "未安装");
-  setText("mappingDiagnosis", `${health.diagnosis || ""}\n建图操作需在确认 X2 固件接口后开放`);
+  setText("mappingOdom", `${health.odom_publishers || 0} 个发布者`);
+  setText("mappingBackend", health.mapping_backend_available ? "已验证" : "未验证");
+  setText("mappingTopics", (health.mapping_related_topics || []).join("\n") || "未发现相关话题");
+  setText("mappingServices", (health.mapping_related_services || []).join("\n") || "未发现相关服务");
+  setText("mappingDiagnosis", `${health.diagnosis || ""}\n建图启动和保存需接入已验证的 X2 适配器`);
   const canStart = false;
   const startButton = $("startMappingBtn");
   const saveButton = $("saveMappingBtn");

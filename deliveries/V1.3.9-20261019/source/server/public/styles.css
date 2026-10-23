@@ -233,6 +233,10 @@ textarea { resize: vertical; }
 .mapping-preview, .mapping-controls { min-width: 0; }
 .mapping-preview { background: #f7f9fa; border: 1px solid #e5eaee; border-radius: 6px; padding: 12px; }
 .mapping-preview-head { align-items: center; display: flex; justify-content: space-between; margin-bottom: 10px; }
+.mapping-graph { display: grid; gap: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 12px; }
+.mapping-graph > div { min-width: 0; }
+.mapping-graph strong { color: #52627a; display: block; font-size: 12px; margin-bottom: 5px; }
+.mapping-graph .log { max-height: 180px; overflow: auto; overflow-wrap: anywhere; }
 .mapping-controls { align-content: start; display: grid; gap: 10px; }
 .mapping-controls label { color: #475766; font-size: 12px; }
 .mapping-controls input { margin-top: 5px; }
@@ -269,6 +273,7 @@ textarea { resize: vertical; }
   .map-workspace { grid-template-columns: 1fr; }
   .mapping-panel { grid-column: auto; }
   .mapping-grid { grid-template-columns: 1fr; }
+  .mapping-graph { grid-template-columns: 1fr; }
   .map-frame { min-height: 360px; }
   .wizard-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .auto-reloc-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }

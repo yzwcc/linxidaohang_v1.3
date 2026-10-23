@@ -3,7 +3,7 @@ import { runRobotSystemSshCommand, shellQuote } from "./sshControl.js";
 
 const lidarTopic = "/aima/hal/sensor/lidar_chest_front/lidar_pointcloud";
 const imuTopic = "/aima/hal/sensor/lidar_chest_front/imu";
-const mapTopic = process.env.ROBOT_MAPPING_MAP_TOPIC || "/projected_map";
+const odomTopic = "/slam/lidar_odom";
 
 export type MappingHealth = {
   ok: boolean;
@@ -12,9 +12,10 @@ export type MappingHealth = {
   slam_running: boolean;
   lidar_publishers: number;
   imu_publishers: number;
-  map_publishers: number;
-  map_topic: string;
-  map_saver_available: boolean;
+  odom_publishers: number;
+  mapping_related_topics: string[];
+  mapping_related_services: string[];
+  mapping_backend_available: false;
   checked_at: string;
   diagnosis: string;
 };
@@ -30,10 +31,11 @@ export async function getMappingHealth(config: AppConfig): Promise<MappingHealth
     "echo agibot_software=$(systemctl is-active agibot_software.service 2>/dev/null || echo unknown)",
     "pgrep -f 'aima-hal_sensor-app-main' >/dev/null && echo hal_sensor_running=1 || echo hal_sensor_running=0",
     "pgrep -f './slam --cfg_file_path' >/dev/null && echo slam_running=1 || echo slam_running=0",
-    ...[["lidar", lidarTopic], ["imu", imuTopic], ["map", mapTopic]].map(([name, topic]) =>
+    ...[["lidar", lidarTopic], ["imu", imuTopic], ["odom", odomTopic]].map(([name, topic]) =>
       `info=$(timeout 4 ros2 topic info ${shellQuote(topic)} 2>/dev/null); echo ${name}_publishers=$(printf '%s\\n' "$info" | awk '/Publisher count/ {print $3; exit}')`
     ),
-    "command -v map_saver_cli >/dev/null && echo map_saver_available=1 || echo map_saver_available=0"
+    "timeout 5 ros2 topic list -t 2>/dev/null | grep -Ei 'map|slam|lidar|imu' | head -80 | sed 's/^/topic=/'",
+    "timeout 5 ros2 service list -t 2>/dev/null | grep -Ei 'map|slam|lidar|imu' | head -80 | sed 's/^/service=/'"
   ].join("\n");
   const output = await runRobotSystemSshCommand(`bash -lc ${shellQuote(lines)}`, config, 20000);
   const fields: Record<string, string> = {};
@@ -45,29 +47,32 @@ export async function getMappingHealth(config: AppConfig): Promise<MappingHealth
   const slam = fields.slam_running === "1";
   const lidar = Number(fields.lidar_publishers) || 0;
   const imu = Number(fields.imu_publishers) || 0;
-  const map = Number(fields.map_publishers) || 0;
+  const odom = Number(fields.odom_publishers) || 0;
   const software = fields.agibot_software || "unknown";
-  const healthy = software === "active" && hal && slam && lidar > 0 && imu > 0;
-  const diagnosis = !healthy
+  const sensorsHealthy = software === "active" && hal && lidar > 0 && imu > 0;
+  const topics = output.split(/\r?\n/).filter((line) => line.startsWith("topic=")).map((line) => line.slice(6));
+  const services = output.split(/\r?\n/).filter((line) => line.startsWith("service=")).map((line) => line.slice(8));
+  const diagnosis = !sensorsHealthy
     ? "请先恢复底层服务、雷达点云和 IMU 数据"
-    : map === 0
-    ? "传感器正常；未发现实时占据栅格地图。当前固件的建图模式和地图投影接口尚待确认"
-    : "传感器与占据栅格话题正常；建图模式仍需现场确认";
+    : !slam || odom === 0
+    ? "雷达与 IMU 输入正常，但未确认 SLAM 定位输出。建图模式和地图生成接口仍未确认"
+    : "已确认传感器输入及定位里程计；定位输出不等于实时建图。请核对下方 ROS 图，再接入已验证的建图后端";
   return {
-    ok: healthy && map > 0 && fields.map_saver_available === "1",
+    ok: sensorsHealthy && slam && odom > 0,
     agibot_software: software,
     hal_sensor_running: hal,
     slam_running: slam,
     lidar_publishers: lidar,
     imu_publishers: imu,
-    map_publishers: map,
-    map_topic: mapTopic,
-    map_saver_available: fields.map_saver_available === "1",
+    odom_publishers: odom,
+    mapping_related_topics: topics,
+    mapping_related_services: services,
+    mapping_backend_available: false,
     checked_at: new Date().toISOString(),
     diagnosis
   };
 }
 
 export function mappingAdapterUnavailableMessage(): string {
-  return "当前机器人固件的建图启动、停止与 MapManager 落库接口尚未确认；为保护现有导航地图，控制台暂不执行建图或保存。请先完成文档中的实机接口验收";
+  return "当前机器人建图接口尚未确认或验证；控制台不会启动建图或写入地图。请先完成目标机器人接口与 MapManager 格式验收";
 }

@@ -52,7 +52,11 @@ describe("console UI assets", () => {
     expect(html).toContain("id=\"startMappingBtn\" class=\"primary-large\" disabled");
     expect(html).toContain("id=\"mappingName\" maxlength=\"48\" placeholder=\"接口确认后启用\" disabled");
     expect(appScript).toContain("const canStart = false");
-    expect(appScript).toContain("建图操作需在确认 X2 固件接口后开放");
+    expect(html).toContain("传感器和 SLAM 定位可用不代表正在生成新地图");
+    expect(html).toContain("occupancy_map.png");
+    expect(html).toContain("grid_map_info.txt");
+    expect(appScript).toContain("mapping_backend_available ? \"已验证\" : \"未验证\"");
+    expect(appScript).toContain("mapping_related_topics");
   });
 
   it.each([

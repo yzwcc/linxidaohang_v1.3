@@ -45,29 +45,44 @@ afterEach(() => {
 });
 
 describe("robot mapping control", () => {
-  it("checks the documented X2 sensor topics and reports the public-workflow map topic", async () => {
+  it("checks confirmed X2 sensor topics and exposes discovered map-related ROS interfaces", async () => {
     runRobotSshCommand.mockResolvedValue([
       "agibot_software=active", "hal_sensor_running=1", "slam_running=1",
-      "lidar_publishers=1", "imu_publishers=1", "map_publishers=0", "map_saver_available=1"
+      "lidar_publishers=1", "imu_publishers=1", "odom_publishers=1",
+      "topic=/slam/lidar_odom [nav_msgs/msg/Odometry]", "service=/map/save [example/srv/Save]"
     ].join("\n"));
     const { getMappingHealth } = await import("../src/mappingControl.js");
     const result = await getMappingHealth(config);
     expect(result.lidar_publishers).toBe(1);
     expect(result.imu_publishers).toBe(1);
-    expect(result.map_topic).toBe("/projected_map");
-    expect(result.ok).toBe(false);
+    expect(result.odom_publishers).toBe(1);
+    expect(result.mapping_related_topics).toContain("/slam/lidar_odom [nav_msgs/msg/Odometry]");
+    expect(result.mapping_related_services).toContain("/map/save [example/srv/Save]");
+    expect(result.mapping_backend_available).toBe(false);
+    expect(result.ok).toBe(true);
   });
 
   it("reports missing sensor feeds without issuing robot mutations", async () => {
     runRobotSshCommand.mockResolvedValue([
       "agibot_software=active", "hal_sensor_running=1", "slam_running=1",
-      "lidar_publishers=0", "imu_publishers=1", "map_publishers=0", "map_saver_available=1"
+      "lidar_publishers=0", "imu_publishers=1", "odom_publishers=1"
     ].join("\n"));
     const { getMappingHealth } = await import("../src/mappingControl.js");
     const result = await getMappingHealth(config);
     expect(result.ok).toBe(false);
     expect(result.lidar_publishers).toBe(0);
     expect(runRobotSshCommand).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not report a healthy mapping chain without a live localization output", async () => {
+    runRobotSshCommand.mockResolvedValue([
+      "agibot_software=active", "hal_sensor_running=1", "slam_running=1",
+      "lidar_publishers=1", "imu_publishers=1", "odom_publishers=0"
+    ].join("\n"));
+    const { getMappingHealth } = await import("../src/mappingControl.js");
+    const result = await getMappingHealth(config);
+    expect(result.ok).toBe(false);
+    expect(result.diagnosis).toContain("未确认 SLAM 定位输出");
   });
 
   it("blocks mapping mutation until a verified robot adapter exists", async () => {
