@@ -9,6 +9,7 @@ BASE_ROOT="${WORK_ROOT}/base/lingxi-v1.3.1-full-deployment-20261023-r16"
 BASE_ARCHIVE="${PACKAGE_DIR}/components/lingxi-v1.3.1-full-deployment-20261023-r16.zip"
 AIMDK_NAME="aimdk-aarch64-1bde262f-artifacts.7z"
 NAV_NAME="sparkrobot-lingxi-nav-internal-1.0.8-20261023-r16.tar.gz"
+NAV_CHECKSUM_NAME="${NAV_NAME}.sha256"
 LINKCRAFT_NAME="sparkrobot-lingxi-linkcraft-addon-1.0.3-20260902.tar.gz"
 FIX_NAME="sparkrobot-lingxi-consecutive-nav-fix-1.0.6-20261023-r16.tar.gz"
 KB_NAME="sparkrobot-lingxi-kb-1.0.10-20261023.zip"
@@ -65,7 +66,9 @@ PY
 prepare() {
   need_run; need_arm64; assert_work_root; verify_bundle_strict
   [[ -f "${BASE_ARCHIVE}" ]] || die "缺少基础套件：${BASE_ARCHIVE}"
-  for file in "${AIMDK_NAME}" "${NAV_NAME}"; do [[ -f "$(component "${file}")" ]] || die "完整包缺少组件：${file}"; done
+  for file in "${AIMDK_NAME}" "${NAV_NAME}" "${NAV_CHECKSUM_NAME}"; do
+    [[ -f "$(component "${file}")" ]] || die "完整包缺少组件：${file}"
+  done
   sudo rm -rf -- "${WORK_ROOT}/base"
   install -d -m 0700 "${WORK_ROOT}/base"
   safe_extract_zip "${BASE_ARCHIVE}" "${WORK_ROOT}/base"
@@ -76,6 +79,7 @@ prepare() {
   sudo install -o agi -g agi -m 0755 "${BASE_ROOT}/scripts/robot/01-replace-aimdk.sh" /home/agi/01-replace-aimdk.sh
   sudo install -o agi -g agi -m 0755 "${BASE_ROOT}/scripts/robot/04-check-localization.sh" /home/agi/04-check-localization.sh
   install -m 0644 "$(component "${NAV_NAME}")" "/home/run/${NAV_NAME}"
+  install -m 0644 "$(component "${NAV_CHECKSUM_NAME}")" "/home/run/${NAV_CHECKSUM_NAME}"
   install -m 0755 "${BASE_ROOT}/scripts/robot/00-install-environment.sh" /home/run/00-install-environment.sh
   install -m 0755 "${BASE_ROOT}/scripts/robot/02-install-lingxi-navigation.sh" /home/run/02-install-lingxi-navigation.sh
   install -m 0755 "${BASE_ROOT}/scripts/robot/03-verify-after-web-start.sh" /home/run/03-verify-after-web-start.sh

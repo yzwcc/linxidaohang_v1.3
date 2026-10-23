@@ -188,7 +188,11 @@ def copy_stage(stage: Path) -> dict[str, str]:
                 raise RuntimeError(f"基础套件内嵌组件 SHA-256 不一致：{name}")
             if name.endswith(".tar.gz"):
                 safe_names(target)
+                checksum_path = target.with_suffix(target.suffix + ".sha256")
+                write_text(checksum_path, f"{expected}  {name}\n", encoding="ascii")
             hashes[name] = actual
+            if name.endswith(".tar.gz"):
+                hashes[checksum_path.name] = digest(checksum_path)
     for name in ("README.md", "install_all.sh", "control_all.sh"):
         source = HERE / name
         write_text(stage / name, source.read_text(encoding="utf-8"))
