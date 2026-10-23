@@ -19,7 +19,7 @@ describe("console UI assets", () => {
   });
 
   it("provides all four product workspaces and mobile navigation", () => {
-    for (const workspace of ["nav", "task", "map", "system"]) {
+    for (const workspace of ["nav", "task", "mapping", "map", "system"]) {
       expect(html).toContain(`data-view="${workspace}"`);
       expect(html).toContain(`data-view-section="${workspace}"`);
     }
@@ -34,8 +34,8 @@ describe("console UI assets", () => {
   });
 
   it("cache-busts the UI and API modules together", () => {
-    expect(html).toContain("styles.css?v=20261015-v139-r3");
-    expect(html).toContain("app.js?v=20261015-v139-r3");
+    expect(html).toContain("styles.css?v=20261023-mapping-readonly");
+    expect(html).toContain("app.js?v=20261023-mapping-readonly");
     expect(appScript).toContain("apiClient.js?v=20261015-v139-r3");
     expect(html).not.toContain("task-behavior-note");
   });
@@ -46,6 +46,13 @@ describe("console UI assets", () => {
     }
     expect(appScript).toContain("statusKeyName(key)");
     expect(appScript).toContain("toChineseMessage(value)");
+  });
+
+  it("keeps mapping mutations disabled until the robot adapter is verified", () => {
+    expect(html).toContain("id=\"startMappingBtn\" class=\"primary-large\" disabled");
+    expect(html).toContain("id=\"mappingName\" maxlength=\"48\" placeholder=\"接口确认后启用\" disabled");
+    expect(appScript).toContain("const canStart = false");
+    expect(appScript).toContain("建图操作需在确认 X2 固件接口后开放");
   });
 
   it.each([

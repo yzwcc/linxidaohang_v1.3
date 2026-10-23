@@ -5,6 +5,8 @@ let state = {
   status: null,
   startup: null,
   systemHealth: null,
+  mappingHealth: null,
+  mappingActive: false,
   localization: null,
   relocalization: null,
   lastRelocalizationPoint: "",
@@ -110,7 +112,7 @@ function renderStartAllResult(result, running = false) {
 }
 
 function switchWorkspace(view, { scroll = false } = {}) {
-  const allowed = new Set(["nav", "task", "map", "system"]);
+  const allowed = new Set(["nav", "task", "mapping", "map", "system"]);
   const nextView = allowed.has(view) ? view : "nav";
   document.querySelectorAll("[data-view-section]").forEach((section) => {
     section.hidden = section.dataset.viewSection !== nextView;
@@ -119,6 +121,9 @@ function switchWorkspace(view, { scroll = false } = {}) {
     const active = tab.dataset.view === nextView;
     tab.classList.toggle("active", active);
     tab.setAttribute("aria-selected", String(active));
+  });
+  if (nextView === "mapping") void refreshMappingHealth().catch((error) => {
+    setText("mappingDiagnosis", error.message || "暂时无法读取机器人传感器状态");
   });
   try { sessionStorage.setItem("lingxi-workspace", nextView); } catch { /* no-op */ }
   if (scroll) document.querySelector(".layout")?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -635,6 +640,32 @@ function renderSystemHealth() {
     ...topicLines,
     payload.checked_at ? `检查时间：${new Date(payload.checked_at).toLocaleString()}` : ""
   ].filter(Boolean).join("\n");
+}
+
+function renderMappingHealth() {
+  const health = state.mappingHealth;
+  if (!health) return;
+  const ready = Boolean(health.ok);
+  setText("mappingBadge", ready ? "传感器就绪" : "未就绪");
+  setClass("mappingBadge", `badge ${ready ? "ok" : "bad"}`);
+  setText("mappingSoftware", health.agibot_software || "未知");
+  setText("mappingLidar", `${health.lidar_publishers || 0} 个发布者`);
+  setText("mappingImu", `${health.imu_publishers || 0} 个发布者`);
+  setText("mappingSlam", health.slam_running ? "运行中" : "未运行");
+  setText("mappingTopic", `${health.map_topic || "/projected_map"} · ${health.map_publishers || 0}`);
+  setText("mappingSaver", health.map_saver_available ? "已安装" : "未安装");
+  setText("mappingDiagnosis", `${health.diagnosis || ""}\n建图操作需在确认 X2 固件接口后开放`);
+  const canStart = false;
+  const startButton = $("startMappingBtn");
+  const saveButton = $("saveMappingBtn");
+  if (startButton) startButton.disabled = !canStart;
+  if (saveButton) saveButton.disabled = true;
+}
+
+async function refreshMappingHealth() {
+  state.mappingHealth = await api("/api/robots/default/mapping/health", { force: true });
+  renderMappingHealth();
+  return state.mappingHealth;
 }
 
 function renderRelocalization() {
@@ -1516,6 +1547,7 @@ function bindEvents() {
   }
   $("startupRefreshBtn").onclick = () => runAction("启动状态已检查", () => refreshStartup());
   $("checkSystemHealthBtn").onclick = () => runAction("底层服务已检查", () => refreshSystemHealth());
+  $("refreshMappingBtn").onclick = () => runAction("传感器状态已刷新", () => refreshMappingHealth());
   $("restartSystemBtn").onclick = () => runAction("底层导航/传感器重启命令已提交", async () => {
     const result = await api("/api/robots/default/system/restart", { method: "POST" });
     state.systemHealth = result.health;

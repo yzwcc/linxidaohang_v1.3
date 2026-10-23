@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#ffffff">
     <title>灵犀导航</title>
-<link rel="stylesheet" href="/console/styles.css?v=20261015-v139-r3">
+<link rel="stylesheet" href="/console/styles.css?v=20261023-mapping-readonly">
   </head>
   <body>
     <header class="topbar">
@@ -68,6 +68,7 @@
       <nav class="customer-shortcuts" aria-label="工作区" role="tablist">
         <button type="button" role="tab" class="workspace-tab active" data-view="nav">导航</button>
         <button type="button" role="tab" class="workspace-tab" data-view="task">讲解</button>
+        <button type="button" role="tab" class="workspace-tab" data-view="mapping">建图</button>
         <button type="button" role="tab" class="workspace-tab" data-view="map">地图</button>
         <button type="button" role="tab" class="workspace-tab" data-view="system">服务</button>
       </nav>
@@ -204,6 +205,40 @@
           </div>
         </details>
         <pre id="relocDetails" class="log neutral"></pre>
+      </section>
+
+      <section id="mappingPanel" class="panel mapping-panel view-section" data-view-section="mapping" hidden>
+        <div class="panel-head">
+          <div>
+            <h2>现场建图</h2>
+            <p class="hint">检查机器人胸前雷达、IMU 与建图链路；操作接口完成现场确认后再开放。</p>
+          </div>
+          <span id="mappingBadge" class="badge bad">未检查</span>
+        </div>
+        <div class="mapping-safety notice">当前项目没有记录 X2 固件的建图模式启动/停止服务或 MapManager 地图创建接口。为避免把定位模式当作建图、或改写现有地图，此版本只提供只读诊断，建图与保存按钮保持禁用。</div>
+        <div class="mapping-grid">
+          <div class="mapping-preview">
+            <div class="mapping-preview-head"><strong>实时传感器状态</strong><button id="refreshMappingBtn" class="secondary">刷新状态</button></div>
+            <div class="status-grid compact">
+              <div><span>底层服务</span><strong id="mappingSoftware">-</strong></div>
+              <div><span>雷达点云</span><strong id="mappingLidar">-</strong></div>
+              <div><span>雷达 IMU</span><strong id="mappingImu">-</strong></div>
+              <div><span>SLAM</span><strong id="mappingSlam">-</strong></div>
+              <div><span>地图话题</span><strong id="mappingTopic">-</strong></div>
+              <div><span>地图保存器</span><strong id="mappingSaver">-</strong></div>
+            </div>
+            <pre id="mappingDiagnosis" class="log neutral"></pre>
+          </div>
+          <div class="mapping-controls">
+            <label>地图名称<input id="mappingName" maxlength="48" placeholder="接口确认后启用" disabled></label>
+            <div class="split-actions">
+              <button id="startMappingBtn" class="primary-large" disabled>建图接口待确认</button>
+              <button id="saveMappingBtn" class="warning" disabled>停止并保存地图</button>
+            </div>
+            <div id="mappingResult" class="mapping-result" aria-live="polite"></div>
+            <p class="hint">公开社区 X2 流程（FAST-LIO → PCD 合并 → OctoMap → `/projected_map`）与本项目原厂导航 MapManager（数字目录、`occupancy_map.png`、`grid_map_info.txt`）不是同一条数据链，尚需在目标机器人上确认投影与登记方式。</p>
+          </div>
+        </div>
       </section>
 
       <section id="mapConfigPanel" class="panel map-panel view-section" data-view-section="map" hidden>
@@ -343,6 +378,6 @@
     </main>
 
     <div id="toast" class="toast"></div>
-<script type="module" src="/console/app.js?v=20261015-v139-r3"></script>
+<script type="module" src="/console/app.js?v=20261023-mapping-readonly"></script>
   </body>
 </html>

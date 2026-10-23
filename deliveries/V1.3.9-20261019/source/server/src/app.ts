@@ -12,6 +12,7 @@ import { createRobotClient, type RobotClient } from "./robotClient.js";
 import { isBridgeAction, restartRobotVoiceStack, runBridgeAction } from "./sshControl.js";
 import { getJavaAgentStatus, startJavaAgent, stopJavaAgent } from "./javaAgentControl.js";
 import { getCurrentLocalization } from "./localizationControl.js";
+import { getMappingHealth, mappingAdapterUnavailableMessage } from "./mappingControl.js";
 import { loadRuntimeConfig, loadRuntimeRobotHost, runtimeConfigPath, saveRobotHost } from "./runtimeConfig.js";
 import { getRobotSystemHealth, recoverRobotLocalization, restartRobotSystem } from "./systemControl.js";
 import { getTunnelDiagnostics } from "./tunnelDiagnostics.js";
@@ -697,6 +698,11 @@ export function buildApp(config: AppConfig, robotClient?: RobotClient): FastifyI
     return getTunnelDiagnostics(getConfig(), runtimeRobotHost);
   });
   app.get("/api/robots/default/system/health", async () => getRobotSystemHealth(getConfig()));
+  app.get("/api/robots/default/mapping/health", async () => getMappingHealth(getConfig()));
+  app.post("/api/robots/default/mapping/start", async (_request, reply) =>
+    reply.code(409).send({ ok: false, message: mappingAdapterUnavailableMessage() }));
+  app.post("/api/robots/default/mapping/save", async (_request, reply) =>
+    reply.code(409).send({ ok: false, message: mappingAdapterUnavailableMessage() }));
   app.post("/api/robots/default/system/restart", async () => restartRobotSystem(getConfig()));
   app.post("/api/robots/default/system/recover-localization", async () => recoverRobotLocalization(getConfig()));
 
