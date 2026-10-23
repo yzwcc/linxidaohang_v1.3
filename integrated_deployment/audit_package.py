@@ -30,6 +30,7 @@ REQUIRED = {
     "components/lingxi-v1.3.1-full-deployment-20261023-r16.zip",
     "components/aimdk-aarch64-1bde262f-artifacts.7z",
     "components/sparkrobot-lingxi-nav-internal-1.0.8-20261023-r16.tar.gz",
+    "components/sparkrobot-lingxi-nav-internal-1.0.8-20261023-r16.tar.gz.sha256",
     "components/sparkrobot-lingxi-kb-1.0.10-20261023.zip",
     "components/sparkrobot-lingxi-linkcraft-addon-1.0.3-20260902.tar.gz",
     "components/sparkrobot-lingxi-consecutive-nav-fix-1.0.6-20261023-r16.tar.gz",

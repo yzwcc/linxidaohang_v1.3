@@ -106,6 +106,46 @@ class PathClearanceTests(unittest.TestCase):
         with self.assertRaisesRegex(PathClearanceError, "no route remains"):
             self._plan()
 
+    def test_two_obstacles_keep_the_global_route_in_the_clear_middle_lane(self) -> None:
+        for v in range(8, 16):
+            for u in range(self.width):
+                self.pixels[v * self.width + u] = 0
+        for v in range(35, 43):
+            for u in range(self.width):
+                self.pixels[v * self.width + u] = 0
+        self._write_metadata()
+
+        route = self._plan()
+
+        info = GridMapInfo.load(self.map_dir / "grid_map_info.txt")
+        width, height, occupied = decode_png_occupancy(
+            self.map_dir / "occupancy_map.png"
+        )
+        blocked = inflate_obstacles(
+            occupied,
+            width,
+            height,
+            (0.2 + 0.1) * info.resolution_pixels_per_meter,
+        )
+        pixels = [info.world_to_pixel(x, y) for x, y in route]
+        self.assertEqual(pixels[0], (6, 25))
+        self.assertEqual(pixels[-1], (54, 25))
+        self.assertTrue(all(21 <= v <= 29 for _, v in pixels))
+        for start, end in zip(pixels, pixels[1:]):
+            self.assertTrue(line_is_clear(start, end, blocked, width, height))
+
+    def test_narrow_middle_lane_is_rejected_after_footprint_inflation(self) -> None:
+        for v in range(8, 21):
+            for u in range(self.width):
+                self.pixels[v * self.width + u] = 0
+        for v in range(30, 43):
+            for u in range(self.width):
+                self.pixels[v * self.width + u] = 0
+        self._write_metadata()
+
+        with self.assertRaisesRegex(PathClearanceError, "inflated obstacle clearance"):
+            self._plan()
+
     def test_occupied_start_is_rejected(self) -> None:
         self.pixels[25 * self.width + 6] = 0
         self._write_metadata()
