@@ -49,7 +49,9 @@ describe("robot mapping control", () => {
     runRobotSshCommand.mockResolvedValue([
       "agibot_software=active", "hal_sensor_running=1", "slam_running=1",
       "lidar_publishers=1", "imu_publishers=1", "odom_publishers=1",
-      "topic=/slam/lidar_odom [nav_msgs/msg/Odometry]", "service=/map/save [example/srv/Save]"
+      "topic=/slam/lidar_odom [nav_msgs/msg/Odometry]", "service=/map/save [example/srv/Save]",
+      "prerequisite_rectifier=1", "prerequisite_fast_lio=1", "prerequisite_open3d=0",
+      "prerequisite_octomap=1", "prerequisite_map_saver=1"
     ].join("\n"));
     const { getMappingHealth } = await import("../src/mappingControl.js");
     const result = await getMappingHealth(config);
@@ -59,6 +61,13 @@ describe("robot mapping control", () => {
     expect(result.mapping_related_topics).toContain("/slam/lidar_odom [nav_msgs/msg/Odometry]");
     expect(result.mapping_related_services).toContain("/map/save [example/srv/Save]");
     expect(result.mapping_backend_available).toBe(false);
+    expect(result.mapping_prerequisites).toEqual([
+      { name: "雷达/IMU 校正包", available: true },
+      { name: "Spark FAST-LIO", available: true },
+      { name: "Open3D PCD 合并依赖", available: false },
+      { name: "OctoMap 投影节点", available: true },
+      { name: "Nav2 map_saver_cli", available: true }
+    ]);
     expect(result.ok).toBe(true);
   });
 

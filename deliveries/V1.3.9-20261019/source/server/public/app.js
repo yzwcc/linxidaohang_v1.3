@@ -656,6 +656,18 @@ function renderMappingHealth() {
   setText("mappingBackend", health.mapping_backend_available ? "已验证" : "未验证");
   setText("mappingTopics", (health.mapping_related_topics || []).join("\n") || "未发现相关话题");
   setText("mappingServices", (health.mapping_related_services || []).join("\n") || "未发现相关服务");
+  const prerequisites = health.mapping_prerequisites || [];
+  const prerequisiteList = $("mappingPrerequisites");
+  if (prerequisiteList) {
+    prerequisiteList.replaceChildren();
+    const items = prerequisites.length ? prerequisites : [{ name: "未获取依赖状态", available: false }];
+    for (const item of items) {
+      const row = document.createElement("li");
+      row.className = item.available ? "available" : "missing";
+      row.textContent = `${item.name}：${item.available ? "可用" : "未安装"}`;
+      prerequisiteList.append(row);
+    }
+  }
   setText("mappingDiagnosis", `${health.diagnosis || ""}\n建图启动和保存需接入已验证的 X2 适配器`);
   const canStart = false;
   const startButton = $("startMappingBtn");

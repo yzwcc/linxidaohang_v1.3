@@ -237,6 +237,12 @@ textarea { resize: vertical; }
 .mapping-graph > div { min-width: 0; }
 .mapping-graph strong { color: #52627a; display: block; font-size: 12px; margin-bottom: 5px; }
 .mapping-graph .log { max-height: 180px; overflow: auto; overflow-wrap: anywhere; }
+.mapping-prerequisites { margin-top: 12px; }
+.mapping-prerequisites > strong { color: #52627a; display: block; font-size: 12px; margin-bottom: 5px; }
+.mapping-prerequisites ul { display: grid; gap: 5px 14px; grid-template-columns: repeat(2, minmax(0, 1fr)); list-style: none; margin: 0; padding: 0; }
+.mapping-prerequisites li { font-size: 12px; overflow-wrap: anywhere; }
+.mapping-prerequisites .available { color: #087165; }
+.mapping-prerequisites .missing { color: #925a2b; }
 .mapping-controls { align-content: start; display: grid; gap: 10px; }
 .mapping-controls label { color: #475766; font-size: 12px; }
 .mapping-controls input { margin-top: 5px; }
@@ -274,6 +280,7 @@ textarea { resize: vertical; }
   .mapping-panel { grid-column: auto; }
   .mapping-grid { grid-template-columns: 1fr; }
   .mapping-graph { grid-template-columns: 1fr; }
+  .mapping-prerequisites ul { grid-template-columns: 1fr; }
   .map-frame { min-height: 360px; }
   .wizard-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .auto-reloc-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }

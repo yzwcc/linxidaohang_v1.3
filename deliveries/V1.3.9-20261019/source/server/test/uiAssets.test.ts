@@ -57,6 +57,8 @@ describe("console UI assets", () => {
     expect(html).toContain("grid_map_info.txt");
     expect(appScript).toContain("mapping_backend_available ? \"已验证\" : \"未验证\"");
     expect(appScript).toContain("mapping_related_topics");
+    expect(appScript).toContain("mapping_prerequisites");
+    expect(appScript).toContain("prerequisiteList.replaceChildren()");
   });
 
   it.each([

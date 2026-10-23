@@ -15,6 +15,7 @@ export type MappingHealth = {
   odom_publishers: number;
   mapping_related_topics: string[];
   mapping_related_services: string[];
+  mapping_prerequisites: Array<{ name: string; available: boolean }>;
   mapping_backend_available: false;
   checked_at: string;
   diagnosis: string;
@@ -35,9 +36,14 @@ export async function getMappingHealth(config: AppConfig): Promise<MappingHealth
       `info=$(timeout 4 ros2 topic info ${shellQuote(topic)} 2>/dev/null); echo ${name}_publishers=$(printf '%s\\n' "$info" | awk '/Publisher count/ {print $3; exit}')`
     ),
     "timeout 5 ros2 topic list -t 2>/dev/null | grep -Ei 'map|slam|lidar|imu' | head -80 | sed 's/^/topic=/'",
-    "timeout 5 ros2 service list -t 2>/dev/null | grep -Ei 'map|slam|lidar|imu' | head -80 | sed 's/^/service=/'"
+    "timeout 5 ros2 service list -t 2>/dev/null | grep -Ei 'map|slam|lidar|imu' | head -80 | sed 's/^/service=/'",
+    "timeout 4 ros2 pkg prefix py_examples >/dev/null 2>&1 && echo prerequisite_rectifier=1 || echo prerequisite_rectifier=0",
+    "timeout 4 ros2 pkg prefix spark_fast_lio >/dev/null 2>&1 && echo prerequisite_fast_lio=1 || echo prerequisite_fast_lio=0",
+    "timeout 5 python3 -c 'import open3d' >/dev/null 2>&1 && echo prerequisite_open3d=1 || echo prerequisite_open3d=0",
+    "timeout 4 ros2 pkg prefix octomap_server >/dev/null 2>&1 && echo prerequisite_octomap=1 || echo prerequisite_octomap=0",
+    "timeout 6 sh -c 'ros2 pkg prefix nav2_map_server >/dev/null 2>&1 && ros2 pkg executables nav2_map_server 2>/dev/null | grep -q map_saver_cli' && echo prerequisite_map_saver=1 || echo prerequisite_map_saver=0"
   ].join("\n");
-  const output = await runRobotSystemSshCommand(`bash -lc ${shellQuote(lines)}`, config, 20000);
+  const output = await runRobotSystemSshCommand(`bash -lc ${shellQuote(lines)}`, config, 45000);
   const fields: Record<string, string> = {};
   for (const line of output.split(/\r?\n/)) {
     const index = line.indexOf("=");
@@ -52,6 +58,13 @@ export async function getMappingHealth(config: AppConfig): Promise<MappingHealth
   const sensorsHealthy = software === "active" && hal && lidar > 0 && imu > 0;
   const topics = output.split(/\r?\n/).filter((line) => line.startsWith("topic=")).map((line) => line.slice(6));
   const services = output.split(/\r?\n/).filter((line) => line.startsWith("service=")).map((line) => line.slice(8));
+  const prerequisites = [
+    ["rectifier", "雷达/IMU 校正包"],
+    ["fast_lio", "Spark FAST-LIO"],
+    ["open3d", "Open3D PCD 合并依赖"],
+    ["octomap", "OctoMap 投影节点"],
+    ["map_saver", "Nav2 map_saver_cli"]
+  ] as const;
   const diagnosis = !sensorsHealthy
     ? "请先恢复底层服务、雷达点云和 IMU 数据"
     : !slam || odom === 0
@@ -67,6 +80,10 @@ export async function getMappingHealth(config: AppConfig): Promise<MappingHealth
     odom_publishers: odom,
     mapping_related_topics: topics,
     mapping_related_services: services,
+    mapping_prerequisites: prerequisites.map(([key, name]) => ({
+      name,
+      available: fields[`prerequisite_${key}`] === "1"
+    })),
     mapping_backend_available: false,
     checked_at: new Date().toISOString(),
     diagnosis
