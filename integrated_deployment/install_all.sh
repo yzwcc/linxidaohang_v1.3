@@ -3,15 +3,15 @@ set -Eeuo pipefail
 umask 077
 
 PACKAGE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-VERSION="v1.3.1-complete-deployment-20261023-r12"
+VERSION="v1.3.1-complete-deployment-20261023-r13"
 WORK_ROOT="${WORK_ROOT:-/home/run/${VERSION}}"
 BASE_ROOT="${WORK_ROOT}/base/lingxi-v1.3.1-full-deployment-20260901"
 BASE_ARCHIVE="${PACKAGE_DIR}/components/lingxi-v1.3.1-full-deployment-20260901.zip"
 AIMDK_NAME="aimdk-aarch64-1bde262f-artifacts.7z"
 NAV_NAME="sparkrobot-lingxi-nav-internal-1.0.7-20260901.tar.gz"
 LINKCRAFT_NAME="sparkrobot-lingxi-linkcraft-addon-1.0.3-20260902.tar.gz"
-FIX_NAME="sparkrobot-lingxi-consecutive-nav-fix-1.0.3-20261023.tar.gz"
-KB_NAME="sparkrobot-lingxi-kb-1.0.7-20261023.zip"
+FIX_NAME="sparkrobot-lingxi-consecutive-nav-fix-1.0.4-20261023.tar.gz"
+KB_NAME="sparkrobot-lingxi-kb-1.0.8-20261023.zip"
 
 die() { echo "失败：$*" >&2; exit 1; }
 need_run() { [[ "$(id -un)" == "run" ]] || die "请使用 run 用户执行此阶段"; }
@@ -19,9 +19,13 @@ need_arm64() { [[ "$(uname -m)" == "aarch64" || "$(uname -m)" == "arm64" ]] || d
 component() { echo "${PACKAGE_DIR}/components/$1"; }
 
 assert_work_root() {
-  [[ "${WORK_ROOT}" == /home/run/* ]] || die "WORK_ROOT 必须位于 /home/run 下：${WORK_ROOT}"
-  [[ "${WORK_ROOT}" != "/home/run" && "${WORK_ROOT}" != "/home/run/" ]] \
-    || die "拒绝把 WORK_ROOT 指向 /home/run 根目录"
+  local resolved
+  resolved="$(realpath -m -- "${WORK_ROOT}")" \
+    || die "无法规范化 WORK_ROOT：${WORK_ROOT}"
+  [[ "${resolved}" == /home/run/* ]] \
+    || die "WORK_ROOT 解析后必须位于 /home/run 子目录：${resolved}"
+  WORK_ROOT="${resolved}"
+  BASE_ROOT="${WORK_ROOT}/base/lingxi-v1.3.1-full-deployment-20260901"
 }
 
 verify_aimdk_runtime() {
@@ -92,15 +96,14 @@ install_navigation() {
 extract_addons() {
   assert_work_root
   local staging="${WORK_ROOT}/addons"
-  [[ "${staging}" == "${WORK_ROOT}/addons" ]] || die "附加包临时目录不安全：${staging}"
   sudo rm -rf -- "${staging}"
   install -d -m 0700 "${staging}"
   tar -xzf "$(component "${LINKCRAFT_NAME}")" -C "${staging}"
   tar -xzf "$(component "${FIX_NAME}")" -C "${staging}"
   safe_extract_zip "$(component "${KB_NAME}")" "${staging}"
   LINKCRAFT_ROOT="${staging}/sparkrobot-lingxi-linkcraft-addon-1.0.3-20260902"
-  FIX_ROOT="${staging}/sparkrobot-lingxi-consecutive-nav-fix-1.0.3-20261023"
-  KB_ROOT="${staging}/sparkrobot-lingxi-kb-1.0.7-20261023"
+  FIX_ROOT="${staging}/sparkrobot-lingxi-consecutive-nav-fix-1.0.4-20261023"
+  KB_ROOT="${staging}/sparkrobot-lingxi-kb-1.0.8-20261023"
   for path in "${LINKCRAFT_ROOT}" "${FIX_ROOT}" "${KB_ROOT}"; do [[ -d "${path}" ]] || die "附加包解压失败：${path}"; done
 }
 

@@ -1,8 +1,8 @@
 # 灵心知识库检索与语音接入部署包
 
-版本：`sparkrobot-lingxi-kb-1.0.7-20261023`
+版本：`sparkrobot-lingxi-kb-1.0.8-20261023`
 
-本包包含两部分：独立 Retriever Proxy 服务，以及已验证的 Java Agent 知识库接入更新。它不包含导航、地图、AIMDK 或直播项目配置。
+本包包含两部分：独立 Retriever Proxy 服务，以及 Java Agent 知识库/语音接入更新。流式语音回复默认关闭；机器人端 PlayTts 队列行为未经现场验证前，不应开启。它不包含导航、地图、AIMDK 或直播项目配置。
 
 完整部署步骤见 `docs/灵心知识库独立部署教程.md`。
 
@@ -24,7 +24,7 @@
 在机器人 `run` 账号执行：
 
 ```bash
-cd /home/run/sparkrobot-lingxi-kb-1.0.7-20261023
+cd /home/run/sparkrobot-lingxi-kb-1.0.8-20261023
 sudo ./install.sh --from-lingxi --agent-code AI_AGENT_你的智能体Code
 sudo ./install_voice_agent.sh
 ```
@@ -105,9 +105,13 @@ sudo /usr/local/sbin/sparkrobot-lingxi-kb uninstall
 
 这不是离线 ASR。原始音频仍先交给当前配置的转写/意图模型，本版本不承诺音频不经过云端；TTS 等待时间也没有变化。
 
-当前未实现模型流式输出或 TTS 分段播放，机器人配置中的原有 800 ms 播报等待保持不变。排查延迟时通过 `sudo journalctl -u lingxi-java-agent-robot.service --since "30 min ago" --no-pager` 检查 `Doubao request completed`、`Knowledge lookup finished`、`Text chat answer source`、`Robot TTS dispatch timing`，并使用同一 `eventId` 对齐阶段。
+流式模型回复和有序 TTS 分段已作为可选能力加入，但 `doubao.streamingReplies` 默认 `false`，不改变现有行为或 800 ms 播报等待。只有普通文本闲聊、机器人 TTS 模式且非固定对话测试时才可能进入该路径；事实核实、身份/日期/时间问题、导航、任务控制、动作和原始音频不使用流式回复。默认保持关闭，直到目标机器人完成 AIMDK PlayTts 连续分段排队、打断和恢复验收。
 
-### r12 命令路由与并行检索
+若现场明确选择试用，先用 `sudo systemctl show -p WorkingDirectory --value lingxi-java-agent-robot.service` 确认 Java Agent 工作目录，再备份并编辑该目录下 `config/lingxi-nav.properties`，增加 `doubao.streamingReplies=true`，然后重启 `lingxi-java-agent-robot.service`。先在安全环境测试普通闲聊、模型 503、流中断、TTS 第二段拒绝、下一轮语音输入和既有导航/讲解；任何队列错序、重复播报或打断异常都应立即恢复 `false` 并重启服务。构建机假 HTTP 服务测试不能替代机器人实机声学与 AIMDK 队列验收。
+
+开启后首段采用 interrupt，其余分段按序提交且不打断前段；模型在首段播报前失败时回退到非流式请求，首段播出后模型流中断则播报简短中断提示，TTS 续段失败则尝试用完整最终答复替换部分播报。上述路径不修改既有 TTS 延迟配置。排查延迟时通过 `sudo journalctl -u lingxi-java-agent-robot.service --since "30 min ago" --no-pager` 检查 `Doubao streaming request completed`、`Robot streaming TTS segment accepted`、`Doubao request completed`、`Knowledge lookup finished`、`Text chat answer source` 和 `Robot TTS dispatch timing`，并使用同一 `eventId` 对齐阶段。
+
+### r13 命令路由、并行检索与流式回复
 
 - 明确的文本停止导航/停止讲解命令在意图模型请求前本地识别并提交；语音输入仍需先经过当前配置的音频转写回调，再执行同一停止命令匹配。
 - 导航别名歧义清单来自当前活动地图；文本或转写文本命中歧义别名时只播报澄清问题，不提交导航。
@@ -153,4 +157,4 @@ voice.gate.sessionWindowMs=8000
 
 支持动作：挥手、握手、举手、飞吻、比心、击掌、敬礼、平举、拥抱、加油、鼓掌、双手打叉、胸前挥手、鞠躬、拜拜、动感光波、挠头、抓屁股。例如可以在正常唤醒后说“请和我握个手”或“请双手比心”。只有导航空闲且没有进行或暂停中的讲解任务时才会提交；问句、否定、引用/转述和条件表达不会触发，直播弹幕不支持触发动作。
 
-机器人回复“已受理/已提交”只表示动作请求进入服务，不保证动作已经完成。此 Java Agent 需要搭配导航增量包 `sparkrobot-lingxi-consecutive-nav-fix-1.0.3-20261023` 才能调用机器人动作桥接接口；单独升级知识库包不会安装导航端接口。
+机器人回复“已受理/已提交”只表示动作请求进入服务，不保证动作已经完成。此 Java Agent 需要搭配导航增量包 `sparkrobot-lingxi-consecutive-nav-fix-1.0.4-20261023` 才能调用机器人动作桥接接口；单独升级知识库包不会安装导航端接口。

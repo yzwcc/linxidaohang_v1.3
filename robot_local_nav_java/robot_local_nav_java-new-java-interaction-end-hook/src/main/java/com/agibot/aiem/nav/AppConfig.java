@@ -23,6 +23,7 @@ final class AppConfig {
     final String doubaoUrl;
     final String doubaoApiKey;
     final String doubaoModel;
+    final boolean doubaoStreamingReplies;
     final String robotDisplayName;
     final String navBaseUrl;
     final int navTimeoutMs;
@@ -68,6 +69,8 @@ final class AppConfig {
         this.doubaoApiKey = AppConfig.read(properties, "doubao.apiKey", "ARK_API_KEY", "");
         String string = System.getenv("DOUBAO_API_KEY");
         this.doubaoModel = AppConfig.readRequired(properties, "doubao.model", "DOUBAO_MODEL");
+        this.doubaoStreamingReplies = Boolean.parseBoolean(
+                AppConfig.read(properties, "doubao.streamingReplies", "DOUBAO_STREAMING_REPLIES", "false"));
         this.robotDisplayName = AppConfig.read(properties, "robot.displayName", "ROBOT_DISPLAY_NAME", "\u7075\u7280");
         this.navBaseUrl = AppConfig.trimTrailingSlash(AppConfig.read(properties, "nav.baseUrl", "NAV_BASE_URL", "http://127.0.0.1:18080"));
         this.navTimeoutMs = Integer.parseInt(AppConfig.read(properties, "nav.timeoutMs", "NAV_TIMEOUT_MS", "5000"));

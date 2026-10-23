@@ -14,6 +14,7 @@ FILES=(
   pnc_response.py
   voice_preset_motion.py
   point_catalog.py
+  tts_stream_protocol.py
 )
 NO_RESTART=false
 REQUESTED_NAV_DIR=""
@@ -25,7 +26,7 @@ usage() {
   sudo bash ./install.sh --no-restart
   sudo bash ./install.sh --nav-dir /实际/navigation/robot_local_navigation_v3
 
-本包只更新连续导航和语音预置动作相关的 7 个 Python 文件，不重新部署 AIMDK、地图、灵心、
+本包只更新连续导航、语音预置动作和 TTS 流式序号协议相关的 8 个 Python 文件，不重新部署 AIMDK、地图、灵心、
 知识库或灵创资源。默认只重启 lingxi_nav_bridge。
 EOF
 }

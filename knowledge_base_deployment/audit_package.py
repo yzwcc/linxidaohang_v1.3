@@ -8,12 +8,13 @@ import zipfile
 from pathlib import Path, PurePosixPath
 
 HERE = Path(__file__).resolve().parent
-VERSION = "1.0.7-20261023"
+VERSION = "1.0.8-20261023"
 NAME = f"sparkrobot-lingxi-kb-{VERSION}"
 ARCHIVE = HERE / "dist" / f"{NAME}.zip"
 VOICE_GATE_CLASSES = {
     "com/agibot/aiem/nav/AppConfig.class",
     "com/agibot/aiem/nav/LingxiNavAgentApp.class",
+    "com/agibot/aiem/nav/LingxiNavAgentApp$StreamingTtsSession.class",
     "com/agibot/aiem/nav/LocalNavigationCommand.class",
     "com/agibot/aiem/nav/VoiceGate.class",
     "com/agibot/aiem/nav/WakeSessionGate.class",
@@ -26,6 +27,10 @@ VOICE_GATE_CLASSES = {
     "com/agibot/aiem/nav/PresetMotionCatalog$Selection.class",
     "com/agibot/aiem/nav/NavBridgeClient.class",
     "com/agibot/aiem/nav/DoubaoArkClient.class",
+    "com/agibot/aiem/nav/DoubaoArkClient$SseChunk.class",
+    "com/agibot/aiem/nav/SpeechSegmenter.class",
+    "com/agibot/aiem/nav/StreamingJsonReplyExtractor.class",
+    "com/agibot/aiem/nav/StreamingJsonReplyExtractor$ParsedString.class",
     "com/agibot/aiem/nav/RetrieverClient.class",
     "com/agibot/aiem/nav/KnowledgeAnswerPolicy.class",
 }
@@ -46,7 +51,15 @@ RESPONSE_POLICY = {
     "legacy_generated_qa_cache": "disabled_for_answer_selection",
     "text_chat_reuses_intent_reply": True,
     "blank_intent_reply_uses_chat_fallback": True,
-    "streaming_model_output": False,
+    "streaming_replies_default_enabled": False,
+    "streaming_replies_scope": "plain_text_chat_only",
+    "streaming_replies_require_robot_tts_mode": True,
+    "streaming_tts_first_segment_interrupts": True,
+    "streaming_tts_continuations_ordered": True,
+    "streaming_tts_queue_requires_robot_validation": True,
+    "streaming_model_failure_before_first_speech": "retry_non_streaming",
+    "streaming_model_failure_after_first_speech": "urgent_interruption_prompt",
+    "streaming_tts_continuation_failure": "complete_final_reply",
     "tts_delay_changed": False,
     "known_point_navigation_fast_path": "exact_active_map_voice_name_before_intent_model",
     "raw_audio_navigation_still_requires_transcription_model": True,

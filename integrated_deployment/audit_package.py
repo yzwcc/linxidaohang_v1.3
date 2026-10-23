@@ -4,13 +4,17 @@ from __future__ import annotations
 import hashlib
 import io
 import json
+import os
+import shutil
+import subprocess
 import tarfile
+import tempfile
 import zipfile
 from pathlib import Path, PurePosixPath
 
 
 HERE = Path(__file__).resolve().parent
-VERSION = "1.3.1-complete-20261023-r12"
+VERSION = "1.3.1-complete-20261023-r13"
 NAME = f"lingxi-v{VERSION}-deployment"
 DIST = HERE / "dist"
 REQUIRED = {
@@ -22,13 +26,13 @@ REQUIRED = {
     "control_all.sh",
     "docs/灵犀完整部署教程-v1.3.1-complete.md",
     "docs/客户日常使用手册-v1.3.1.md",
-    "docs/已有AIMDK部署说明-v1.3.1-r12.md",
+    "docs/已有AIMDK部署说明-v1.3.1-r13.md",
     "components/lingxi-v1.3.1-full-deployment-20260901.zip",
     "components/aimdk-aarch64-1bde262f-artifacts.7z",
     "components/sparkrobot-lingxi-nav-internal-1.0.7-20260901.tar.gz",
-    "components/sparkrobot-lingxi-kb-1.0.7-20261023.zip",
+    "components/sparkrobot-lingxi-kb-1.0.8-20261023.zip",
     "components/sparkrobot-lingxi-linkcraft-addon-1.0.3-20260902.tar.gz",
-    "components/sparkrobot-lingxi-consecutive-nav-fix-1.0.3-20261023.tar.gz",
+    "components/sparkrobot-lingxi-consecutive-nav-fix-1.0.4-20261023.tar.gz",
 }
 LINUX_TEXT_FILES = {
     "SHA256SUMS.txt",
@@ -37,7 +41,7 @@ LINUX_TEXT_FILES = {
     "README.md",
     "docs/灵犀完整部署教程-v1.3.1-complete.md",
     "docs/客户日常使用手册-v1.3.1.md",
-    "docs/已有AIMDK部署说明-v1.3.1-r12.md",
+    "docs/已有AIMDK部署说明-v1.3.1-r13.md",
 }
 BASE_BUNDLE = "lingxi-v1.3.1-full-deployment-20260901.zip"
 BASE_ROOT = "lingxi-v1.3.1-full-deployment-20260901"
@@ -46,36 +50,49 @@ NAV_NAME = "sparkrobot-lingxi-nav-internal-1.0.7-20260901.tar.gz"
 INSTALLER_REQUIRED_SNIPPETS = (
     "verify_aimdk_runtime",
     "sudo test -f /etc/sparkrobot/lingxi-nav/lingxi-nav.properties",
-    '[[ "${staging}" == "${WORK_ROOT}/addons" ]]',
+    'resolved="$(realpath -m -- "${WORK_ROOT}")"',
+    '[[ "${resolved}" == /home/run/* ]]',
+    'WORK_ROOT="${resolved}"',
+    'BASE_ROOT="${WORK_ROOT}/base/lingxi-v1.3.1-full-deployment-20260901"',
     'sudo rm -rf -- "${staging}"',
     'sudo bash "${LINKCRAFT_ROOT}/install.sh" --no-restart',
     'sudo bash "${FIX_ROOT}/install.sh"',
-    'KB_NAME="sparkrobot-lingxi-kb-1.0.7-20261023.zip"',
-    'KB_ROOT="${staging}/sparkrobot-lingxi-kb-1.0.7-20261023"',
+    'KB_NAME="sparkrobot-lingxi-kb-1.0.8-20261023.zip"',
+    'KB_ROOT="${staging}/sparkrobot-lingxi-kb-1.0.8-20261023"',
+    'FIX_NAME="sparkrobot-lingxi-consecutive-nav-fix-1.0.4-20261023.tar.gz"',
+    'FIX_ROOT="${staging}/sparkrobot-lingxi-consecutive-nav-fix-1.0.4-20261023"',
     "repair-permissions",
     "sudo systemctl restart lingxi-nav-console.service",
 )
 README_REQUIRED_SNIPPETS = (
-    "v1.3.1-complete-20261023-r12",
-    "sparkrobot-lingxi-kb-1.0.7-20261023",
+    "v1.3.1-complete-20261023-r13",
+    "sparkrobot-lingxi-kb-1.0.8-20261023",
+    "doubao.streamingReplies",
+    "PlayTts",
     "已知点位导航快速路径",
     "原始音频仍需调用当前配置的转写/意图模型",
     "并行",
     "停止指令",
 )
 GUIDE_REQUIRED_SNIPPETS = (
-    "v1.3.1-complete-20261023-r12",
-    "sparkrobot-lingxi-kb-1.0.7-20261023",
+    "v1.3.1-complete-20261023-r13",
+    "sparkrobot-lingxi-kb-1.0.8-20261023",
     "### 10.5 已知点位导航快速路径",
-    "r12 仍未实现端侧离线 ASR",
+    "r13 仍未实现端侧离线 ASR",
     "### 10.6 命令路由与并行检索",
+    "### 10.7 可选流式回复",
+    "doubao.streamingReplies=false",
+    "AIMDK PlayTts",
 )
 AIMDK_GUIDE_REQUIRED_SNIPPETS = (
-    "v1.3.1-complete-20261023-r12",
+    "v1.3.1-complete-20261023-r13",
     "保留现有 `/home/agi/aimdk`",
     "该脚本用于编译并替换 AIMDK",
-    "sparkrobot-lingxi-kb-1.0.7-20261023",
-    "sparkrobot-lingxi-consecutive-nav-fix-1.0.3-20261023",
+    "sparkrobot-lingxi-kb-1.0.8-20261023",
+    "sparkrobot-lingxi-consecutive-nav-fix-1.0.4-20261023",
+    "doubao.streamingReplies=false",
+    "PlayTts 连续请求",
+    "首段",
 )
 
 
@@ -179,28 +196,131 @@ def audit_installer(value: bytes, label: str) -> None:
     if text.index('sudo bash "${FIX_ROOT}/install.sh"') \
         > text.index("sudo systemctl restart lingxi-nav-console.service"):
         raise RuntimeError(f"{label} 网页控制台必须在连续导航修复之后重启")
+    audit_work_root_guard(value, label)
+
+
+def audit_work_root_guard(installer: bytes, label: str) -> None:
+    bash = shutil.which("bash")
+    if os.name == "nt":
+        git = shutil.which("git")
+        if git:
+            git_bash = Path(git).resolve().parent.parent / "bin" / "bash.exe"
+            if git_bash.is_file():
+                bash = str(git_bash)
+    if not bash:
+        raise RuntimeError(f"{label} WORK_ROOT 安全性测试缺少 Bash")
+    with tempfile.TemporaryDirectory(prefix="lingxi-work-root-audit-") as temp:
+        path = Path(temp) / "install_all.sh"
+        path.write_bytes(installer)
+        script = r"""
+set -eu
+die() { echo "$*" >&2; exit 1; }
+realpath() {
+  [[ "${1:-}" == "-m" && "${2:-}" == "--" ]] || return 2
+  case "${3:-}" in
+    /home/run/r13) printf '%s\n' /home/run/r13 ;;
+    /home/run) printf '%s\n' /home/run ;;
+    /home/run/../outside) printf '%s\n' /home/outside ;;
+    /home/run/../../tmp) printf '%s\n' /tmp ;;
+    /home/run/link) printf '%s\n' /etc ;;
+    *) return 2 ;;
+  esac
+}
+source <(sed -n '/^assert_work_root() {/,/^}/p' "$1")
+BASE_ROOT=/stale
+WORK_ROOT=/home/run/r13
+assert_work_root
+[[ "${WORK_ROOT}" == /home/run/r13 ]]
+[[ "${BASE_ROOT}" == /home/run/r13/base/lingxi-v1.3.1-full-deployment-20260901 ]]
+for candidate in /home/run /home/run/../outside /home/run/../../tmp /home/run/link; do
+  if ( WORK_ROOT="${candidate}"; assert_work_root ) >/dev/null 2>&1; then
+    echo "WORK_ROOT escaped its allowed directory: ${candidate}" >&2
+    exit 1
+  fi
+done
+"""
+        result = subprocess.run(
+            [bash, "-c", script, "audit-work-root", str(path)],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+        )
+        if result.returncode:
+            raise RuntimeError(
+                f"{label} WORK_ROOT 安全性测试失败：\n"
+                + (result.stdout or "")
+                + (result.stderr or "")
+            )
+
+
+def audit_addon_path_collisions(reader) -> None:
+    components = (
+        ("LinkCraft", "components/sparkrobot-lingxi-linkcraft-addon-1.0.3-20260902.tar.gz", "tar"),
+        ("连续导航修复", "components/sparkrobot-lingxi-consecutive-nav-fix-1.0.4-20261023.tar.gz", "tar"),
+        ("知识库", "components/sparkrobot-lingxi-kb-1.0.8-20261023.zip", "zip"),
+    )
+    extracted_paths: list[tuple[str, set[str]]] = []
+    for label, relative, kind in components:
+        data = reader(f"{NAME}/{relative}")
+        paths: set[str] = set()
+        if kind == "tar":
+            with tarfile.open(fileobj=io.BytesIO(data), mode="r:gz") as archive:
+                paths = {
+                    PurePosixPath(member.name).as_posix()
+                    for member in archive.getmembers()
+                    if member.isfile()
+                }
+        else:
+            with zipfile.ZipFile(io.BytesIO(data)) as archive:
+                paths = {
+                    PurePosixPath(name).as_posix()
+                    for name in archive.namelist()
+                    if name and not name.endswith("/")
+                }
+        extracted_paths.append((label, paths))
+
+    for index, (left_name, left_paths) in enumerate(extracted_paths):
+        for right_name, right_paths in extracted_paths[index + 1 :]:
+            for left in left_paths:
+                for right in right_paths:
+                    if (
+                        left == right
+                        or left.startswith(right + "/")
+                        or right.startswith(left + "/")
+                    ):
+                        raise RuntimeError(
+                            f"附加包解压路径冲突：{left_name} 与 {right_name}："
+                            f"{left} / {right}"
+                        )
 
 
 def audit_documentation(reader) -> None:
     documents = {
         "README.md": README_REQUIRED_SNIPPETS,
         "docs/灵犀完整部署教程-v1.3.1-complete.md": GUIDE_REQUIRED_SNIPPETS,
-        "docs/已有AIMDK部署说明-v1.3.1-r12.md": AIMDK_GUIDE_REQUIRED_SNIPPETS,
+        "docs/已有AIMDK部署说明-v1.3.1-r13.md": AIMDK_GUIDE_REQUIRED_SNIPPETS,
     }
     for relative, snippets in documents.items():
         text = reader(f"{NAME}/{relative}").decode("utf-8")
         missing = [snippet for snippet in snippets if snippet not in text]
         if missing:
-            raise RuntimeError(f"部署文档 {relative} 缺少 r12 说明：{missing}")
+            raise RuntimeError(f"部署文档 {relative} 缺少 r13 说明：{missing}")
 
 
 def audit_fix_component(reader) -> None:
-    name = "sparkrobot-lingxi-consecutive-nav-fix-1.0.3-20261023.tar.gz"
+    name = "sparkrobot-lingxi-consecutive-nav-fix-1.0.4-20261023.tar.gz"
     data = reader(f"{NAME}/components/{name}")
     with tarfile.open(fileobj=io.BytesIO(data), mode="r:gz") as archive:
-        prefix = f"sparkrobot-lingxi-consecutive-nav-fix-1.0.3-20261023/"
+        prefix = f"sparkrobot-lingxi-consecutive-nav-fix-1.0.4-20261023/"
         control = read_tar_member(archive, prefix + "control.sh").decode("utf-8")
         installer = read_tar_member(archive, prefix + "install.sh").decode("utf-8")
+        manifest = json.loads(read_tar_member(archive, prefix + "manifest.json"))
+        release_info = read_tar_member(archive, prefix + "release-info.txt").decode("utf-8")
+        if manifest.get("version") != "1.0.4-20261023" or manifest.get("payload_count") != 8:
+            raise RuntimeError("连续导航修复组件版本或 payload 数量不正确")
+        if "version=1.0.4-20261023" not in release_info:
+            raise RuntimeError("连续导航修复组件 release-info 版本不正确")
         if "repair_runtime_permissions" not in control or "resolve_bridge_run_user" not in control:
             raise RuntimeError("连续导航修复组件缺少运行目录权限保护")
         if "repair_runtime_permissions" not in installer:
@@ -208,6 +328,10 @@ def audit_fix_component(reader) -> None:
         members = {member.name for member in archive.getmembers() if member.isfile()}
         if prefix + "payload/voice_preset_motion.py" not in members:
             raise RuntimeError("连续导航修复组件缺少语音预置动作模块")
+        if prefix + "payload/tts_stream_protocol.py" not in members:
+            raise RuntimeError("连续导航修复组件缺少 TTS 流式序号协议模块")
+        if "tts_stream_protocol.py" not in installer or "tts_stream_protocol.py" not in control:
+            raise RuntimeError("连续导航修复组件未在安装/运维中纳入 TTS 流式序号协议模块")
         point_catalog = read_tar_member(
             archive, prefix + "payload/point_catalog.py"
         ).decode("utf-8")
@@ -218,17 +342,22 @@ def audit_fix_component(reader) -> None:
             raise RuntimeError("连续导航修复组件缺少活动地图歧义别名查询")
         if '"ambiguous_point_names"' not in bridge:
             raise RuntimeError("连续导航修复组件没有向 Java Agent 提供歧义别名")
+        stream_protocol = read_tar_member(
+            archive, prefix + "payload/tts_stream_protocol.py"
+        ).decode("utf-8")
+        if "class TtsStreamProtocol" not in stream_protocol:
+            raise RuntimeError("连续导航修复组件的 TTS 序号协议缺少实现")
 
 
 def audit_kb_component(reader) -> None:
-    name = "sparkrobot-lingxi-kb-1.0.7-20261023.zip"
+    name = "sparkrobot-lingxi-kb-1.0.8-20261023.zip"
     with zipfile.ZipFile(io.BytesIO(reader(f"{NAME}/components/{name}"))) as archive:
-        root = "sparkrobot-lingxi-kb-1.0.7-20261023/"
+        root = "sparkrobot-lingxi-kb-1.0.8-20261023/"
         manifest = json.loads(archive.read(f"{root}manifest.json"))
-        if manifest.get("version") != "1.0.7-20261023":
+        if manifest.get("version") != "1.0.8-20261023":
             raise RuntimeError("知识库组件版本不正确")
         release_info = archive.read(f"{root}release-info.txt").decode("utf-8")
-        if "VERSION=1.0.7-20261023" not in release_info:
+        if "VERSION=1.0.8-20261023" not in release_info:
             raise RuntimeError("知识库 release-info.txt 版本不正确")
         expected_response_policy = {
             "point_names_cache_ttl_ms": 10000,
@@ -242,7 +371,15 @@ def audit_kb_component(reader) -> None:
             "legacy_generated_qa_cache": "disabled_for_answer_selection",
             "text_chat_reuses_intent_reply": True,
             "blank_intent_reply_uses_chat_fallback": True,
-            "streaming_model_output": False,
+            "streaming_replies_default_enabled": False,
+            "streaming_replies_scope": "plain_text_chat_only",
+            "streaming_replies_require_robot_tts_mode": True,
+            "streaming_tts_first_segment_interrupts": True,
+            "streaming_tts_continuations_ordered": True,
+            "streaming_tts_queue_requires_robot_validation": True,
+            "streaming_model_failure_before_first_speech": "retry_non_streaming",
+            "streaming_model_failure_after_first_speech": "urgent_interruption_prompt",
+            "streaming_tts_continuation_failure": "complete_final_reply",
             "tts_delay_changed": False,
             "known_point_navigation_fast_path": "exact_active_map_voice_name_before_intent_model",
             "raw_audio_navigation_still_requires_transcription_model": True,
@@ -291,6 +428,7 @@ def audit_kb_component(reader) -> None:
     required_classes = {
         "com/agibot/aiem/nav/AppConfig.class",
         "com/agibot/aiem/nav/LingxiNavAgentApp.class",
+        "com/agibot/aiem/nav/LingxiNavAgentApp$StreamingTtsSession.class",
         "com/agibot/aiem/nav/LocalNavigationCommand.class",
         "com/agibot/aiem/nav/VoiceGate.class",
         "com/agibot/aiem/nav/WakeSessionGate.class",
@@ -303,6 +441,10 @@ def audit_kb_component(reader) -> None:
         "com/agibot/aiem/nav/PresetMotionCatalog$Selection.class",
         "com/agibot/aiem/nav/NavBridgeClient.class",
         "com/agibot/aiem/nav/DoubaoArkClient.class",
+        "com/agibot/aiem/nav/DoubaoArkClient$SseChunk.class",
+        "com/agibot/aiem/nav/SpeechSegmenter.class",
+        "com/agibot/aiem/nav/StreamingJsonReplyExtractor.class",
+        "com/agibot/aiem/nav/StreamingJsonReplyExtractor$ParsedString.class",
         "com/agibot/aiem/nav/RetrieverClient.class",
         "com/agibot/aiem/nav/KnowledgeAnswerPolicy.class",
     }
@@ -390,6 +532,7 @@ def main() -> int:
         audit_kb_component(archive.read)
         audit_fix_component(archive.read)
         audit_base_bundle(archive.read)
+        audit_addon_path_collisions(archive.read)
     with tarfile.open(tar_path, "r:gz") as archive:
         tar_names = {
             member.name for member in archive.getmembers() if member.isfile()
@@ -411,6 +554,7 @@ def main() -> int:
         audit_kb_component(lambda name: read_tar_member(archive, name))
         audit_fix_component(lambda name: read_tar_member(archive, name))
         audit_base_bundle(lambda name: read_tar_member(archive, name))
+        audit_addon_path_collisions(lambda name: read_tar_member(archive, name))
     print("完整导航部署包审计通过：AIMDK、导航和附加组件完整，现场修复保护、路径安全、Linux 换行、外层校验和无真实密钥标记均正常")
     print(f"TAR SHA-256：{digest(tar_path)}")
     print(f"ZIP SHA-256：{digest(zip_path)}")

@@ -15,14 +15,14 @@ from pathlib import Path, PurePosixPath
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
-VERSION = "1.3.1-complete-20261023-r12"
+VERSION = "1.3.1-complete-20261023-r13"
 NAME = f"lingxi-v{VERSION}-deployment"
 DIST = HERE / "dist"
 COMPONENTS = {
     "lingxi-v1.3.1-full-deployment-20260901.zip": ROOT / "lingxi_v1.3.1_deployment/dist/lingxi-v1.3.1-full-deployment-20260901.zip",
-    "sparkrobot-lingxi-kb-1.0.7-20261023.zip": ROOT / "knowledge_base_deployment/dist/sparkrobot-lingxi-kb-1.0.7-20261023.zip",
+    "sparkrobot-lingxi-kb-1.0.8-20261023.zip": ROOT / "knowledge_base_deployment/dist/sparkrobot-lingxi-kb-1.0.8-20261023.zip",
     "sparkrobot-lingxi-linkcraft-addon-1.0.3-20260902.tar.gz": ROOT / "linkcraft_deployment/dist/sparkrobot-lingxi-linkcraft-addon-1.0.3-20260902.tar.gz",
-    "sparkrobot-lingxi-consecutive-nav-fix-1.0.3-20261023.tar.gz": ROOT / "consecutive_nav_fix_deployment/dist/sparkrobot-lingxi-consecutive-nav-fix-1.0.3-20261023.tar.gz",
+    "sparkrobot-lingxi-consecutive-nav-fix-1.0.4-20261023.tar.gz": ROOT / "consecutive_nav_fix_deployment/dist/sparkrobot-lingxi-consecutive-nav-fix-1.0.4-20261023.tar.gz",
 }
 BASE_BUNDLE_NAME = "lingxi-v1.3.1-full-deployment-20260901.zip"
 BASE_BUNDLE_ROOT = "lingxi-v1.3.1-full-deployment-20260901"
@@ -32,7 +32,7 @@ EMBEDDED_COMPONENTS = (
 )
 AIMDK_SCRIPT_MEMBER = f"{BASE_BUNDLE_ROOT}/scripts/robot/01-replace-aimdk.sh"
 AIMDK_NOUNSET_GUARD = b"set +u\nsource /opt/ros/humble/setup.bash\nset -u"
-AIMDK_GUIDE_SOURCE = ROOT / "已有AIMDK部署说明-v1.3.1-r12.md"
+AIMDK_GUIDE_SOURCE = ROOT / "已有AIMDK部署说明-v1.3.1-r13.md"
 
 
 def write_text(path: Path, value: str, encoding: str = "utf-8") -> None:
@@ -82,17 +82,18 @@ def validate_component(name: str, path: Path) -> None:
                 raise RuntimeError("基础导航包的 AIMDK 替换脚本缺少 ROS nounset 兼容修复")
     if name.startswith("sparkrobot-lingxi-kb"):
         with zipfile.ZipFile(path) as archive:
-            root = "sparkrobot-lingxi-kb-1.0.7-20261023/"
+            root = "sparkrobot-lingxi-kb-1.0.8-20261023/"
             agent_member = f"{root}agent/robot-local-navigation-java-all-kb.jar"
             if agent_member not in archive.namelist():
                 raise RuntimeError("知识库包缺少 Java Agent JAR")
             manifest = json.loads(archive.read(f"{root}manifest.json"))
-            if manifest.get("version") != "1.0.7-20261023":
+            if manifest.get("version") != "1.0.8-20261023":
                 raise RuntimeError("知识库包版本清单不正确")
             agent_bytes = archive.read(agent_member)
             required_classes = {
                 "com/agibot/aiem/nav/AppConfig.class",
                 "com/agibot/aiem/nav/LingxiNavAgentApp.class",
+                "com/agibot/aiem/nav/LingxiNavAgentApp$StreamingTtsSession.class",
                 "com/agibot/aiem/nav/LocalNavigationCommand.class",
                 "com/agibot/aiem/nav/VoiceGate.class",
                 "com/agibot/aiem/nav/WakeSessionGate.class",
@@ -105,6 +106,10 @@ def validate_component(name: str, path: Path) -> None:
                 "com/agibot/aiem/nav/PresetMotionCatalog$Selection.class",
                 "com/agibot/aiem/nav/NavBridgeClient.class",
                 "com/agibot/aiem/nav/DoubaoArkClient.class",
+                "com/agibot/aiem/nav/DoubaoArkClient$SseChunk.class",
+                "com/agibot/aiem/nav/SpeechSegmenter.class",
+                "com/agibot/aiem/nav/StreamingJsonReplyExtractor.class",
+                "com/agibot/aiem/nav/StreamingJsonReplyExtractor$ParsedString.class",
                 "com/agibot/aiem/nav/RetrieverClient.class",
                 "com/agibot/aiem/nav/KnowledgeAnswerPolicy.class",
             }
@@ -115,7 +120,7 @@ def validate_component(name: str, path: Path) -> None:
 
     if name.startswith("sparkrobot-lingxi-consecutive-nav-fix"):
         with tarfile.open(path, "r:gz") as archive:
-            prefix = "sparkrobot-lingxi-consecutive-nav-fix-1.0.3-20261023/"
+            prefix = "sparkrobot-lingxi-consecutive-nav-fix-1.0.4-20261023/"
             required = {
                 f"{prefix}install.sh",
                 f"{prefix}control.sh",
@@ -125,6 +130,8 @@ def validate_component(name: str, path: Path) -> None:
                 f"{prefix}payload/navigation_client.py",
                 f"{prefix}payload/pnc_response.py",
                 f"{prefix}payload/voice_preset_motion.py",
+                f"{prefix}payload/point_catalog.py",
+                f"{prefix}payload/tts_stream_protocol.py",
             }
             names = {member.name for member in archive.getmembers() if member.isfile()}
             if not required.issubset(names):
@@ -177,7 +184,7 @@ def copy_stage(stage: Path) -> dict[str, str]:
     if not AIMDK_GUIDE_SOURCE.is_file():
         raise RuntimeError(f"缺少已有 AIMDK 部署说明：{AIMDK_GUIDE_SOURCE}")
     write_text(
-        stage / "docs" / "已有AIMDK部署说明-v1.3.1-r12.md",
+        stage / "docs" / "已有AIMDK部署说明-v1.3.1-r13.md",
         AIMDK_GUIDE_SOURCE.read_text(encoding="utf-8"),
     )
     write_text(stage / "VERSION", f"LINGXI_COMPLETE_VERSION={VERSION}\n")

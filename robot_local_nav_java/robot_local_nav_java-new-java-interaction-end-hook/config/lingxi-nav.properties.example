@@ -16,6 +16,8 @@ lingxi.appSecret=YOUR_LINGXI_V140_APP_SECRET
 doubao.url=https://ark.cn-beijing.volces.com/api/v3/chat/completions
 doubao.apiKey=YOUR_DOUBAO_API_KEY
 doubao.model=doubao-seed-2-0-mini-260428
+# Opt in only after validating this AIMDK build's PlayTts queue behavior on the robot.
+doubao.streamingReplies=false
 
 # Local Python ROS bridge. Start C:/Users/lenovo/Desktop/robot_python_bridge in the ROS2 environment.
 nav.baseUrl=http://127.0.0.1:18080

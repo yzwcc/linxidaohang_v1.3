@@ -225,6 +225,30 @@ final class NavBridgeClient {
         return this.postJson("/tts/speak", jSONObject);
     }
 
+    JSONObject speakStreamSegment(
+            String eventId, String streamId, int sequence, String text, boolean first)
+            throws IOException, InterruptedException {
+        JSONObject payload = new JSONObject();
+        payload.put("event_id", eventId);
+        payload.put("text", text);
+        payload.put("interrupt", first);
+        payload.put("force", true);
+        payload.put("streaming", true);
+        payload.put("stream_id", streamId);
+        payload.put("stream_sequence", sequence);
+        return this.postJson("/tts/speak", payload);
+    }
+
+    JSONObject closeSpeechStream(String eventId, String streamId)
+            throws IOException, InterruptedException {
+        JSONObject payload = new JSONObject();
+        payload.put("event_id", eventId);
+        payload.put("streaming", true);
+        payload.put("stream_action", "end");
+        payload.put("stream_id", streamId);
+        return this.postJson("/tts/speak", payload);
+    }
+
     private JSONObject getJson(String string) throws IOException, InterruptedException {
         HttpRequest httpRequest = HttpRequest.newBuilder().uri(URI.create(this.baseUrl + string)).timeout(this.timeout).GET().build();
         return this.send(httpRequest);

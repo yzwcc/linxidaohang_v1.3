@@ -39,6 +39,7 @@ from robot_local_navigation_v3.tour_interaction_policy import (
     should_protect_tour_interaction,
     wake_interaction_action,
 )
+from robot_local_navigation_v3.tts_stream_protocol import TtsStreamProtocol
 from robot_local_navigation_v3.tts_speaker import TtsSpeaker
 from robot_local_navigation_v3.voice_preset_motion import submit_voice_preset_motion
 
@@ -114,6 +115,7 @@ class LingxiNavBridge(Node):
         self._tts_lock = threading.Lock()
         self._last_tts_at = 0.0
         self._tts_min_interval_sec = 5.0
+        self._tts_stream_protocol = TtsStreamProtocol()
         # 自动返航流程：到达目标点后等待业务动作完成，再在空闲超时后返回起点。
         self.auto_return_enabled = True
         self.auto_return_idle_sec = 30.0
@@ -653,11 +655,23 @@ class LingxiNavBridge(Node):
     def speak(self, payload: dict[str, Any]) -> dict[str, Any]:
         """向机器人本地 AimDK TTS 服务提交文本播报请求。"""
 
+        stream_action = str(payload.get("stream_action", "")).strip().lower()
+        if stream_action == "end":
+            stream_id = str(payload.get("stream_id", "")).strip()
+            if not stream_id:
+                return {"ok": False, "accepted": False, "status": "invalid_stream"}
+            with self._tts_lock:
+                self._tts_stream_protocol.close(stream_id)
+            return {"ok": True, "accepted": True, "status": "stream_closed"}
+
         text = str(payload.get("text", "")).strip()
         if not text:
             return {"ok": False, "accepted": False, "status": "empty_text", "message": "text is required"}
 
         event_id = str(payload.get("event_id", "")).strip()
+        streaming = payload.get("streaming") is True
+        stream_id = str(payload.get("stream_id", "")).strip()
+        stream_sequence = payload.get("stream_sequence")
         with self._auto_return_lock:
             task_state = self._auto_return_state
         if should_block_voice_output(task_state, event_id):
@@ -671,40 +685,94 @@ class LingxiNavBridge(Node):
                 "status": "tour_protected",
                 "message": "讲解任务执行中，普通语音回复不会打断当前讲解",
             }
-        # AimDK 官方 PlayTts demo 将 interrupt 标为必需。实测 interrupt=false 可能返回成功，
-        # 但没有真正接管机器人播放通道，因此桥接层统一用 interrupt=true 提交机器人回复。
+        # Legacy replies interrupt. A validated stream interrupts only its first segment;
+        # continuation queue behavior still requires acceptance on the target robot.
         requested_interrupt = bool(payload.get("interrupt", True))
         interrupt = True
         force = bool(payload.get("force", False))
         now = time.monotonic()
         with self._tts_lock:
-            elapsed = now - self._last_tts_at
-            if not force and elapsed < self._tts_min_interval_sec:
-                retry_after_sec = max(0.0, self._tts_min_interval_sec - elapsed)
-                self.get_logger().info(
-                    f"TTS throttled: retry_after={retry_after_sec:.1f}s, text={text}"
-                )
-                return {
-                    "ok": False,
-                    "accepted": False,
-                    "status": "throttled",
-                    "retry_after_sec": retry_after_sec,
-                    "message": f"TTS throttled; retry after {retry_after_sec:.1f}s",
-                }
-            self._last_tts_at = now
+            if streaming:
+                if (
+                    not stream_id
+                    or isinstance(stream_sequence, bool)
+                    or not isinstance(stream_sequence, int)
+                    or stream_sequence < 0
+                ):
+                    return {"ok": False, "accepted": False, "status": "invalid_stream"}
+                if stream_sequence == 0 and not force:
+                    elapsed = now - self._last_tts_at
+                    if elapsed < self._tts_min_interval_sec:
+                        retry_after_sec = max(0.0, self._tts_min_interval_sec - elapsed)
+                        return {
+                            "ok": False,
+                            "accepted": False,
+                            "status": "throttled",
+                            "retry_after_sec": retry_after_sec,
+                            "message": f"TTS throttled; retry after {retry_after_sec:.1f}s",
+                        }
+                try:
+                    interrupt = self._tts_stream_protocol.claim(
+                        stream_id, stream_sequence, now
+                    )
+                except ValueError as exception:
+                    return {
+                        "ok": False,
+                        "accepted": False,
+                        "status": "invalid_stream",
+                        "message": str(exception),
+                    }
+                if stream_sequence == 0:
+                    self._last_tts_at = now
+            else:
+                elapsed = now - self._last_tts_at
+                if not force and elapsed < self._tts_min_interval_sec:
+                    retry_after_sec = max(0.0, self._tts_min_interval_sec - elapsed)
+                    self.get_logger().info(
+                        f"TTS throttled: retry_after={retry_after_sec:.1f}s, text={text}"
+                    )
+                    return {
+                        "ok": False,
+                        "accepted": False,
+                        "status": "throttled",
+                        "retry_after_sec": retry_after_sec,
+                        "message": f"TTS throttled; retry after {retry_after_sec:.1f}s",
+                    }
+                self._last_tts_at = now
         self.get_logger().info(
-            f"TTS speak: event_id={event_id or '<none>'}, requested_interrupt={requested_interrupt}, "
+            f"TTS speak: event_id={event_id or '<none>'}, stream_id={stream_id or '<none>'}, "
+            f"sequence={stream_sequence}, requested_interrupt={requested_interrupt}, "
             f"interrupt={interrupt}, force={force}, text={text}"
         )
-        future = self.tts_speaker.speak(
-            text,
-            interrupt=interrupt,
-            # 灵心 event_id 属于云端交互生命周期。复用它作为本地 PlayTts trace_id
-            # 时，Java 上报 onTtsDone 后会连带结束尚未开始的本地异步播报。
-            # 本地 TTS 必须使用独立 trace_id，event_id 只保留作日志关联。
-            trace_id=None,
-        )
+        try:
+            future = self.tts_speaker.speak(
+                text,
+                interrupt=interrupt,
+                # Lingxi event IDs track cloud callbacks, not local PlayTts futures.
+                trace_id=None,
+            )
+        except Exception as exception:
+            if streaming:
+                with self._tts_lock:
+                    self._tts_stream_protocol.close(stream_id)
+                    if stream_sequence == 0:
+                        self._last_tts_at = 0.0
+            self.get_logger().error(
+                f"TTS request failed before acceptance: stream_id={stream_id or '<none>'}, "
+                f"sequence={stream_sequence}, error={exception}"
+            )
+            return {
+                "ok": False,
+                "accepted": False,
+                "status": "tts_request_failed",
+                "message": str(exception),
+            }
         if future is None:
+            if streaming:
+                with self._tts_lock:
+                    self._tts_stream_protocol.close(stream_id)
+                    if stream_sequence == 0:
+                        self._last_tts_at = 0.0
             return {
                 "ok": False,
                 "accepted": False,

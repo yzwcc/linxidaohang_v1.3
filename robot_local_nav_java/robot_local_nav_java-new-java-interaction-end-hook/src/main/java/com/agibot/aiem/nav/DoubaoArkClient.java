@@ -9,8 +9,11 @@ import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONArray;
 import com.alibaba.fastjson2.JSONObject;
 import com.alibaba.fastjson2.JSONWriter;
+import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -21,6 +24,8 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Base64;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 
 final class DoubaoArkClient {
     private final HttpClient httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5L)).build();
@@ -37,15 +42,24 @@ final class DoubaoArkClient {
     }
 
     NavigationIntent parseInteraction(String string, List<String> list) throws IOException, InterruptedException {
-        String prompt = DoubaoArkClient.buildInteractionPrompt(list)
-                .replace("\u4e03\u7c7b", "\u5341\u7c7b")
-                .replace(
-                        "navigate|stop_navigation|start_task|end_task|sing|dance|chat",
-                        "navigate|stop_navigation|start_task|pause_task|resume_task|end_task|sing|dance|preset_motion|chat")
-                + DoubaoArkClient.buildPresetMotionPrompt()
-                + DoubaoArkClient.buildChatReplyPrompt();
+        String prompt = this.buildTextInteractionPrompt(list);
         String string2 = this.callModel(DoubaoArkClient.buildTextMessages(prompt, string), 0.0);
         return NavigationIntent.fromJsonText(string2);
+    }
+
+    NavigationIntent parseInteractionStreaming(
+            String text, List<String> pointNames, Consumer<String> replyTextConsumer)
+            throws IOException, InterruptedException {
+        StreamingJsonReplyExtractor extractor = new StreamingJsonReplyExtractor(replyTextConsumer);
+        String response = this.callModelStreaming(
+                DoubaoArkClient.buildTextMessages(this.buildTextInteractionPrompt(pointNames), text),
+                0.0,
+                extractor::accept);
+        NavigationIntent intent = NavigationIntent.fromJsonText(response);
+        if (extractor.isChatIntent() && !"chat".equals(intent.intent)) {
+            throw new IOException("Streaming interaction intent changed after reply output");
+        }
+        return intent;
     }
 
     NavigationIntent parseInteractionAudio(byte[] byArray, List<String> list) throws IOException, InterruptedException {
@@ -120,6 +134,132 @@ final class DoubaoArkClient {
             throw new IOException("Doubao returned empty content: " + httpResponse.body());
         }
         return string.trim();
+    }
+
+    private String callModelStreaming(
+            JSONArray messages, double temperature, Consumer<String> contentConsumer)
+            throws IOException, InterruptedException {
+        JSONObject body = new JSONObject();
+        body.put("model", this.model);
+        body.put("stream", true);
+        body.put("temperature", temperature);
+        body.put("messages", messages);
+        JSONObject thinking = new JSONObject();
+        thinking.put("type", "disabled");
+        body.put("thinking", thinking);
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(this.url))
+                .timeout(Duration.ofSeconds(45))
+                .header("Content-Type", "application/json; charset=utf-8")
+                .header("Accept", "text/event-stream")
+                .header("Authorization", "Bearer " + this.apiKey)
+                .POST(HttpRequest.BodyPublishers.ofString(
+                        body.toJSONString(new JSONWriter.Feature[0]), StandardCharsets.UTF_8))
+                .build();
+        long startedAtNanos = System.nanoTime();
+        long firstContentAtNanos = 0L;
+        StringBuilder content = new StringBuilder();
+        boolean sawDone = false;
+        boolean sawFinishReason = false;
+        HttpResponse<InputStream> response =
+                this.httpClient.send(request, HttpResponse.BodyHandlers.ofInputStream());
+        try (InputStream responseBody = response.body()) {
+            if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                String errorBody = new String(responseBody.readAllBytes(), StandardCharsets.UTF_8);
+                throw new IOException("Doubao streaming HTTP " + response.statusCode() + ": " + errorBody);
+            }
+            try (BufferedReader reader =
+                    new BufferedReader(new InputStreamReader(responseBody, StandardCharsets.UTF_8))) {
+                String line;
+                StringBuilder eventData = new StringBuilder();
+                while ((line = reader.readLine()) != null) {
+                    if (line.isEmpty()) {
+                        if (eventData.length() > 0) {
+                            SseChunk chunk = this.readSseChunk(eventData.toString());
+                            sawDone |= chunk.done();
+                            sawFinishReason |= chunk.finished();
+                            if (!chunk.content().isEmpty()) {
+                                if (firstContentAtNanos == 0L) {
+                                    firstContentAtNanos = System.nanoTime();
+                                }
+                                content.append(chunk.content());
+                                contentConsumer.accept(chunk.content());
+                            }
+                            eventData.setLength(0);
+                            if (sawDone) {
+                                break;
+                            }
+                        }
+                    } else if (!line.startsWith(":") && line.startsWith("data:")) {
+                        if (eventData.length() > 0) {
+                            eventData.append('\n');
+                        }
+                        String value = line.substring(5);
+                        eventData.append(value.startsWith(" ") ? value.substring(1) : value);
+                    }
+                }
+                if (!sawDone && eventData.length() > 0) {
+                    SseChunk chunk = this.readSseChunk(eventData.toString());
+                    sawDone |= chunk.done();
+                    sawFinishReason |= chunk.finished();
+                    if (!chunk.content().isEmpty()) {
+                        if (firstContentAtNanos == 0L) {
+                            firstContentAtNanos = System.nanoTime();
+                        }
+                        content.append(chunk.content());
+                        contentConsumer.accept(chunk.content());
+                    }
+                }
+            }
+        }
+        if (content.length() == 0 || (!sawDone && !sawFinishReason)) {
+            throw new IOException("Doubao streaming response ended before a complete choice");
+        }
+        long elapsedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedAtNanos);
+        long firstContentMs = firstContentAtNanos == 0L
+                ? -1L
+                : TimeUnit.NANOSECONDS.toMillis(firstContentAtNanos - startedAtNanos);
+        org.slf4j.LoggerFactory.getLogger(DoubaoArkClient.class).info(
+                "Doubao streaming request completed: model={}, elapsedMs={}, firstContentMs={}, chars={}",
+                this.model, elapsedMs, firstContentMs, content.length());
+        return content.toString().trim();
+    }
+
+    private SseChunk readSseChunk(String data) throws IOException {
+        if ("[DONE]".equals(data.trim())) {
+            return new SseChunk("", true, false);
+        }
+        JSONObject root;
+        try {
+            root = JSON.parseObject(data);
+        } catch (RuntimeException exception) {
+            throw new IOException("Invalid Doubao streaming event", exception);
+        }
+        JSONArray choices = root == null ? null : root.getJSONArray("choices");
+        if (choices == null || choices.isEmpty()) {
+            return new SseChunk("", false, false);
+        }
+        JSONObject choice = choices.getJSONObject(0);
+        String finishReason = choice.getString("finish_reason");
+        JSONObject delta = choice.getJSONObject("delta");
+        String content = delta == null ? null : delta.getString("content");
+        return new SseChunk(
+                content == null ? "" : content,
+                false,
+                finishReason != null && !finishReason.isBlank());
+    }
+
+    private String buildTextInteractionPrompt(List<String> pointNames) {
+        return DoubaoArkClient.buildInteractionPrompt(pointNames)
+                .replace("\u4e03\u7c7b", "\u5341\u7c7b")
+                .replace(
+                        "navigate|stop_navigation|start_task|end_task|sing|dance|chat",
+                        "navigate|stop_navigation|start_task|pause_task|resume_task|end_task|sing|dance|preset_motion|chat")
+                + DoubaoArkClient.buildPresetMotionPrompt()
+                + DoubaoArkClient.buildChatReplyPrompt();
+    }
+
+    private record SseChunk(String content, boolean done, boolean finished) {
     }
 
     private static JSONArray buildTextMessages(String string, String string2) {

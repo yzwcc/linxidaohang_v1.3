@@ -14,7 +14,7 @@ from pathlib import Path, PurePosixPath
 
 
 HERE = Path(__file__).resolve().parent
-VERSION = "1.0.3-20261023"
+VERSION = "1.0.4-20261023"
 NAME = f"sparkrobot-lingxi-consecutive-nav-fix-{VERSION}"
 DIST = HERE / "dist"
 REQUIRED = {
@@ -31,6 +31,7 @@ REQUIRED = {
     "payload/pnc_response.py",
     "payload/voice_preset_motion.py",
     "payload/point_catalog.py",
+    "payload/tts_stream_protocol.py",
 }
 EXECUTABLES = {"install.sh", "control.sh"}
 
@@ -52,7 +53,7 @@ def verify_contents(contents: dict[str, bytes], modes: dict[str, int], label: st
             f"{label} 文件清单不一致；缺失={sorted(REQUIRED-set(contents))}，额外={sorted(set(contents)-REQUIRED)}"
         )
     manifest = json.loads(contents["manifest.json"].decode("utf-8"))
-    if manifest.get("version") != VERSION or manifest.get("payload_count") != 7:
+    if manifest.get("version") != VERSION or manifest.get("payload_count") != 8:
         raise RuntimeError(f"{label} manifest 版本或 payload 数量错误")
     listed = {item["path"]: item for item in manifest.get("files", [])}
     if set(listed) != REQUIRED - {"manifest.json"}:
@@ -74,6 +75,7 @@ def verify_contents(contents: dict[str, bytes], modes: dict[str, int], label: st
     client = contents["payload/navigation_client.py"].decode("utf-8")
     voice_motion = contents["payload/voice_preset_motion.py"].decode("utf-8")
     point_catalog = contents["payload/point_catalog.py"].decode("utf-8")
+    tts_stream_protocol = contents["payload/tts_stream_protocol.py"].decode("utf-8")
     control = contents["control.sh"].decode("utf-8")
     installer = contents["install.sh"].decode("utf-8")
     for forbidden in (
@@ -83,6 +85,14 @@ def verify_contents(contents: dict[str, bytes], modes: dict[str, int], label: st
     ):
         if forbidden in bridge:
             raise RuntimeError(f"{label} 仍包含危险普通到点中断：{forbidden}")
+    for marker in (
+        "_finish_arrival_motion_after_wait",
+        "Tour task motion release wait started",
+        "Arrival empty motion ignored",
+        'self.path == "/motion/play"',
+    ):
+        if marker not in bridge:
+            raise RuntimeError(f"{label} 缺少连续导航到点动作保护：{marker}")
     if "CONTINUOUS_MOTION_IDS = frozenset({6001})" not in policy:
         raise RuntimeError(f"{label} 缺少 6001 持续动作策略")
     if "PNC_RESPONSE_MAX_RETRIES = 15" not in client:
@@ -97,6 +107,9 @@ def verify_contents(contents: dict[str, bytes], modes: dict[str, int], label: st
     for marker in ("def list_ambiguous_voice_names", "def _normalize_voice_name"):
         if marker not in point_catalog:
             raise RuntimeError(f"{label} 缺少歧义语音点位名解析：{marker}")
+    for marker in ("class TtsStreamProtocol", "def claim(", "def close("):
+        if marker not in tts_stream_protocol:
+            raise RuntimeError(f"{label} 缺少流式 TTS 序号协议：{marker}")
     if '"ambiguous_point_names"' not in bridge:
         raise RuntimeError(f"{label} 没有向 Java Agent 提供活动地图歧义别名")
     if "def _fail_async" not in client or "def _fail(" not in client:
@@ -214,6 +227,7 @@ def run_shell_and_install_smoke(contents: dict[str, bytes], modes: dict[str, int
             "pnc_response.py",
             "voice_preset_motion.py",
             "point_catalog.py",
+            "tts_stream_protocol.py",
         ):
             if (nav_dir / name).read_bytes() != contents[f"payload/{name}"]:
                 raise RuntimeError(f"安装器没有正确替换 {name}")
@@ -262,6 +276,8 @@ def run_shell_and_install_smoke(contents: dict[str, bytes], modes: dict[str, int
             raise RuntimeError("备份恢复没有删除原本不存在的 pnc_response.py")
         if (nav_dir / "voice_preset_motion.py").exists():
             raise RuntimeError("备份恢复没有删除原本不存在的 voice_preset_motion.py")
+        if (nav_dir / "tts_stream_protocol.py").exists():
+            raise RuntimeError("备份恢复没有删除原本不存在的 tts_stream_protocol.py")
         if (fixture / "state" / "installed-manifest.json").exists():
             raise RuntimeError("备份恢复没有还原安装状态")
 
