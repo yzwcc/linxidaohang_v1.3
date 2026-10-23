@@ -27,7 +27,7 @@ NAV_ROOT = (
 )
 SOURCE_ROOT = NAV_ROOT / "robot_local_navigation_v3"
 TEST_ROOT = NAV_ROOT / "test"
-VERSION = "1.0.4-20261023"
+VERSION = "1.0.5-20261023"
 NAME = f"sparkrobot-lingxi-consecutive-nav-fix-{VERSION}"
 DIST = HERE / "dist"
 PAYLOAD_FILES = (
@@ -39,6 +39,7 @@ PAYLOAD_FILES = (
     "voice_preset_motion.py",
     "point_catalog.py",
     "tts_stream_protocol.py",
+    "tts_speaker.py",
 )
 SOURCE_FILES = (
     "install.sh",
@@ -107,6 +108,11 @@ def validate_sources() -> None:
             "class TtsStreamProtocol",
             "def claim(",
             "def close(",
+            "def dispatch_if_current(",
+        ),
+        "tts_speaker.py": (
+            "request_submitter",
+            "if future is None:",
         ),
     }
     content = {
@@ -121,6 +127,9 @@ def validate_sources() -> None:
         ).read_text(encoding="utf-8"),
         "tts_stream_protocol.py": (
             SOURCE_ROOT / "tts_stream_protocol.py"
+        ).read_text(encoding="utf-8"),
+        "tts_speaker.py": (
+            SOURCE_ROOT / "tts_speaker.py"
         ).read_text(encoding="utf-8"),
     }
     for name, markers in required_markers.items():
@@ -219,9 +228,9 @@ def stage_files(stage: Path) -> None:
     release_info = (
         f"version={VERSION}\n"
         "package=sparkrobot-lingxi-consecutive-nav-fix\n"
-        "compatibility=lingxi-v1.3.1-complete-20261023-r13 and later compatible navigation layouts\n"
+        "compatibility=lingxi-v1.3.1-complete-20261023-r14 and later compatible navigation layouts\n"
         f"built_at={datetime.now(timezone.utc).isoformat()}\n"
-        "scope=continuous-navigation-motion-release-bounded-pnc-discovery-runtime-permissions-voice-preset-motions-ambiguous-point-clarification-and-streaming-tts-sequencing\n"
+        "scope=continuous-navigation-motion-release-bounded-pnc-discovery-runtime-permissions-voice-preset-motions-ambiguous-point-clarification-and-atomic-streaming-tts-preemption\n"
     )
     write_file(stage / "release-info.txt", release_info.encode("utf-8"))
 

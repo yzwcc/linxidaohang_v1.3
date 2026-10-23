@@ -14,7 +14,7 @@ from pathlib import Path, PurePosixPath
 
 
 HERE = Path(__file__).resolve().parent
-VERSION = "1.0.4-20261023"
+VERSION = "1.0.5-20261023"
 NAME = f"sparkrobot-lingxi-consecutive-nav-fix-{VERSION}"
 DIST = HERE / "dist"
 REQUIRED = {
@@ -32,6 +32,7 @@ REQUIRED = {
     "payload/voice_preset_motion.py",
     "payload/point_catalog.py",
     "payload/tts_stream_protocol.py",
+    "payload/tts_speaker.py",
 }
 EXECUTABLES = {"install.sh", "control.sh"}
 
@@ -53,7 +54,7 @@ def verify_contents(contents: dict[str, bytes], modes: dict[str, int], label: st
             f"{label} 文件清单不一致；缺失={sorted(REQUIRED-set(contents))}，额外={sorted(set(contents)-REQUIRED)}"
         )
     manifest = json.loads(contents["manifest.json"].decode("utf-8"))
-    if manifest.get("version") != VERSION or manifest.get("payload_count") != 8:
+    if manifest.get("version") != VERSION or manifest.get("payload_count") != 9:
         raise RuntimeError(f"{label} manifest 版本或 payload 数量错误")
     listed = {item["path"]: item for item in manifest.get("files", [])}
     if set(listed) != REQUIRED - {"manifest.json"}:
@@ -76,6 +77,7 @@ def verify_contents(contents: dict[str, bytes], modes: dict[str, int], label: st
     voice_motion = contents["payload/voice_preset_motion.py"].decode("utf-8")
     point_catalog = contents["payload/point_catalog.py"].decode("utf-8")
     tts_stream_protocol = contents["payload/tts_stream_protocol.py"].decode("utf-8")
+    tts_speaker = contents["payload/tts_speaker.py"].decode("utf-8")
     control = contents["control.sh"].decode("utf-8")
     installer = contents["install.sh"].decode("utf-8")
     for forbidden in (
@@ -107,9 +109,18 @@ def verify_contents(contents: dict[str, bytes], modes: dict[str, int], label: st
     for marker in ("def list_ambiguous_voice_names", "def _normalize_voice_name"):
         if marker not in point_catalog:
             raise RuntimeError(f"{label} 缺少歧义语音点位名解析：{marker}")
-    for marker in ("class TtsStreamProtocol", "def claim(", "def close("):
+    for marker in (
+        "class TtsStreamProtocol",
+        "def claim(",
+        "def close(",
+        "def dispatch_if_current(",
+    ):
         if marker not in tts_stream_protocol:
             raise RuntimeError(f"{label} 缺少流式 TTS 序号协议：{marker}")
+    if "request_submitter" not in tts_speaker or "if future is None:" not in tts_speaker:
+        raise RuntimeError(f"{label} 缺少 TTS 服务等待后的原子派发适配")
+    if "request_submitter=submit_if_current" not in bridge:
+        raise RuntimeError(f"{label} bridge 未在服务等待后核验 TTS 会话所有权")
     if '"ambiguous_point_names"' not in bridge:
         raise RuntimeError(f"{label} 没有向 Java Agent 提供活动地图歧义别名")
     if "def _fail_async" not in client or "def _fail(" not in client:
@@ -190,6 +201,7 @@ def run_shell_and_install_smoke(contents: dict[str, bytes], modes: dict[str, int
             "sdk_motion_controller.py",
             "navigation_client.py",
             "point_catalog.py",
+            "tts_speaker.py",
         ):
             data = contents[f"payload/{name}"] + b"\n# audit-old-fixture\n"
             original[name] = data
@@ -228,6 +240,7 @@ def run_shell_and_install_smoke(contents: dict[str, bytes], modes: dict[str, int
             "voice_preset_motion.py",
             "point_catalog.py",
             "tts_stream_protocol.py",
+            "tts_speaker.py",
         ):
             if (nav_dir / name).read_bytes() != contents[f"payload/{name}"]:
                 raise RuntimeError(f"安装器没有正确替换 {name}")

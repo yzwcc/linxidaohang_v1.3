@@ -13,7 +13,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 TARGET = HERE / "target"
 BASE_JAR = TARGET / "robot-local-navigation-java-0.1.0-all-kb-20260902.jar"
-OUTPUT_JAR = TARGET / "robot-local-navigation-java-0.1.0-all-kb-voice-stream-20261023.jar"
+OUTPUT_JAR = TARGET / "robot-local-navigation-java-0.1.0-all-kb-voice-stream-preemption-r14-20261023.jar"
 SDK_JAR = HERE / "linksoul-agentsdk-1.4.0-SNAPSHOT.jar"
 MAIN_SOURCE = HERE / "src" / "main" / "java" / "com" / "agibot" / "aiem" / "nav"
 TEST_SOURCE = HERE / "src" / "test" / "java" / "com" / "agibot" / "aiem" / "nav"
@@ -73,6 +73,8 @@ REQUIRED_CLASSES = {
     "com/agibot/aiem/nav/AppConfig.class",
     "com/agibot/aiem/nav/LingxiNavAgentApp.class",
     "com/agibot/aiem/nav/LingxiNavAgentApp$StreamingTtsSession.class",
+    "com/agibot/aiem/nav/LingxiNavAgentApp$TtsController.class",
+    "com/agibot/aiem/nav/LingxiNavAgentApp$TtsDecision.class",
     "com/agibot/aiem/nav/LocalNavigationCommand.class",
     "com/agibot/aiem/nav/VoiceGate.class",
     "com/agibot/aiem/nav/WakeSessionGate.class",

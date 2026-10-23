@@ -1101,6 +1101,16 @@ public final class LingxiNavAgentApp {
      * WARNING - Removed try catching itself - possible behaviour change.
      */
     private static RobotTtsResult speakIfNeeded(AppConfig appConfig, String string, String string2, TtsPriority ttsPriority, NavBridgeClient navBridgeClient) {
+        return LingxiNavAgentApp.speakIfNeeded(
+                appConfig, string, string2, ttsPriority, navBridgeClient, null);
+    }
+
+    private static RobotTtsResult speakIfNeeded(
+            AppConfig appConfig, String eventId, String text, TtsPriority priority,
+            NavBridgeClient navBridgeClient, TtsDecision replacedDecision) {
+        String string = eventId;
+        String string2 = text;
+        TtsPriority ttsPriority = priority;
         if (string2 == null || string2.isBlank()) {
             log.info("Robot TTS skipped: eventId={}, reason=empty_reply", (Object)string);
             return RobotTtsResult.skipped("empty_reply");
@@ -1131,23 +1141,34 @@ public final class LingxiNavAgentApp {
             }
             return new RobotTtsResult(true, bl, bl ? l : 0L, "fixed_dialog_test");
         }
-        TtsDecision ttsDecision = TTS_CONTROLLER.tryAcquire(string2, ttsPriority);
+        TtsDecision ttsDecision = replacedDecision == null
+                ? TTS_CONTROLLER.tryAcquire(string2, ttsPriority)
+                : TTS_CONTROLLER.tryAcquireReplacement(
+                        string2, TtsPriority.URGENT, replacedDecision);
         if (!ttsDecision.allowed) {
             log.info("Robot TTS skipped: eventId={}, priority={}, reason={}, text={}", new Object[]{string, ttsPriority, ttsDecision.reason, LingxiNavAgentApp.abbreviate(string2)});
             return RobotTtsResult.skipped(ttsDecision.reason);
         }
         boolean bl = false;
+        String dispatchReason = ttsDecision.reason;
         long delayStartedAtNanos = System.nanoTime();
         long bridgeStartedAtNanos = 0L;
         try {
             LingxiNavAgentApp.delayBeforeRobotTts(appConfig);
-            bridgeStartedAtNanos = System.nanoTime();
-            // Lingxi submits an L6 placeholder for the same audio turn. Keep every
-            // robot-local reply at L7 so the placeholder cannot preempt playback.
-            JSONObject jSONObject = navBridgeClient.speak(string, string2, ttsDecision.interrupt, true);
-            bl = jSONObject.getBooleanValue("accepted");
-            if (!bl) {
-                log.warn("Robot TTS was not accepted: {}", (Object)jSONObject);
+            if (!TTS_CONTROLLER.isCurrent(ttsDecision)) {
+                dispatchReason = "tts_decision_superseded";
+                log.info("Robot TTS dispatch skipped after preemption: eventId={}, text={}",
+                        string, LingxiNavAgentApp.abbreviate(string2));
+            } else {
+                bridgeStartedAtNanos = System.nanoTime();
+                // Lingxi submits an L6 placeholder for the same audio turn. Keep every
+                // robot-local reply at L7 so the placeholder cannot preempt playback.
+                JSONObject jSONObject = navBridgeClient.speak(
+                        string, string2, ttsDecision.interrupt, true);
+                bl = jSONObject.getBooleanValue("accepted");
+                if (!bl) {
+                    log.warn("Robot TTS was not accepted: {}", (Object)jSONObject);
+                }
             }
         }
         catch (Exception exception) {
@@ -1165,7 +1186,8 @@ public final class LingxiNavAgentApp {
             log.info("Robot TTS dispatch timing: eventId={}, delayMs={}, bridgeMs={}, accepted={}",
                     string, delayMs, bridgeMs, bl);
         }
-        return new RobotTtsResult(true, bl, bl ? ttsDecision.estimatedPlaybackMillis : 0L, ttsDecision.reason);
+        return new RobotTtsResult(
+                true, bl, bl ? ttsDecision.estimatedPlaybackMillis : 0L, dispatchReason);
     }
 
     private static void delayBeforeRobotTts(AppConfig appConfig) throws InterruptedException {
@@ -1732,12 +1754,15 @@ public final class LingxiNavAgentApp {
         private final List<String> pendingSegments = new ArrayList<>();
         private final StringBuilder observedText = new StringBuilder();
         private final StringBuilder acceptedText = new StringBuilder();
+        private final AtomicBoolean cancelled = new AtomicBoolean();
+        private final AtomicBoolean preempted = new AtomicBoolean();
+        private final AtomicBoolean bridgeStreamClosed = new AtomicBoolean();
         private TtsDecision decision;
         private int nextSequence;
-        private boolean accepted;
-        private boolean disabled;
-        private boolean closed;
-        private boolean attempted;
+        private volatile boolean accepted;
+        private volatile boolean disabled;
+        private volatile boolean closed;
+        private volatile boolean attempted;
 
         StreamingTtsSession(String eventId, AppConfig appConfig, NavBridgeClient navBridgeClient) {
             this.eventId = eventId;
@@ -1766,7 +1791,8 @@ public final class LingxiNavAgentApp {
         }
 
         void accept(String delta) {
-            if (this.closed || this.disabled || delta == null || delta.isEmpty()) {
+            if (this.closed || this.cancelled.get() || this.disabled
+                    || delta == null || delta.isEmpty()) {
                 return;
             }
             this.attempted = true;
@@ -1787,10 +1813,17 @@ public final class LingxiNavAgentApp {
         }
 
         boolean complete(String modelReply, String finalReply) {
+            if (this.preempted.get()) {
+                this.segmenter.cancel();
+                this.pendingSegments.clear();
+                this.closeBridgeStream();
+                this.closed = true;
+                return true;
+            }
             if (this.closed || !this.attempted || this.disabled) {
                 this.segmenter.cancel();
                 this.pendingSegments.clear();
-                if (!this.closed && this.accepted) {
+                if (!this.closed && !this.cancelled.get() && this.accepted) {
                     return this.replaceWithFinalReply(finalReply);
                 }
                 this.closeBridgeStream();
@@ -1845,6 +1878,7 @@ public final class LingxiNavAgentApp {
             if (this.closed) {
                 return;
             }
+            this.cancelled.set(true);
             this.segmenter.cancel();
             this.pendingSegments.clear();
             this.closeBridgeStream();
@@ -1856,12 +1890,24 @@ public final class LingxiNavAgentApp {
             this.closed = true;
         }
 
+        void cancelAsSuperseded() {
+            if (!this.preempted.compareAndSet(false, true)) {
+                return;
+            }
+            this.cancelled.set(true);
+            this.closed = true;
+            this.closeBridgeStream();
+        }
+
         private boolean submit(String text, boolean first) {
             if (text == null || text.isBlank()) {
                 return true;
             }
+            if (this.cancelled.get() || this.preempted.get()) {
+                return false;
+            }
             if (first) {
-                this.decision = TTS_CONTROLLER.tryAcquire(text, TtsPriority.NORMAL);
+                this.decision = TTS_CONTROLLER.tryAcquireStreaming(text, this);
                 if (!this.decision.allowed) {
                     this.decision = null;
                     this.disabled = true;
@@ -1877,13 +1923,26 @@ public final class LingxiNavAgentApp {
                     return false;
                 }
             }
+            if (!this.ownsSpeech()) {
+                this.cancelAsSuperseded();
+                return false;
+            }
             try {
                 JSONObject response = this.navBridgeClient.speakStreamSegment(
                         this.eventId, this.streamId, this.nextSequence, text, first);
+                if (!this.ownsSpeech()) {
+                    this.cancelAsSuperseded();
+                    return false;
+                }
                 if (response == null || !response.getBooleanValue("accepted")) {
                     log.warn(
                             "Robot streaming TTS segment was not accepted: eventId={}, sequence={}, response={}",
                             this.eventId, this.nextSequence, response);
+                    if (response != null
+                            && "stream_preempted".equals(response.getString("status"))) {
+                        this.cancelAsSuperseded();
+                        return false;
+                    }
                     if (first && this.decision != null) {
                         TTS_CONTROLLER.finishStreaming(this.decision, false, "");
                         this.decision = null;
@@ -1905,11 +1964,16 @@ public final class LingxiNavAgentApp {
                 log.warn(
                         "Robot streaming TTS interrupted: eventId={}, sequence={}",
                         this.eventId, this.nextSequence);
+                this.cancelAsSuperseded();
                 return false;
             } catch (Exception exception) {
                 log.warn(
                         "Robot streaming TTS failed: eventId={}, sequence={}, error={}",
                         this.eventId, this.nextSequence, exception.getMessage());
+                if (!this.ownsSpeech()) {
+                    this.cancelAsSuperseded();
+                    return false;
+                }
                 if (first && this.decision != null) {
                     TTS_CONTROLLER.finishStreaming(this.decision, false, "");
                     this.decision = null;
@@ -1919,14 +1983,36 @@ public final class LingxiNavAgentApp {
             }
         }
 
+        private boolean ownsSpeech() {
+            return !this.cancelled.get()
+                    && this.decision != null
+                    && TTS_CONTROLLER.isCurrent(this.decision);
+        }
+
         private boolean replaceWithFinalReply(String finalReply) {
             this.segmenter.cancel();
             this.pendingSegments.clear();
             this.closeBridgeStream();
+            if (this.preempted.get()
+                    || (this.decision != null && !TTS_CONTROLLER.isCurrent(this.decision))) {
+                this.cancelAsSuperseded();
+                return true;
+            }
             if (this.decision != null) {
-                TTS_CONTROLLER.finishStreaming(
-                        this.decision, this.accepted, this.acceptedText.toString());
+                if (finalReply == null || finalReply.isBlank()) {
+                    TTS_CONTROLLER.finishStreaming(
+                            this.decision, this.accepted, this.acceptedText.toString());
+                    this.decision = null;
+                    this.closed = true;
+                    return false;
+                }
+                TtsDecision replacedDecision = this.decision;
                 this.decision = null;
+                this.closed = true;
+                RobotTtsResult fallback = LingxiNavAgentApp.speakIfNeeded(
+                        this.appConfig, this.eventId, finalReply, TtsPriority.URGENT,
+                        this.navBridgeClient, replacedDecision);
+                return fallback.accepted;
             }
             this.closed = true;
             if (finalReply == null || finalReply.isBlank()) {
@@ -1939,7 +2025,7 @@ public final class LingxiNavAgentApp {
         }
 
         private void closeBridgeStream() {
-            if (!this.accepted) {
+            if (!this.attempted || !this.bridgeStreamClosed.compareAndSet(false, true)) {
                 return;
             }
             try {
@@ -1971,7 +2057,10 @@ public final class LingxiNavAgentApp {
         private boolean requestInFlight;
         private long lastAcceptedAtMillis;
         private long silentUntilMillis;
+        private long nextRequestToken;
+        private long activeRequestToken;
         private String lastNormalizedText = "";
+        private StreamingTtsSession activeStreamingSession;
 
         private TtsController(long l, long l2, long l3, double d) {
             this.minIntervalMillis = l;
@@ -2002,28 +2091,78 @@ public final class LingxiNavAgentApp {
          * WARNING - Removed try catching itself - possible behaviour change.
          */
         TtsDecision tryAcquire(String string, TtsPriority ttsPriority) {
+            return this.tryAcquire(string, ttsPriority, null, null);
+        }
+
+        TtsDecision tryAcquireStreaming(String text, StreamingTtsSession session) {
+            return this.tryAcquire(text, TtsPriority.NORMAL, session, null);
+        }
+
+        TtsDecision tryAcquireReplacement(
+                String text, TtsPriority priority, TtsDecision replacedDecision) {
+            return this.tryAcquire(text, priority, null, replacedDecision);
+        }
+
+        private TtsDecision tryAcquire(
+                String string, TtsPriority ttsPriority, StreamingTtsSession session,
+                TtsDecision replacedDecision) {
             String string2 = LingxiNavAgentApp.normalizeText(string);
             if (string2.isBlank()) {
                 return TtsDecision.skip("empty_text");
             }
-            Object object = this.lock;
-            synchronized (object) {
+            StreamingTtsSession preemptedSession = null;
+            TtsDecision decision;
+            synchronized (this.lock) {
+                if (replacedDecision != null && !this.ownsLocked(replacedDecision)) {
+                    return TtsDecision.skip("tts_decision_superseded");
+                }
+                boolean supersedesStreamingSession = replacedDecision == null
+                        && this.activeStreamingSession != null
+                        && this.activeStreamingSession != session;
                 boolean bl;
-                long l = System.currentTimeMillis();
+                long now = System.currentTimeMillis();
                 boolean bl2 = bl = ttsPriority == TtsPriority.NAVIGATION || ttsPriority == TtsPriority.URGENT;
-                if (!bl && this.isDuplicate(string2, l)) {
+                if (!bl && this.isDuplicate(string2, now)) {
                     return TtsDecision.skip("duplicate_or_similar_reply");
                 }
-                if (!bl && this.requestInFlight) {
+                if (!bl && this.requestInFlight && !supersedesStreamingSession) {
                     return TtsDecision.skip("tts_request_in_flight");
                 }
-                if (!bl && l - this.lastAcceptedAtMillis < this.minIntervalMillis) {
+                if (!bl && now - this.lastAcceptedAtMillis < this.minIntervalMillis
+                        && !supersedesStreamingSession) {
                     return TtsDecision.skip("normal_tts_throttled");
                 }
+                if (supersedesStreamingSession) {
+                    preemptedSession = this.activeStreamingSession;
+                }
                 this.requestInFlight = true;
-                long l2 = this.estimatePlaybackMillis(string2);
-                return new TtsDecision(true, "accepted", true, bl, string2, ttsPriority, l2);
+                long token = ++this.nextRequestToken;
+                this.activeRequestToken = token;
+                this.activeStreamingSession = session;
+                long estimate = this.estimatePlaybackMillis(string2);
+                decision = new TtsDecision(
+                        true, "accepted", true, bl, string2, ttsPriority, estimate, token);
             }
+            if (preemptedSession != null) {
+                preemptedSession.cancelAsSuperseded();
+            }
+            return decision;
+        }
+
+        boolean isCurrent(TtsDecision decision) {
+            if (decision == null || !decision.allowed) {
+                return false;
+            }
+            synchronized (this.lock) {
+                return this.ownsLocked(decision);
+            }
+        }
+
+        private boolean ownsLocked(TtsDecision decision) {
+            return decision != null
+                    && decision.allowed
+                    && this.requestInFlight
+                    && decision.token == this.activeRequestToken;
         }
 
         long estimatePlaybackMillis(String string) {
@@ -2049,8 +2188,10 @@ public final class LingxiNavAgentApp {
             if (decision == null || !decision.allowed || spokenText == null || spokenText.isBlank()) {
                 return;
             }
-            Object object = this.lock;
-            synchronized (object) {
+            synchronized (this.lock) {
+                if (!this.ownsLocked(decision)) {
+                    return;
+                }
                 long now = System.currentTimeMillis();
                 this.lastAcceptedAtMillis = now;
                 this.lastNormalizedText = LingxiNavAgentApp.normalizeText(spokenText);
@@ -2063,10 +2204,14 @@ public final class LingxiNavAgentApp {
             if (decision == null || !decision.allowed) {
                 return;
             }
-            Object object = this.lock;
-            synchronized (object) {
+            synchronized (this.lock) {
+                if (!this.ownsLocked(decision)) {
+                    return;
+                }
                 long now = System.currentTimeMillis();
                 this.requestInFlight = false;
+                this.activeRequestToken = 0L;
+                this.activeStreamingSession = null;
                 if (!accepted || spokenText == null || spokenText.isBlank()) {
                     return;
                 }
@@ -2084,10 +2229,14 @@ public final class LingxiNavAgentApp {
             if (!ttsDecision.allowed) {
                 return;
             }
-            Object object = this.lock;
-            synchronized (object) {
+            synchronized (this.lock) {
+                if (!this.ownsLocked(ttsDecision)) {
+                    return;
+                }
                 long l;
                 this.requestInFlight = false;
+                this.activeRequestToken = 0L;
+                this.activeStreamingSession = null;
                 if (!bl) {
                     return;
                 }
@@ -2187,9 +2336,11 @@ public final class LingxiNavAgentApp {
         }
     }
 
-    private record TtsDecision(boolean allowed, String reason, boolean interrupt, boolean force, String normalizedText, TtsPriority priority, long estimatedPlaybackMillis) {
+    private record TtsDecision(
+            boolean allowed, String reason, boolean interrupt, boolean force, String normalizedText,
+            TtsPriority priority, long estimatedPlaybackMillis, long token) {
         static TtsDecision skip(String string) {
-            return new TtsDecision(false, string, false, false, "", TtsPriority.NORMAL, 0L);
+            return new TtsDecision(false, string, false, false, "", TtsPriority.NORMAL, 0L, 0L);
         }
     }
 }

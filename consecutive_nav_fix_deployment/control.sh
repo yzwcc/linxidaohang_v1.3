@@ -2,7 +2,7 @@
 set -Eeuo pipefail
 umask 0027
 
-FIX_VERSION="1.0.4-20261023"
+FIX_VERSION="1.0.5-20261023"
 FIX_STATE_ROOT="${FIX_STATE_ROOT:-/var/lib/sparkrobot/lingxi-consecutive-nav-fix}"
 BACKUP_ROOT="${BACKUP_ROOT:-${FIX_STATE_ROOT}/backups}"
 RUNTIME_STATE_ROOT="${SPARKROBOT_STATE_ROOT:-/var/lib/sparkrobot/lingxi-nav}"
@@ -414,6 +414,7 @@ files = [
     "voice_preset_motion.py",
     "point_catalog.py",
     "tts_stream_protocol.py",
+    "tts_speaker.py",
 ]
 with tempfile.TemporaryDirectory(prefix="lingxi-nav-fix-compile-") as temp:
     for index, name in enumerate(files):
@@ -428,7 +429,7 @@ restore_backup_files() {
   [[ -r "${backup}/nav-dir.txt" ]] || die "备份缺少 nav-dir.txt"
   nav_dir="$(<"${backup}/nav-dir.txt")"
   [[ -d "${nav_dir}" ]] || die "备份记录的导航目录不存在：${nav_dir}"
-  for file in lingxi_nav_bridge.py motion_option_policy.py sdk_motion_controller.py navigation_client.py pnc_response.py voice_preset_motion.py point_catalog.py tts_stream_protocol.py; do
+  for file in lingxi_nav_bridge.py motion_option_policy.py sdk_motion_controller.py navigation_client.py pnc_response.py voice_preset_motion.py point_catalog.py tts_stream_protocol.py tts_speaker.py; do
     existed="false"
     [[ -r "${backup}/existed-${file}" ]] && existed="$(<"${backup}/existed-${file}")"
     if [[ "${existed}" == "true" ]]; then

@@ -15,6 +15,7 @@ FILES=(
   voice_preset_motion.py
   point_catalog.py
   tts_stream_protocol.py
+  tts_speaker.py
 )
 NO_RESTART=false
 REQUESTED_NAV_DIR=""

@@ -661,7 +661,7 @@ class LingxiNavBridge(Node):
             if not stream_id:
                 return {"ok": False, "accepted": False, "status": "invalid_stream"}
             with self._tts_lock:
-                self._tts_stream_protocol.close(stream_id)
+                self._tts_stream_protocol.close(stream_id, time.monotonic())
             return {"ok": True, "accepted": True, "status": "stream_closed"}
 
         text = str(payload.get("text", "")).strip()
@@ -691,6 +691,7 @@ class LingxiNavBridge(Node):
         interrupt = True
         force = bool(payload.get("force", False))
         now = time.monotonic()
+        dispatch_stream_id: str | None
         with self._tts_lock:
             if streaming:
                 if (
@@ -715,6 +716,7 @@ class LingxiNavBridge(Node):
                     interrupt = self._tts_stream_protocol.claim(
                         stream_id, stream_sequence, now
                     )
+                    dispatch_token = self._tts_stream_protocol.generation
                 except ValueError as exception:
                     return {
                         "ok": False,
@@ -724,6 +726,7 @@ class LingxiNavBridge(Node):
                     }
                 if stream_sequence == 0:
                     self._last_tts_at = now
+                dispatch_stream_id = stream_id
             else:
                 elapsed = now - self._last_tts_at
                 if not force and elapsed < self._tts_min_interval_sec:
@@ -739,23 +742,40 @@ class LingxiNavBridge(Node):
                         "message": f"TTS throttled; retry after {retry_after_sec:.1f}s",
                     }
                 self._last_tts_at = now
+                dispatch_token = self._tts_stream_protocol.invalidate(now)
+                dispatch_stream_id = None
         self.get_logger().info(
             f"TTS speak: event_id={event_id or '<none>'}, stream_id={stream_id or '<none>'}, "
             f"sequence={stream_sequence}, requested_interrupt={requested_interrupt}, "
             f"interrupt={interrupt}, force={force}, text={text}"
         )
+        submission = {"called": False}
+
+        def submit_if_current(submit):
+            def mark_submitted():
+                submission["called"] = True
+                return submit()
+
+            return self._tts_stream_protocol.dispatch_if_current(
+                dispatch_token, dispatch_stream_id, mark_submitted
+            )
+
         try:
             future = self.tts_speaker.speak(
                 text,
                 interrupt=interrupt,
                 # Lingxi event IDs track cloud callbacks, not local PlayTts futures.
                 trace_id=None,
+                request_submitter=submit_if_current,
             )
         except Exception as exception:
             if streaming:
                 with self._tts_lock:
-                    self._tts_stream_protocol.close(stream_id)
-                    if stream_sequence == 0:
+                    still_current = self._tts_stream_protocol.dispatch_if_current(
+                        dispatch_token, stream_id, lambda: True
+                    )
+                    self._tts_stream_protocol.close(stream_id, time.monotonic())
+                    if stream_sequence == 0 and still_current:
                         self._last_tts_at = 0.0
             self.get_logger().error(
                 f"TTS request failed before acceptance: stream_id={stream_id or '<none>'}, "
@@ -770,9 +790,18 @@ class LingxiNavBridge(Node):
         if future is None:
             if streaming:
                 with self._tts_lock:
-                    self._tts_stream_protocol.close(stream_id)
-                    if stream_sequence == 0:
+                    still_current = self._tts_stream_protocol.dispatch_if_current(
+                        dispatch_token, stream_id, lambda: True
+                    )
+                    self._tts_stream_protocol.close(stream_id, time.monotonic())
+                    if stream_sequence == 0 and still_current:
                         self._last_tts_at = 0.0
+            if not submission["called"]:
+                return {
+                    "ok": True,
+                    "accepted": False,
+                    "status": "stream_preempted" if streaming else "tts_preempted",
+                }
             return {
                 "ok": False,
                 "accepted": False,

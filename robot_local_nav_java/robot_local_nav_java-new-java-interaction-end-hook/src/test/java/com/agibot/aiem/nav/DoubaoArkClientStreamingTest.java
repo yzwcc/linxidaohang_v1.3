@@ -18,6 +18,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 final class DoubaoArkClientStreamingTest {
     private static int checks;
@@ -65,17 +66,72 @@ final class DoubaoArkClientStreamingTest {
         controllerField.setAccessible(true);
         Object controller = controllerField.get(null);
         for (String name : List.of(
-                "requestInFlight", "lastAcceptedAtMillis", "silentUntilMillis", "lastNormalizedText")) {
+                "requestInFlight", "lastAcceptedAtMillis", "silentUntilMillis",
+                "nextRequestToken", "activeRequestToken", "activeStreamingSession",
+                "lastNormalizedText")) {
             Field field = controller.getClass().getDeclaredField(name);
             field.setAccessible(true);
             if (field.getType() == boolean.class) {
                 field.setBoolean(controller, false);
             } else if (field.getType() == long.class) {
                 field.setLong(controller, 0L);
+            } else if (name.equals("activeStreamingSession")) {
+                field.set(controller, null);
             } else {
                 field.set(controller, "");
             }
         }
+    }
+
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    private static Object acquireTts(String text, String priorityName) throws Exception {
+        Field controllerField = LingxiNavAgentApp.class.getDeclaredField("TTS_CONTROLLER");
+        controllerField.setAccessible(true);
+        Object controller = controllerField.get(null);
+        Class<?> priorityClass = null;
+        for (Class<?> nested : LingxiNavAgentApp.class.getDeclaredClasses()) {
+            if (nested.getSimpleName().equals("TtsPriority")) {
+                priorityClass = nested;
+                break;
+            }
+        }
+        if (priorityClass == null) {
+            throw new AssertionError("TtsPriority class not found");
+        }
+        Object priority = Enum.valueOf((Class) priorityClass, priorityName);
+        java.lang.reflect.Method method = controller.getClass().getDeclaredMethod(
+                "tryAcquire", String.class, priorityClass);
+        method.setAccessible(true);
+        return method.invoke(controller, text, priority);
+    }
+
+    private static boolean isCurrentTts(Object decision) throws Exception {
+        Field controllerField = LingxiNavAgentApp.class.getDeclaredField("TTS_CONTROLLER");
+        controllerField.setAccessible(true);
+        Object controller = controllerField.get(null);
+        java.lang.reflect.Method method =
+                controller.getClass().getDeclaredMethod("isCurrent", decision.getClass());
+        method.setAccessible(true);
+        return (boolean) method.invoke(controller, decision);
+    }
+
+    private static void finishStreamingDecision(Object decision) throws Exception {
+        Field controllerField = LingxiNavAgentApp.class.getDeclaredField("TTS_CONTROLLER");
+        controllerField.setAccessible(true);
+        Object controller = controllerField.get(null);
+        java.lang.reflect.Method method = controller.getClass().getDeclaredMethod(
+                "finishStreaming", decision.getClass(), boolean.class, String.class);
+        method.setAccessible(true);
+        method.invoke(controller, decision, false, "");
+    }
+
+    private static boolean requestInFlight() throws Exception {
+        Field controllerField = LingxiNavAgentApp.class.getDeclaredField("TTS_CONTROLLER");
+        controllerField.setAccessible(true);
+        Object controller = controllerField.get(null);
+        Field inFlight = controller.getClass().getDeclaredField("requestInFlight");
+        inFlight.setAccessible(true);
+        return inFlight.getBoolean(controller);
     }
 
     private static final class Rig {
@@ -83,8 +139,12 @@ final class DoubaoArkClientStreamingTest {
         private final ExecutorService executor = Executors.newCachedThreadPool();
         private final List<JSONObject> speechRequests = new CopyOnWriteArrayList<>();
         private final CountDownLatch firstSpeechAccepted = new CountDownLatch(1);
+        private final CountDownLatch continuationReceived = new CountDownLatch(1);
+        private final CountDownLatch releaseContinuation = new CountDownLatch(1);
         private final AtomicBoolean firstSpeechBeforeModelFinished = new AtomicBoolean();
         private final AtomicInteger modelRequests = new AtomicInteger();
+        private final boolean failContinuation;
+        private final boolean blockContinuation;
 
         private Rig(boolean truncated, boolean failBeforeFirst) throws IOException {
             this(truncated, failBeforeFirst, false);
@@ -92,6 +152,15 @@ final class DoubaoArkClientStreamingTest {
 
         private Rig(boolean truncated, boolean failBeforeFirst, boolean failContinuation)
                 throws IOException {
+            this(truncated, failBeforeFirst, failContinuation, false);
+        }
+
+        private Rig(
+                boolean truncated, boolean failBeforeFirst,
+                boolean failContinuation, boolean blockContinuation)
+                throws IOException {
+            this.failContinuation = failContinuation;
+            this.blockContinuation = blockContinuation;
             this.server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
             this.server.setExecutor(this.executor);
             this.server.createContext("/chat/completions", exchange -> {
@@ -151,6 +220,19 @@ final class DoubaoArkClientStreamingTest {
                 JSONObject payload = JSONObject.parseObject(
                         new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
                 this.speechRequests.add(payload);
+                if (this.blockContinuation
+                        && payload.getBooleanValue("streaming")
+                        && payload.getIntValue("stream_sequence") == 1) {
+                    this.continuationReceived.countDown();
+                    try {
+                        if (!this.releaseContinuation.await(5, TimeUnit.SECONDS)) {
+                            throw new IOException("Timed out waiting to release continuation");
+                        }
+                    } catch (InterruptedException exception) {
+                        Thread.currentThread().interrupt();
+                        throw new IOException("Interrupted while holding continuation", exception);
+                    }
+                }
                 if (failContinuation
                         && payload.getBooleanValue("streaming")
                         && payload.getIntValue("stream_sequence") == 1) {
@@ -311,6 +393,97 @@ final class DoubaoArkClientStreamingTest {
         }
     }
 
+    private static void testStaleTtsDecisionCannotFinishCurrentOwner() throws Exception {
+        resetTtsController();
+        Object oldDecision = acquireTts("old reply", "NORMAL");
+        Object newDecision = acquireTts("navigation reply", "URGENT");
+
+        check(isCurrentTts(newDecision), "new urgent TTS decision becomes the current owner");
+        check(!isCurrentTts(oldDecision), "older streaming decision loses ownership");
+        finishStreamingDecision(oldDecision);
+        check(isCurrentTts(newDecision) && requestInFlight(),
+                "finishing a stale stream cannot clear the newer request state");
+        finishStreamingDecision(newDecision);
+        check(!requestInFlight(), "the owning decision can finish its request state");
+    }
+
+    private static void testNormalSpeechPreemptsStreamWithoutFullReplyFallback()
+            throws Exception {
+        resetTtsController();
+        Rig rig = new Rig(false, false);
+        try {
+            AppConfig config = config(
+                    rig.baseUrl() + "/chat/completions", rig.baseUrl(), true);
+            LingxiNavAgentApp.StreamingTtsSession session =
+                    new LingxiNavAgentApp.StreamingTtsSession(
+                            "stream-preempted", config, new NavBridgeClient(config));
+            NavigationIntent intent = new DoubaoArkClient(config).parseInteractionStreaming(
+                    "tell me something", List.of(), session::accept);
+
+            Object newerDecision = acquireTts("new normal chat reply", "NORMAL");
+            check(isCurrentTts(newerDecision),
+                    "a new normal chat TTS decision takes ownership from the active stream");
+            check(session.complete(intent.reply, intent.reply),
+                    "a preempted stream suppresses its full-reply fallback");
+            check(rig.speechRequests.size() == 2,
+                    "preemption closes the stream without submitting a full-reply fallback");
+            check("end".equals(rig.speechRequests.get(1).getString("stream_action")),
+                    "the preempted stream sends its close before returning");
+            check(isCurrentTts(newerDecision) && requestInFlight(),
+                    "old stream completion leaves the normal request owner intact");
+            finishStreamingDecision(newerDecision);
+        } finally {
+            rig.close();
+        }
+    }
+
+    private static void testInFlightContinuationFailureCannotFallbackAfterPreemption()
+            throws Exception {
+        resetTtsController();
+        Rig rig = new Rig(false, false, true, true);
+        AtomicBoolean completeResult = new AtomicBoolean();
+        AtomicReference<Throwable> completionFailure = new AtomicReference<>();
+        try {
+            AppConfig config = config(
+                    rig.baseUrl() + "/chat/completions", rig.baseUrl(), true);
+            LingxiNavAgentApp.StreamingTtsSession session =
+                    new LingxiNavAgentApp.StreamingTtsSession(
+                            "stream-inflight-preempted", config, new NavBridgeClient(config));
+            NavigationIntent intent = new DoubaoArkClient(config).parseInteractionStreaming(
+                    "tell me something", List.of(), session::accept);
+
+            Thread completion = new Thread(() -> {
+                try {
+                    completeResult.set(session.complete(intent.reply, intent.reply));
+                } catch (Throwable failure) {
+                    completionFailure.set(failure);
+                }
+            });
+            completion.start();
+            check(rig.continuationReceived.await(5, TimeUnit.SECONDS),
+                    "continuation reaches the bridge before preemption");
+            Object newerDecision = acquireTts("new normal chat reply", "NORMAL");
+            rig.releaseContinuation.countDown();
+            completion.join(5000);
+
+            check(!completion.isAlive(), "completion exits after the in-flight request returns");
+            check(completionFailure.get() == null,
+                    "the in-flight continuation completes without an unexpected exception");
+            check(completeResult.get(),
+                    "preemption suppresses fallback after the continuation failure");
+            check(rig.speechRequests.size() == 3,
+                    "only first segment, in-flight continuation, and close are submitted");
+            check("end".equals(rig.speechRequests.get(2).getString("stream_action")),
+                    "the old stream closes while its continuation is in flight");
+            check(isCurrentTts(newerDecision) && requestInFlight(),
+                    "late stream completion cannot clear the newer TTS owner");
+            finishStreamingDecision(newerDecision);
+        } finally {
+            rig.releaseContinuation.countDown();
+            rig.close();
+        }
+    }
+
     public static void main(String[] args) throws Exception {
         AppConfig defaults = config(
                 "http://127.0.0.1:1/chat/completions", "http://127.0.0.1:1", false);
@@ -320,6 +493,9 @@ final class DoubaoArkClientStreamingTest {
         testTruncatedSseDiscardsUncommittedSegments();
         testHttpFailureBeforeSpeechRetriesNonStreaming();
         testContinuationFailureFallsBackToFinalReply();
+        testStaleTtsDecisionCannotFinishCurrentOwner();
+        testNormalSpeechPreemptsStreamWithoutFullReplyFallback();
+        testInFlightContinuationFailureCannotFallbackAfterPreemption();
         System.out.println("DoubaoArkClientStreamingTest passed: " + checks + " assertions");
     }
 }

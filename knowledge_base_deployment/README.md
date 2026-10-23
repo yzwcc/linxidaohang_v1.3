@@ -1,6 +1,6 @@
 # 灵心知识库检索与语音接入部署包
 
-版本：`sparkrobot-lingxi-kb-1.0.8-20261023`
+版本：`sparkrobot-lingxi-kb-1.0.9-20261023`
 
 本包包含两部分：独立 Retriever Proxy 服务，以及 Java Agent 知识库/语音接入更新。流式语音回复默认关闭；机器人端 PlayTts 队列行为未经现场验证前，不应开启。它不包含导航、地图、AIMDK 或直播项目配置。
 
@@ -24,7 +24,7 @@
 在机器人 `run` 账号执行：
 
 ```bash
-cd /home/run/sparkrobot-lingxi-kb-1.0.8-20261023
+cd /home/run/sparkrobot-lingxi-kb-1.0.9-20261023
 sudo ./install.sh --from-lingxi --agent-code AI_AGENT_你的智能体Code
 sudo ./install_voice_agent.sh
 ```
@@ -109,14 +109,16 @@ sudo /usr/local/sbin/sparkrobot-lingxi-kb uninstall
 
 若现场明确选择试用，先用 `sudo systemctl show -p WorkingDirectory --value lingxi-java-agent-robot.service` 确认 Java Agent 工作目录，再备份并编辑该目录下 `config/lingxi-nav.properties`，增加 `doubao.streamingReplies=true`，然后重启 `lingxi-java-agent-robot.service`。先在安全环境测试普通闲聊、模型 503、流中断、TTS 第二段拒绝、下一轮语音输入和既有导航/讲解；任何队列错序、重复播报或打断异常都应立即恢复 `false` 并重启服务。构建机假 HTTP 服务测试不能替代机器人实机声学与 AIMDK 队列验收。
 
-开启后首段采用 interrupt，其余分段按序提交且不打断前段；模型在首段播报前失败时回退到非流式请求，首段播出后模型流中断则播报简短中断提示，TTS 续段失败则尝试用完整最终答复替换部分播报。上述路径不修改既有 TTS 延迟配置。排查延迟时通过 `sudo journalctl -u lingxi-java-agent-robot.service --since "30 min ago" --no-pager` 检查 `Doubao streaming request completed`、`Robot streaming TTS segment accepted`、`Doubao request completed`、`Knowledge lookup finished`、`Text chat answer source` 和 `Robot TTS dispatch timing`，并使用同一 `eventId` 对齐阶段。
+开启后首段采用 interrupt，其余分段按序提交且不打断前段；模型在首段播报前失败时回退到非流式请求，首段播出后模型流中断则播报简短中断提示。续段发生明确失败时，只有原 TTS 决策仍拥有播报权才用完整最终答复替换部分播报；会话已被抢占时抑制旧答复，不再回放。上述路径不修改既有 TTS 延迟配置。排查延迟时通过 `sudo journalctl -u lingxi-java-agent-robot.service --since "30 min ago" --no-pager` 检查 `Doubao streaming request completed`、`Robot streaming TTS segment accepted`、`Doubao request completed`、`Knowledge lookup finished`、`Text chat answer source` 和 `Robot TTS dispatch timing`，并使用同一 `eventId` 对齐阶段。
 
-### r13 命令路由、并行检索与流式回复
+### r14 命令路由、并行检索与流式回复
 
 - 明确的文本停止导航/停止讲解命令在意图模型请求前本地识别并提交；语音输入仍需先经过当前配置的音频转写回调，再执行同一停止命令匹配。
 - 导航别名歧义清单来自当前活动地图；文本或转写文本命中歧义别名时只播报澄清问题，不提交导航。
 - ASR 置信度低于门槛时拒绝执行普通命令；在机器人 TTS 模式下提示“刚才没有听清，请再说一遍。”开始和继续讲解不能绕过该门控。明确停止命令仍优先处理。
 - 本地/实时事实问题在启动意图解析的同时提交知识检索。检索池固定为 2 个工作线程、4 个排队位；队列满时，在意图解析完成后串行检索，不无限创建线程。实际收益取决于模型和检索服务的耗时。
+- PlayTts 服务等待在锁外进行；真正 `call_async` 时原子重验会话代次。停止先到会封存 stream ID，迟到首段不能复活；新流或普通新播报会拒绝旧流续段。
+- Java TTS 决策使用 owner token；旧会话的迟到回调不能清除新请求状态，也不能在失去所有权后播完整旧答复。当前 owner 下的明确续段失败仍保留完整答复替换路径。
 
 ## 语音交互拒识策略
 
@@ -157,4 +159,4 @@ voice.gate.sessionWindowMs=8000
 
 支持动作：挥手、握手、举手、飞吻、比心、击掌、敬礼、平举、拥抱、加油、鼓掌、双手打叉、胸前挥手、鞠躬、拜拜、动感光波、挠头、抓屁股。例如可以在正常唤醒后说“请和我握个手”或“请双手比心”。只有导航空闲且没有进行或暂停中的讲解任务时才会提交；问句、否定、引用/转述和条件表达不会触发，直播弹幕不支持触发动作。
 
-机器人回复“已受理/已提交”只表示动作请求进入服务，不保证动作已经完成。此 Java Agent 需要搭配导航增量包 `sparkrobot-lingxi-consecutive-nav-fix-1.0.4-20261023` 才能调用机器人动作桥接接口；单独升级知识库包不会安装导航端接口。
+机器人回复“已受理/已提交”只表示动作请求进入服务，不保证动作已经完成。此 Java Agent 需要搭配导航增量包 `sparkrobot-lingxi-consecutive-nav-fix-1.0.5-20261023` 才能调用机器人动作桥接接口；单独升级知识库包不会安装导航端接口。

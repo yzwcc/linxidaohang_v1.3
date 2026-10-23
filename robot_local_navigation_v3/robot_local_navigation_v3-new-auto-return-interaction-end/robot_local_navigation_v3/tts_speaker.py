@@ -38,6 +38,7 @@ class TtsSpeaker:
         priority_weight: int = 0,
         trace_id: str | None = None,
         done_callback: Callable[[object], None] | None = None,
+        request_submitter: Callable[[Callable[[], object]], object] | None = None,
     ):
         text = str(text or "").strip()
         if not text:
@@ -55,7 +56,10 @@ class TtsSpeaker:
         request.tts_req.trace_id = trace_id or self._make_trace_id()
         request.tts_req.is_interrupted = bool(interrupt)
 
-        future = self.client.call_async(request)
+        submit = lambda: self.client.call_async(request)
+        future = request_submitter(submit) if request_submitter is not None else submit()
+        if future is None:
+            return None
         if done_callback is not None:
             future.add_done_callback(done_callback)
         else:

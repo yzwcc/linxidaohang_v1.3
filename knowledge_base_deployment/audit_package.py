@@ -8,13 +8,15 @@ import zipfile
 from pathlib import Path, PurePosixPath
 
 HERE = Path(__file__).resolve().parent
-VERSION = "1.0.8-20261023"
+VERSION = "1.0.9-20261023"
 NAME = f"sparkrobot-lingxi-kb-{VERSION}"
 ARCHIVE = HERE / "dist" / f"{NAME}.zip"
 VOICE_GATE_CLASSES = {
     "com/agibot/aiem/nav/AppConfig.class",
     "com/agibot/aiem/nav/LingxiNavAgentApp.class",
     "com/agibot/aiem/nav/LingxiNavAgentApp$StreamingTtsSession.class",
+    "com/agibot/aiem/nav/LingxiNavAgentApp$TtsController.class",
+    "com/agibot/aiem/nav/LingxiNavAgentApp$TtsDecision.class",
     "com/agibot/aiem/nav/LocalNavigationCommand.class",
     "com/agibot/aiem/nav/VoiceGate.class",
     "com/agibot/aiem/nav/WakeSessionGate.class",
@@ -56,10 +58,17 @@ RESPONSE_POLICY = {
     "streaming_replies_require_robot_tts_mode": True,
     "streaming_tts_first_segment_interrupts": True,
     "streaming_tts_continuations_ordered": True,
+    "streaming_tts_new_normal_reply_preempts_current_stream": True,
     "streaming_tts_queue_requires_robot_validation": True,
+    "streaming_tts_dispatch_revalidates_owner_after_service_wait": True,
+    "streaming_tts_stopped_stream_ids_rejected": True,
+    "streaming_tts_call_async_cancellation_supported_by_bridge": False,
+    "streaming_tts_end_action_stops_robot_playback": False,
+    "streaming_tts_preempted_full_reply_fallback": "suppressed",
+    "java_tts_decisions_use_owner_tokens": True,
     "streaming_model_failure_before_first_speech": "retry_non_streaming",
     "streaming_model_failure_after_first_speech": "urgent_interruption_prompt",
-    "streaming_tts_continuation_failure": "complete_final_reply",
+    "streaming_tts_continuation_failure": "complete_final_reply_if_owner_current",
     "tts_delay_changed": False,
     "known_point_navigation_fast_path": "exact_active_map_voice_name_before_intent_model",
     "raw_audio_navigation_still_requires_transcription_model": True,
