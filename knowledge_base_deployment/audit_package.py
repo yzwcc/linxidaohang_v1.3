@@ -8,7 +8,7 @@ import zipfile
 from pathlib import Path, PurePosixPath
 
 HERE = Path(__file__).resolve().parent
-VERSION = "1.0.9-20261023"
+VERSION = "1.0.10-20261023"
 NAME = f"sparkrobot-lingxi-kb-{VERSION}"
 ARCHIVE = HERE / "dist" / f"{NAME}.zip"
 VOICE_GATE_CLASSES = {
@@ -50,6 +50,8 @@ RESPONSE_POLICY = {
     "text_input_greetings_use_deterministic_reply": True,
     "local_or_current_facts_require_grounding": True,
     "unsupported_grounded_facts": "refuse",
+    "ordinary_general_questions_use_model_knowledge": True,
+    "generic_domain_terms_alone_require_grounding": False,
     "legacy_generated_qa_cache": "disabled_for_answer_selection",
     "text_chat_reuses_intent_reply": True,
     "blank_intent_reply_uses_chat_fallback": True,
@@ -154,6 +156,13 @@ def main() -> int:
                 raise RuntimeError(
                     "Java Agent 缺少交互拒识类：" + ", ".join(sorted(missing_gate))
                 )
+            prompt_class = agent.read("com/agibot/aiem/nav/DoubaoArkClient.class")
+            if (
+                "使用模型已有知识正常回答".encode("utf-8") not in prompt_class
+                or "不要因为当前上下文或知识库没有提供常识答案而拒答".encode("utf-8")
+                not in prompt_class
+            ):
+                raise RuntimeError("Java Agent 未包含普通问题由大模型回答的提示策略")
             if "com/agibot/aiem/nav/KnowledgeAnswerPolicyTest.class" in agent.namelist():
                 raise RuntimeError("知识库 Java Agent 不应包含回归测试类")
         for marker in (b"St87591540", b"ROBOT_SSH_PASSWORD=1", b"1.0.6"):

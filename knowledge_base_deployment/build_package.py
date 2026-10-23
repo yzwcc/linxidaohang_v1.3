@@ -12,7 +12,7 @@ import zipfile
 from pathlib import Path, PurePosixPath
 
 HERE = Path(__file__).resolve().parent
-VERSION = "1.0.9-20261023"
+VERSION = "1.0.10-20261023"
 NAME = f"sparkrobot-lingxi-kb-{VERSION}"
 DIST = HERE / "dist"
 PRESET_MOTION_NAMES = (
@@ -40,7 +40,7 @@ JAVA_AGENT_DIR = (
     / "robot_local_nav_java-new-java-interaction-end-hook"
 )
 JAVA_AGENT_BUILDER = JAVA_AGENT_DIR / "build_voice_gate_agent.py"
-JAVA_AGENT_JAR = JAVA_AGENT_DIR / "target" / "robot-local-navigation-java-0.1.0-all-kb-voice-stream-preemption-r14-20261023.jar"
+JAVA_AGENT_JAR = JAVA_AGENT_DIR / "target" / "robot-local-navigation-java-0.1.0-all-kb-voice-general-qa-r15-20261023.jar"
 
 
 def digest(path: Path) -> str:
@@ -96,6 +96,8 @@ def main() -> int:
                 "text_input_greetings_use_deterministic_reply": True,
                 "local_or_current_facts_require_grounding": True,
                 "unsupported_grounded_facts": "refuse",
+                "ordinary_general_questions_use_model_knowledge": True,
+                "generic_domain_terms_alone_require_grounding": False,
                 "legacy_generated_qa_cache": "disabled_for_answer_selection",
                 "text_chat_reuses_intent_reply": True,
                 "blank_intent_reply_uses_chat_fallback": True,

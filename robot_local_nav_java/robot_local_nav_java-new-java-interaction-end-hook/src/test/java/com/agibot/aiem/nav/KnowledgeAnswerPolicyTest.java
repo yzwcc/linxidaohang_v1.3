@@ -39,6 +39,18 @@ final class KnowledgeAnswerPolicyTest {
                 "robot state requires grounding");
         check(KnowledgeAnswerPolicy.requiresGrounding("机器人能不能跳舞？"),
                 "robot capability questions require grounding");
+        check(!KnowledgeAnswerPolicy.requiresGrounding("什么是机器人？"),
+                "general definitions about robots use model knowledge");
+        check(!KnowledgeAnswerPolicy.requiresGrounding("机器人为什么能够自主移动？"),
+                "general questions about robot principles use model knowledge");
+        check(!KnowledgeAnswerPolicy.requiresGrounding("你觉得机器人会不会思考？"),
+                "general opinion questions about robots use model knowledge");
+        check(!KnowledgeAnswerPolicy.requiresGrounding("导航系统的基本原理是什么？"),
+                "general navigation concepts use model knowledge");
+        check(!KnowledgeAnswerPolicy.requiresGrounding("产品生命周期是什么？"),
+                "general product concepts use model knowledge");
+        check(!KnowledgeAnswerPolicy.requiresGrounding("这种设备是如何工作的？"),
+                "general equipment questions use model knowledge");
         check(!KnowledgeAnswerPolicy.requiresGrounding("为什么天空是蓝色的？"),
                 "general knowledge is not treated as a local fact");
         check(KnowledgeAnswerPolicy.GROUNDED_FALLBACK.equals(
@@ -53,6 +65,12 @@ final class KnowledgeAnswerPolicyTest {
                         KnowledgeAnswerPolicy.chooseReply(
                                 "为什么天空是蓝色的？", "天空呈蓝色主要与光的散射有关。", null)),
                 "general conversational answer is preserved");
+        check("机器人通过传感器感知环境，并结合算法进行移动。".equals(
+                        KnowledgeAnswerPolicy.chooseReply(
+                                "什么是机器人？",
+                                "机器人通过传感器感知环境，并结合算法进行移动。",
+                                null)),
+                "general model answer is preserved when no knowledge base answer exists");
         check(KnowledgeAnswerPolicy.chooseReply("讲个故事", "", null)
                         .equals("抱歉，我刚才没有听清楚，请再说一遍。"),
                 "empty model result uses a fixed recovery response");

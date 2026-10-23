@@ -1,6 +1,6 @@
 # 灵犀 v1.3.1 完整部署包
 
-版本：v1.3.1-complete-20261023-r14
+版本：v1.3.1-complete-20261023-r15
 适用对象：内部部署人员  
 目标系统：Ubuntu 22.04 ARM64、ROS 2 Humble、智元 X2 系列机器人
 
@@ -12,8 +12,10 @@
 - 导航主包：sparkrobot-lingxi-nav-internal-1.0.7-20260901。
 - 地图服务、导航 bridge、网页控制台、语音兼容网关和灵心 Java Agent。
 - 灵创动作、表情和可选舞蹈资源编排能力：1.0.3-20260902。
-- 灵心知识库检索和语音接入：sparkrobot-lingxi-kb-1.0.9-20261023。
-- 回答提速与事实约束：点位列表 10 秒缓存；跳过普通闲聊的额外检索；文本问答复用首轮意图解析答复；本地/实时事实优先检索，低相关或无资料时明确拒答。
+- 灵心知识库检索和语音接入：sparkrobot-lingxi-kb-1.0.10-20261023。
+- 普通常识、科学原理、语言、历史、观点和开放问题使用模型已有知识正常回答；不因当前对话或知识库没有给出常识资料而拒答。
+- 本机机器人专属状态/能力、具体场馆/企业/地点资料和实时事实才要求知识库依据；无命中、低相关或检索超时时不猜测。
+- 回答提速：点位列表 10 秒缓存，文本问答复用首轮大模型意图解析答复；本地/实时事实检索与意图解析并行。
 - 已知地图点位的明确文本导航命令会先按当前地图语音名称和别名精确匹配，命中后跳过一次意图模型请求；未知或非明确表达仍走原模型路径。
 - 当前地图中重名语音别名会触发澄清，不会提交导航；明确文本停止指令在意图模型调用前分流，音频输入仍先经过原有转写链路。
 - 低 ASR 置信度时不执行普通命令并提示重说；本地事实检索与意图解析并行，检索队列有界，队列满时串行回退。
@@ -40,8 +42,8 @@
 
 ~~~powershell
 $RobotIp = "172.20.10.2"
-$Package = ".\lingxi-v1.3.1-complete-20261023-r14-deployment.tar.gz"
-$Checksum = ".\lingxi-v1.3.1-complete-20261023-r14-deployment.tar.gz.sha256"
+$Package = ".\lingxi-v1.3.1-complete-20261023-r15-deployment.tar.gz"
+$Checksum = ".\lingxi-v1.3.1-complete-20261023-r15-deployment.tar.gz.sha256"
 scp $Package ("run@" + $RobotIp + ":/home/run/")
 scp $Checksum ("run@" + $RobotIp + ":/home/run/")
 ~~~
@@ -50,9 +52,9 @@ scp $Checksum ("run@" + $RobotIp + ":/home/run/")
 
 ~~~bash
 cd /home/run
-sha256sum -c lingxi-v1.3.1-complete-20261023-r14-deployment.tar.gz.sha256
-tar -xzf lingxi-v1.3.1-complete-20261023-r14-deployment.tar.gz
-cd lingxi-v1.3.1-complete-20261023-r14-deployment
+sha256sum -c lingxi-v1.3.1-complete-20261023-r15-deployment.tar.gz.sha256
+tar -xzf lingxi-v1.3.1-complete-20261023-r15-deployment.tar.gz
+cd lingxi-v1.3.1-complete-20261023-r15-deployment
 chmod +x install_all.sh control_all.sh
 bash ./install_all.sh prepare
 ~~~
@@ -74,7 +76,7 @@ bash ./01-replace-aimdk.sh
 ### 4. run 用户安装导航主包
 
 ~~~bash
-cd /home/run/lingxi-v1.3.1-complete-20261023-r14-deployment
+cd /home/run/lingxi-v1.3.1-complete-20261023-r15-deployment
 bash ./install_all.sh install-navigation
 ~~~
 
@@ -111,7 +113,7 @@ http://机器人当前IP:3000/console/
 ## 文档
 
 - 完整部署教程：docs/灵犀完整部署教程-v1.3.1-complete.md。内容包括上传、安装、验收、排障和回滚。
-- 已有 AIMDK 部署说明：docs/已有AIMDK部署说明-v1.3.1-r14.md。该路径保留现有 `/home/agi/aimdk`，跳过 AIMDK 替换。
+- 已有 AIMDK 部署说明：docs/已有AIMDK部署说明-v1.3.1-r15.md。该路径保留现有 `/home/agi/aimdk`，跳过 AIMDK 替换。
 - 客户日常使用手册：docs/客户日常使用手册-v1.3.1.md。面向没有电脑基础的客户。
 
 ## 交付前检查
@@ -130,8 +132,8 @@ python .\integrated_deployment\audit_package.py
 交付给 Linux 机器人优先使用：
 
 ~~~text
-integrated_deployment/dist/lingxi-v1.3.1-complete-20261023-r14-deployment.tar.gz
-integrated_deployment/dist/lingxi-v1.3.1-complete-20261023-r14-deployment.tar.gz.sha256
+integrated_deployment/dist/lingxi-v1.3.1-complete-20261023-r15-deployment.tar.gz
+integrated_deployment/dist/lingxi-v1.3.1-complete-20261023-r15-deployment.tar.gz.sha256
 ~~~
 
 ZIP 可用于 Windows 传输或查看，但机器人端仍建议使用 TAR.GZ。每台新机器人都必须独立完成定位、急停、短距离导航和语音验收；离线审计不能替代现场安全验收。
@@ -142,7 +144,7 @@ ZIP 可用于 Windows 传输或查看，但机器人端仍建议使用 TAR.GZ。
 
 ## 语音回答策略
 
-普通文本问答会复用首轮意图解析中的最终答复；首轮未提供答复时才走聊天兜底。机器人专属、场馆和实时事实先查知识库，低于 0.60 分或超时则明确表示无法核实；事实检索与意图解析并行，使用 2 个工作线程和 4 个排队位，队列满时串行回退。该策略降低无依据回答的概率，但不等同于零幻觉保证。明确文本停止指令会在意图模型调用前本地分流；低 ASR 置信度的普通命令会提示重说。本地导航快速路径只优化已经得到的识别文本；原始音频仍需调用当前配置的转写/意图模型。可选流式回复默认关闭，不改变原有 800 ms 播报等待。完整策略和延迟日志见部署教程第 10.4 至 10.7、15 节。
+普通问答由首轮意图解析大模型生成并复用；首轮答复为空时才调用聊天兜底。普通常识、科学原理、语言、历史、观点和开放问题使用模型已有知识正常回答，不要求知识库命中。只有本机机器人专属状态/能力、具体场馆/企业/地点资料和实时事实才要求检索依据；低于 0.60 分或超时会明确表示无法核实。该边界降低无依据现场事实的风险，不等同于零幻觉保证。明确文本停止指令会在意图模型调用前本地分流；低 ASR 置信度的普通命令会提示重说。本地导航快速路径只优化已经得到的识别文本；原始音频仍需调用当前配置的转写/意图模型。可选流式回复默认关闭，不改变原有 800 ms 播报等待。完整策略和延迟日志见部署教程第 10.4 至 10.7、15 节。
 
 ## R14 流式会话保护
 

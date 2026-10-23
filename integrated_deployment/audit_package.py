@@ -14,7 +14,7 @@ from pathlib import Path, PurePosixPath
 
 
 HERE = Path(__file__).resolve().parent
-VERSION = "1.3.1-complete-20261023-r14"
+VERSION = "1.3.1-complete-20261023-r15"
 NAME = f"lingxi-v{VERSION}-deployment"
 DIST = HERE / "dist"
 REQUIRED = {
@@ -26,11 +26,11 @@ REQUIRED = {
     "control_all.sh",
     "docs/灵犀完整部署教程-v1.3.1-complete.md",
     "docs/客户日常使用手册-v1.3.1.md",
-    "docs/已有AIMDK部署说明-v1.3.1-r14.md",
+    "docs/已有AIMDK部署说明-v1.3.1-r15.md",
     "components/lingxi-v1.3.1-full-deployment-20260901.zip",
     "components/aimdk-aarch64-1bde262f-artifacts.7z",
     "components/sparkrobot-lingxi-nav-internal-1.0.7-20260901.tar.gz",
-    "components/sparkrobot-lingxi-kb-1.0.9-20261023.zip",
+    "components/sparkrobot-lingxi-kb-1.0.10-20261023.zip",
     "components/sparkrobot-lingxi-linkcraft-addon-1.0.3-20260902.tar.gz",
     "components/sparkrobot-lingxi-consecutive-nav-fix-1.0.5-20261023.tar.gz",
 }
@@ -41,7 +41,7 @@ LINUX_TEXT_FILES = {
     "README.md",
     "docs/灵犀完整部署教程-v1.3.1-complete.md",
     "docs/客户日常使用手册-v1.3.1.md",
-    "docs/已有AIMDK部署说明-v1.3.1-r14.md",
+    "docs/已有AIMDK部署说明-v1.3.1-r15.md",
 }
 BASE_BUNDLE = "lingxi-v1.3.1-full-deployment-20260901.zip"
 BASE_ROOT = "lingxi-v1.3.1-full-deployment-20260901"
@@ -57,16 +57,18 @@ INSTALLER_REQUIRED_SNIPPETS = (
     'sudo rm -rf -- "${staging}"',
     'sudo bash "${LINKCRAFT_ROOT}/install.sh" --no-restart',
     'sudo bash "${FIX_ROOT}/install.sh"',
-    'KB_NAME="sparkrobot-lingxi-kb-1.0.9-20261023.zip"',
-    'KB_ROOT="${staging}/sparkrobot-lingxi-kb-1.0.9-20261023"',
+    'KB_NAME="sparkrobot-lingxi-kb-1.0.10-20261023.zip"',
+    'KB_ROOT="${staging}/sparkrobot-lingxi-kb-1.0.10-20261023"',
     'FIX_NAME="sparkrobot-lingxi-consecutive-nav-fix-1.0.5-20261023.tar.gz"',
     'FIX_ROOT="${staging}/sparkrobot-lingxi-consecutive-nav-fix-1.0.5-20261023"',
     "repair-permissions",
     "sudo systemctl restart lingxi-nav-console.service",
 )
 README_REQUIRED_SNIPPETS = (
-    "v1.3.1-complete-20261023-r14",
-    "sparkrobot-lingxi-kb-1.0.9-20261023",
+    "v1.3.1-complete-20261023-r15",
+    "sparkrobot-lingxi-kb-1.0.10-20261023",
+    "普通常识、科学原理、语言、历史、观点和开放问题",
+    "使用模型已有知识正常回答",
     "doubao.streamingReplies",
     "PlayTts",
     "stream ID",
@@ -81,10 +83,10 @@ README_REQUIRED_SNIPPETS = (
     "停止指令",
 )
 GUIDE_REQUIRED_SNIPPETS = (
-    "v1.3.1-complete-20261023-r14",
-    "sparkrobot-lingxi-kb-1.0.9-20261023",
+    "v1.3.1-complete-20261023-r15",
+    "sparkrobot-lingxi-kb-1.0.10-20261023",
     "### 10.5 已知点位导航快速路径",
-    "r14 仍未实现端侧离线 ASR",
+    "r15 仍未实现端侧离线 ASR",
     "### 10.6 命令路由与并行检索",
     "### 10.7 可选流式回复",
     "### 10.8 流式会话所有权保护",
@@ -96,13 +98,16 @@ GUIDE_REQUIRED_SNIPPETS = (
     "stream_action=end",
     "不具备撤回或停止能力",
     "该值会保留",
+    "不要因为当前上下文或知识库没有提供常识答案而拒答",
 )
 AIMDK_GUIDE_REQUIRED_SNIPPETS = (
-    "v1.3.1-complete-20261023-r14",
+    "v1.3.1-complete-20261023-r15",
     "保留现有 `/home/agi/aimdk`",
     "该脚本用于编译并替换 AIMDK",
-    "sparkrobot-lingxi-kb-1.0.9-20261023",
+    "sparkrobot-lingxi-kb-1.0.10-20261023",
     "sparkrobot-lingxi-consecutive-nav-fix-1.0.5-20261023",
+    "普通常识、科学原理、语言、历史、观点和开放问题",
+    "使用模型已有知识正常回答",
     "doubao.streamingReplies=false",
     'CONFIG="${AGENT_WORKDIR}/config/lingxi-nav.properties"',
     "AIMDK PlayTts 连续队列",
@@ -271,7 +276,7 @@ die() { echo "$*" >&2; exit 1; }
 realpath() {
   [[ "${1:-}" == "-m" && "${2:-}" == "--" ]] || return 2
   case "${3:-}" in
-    /home/run/r14) printf '%s\n' /home/run/r14 ;;
+    /home/run/r15) printf '%s\n' /home/run/r15 ;;
     /home/run) printf '%s\n' /home/run ;;
     /home/run/../outside) printf '%s\n' /home/outside ;;
     /home/run/../../tmp) printf '%s\n' /tmp ;;
@@ -281,10 +286,10 @@ realpath() {
 }
 source <(sed -n '/^assert_work_root() {/,/^}/p' "$1")
 BASE_ROOT=/stale
-WORK_ROOT=/home/run/r14
+WORK_ROOT=/home/run/r15
 assert_work_root
-[[ "${WORK_ROOT}" == /home/run/r14 ]]
-[[ "${BASE_ROOT}" == /home/run/r14/base/lingxi-v1.3.1-full-deployment-20260901 ]]
+[[ "${WORK_ROOT}" == /home/run/r15 ]]
+[[ "${BASE_ROOT}" == /home/run/r15/base/lingxi-v1.3.1-full-deployment-20260901 ]]
 for candidate in /home/run /home/run/../outside /home/run/../../tmp /home/run/link; do
   if ( WORK_ROOT="${candidate}"; assert_work_root ) >/dev/null 2>&1; then
     echo "WORK_ROOT escaped its allowed directory: ${candidate}" >&2
@@ -311,7 +316,7 @@ def audit_addon_path_collisions(reader) -> None:
     components = (
         ("LinkCraft", "components/sparkrobot-lingxi-linkcraft-addon-1.0.3-20260902.tar.gz", "tar"),
         ("连续导航修复", "components/sparkrobot-lingxi-consecutive-nav-fix-1.0.5-20261023.tar.gz", "tar"),
-        ("知识库", "components/sparkrobot-lingxi-kb-1.0.9-20261023.zip", "zip"),
+        ("知识库", "components/sparkrobot-lingxi-kb-1.0.10-20261023.zip", "zip"),
     )
     extracted_paths: list[tuple[str, set[str]]] = []
     for label, relative, kind in components:
@@ -352,13 +357,13 @@ def audit_documentation(reader) -> None:
     documents = {
         "README.md": README_REQUIRED_SNIPPETS,
         "docs/灵犀完整部署教程-v1.3.1-complete.md": GUIDE_REQUIRED_SNIPPETS,
-        "docs/已有AIMDK部署说明-v1.3.1-r14.md": AIMDK_GUIDE_REQUIRED_SNIPPETS,
+        "docs/已有AIMDK部署说明-v1.3.1-r15.md": AIMDK_GUIDE_REQUIRED_SNIPPETS,
     }
     for relative, snippets in documents.items():
         text = reader(f"{NAME}/{relative}").decode("utf-8")
         missing = [snippet for snippet in snippets if snippet not in text]
         if missing:
-            raise RuntimeError(f"部署文档 {relative} 缺少 r14 说明：{missing}")
+            raise RuntimeError(f"部署文档 {relative} 缺少 r15 说明：{missing}")
 
 
 def audit_fix_component(reader) -> None:
@@ -417,14 +422,14 @@ def audit_fix_component(reader) -> None:
 
 
 def audit_kb_component(reader) -> None:
-    name = "sparkrobot-lingxi-kb-1.0.9-20261023.zip"
+    name = "sparkrobot-lingxi-kb-1.0.10-20261023.zip"
     with zipfile.ZipFile(io.BytesIO(reader(f"{NAME}/components/{name}"))) as archive:
-        root = "sparkrobot-lingxi-kb-1.0.9-20261023/"
+        root = "sparkrobot-lingxi-kb-1.0.10-20261023/"
         manifest = json.loads(archive.read(f"{root}manifest.json"))
-        if manifest.get("version") != "1.0.9-20261023":
+        if manifest.get("version") != "1.0.10-20261023":
             raise RuntimeError("知识库组件版本不正确")
         release_info = archive.read(f"{root}release-info.txt").decode("utf-8")
-        if "VERSION=1.0.9-20261023" not in release_info:
+        if "VERSION=1.0.10-20261023" not in release_info:
             raise RuntimeError("知识库 release-info.txt 版本不正确")
         expected_response_policy = {
             "point_names_cache_ttl_ms": 10000,
@@ -435,6 +440,8 @@ def audit_kb_component(reader) -> None:
             "text_input_greetings_use_deterministic_reply": True,
             "local_or_current_facts_require_grounding": True,
             "unsupported_grounded_facts": "refuse",
+            "ordinary_general_questions_use_model_knowledge": True,
+            "generic_domain_terms_alone_require_grounding": False,
             "legacy_generated_qa_cache": "disabled_for_answer_selection",
             "text_chat_reuses_intent_reply": True,
             "blank_intent_reply_uses_chat_fallback": True,
@@ -530,6 +537,13 @@ def audit_kb_component(reader) -> None:
             raise RuntimeError(
                 f"知识库 Java Agent 缺少交互拒识类：{sorted(missing)}"
             )
+        prompt_class = agent.read("com/agibot/aiem/nav/DoubaoArkClient.class")
+        if (
+            "使用模型已有知识正常回答".encode("utf-8") not in prompt_class
+            or "不要因为当前上下文或知识库没有提供常识答案而拒答".encode("utf-8")
+            not in prompt_class
+        ):
+            raise RuntimeError("知识库 Java Agent 未包含普通问题由大模型回答的提示策略")
 
 
 def audit_base_bundle(reader) -> None:

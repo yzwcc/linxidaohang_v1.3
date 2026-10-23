@@ -1,6 +1,6 @@
 # 灵心知识库检索与语音接入部署包
 
-版本：`sparkrobot-lingxi-kb-1.0.9-20261023`
+版本：`sparkrobot-lingxi-kb-1.0.10-20261023`
 
 本包包含两部分：独立 Retriever Proxy 服务，以及 Java Agent 知识库/语音接入更新。流式语音回复默认关闭；机器人端 PlayTts 队列行为未经现场验证前，不应开启。它不包含导航、地图、AIMDK 或直播项目配置。
 
@@ -13,7 +13,8 @@
 - `GET /health` 健康检查。
 - `kb-search` 命令行查询。
 - 独立 systemd 服务，监听机器人本机 `127.0.0.1:18084`。
-- Java Agent 对本地/实时事实使用知识库支撑回答；普通聊天复用意图解析的首轮答复。
+- 普通常识、科学原理、语言、历史、观点和开放问题由大模型使用已有知识回答，不要求知识库命中；首轮意图解析答复会直接复用。
+- 只有本机机器人专属状态/能力、具体场馆/企业/地点资料和实时事实要求知识库依据；无依据时才拒绝猜测。
 - 对当前活动地图中精确匹配的明确文本导航命令，先走本地规则并跳过一次意图模型请求；原始音频仍需模型转写。
 - Java Agent 集成 V1.3.8 输入拒识策略：填充词/重复片段/播报回声过滤、可用质量元数据校验和真实唤醒会话门控。
 - Java Agent 支持 18 种明确语音祈使口令的预置动作识别，并对问句、否定、引用和条件表达拒识。
@@ -24,7 +25,7 @@
 在机器人 `run` 账号执行：
 
 ```bash
-cd /home/run/sparkrobot-lingxi-kb-1.0.9-20261023
+cd /home/run/sparkrobot-lingxi-kb-1.0.10-20261023
 sudo ./install.sh --from-lingxi --agent-code AI_AGENT_你的智能体Code
 sudo ./install_voice_agent.sh
 ```
@@ -111,7 +112,13 @@ sudo /usr/local/sbin/sparkrobot-lingxi-kb uninstall
 
 开启后首段采用 interrupt，其余分段按序提交且不打断前段；模型在首段播报前失败时回退到非流式请求，首段播出后模型流中断则播报简短中断提示。续段发生明确失败时，只有原 TTS 决策仍拥有播报权才用完整最终答复替换部分播报；会话已被抢占时抑制旧答复，不再回放。上述路径不修改既有 TTS 延迟配置。排查延迟时通过 `sudo journalctl -u lingxi-java-agent-robot.service --since "30 min ago" --no-pager` 检查 `Doubao streaming request completed`、`Robot streaming TTS segment accepted`、`Doubao request completed`、`Knowledge lookup finished`、`Text chat answer source` 和 `Robot TTS dispatch timing`，并使用同一 `eventId` 对齐阶段。
 
-### r14 命令路由、并行检索与流式回复
+### R15 普通问答与事实分流修正
+
+R15 修复普通问题被泛化提示拒答的问题。普通常识、科学原理、语言、历史、观点和开放问题由大模型正常回答；不会因为当前上下文或知识库没有对应条目就回复“无法核实”。像“为什么天空是蓝色的？”或“什么是机器人？”这类概念题不会因“机器人”等普通主题词自动转成知识库拒答。
+
+只有本机机器人的专属状态/能力、具体场馆/企业/地点资料和实时事实才要求检索依据。对应问题在知识库无命中、低相关或超时时仍会明确表示无法核实，避免编造现场信息。答案使用模型已有知识不等于联网搜索或实时核验。
+
+### R14 命令路由、并行检索与流式回复
 
 - 明确的文本停止导航/停止讲解命令在意图模型请求前本地识别并提交；语音输入仍需先经过当前配置的音频转写回调，再执行同一停止命令匹配。
 - 导航别名歧义清单来自当前活动地图；文本或转写文本命中歧义别名时只播报澄清问题，不提交导航。

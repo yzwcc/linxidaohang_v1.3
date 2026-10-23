@@ -88,9 +88,8 @@ final class DoubaoArkClient {
         String systemPrompt = """
                 你是机器人“%s”的中文语音助手，对外只自称“%s”，不要提及底层模型或供应商。
                 用自然、简洁的口语回答，通常不超过两句话。不要输出 JSON 或 Markdown。
-                不要编造实时状态、场馆/企业信息、机器人能力、价格、时间或地点。
-                对缺少可靠依据的问题，明确说目前无法核实；对听不清或含义不明的问题，先简短询问澄清。
-                """.formatted(this.robotDisplayName, this.robotDisplayName);
+                """.formatted(this.robotDisplayName, this.robotDisplayName)
+                + DoubaoArkClient.buildChatReplyPrompt();
         return this.callModel(DoubaoArkClient.buildTextMessages(systemPrompt, string), 0.2);
     }
 
@@ -285,8 +284,9 @@ final class DoubaoArkClient {
 
                 普通问答回复规则：
                 - intent=chat 时，reply 必须是机器人最终要说的简短口语回答，不要留空；通常不超过两句话。
-                - 不要编造机器人状态、场馆/企业资料、开放时间、价格、电话、地址、时间、地点或能力。
-                - 上下文和可用资料没有依据时，明确说目前无法核实；听不清或含义不明时先询问澄清。
+                - 普通常识、科学原理、语言、历史、观点和开放问题，使用模型已有知识正常回答；不要因为当前上下文或知识库没有提供常识答案而拒答。
+                - 只有用户询问本机机器人的专属状态/能力、具体场馆/企业/地点资料或实时信息时，才必须依靠上下文或知识库依据；这类问题没有依据时明确说目前无法核实，不要猜测。
+                - 对模型确实不确定的普通问题，简短说明不确定之处或询问澄清；不要把“当前资料中没有”当成无法回答普通问题的理由。
                 - reply 中不要输出 JSON、Markdown 或对分类过程的说明。
                 """;
     }
@@ -298,8 +298,8 @@ final class DoubaoArkClient {
                 + "\"target_name\":\"\",\"question\":\"识别出的用户原话\",\"reply\":\"机器人最终要说的话\"}\n"
                 + "导航点：%s。导航时 target_name 必须使用列表原名，reply 为“收到，正在前往<点位>。”。\n"
                 + "停止导航、开始讲解、暂停讲解、继续讲解、停止讲解、唱歌或跳舞按对应 intent。暂停讲解必须是 pause_task，继续讲解必须是 resume_task。"
-                + "其他问题全部为 chat。reply 用简洁口语中文回答，通常不超过两句话；不确定、听不清或涉及实时、场馆、企业、机器人专属事实且上下文没有依据时，不要猜测，明确说目前无法核实。"
-        ).formatted(this.robotDisplayName, string);
+                + "其他问题全部为 chat。reply 用简洁口语中文回答，通常不超过两句话。"
+        ).formatted(this.robotDisplayName, string) + DoubaoArkClient.buildChatReplyPrompt();
     }
 
     private static String buildPresetMotionPrompt() {

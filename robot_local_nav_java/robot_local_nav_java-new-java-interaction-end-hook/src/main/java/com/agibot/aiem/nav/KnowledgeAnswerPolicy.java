@@ -8,10 +8,13 @@ final class KnowledgeAnswerPolicy {
             "这个信息我目前没有核实到可靠资料，不能确定地回答。请向现场工作人员确认。";
     private static final String UNCLEAR_FALLBACK = "抱歉，我刚才没有听清楚，请再说一遍。";
     private static final List<String> LOCAL_FACT_MARKERS = List.of(
-            "灵犀", "灵心", "火花", "机器人", "本机器人", "这台机器人", "这个机器人",
+            "灵犀", "灵心", "火花", "本机器人", "这台机器人", "这个机器人",
             "这里", "本馆", "展厅", "展馆", "场馆", "公司", "园区", "服务台", "前台", "接待台",
-            "展品", "会议室", "地图", "点位", "导航", "讲解", "产品", "设备", "洗手间",
+            "展品", "会议室", "点位", "洗手间",
             "卫生间", "厕所", "电梯", "楼梯", "入口", "出口", "停车场", "停车位", "楼层");
+    private static final List<String> ROBOT_CAPABILITY_MARKERS = List.of(
+            "能不能", "能否", "会不会", "可以不可以", "能做什么", "能干什么",
+            "有什么功能", "有哪些功能", "支持", "具备什么能力");
     private static final List<String> CURRENT_FACT_MARKERS = List.of(
             "今天", "现在", "当前", "目前", "最新", "刚才", "几点", "什么时候", "日期",
             "天气", "价格", "多少钱", "费用", "电话", "地址", "路线", "位置", "哪一层",
@@ -66,6 +69,11 @@ final class KnowledgeAnswerPolicy {
             return false;
         }
         if (containsAny(normalized, LOCAL_FACT_MARKERS)) {
+            return true;
+        }
+        if (containsAny(normalized, List.of("机器人"))
+                && containsAny(normalized, ROBOT_CAPABILITY_MARKERS)
+                && !containsAny(normalized, OPINION_QUERY_MARKERS)) {
             return true;
         }
         return containsAny(normalized, CURRENT_FACT_MARKERS)
