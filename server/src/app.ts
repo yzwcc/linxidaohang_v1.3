@@ -12,7 +12,7 @@ import { createRobotClient, type RobotClient } from "./robotClient.js";
 import { isBridgeAction, restartRobotVoiceStack, runBridgeAction } from "./sshControl.js";
 import { getJavaAgentStatus, startJavaAgent, stopJavaAgent } from "./javaAgentControl.js";
 import { getCurrentLocalization } from "./localizationControl.js";
-import { getMappingHealth, getMappingSession, startMapping, stopAndSaveMapping } from "./mappingControl.js";
+import { getMappingHealth, getMappingPreview, getMappingSession, startMapping, stopAndSaveMapping } from "./mappingControl.js";
 import { loadRuntimeConfig, loadRuntimeRobotHost, runtimeConfigPath, saveRobotHost } from "./runtimeConfig.js";
 import { getRobotSystemHealth, recoverRobotLocalization, restartRobotSystem } from "./systemControl.js";
 import { getTunnelDiagnostics } from "./tunnelDiagnostics.js";
@@ -684,6 +684,7 @@ export function buildApp(config: AppConfig, robotClient?: RobotClient): FastifyI
     session: getMappingSession(),
     health: await getMappingHealth(getConfig())
   }));
+  app.get("/api/robots/default/mapping/preview", async () => getMappingPreview(getConfig()));
   app.post("/api/robots/default/mapping/start", async (_request, reply) => {
     try {
       return await startMapping(getConfig());

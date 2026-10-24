@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#ffffff">
     <title>灵犀导航</title>
-    <link rel="stylesheet" href="/console/styles.css?v=20261024-r18-mapping-v1">
+    <link rel="stylesheet" href="/console/styles.css?v=20261025-r18-live-lidar-map">
   </head>
   <body>
     <header class="topbar">
@@ -249,6 +249,13 @@
           <div><span>建图会话</span><strong id="mappingSession">未启动</strong></div>
         </div>
         <p id="mappingDiagnosis" class="notice compact">正在检查传感器与建图接口。</p>
+        <section class="mapping-live" aria-label="实时地形预览">
+          <div class="mapping-live-head">
+            <div><h3>实时雷达建图</h3><span id="mappingPreviewMeta">雷达点云投影到 SLAM 坐标系；机器人移动由外置遥控器完成</span></div>
+            <span id="mappingPreviewState" class="badge">未连接</span>
+          </div>
+          <div class="mapping-map-frame"><canvas id="mappingPreviewCanvas" role="img" aria-label="实时雷达点云地图与机器人轨迹"></canvas><div id="mappingPreviewEmpty">开始建图后，这里显示机器人实时雷达扫描，并将扫描点累积到 SLAM 地图坐标系。</div></div>
+        </section>
         <form id="mappingSaveForm" class="mapping-controls">
           <label>地图名称<input id="mappingName" maxlength="48" required placeholder="例如：一层展厅"></label>
           <div class="split-actions">
@@ -384,6 +391,6 @@
     </main>
 
     <div id="toast" class="toast"></div>
-    <script type="module" src="/console/app.js?v=20261024-r18-mapping-v1"></script>
+    <script type="module" src="/console/app.js?v=20261025-r18-live-lidar-map"></script>
   </body>
 </html>

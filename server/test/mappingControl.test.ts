@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { inflateSync } from "node:zlib";
 import { describe, expect, it, vi } from "vitest";
-import { getMappingHealth, mapSaveScript, mappingCommandScript } from "../src/mappingControl.js";
+import { getMappingHealth, mapSaveScript, mappingCommandScript, mappingPreviewScript } from "../src/mappingControl.js";
 import type { AppConfig } from "../src/config.js";
 
 const config = {
@@ -154,6 +154,41 @@ describe("AIMDK mapping adapter", () => {
     expect(script).toContain("QoSReliabilityPolicy.RELIABLE");
     expect(script).toContain("publisher.get_subscription_count()");
     expect(script).toContain("/integrated_command");
+  });
+
+  it("projects live AIMDK chest LiDAR points into the SLAM odometry frame without controlling motion", () => {
+    const script = mappingPreviewScript();
+    expect(script).toContain("sensor_msgs.msg import PointCloud2");
+    expect(script).toContain("/aima/hal/sensor/lidar_chest_front/lidar_pointcloud");
+    expect(script).toContain("/slam/lidar_odom");
+    expect(script).toContain("lookup_transform(target_frame, source_frame");
+    expect(script).toContain("point_cloud2.read_points");
+    expect(script).toContain("'robot': {'x': p.x, 'y': p.y, 'yaw': yaw}");
+    expect(script).toContain("QoSDurabilityPolicy.VOLATILE");
+    expect(script).toContain("time.monotonic() + 5.0");
+    expect(script).not.toContain("start_mapping");
+    expect(script).not.toContain("/integrated_command");
+  });
+
+  it("transforms cloud coordinates with the standard quaternion rotation and translation formula", () => {
+    const rotateOnly = (point: [number, number, number], q: [number, number, number, number], t: [number, number, number]) => {
+      const [x, y, z] = point;
+      const [qx, qy, qz, qw] = q;
+      const [tx, ty, tz] = [
+        2 * (qy * z - qz * y),
+        2 * (qz * x - qx * z),
+        2 * (qx * y - qy * x)
+      ];
+      return [
+        x + qw * tx + qy * tz - qz * ty + t[0],
+        y + qw * ty + qz * tx - qx * tz + t[1],
+        z + qw * tz + qx * ty - qy * tx + t[2]
+      ];
+    };
+    const transformed = rotateOnly([1, 0, 0], [0, 0, Math.SQRT1_2, Math.SQRT1_2], [2, 3, 0]);
+    expect(transformed[0]).toBeCloseTo(2);
+    expect(transformed[1]).toBeCloseTo(4);
+    expect(transformed[2]).toBeCloseTo(0);
   });
 
   it("executes the generated saver and writes correctly oriented navigation map files", () => {

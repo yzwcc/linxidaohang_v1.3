@@ -55,6 +55,8 @@ def copy_file(source: Path, target: Path, mode: int | None = None) -> None:
         raise RuntimeError(f"缺少构建输入：{source}")
     target.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(source, target)
+    if target.suffix.lower() == ".sh":
+        target.write_bytes(target.read_bytes().replace(b"\r\n", b"\n").replace(b"\r", b"\n"))
     if mode is not None:
         target.chmod(mode)
 
@@ -69,6 +71,8 @@ def copy_tree(source: Path, target: Path, excludes: set[str] | None = None) -> N
         dirs_exist_ok=True,
         ignore=shutil.ignore_patterns(*sorted(excludes)) if excludes else None,
     )
+    for script in target.rglob("*.sh"):
+        script.write_bytes(script.read_bytes().replace(b"\r\n", b"\n").replace(b"\r", b"\n"))
 
 
 def copy_runtime_dependencies(source: Path, target: Path) -> None:

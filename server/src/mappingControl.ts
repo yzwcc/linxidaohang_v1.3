@@ -326,3 +326,87 @@ finally:
     if rclpy.ok():
         rclpy.shutdown()`;
 }
+
+export function mappingPreviewScript(): string {
+  return String.raw`import json, math, sys, time
+import rclpy
+from rclpy.node import Node
+from rclpy.qos import QoSProfile, QoSReliabilityPolicy, QoSDurabilityPolicy
+from nav_msgs.msg import Odometry
+from sensor_msgs.msg import PointCloud2
+from sensor_msgs_py import point_cloud2
+from tf2_ros import Buffer, TransformListener
+from rclpy.time import Time
+
+rclpy.init()
+node = Node('lingxi_mapping_live_scan')
+buffer = Buffer()
+tf_node = Node('lingxi_mapping_tf_listener')
+listener = TransformListener(buffer, tf_node, spin_thread=True)
+latest = {'cloud': None, 'odom': None}
+qos = QoSProfile(depth=1, reliability=QoSReliabilityPolicy.BEST_EFFORT, durability=QoSDurabilityPolicy.VOLATILE)
+node.create_subscription(PointCloud2, '/aima/hal/sensor/lidar_chest_front/lidar_pointcloud', lambda msg: latest.__setitem__('cloud', msg), qos)
+node.create_subscription(Odometry, '/slam/lidar_odom', lambda msg: latest.__setitem__('odom', msg), QoSProfile(depth=1, reliability=QoSReliabilityPolicy.RELIABLE, durability=QoSDurabilityPolicy.VOLATILE))
+deadline = time.monotonic() + 5.0
+while rclpy.ok() and (latest['cloud'] is None or latest['odom'] is None) and time.monotonic() < deadline:
+    rclpy.spin_once(node, timeout_sec=0.1)
+cloud, odom = latest['cloud'], latest['odom']
+if cloud is None or odom is None:
+    print(json.dumps({'ok': False, 'message': '未同时收到雷达点云和 /slam/lidar_odom；请检查传感器与 SLAM'}))
+else:
+    source_frame = cloud.header.frame_id.lstrip('/')
+    target_frame = (odom.header.frame_id or 'map').lstrip('/')
+    try:
+        transform = buffer.lookup_transform(target_frame, source_frame, Time.from_msg(cloud.header.stamp), timeout=rclpy.duration.Duration(seconds=1.0))
+    except Exception as exc:
+        print(json.dumps({'ok': False, 'message': '无法通过 TF 将雷达点云变换到 SLAM 地图坐标：' + str(exc), 'source_frame': source_frame, 'target_frame': target_frame}))
+        node.destroy_node(); tf_node.destroy_node(); rclpy.shutdown(); sys.exit(0)
+    t, q = transform.transform.translation, transform.transform.rotation
+    qx, qy, qz, qw = q.x, q.y, q.z, q.w
+    points, seen = [], set()
+    try:
+        for x, y, z in point_cloud2.read_points(cloud, field_names=('x', 'y', 'z'), skip_nans=True):
+            x, y, z = float(x), float(y), float(z)
+            if not math.isfinite(x + y + z) or x*x + y*y > 225 or abs(z) > 2.5:
+                continue
+            # Apply TF rotation and translation into the SLAM frame.
+            tx, ty, tz = 2*(qy*z - qz*y), 2*(qz*x - qx*z), 2*(qx*y - qy*x)
+            wx = x + qw*tx + qy*tz - qz*ty + t.x
+            wy = y + qw*ty + qz*tx - qx*tz + t.y
+            wz = z + qw*tz + qx*ty - qy*tx + t.z
+            key = (round(wx * 12), round(wy * 12))
+            if key in seen:
+                continue
+            seen.add(key); points.append([round(wx, 3), round(wy, 3), round(wz, 3)])
+            if len(points) >= 4000: break
+    except Exception as exc:
+        print(json.dumps({'ok': False, 'message': '解析 AIMDK 雷达点云失败：' + str(exc)}))
+        node.destroy_node(); rclpy.shutdown(); sys.exit(0)
+    p = odom.pose.pose.position
+    o = odom.pose.pose.orientation
+    yaw = math.atan2(2*(o.w*o.z + o.x*o.y), 1 - 2*(o.y*o.y + o.z*o.z))
+    print(json.dumps({'ok': True, 'topic': '/aima/hal/sensor/lidar_chest_front/lidar_pointcloud', 'frame_id': target_frame, 'source_frame': source_frame, 'point_count': len(points), 'points': points, 'robot': {'x': p.x, 'y': p.y, 'yaw': yaw}, 'updated_at': cloud.header.stamp.sec + cloud.header.stamp.nanosec / 1e9}))
+node.destroy_node(); tf_node.destroy_node(); rclpy.shutdown()`;
+}
+
+export async function getMappingPreview(config: AppConfig) {
+  const script = Buffer.from(mappingPreviewScript(), "utf8").toString("base64");
+  const output = await runRos(
+    `python3 -c "import base64;exec(compile(base64.b64decode('${script}'),'<aimdk-map-preview>','exec'))"`,
+    config,
+    12_000
+  );
+  const payload = JSON.parse(output.trim().split(/\r?\n/).at(-1) || "{}");
+  if (!payload.ok) return payload;
+  return {
+    ok: true,
+    topic: String(payload.topic || ""),
+    frame_id: String(payload.frame_id || ""),
+    source_frame: String(payload.source_frame || ""),
+    point_count: Number(payload.point_count || 0),
+    points: Array.isArray(payload.points) ? payload.points : [],
+    robot: payload.robot,
+    updated_at: Number(payload.updated_at),
+    image: String(payload.image || "")
+  };
+}

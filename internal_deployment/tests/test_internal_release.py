@@ -141,6 +141,8 @@ class InternalReleaseTest(unittest.TestCase):
                 file_names = {path.relative_to(root).as_posix() for path in root.rglob("*") if path.is_file()}
                 self.assertNotIn("secrets.env", file_names)
                 self.assertFalse(any(name.endswith((".pem", ".key")) for name in file_names))
+                for script in root.rglob("*.sh"):
+                    self.assertNotIn(b"\r", script.read_bytes(), str(script.relative_to(root)))
 
         with zipfile.ZipFile(zip_path) as archive:
             names = set(archive.namelist())
@@ -195,6 +197,16 @@ class InternalReleaseTest(unittest.TestCase):
                 check=False,
             )
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_shell_scripts_are_normalized_to_linux_line_endings(self) -> None:
+        with tempfile.TemporaryDirectory() as name:
+            source = Path(name) / "input.sh"
+            target = Path(name) / "output.sh"
+            source.write_bytes(b"#!/bin/bash\r\nset -e\r\necho ok\r\n")
+            from internal_deployment.build_internal_release import copy_file
+
+            copy_file(source, target, 0o755)
+            self.assertEqual(target.read_bytes(), b"#!/bin/bash\nset -e\necho ok\n")
 
     def test_plaintext_runtime_has_no_license_or_embedded_password_dependency(self) -> None:
         checked = [

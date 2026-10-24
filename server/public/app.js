@@ -32,6 +32,13 @@ let mapListRefreshInFlight = false;
 let dashboardRefreshInFlight = false;
 let startAllInFlight = false;
 let dashboardRefreshTimer = null;
+let mappingPreviewTimer = null;
+let mappingPreviewInFlight = false;
+let mappingPreviewData = null;
+let mappingAccumulatedPoints = new Map();
+let mappingRobotPath = [];
+let mappingSessionKey = "";
+let mappingSessionStartedAt = "";
 
 const INHERIT_SETTING = "__inherit__";
 const SPEECH_MOTION_DOMAINS = Array.from({ length: 28 }, (_, index) => String(index + 21));
@@ -126,14 +133,171 @@ function switchWorkspace(view, { scroll = false } = {}) {
   try { sessionStorage.setItem("lingxi-workspace", nextView); } catch { /* no-op */ }
   if (nextView === "mapping") {
     void refreshMappingStatus().catch((error) => setText("mappingDiagnosis", `读取建图接口失败：${error.message}`));
+    startMappingPreviewPolling();
+  } else {
+    stopMappingPreviewPolling();
   }
   if (scroll) document.querySelector(".layout")?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function renderMappingPreview(payload) {
+  const canvas = $("mappingPreviewCanvas");
+  const empty = $("mappingPreviewEmpty");
+  const state = $("mappingPreviewState");
+  if (payload?.ok && Array.isArray(payload.points)) {
+    const sessionKey = String(mappingSessionStartedAt || "active");
+    if (sessionKey !== mappingSessionKey) {
+      mappingAccumulatedPoints = new Map();
+      mappingRobotPath = [];
+      mappingSessionKey = sessionKey;
+    }
+    for (const point of payload.points) {
+      const x = Number(point[0]);
+      const y = Number(point[1]);
+      if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+      mappingAccumulatedPoints.set(`${Math.round(x * 20)}:${Math.round(y * 20)}`, [x, y]);
+    }
+    while (mappingAccumulatedPoints.size > 50000) {
+      mappingAccumulatedPoints.delete(mappingAccumulatedPoints.keys().next().value);
+    }
+    const robot = payload.robot || { x: 0, y: 0, yaw: 0 };
+    const previousPose = mappingRobotPath.at(-1);
+    if (!previousPose || Math.hypot(robot.x - previousPose.x, robot.y - previousPose.y) >= 0.1) {
+      mappingRobotPath.push({ x: Number(robot.x), y: Number(robot.y) });
+      if (mappingRobotPath.length > 3000) mappingRobotPath.shift();
+    }
+    mappingPreviewData = {
+      ...payload,
+      points: [...mappingAccumulatedPoints.values()],
+      robotPath: [...mappingRobotPath]
+    };
+    canvas.hidden = false;
+    empty.hidden = true;
+    state.textContent = "雷达实时更新";
+    state.className = "badge ok";
+    setText("mappingPreviewMeta", `${mappingAccumulatedPoints.size} 个累计栅格 · ${payload.source_frame} → ${payload.frame_id} · ${new Date(payload.updated_at * 1000).toLocaleTimeString()}`);
+    drawMappingPreview();
+  } else {
+    mappingPreviewData = null;
+    canvas.hidden = true;
+    empty.hidden = false;
+    state.textContent = "扫描未就绪";
+    state.className = "badge bad";
+    setText("mappingPreviewMeta", payload?.message || "等待雷达点云和 SLAM 里程计");
+  }
+}
+
+function drawMappingPreview() {
+  const canvas = $("mappingPreviewCanvas");
+  if (!canvas || !mappingPreviewData) return;
+  const rect = canvas.getBoundingClientRect();
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const width = Math.max(1, Math.round(rect.width * dpr));
+  const height = Math.max(1, Math.round(rect.height * dpr));
+  if (canvas.width !== width || canvas.height !== height) {
+    canvas.width = width;
+    canvas.height = height;
+  }
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+  ctx.clearRect(0, 0, width, height);
+  const robot = mappingPreviewData.robot || { x: 0, y: 0, yaw: 0 };
+  const points = mappingPreviewData.points || [];
+  const path = mappingPreviewData.robotPath || [];
+  let minX = Number(robot.x || 0), maxX = minX;
+  let minY = Number(robot.y || 0), maxY = minY;
+  for (const point of points) {
+    const x = Number(point[0]), y = Number(point[1]);
+    if (Number.isFinite(x)) { minX = Math.min(minX, x); maxX = Math.max(maxX, x); }
+    if (Number.isFinite(y)) { minY = Math.min(minY, y); maxY = Math.max(maxY, y); }
+  }
+  for (const pose of path) {
+    const x = Number(pose.x), y = Number(pose.y);
+    if (Number.isFinite(x)) { minX = Math.min(minX, x); maxX = Math.max(maxX, x); }
+    if (Number.isFinite(y)) { minY = Math.min(minY, y); maxY = Math.max(maxY, y); }
+  }
+  minX -= 1.5; maxX += 1.5;
+  minY -= 1.5; maxY += 1.5;
+  const pixelsPerMeter = Math.max(1, Math.min(width / Math.max(8, maxX - minX), height / Math.max(8, maxY - minY)));
+  const centerX = (minX + maxX) / 2;
+  const centerY = (minY + maxY) / 2;
+  const cx = width / 2;
+  const cy = height / 2;
+  const project = (x, y) => [cx + (x - centerX) * pixelsPerMeter, cy - (y - centerY) * pixelsPerMeter];
+
+  ctx.strokeStyle = "rgba(160, 180, 190, .15)";
+  ctx.lineWidth = 1;
+  const gridStep = pixelsPerMeter > 24 ? 1 : 2;
+  for (let meter = Math.floor(minX / gridStep) * gridStep; meter <= maxX; meter += gridStep) {
+    const [x] = project(meter, centerY);
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, height); ctx.stroke();
+  }
+  for (let meter = Math.floor(minY / gridStep) * gridStep; meter <= maxY; meter += gridStep) {
+    const [, y] = project(centerX, meter);
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(width, y); ctx.stroke();
+  }
+  ctx.fillStyle = "rgba(79, 179, 170, .85)";
+  ctx.font = `${11 * dpr}px sans-serif`;
+  ctx.fillText("SLAM MAP FRAME", 12 * dpr, 20 * dpr);
+  ctx.fillStyle = "#a6b4be";
+  ctx.fillText(`X ${Number(robot.x || 0).toFixed(2)} m   Y ${Number(robot.y || 0).toFixed(2)} m · ${pixelsPerMeter.toFixed(0)} px/m`, 12 * dpr, 36 * dpr);
+  ctx.fillStyle = "#49d6ba";
+  for (const point of points) {
+    const [x, y] = project(Number(point[0]), Number(point[1]));
+    if (x < 0 || y < 0 || x >= width || y >= height) continue;
+    ctx.fillRect(x, y, Math.max(2, dpr * 1.5), Math.max(2, dpr * 1.5));
+  }
+  if (path.length > 1) {
+    ctx.strokeStyle = "rgba(255, 202, 103, .55)";
+    ctx.lineWidth = Math.max(1, 1.5 * dpr);
+    ctx.beginPath();
+    path.forEach((pose, index) => {
+      const [x, y] = project(pose.x, pose.y);
+      if (index === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+  }
+  const [rx, ry] = project(Number(robot.x || 0), Number(robot.y || 0));
+  ctx.save();
+  ctx.translate(rx, ry);
+  ctx.rotate(-Number(robot.yaw || 0));
+  ctx.fillStyle = "#ffca67";
+  ctx.beginPath(); ctx.moveTo(9 * dpr, 0); ctx.lineTo(-6 * dpr, -5 * dpr); ctx.lineTo(-4 * dpr, 0); ctx.lineTo(-6 * dpr, 5 * dpr); ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+
+window.addEventListener("resize", () => {
+  if (mappingPreviewData) drawMappingPreview();
+});
+
+async function refreshMappingPreview() {
+  if (mappingPreviewInFlight || document.hidden || !state.mapping?.session?.active) return;
+  mappingPreviewInFlight = true;
+  try {
+    renderMappingPreview(await api("/api/robots/default/mapping/preview", { timeoutMs: 15000 }));
+  } catch (error) {
+    renderMappingPreview({ ok: false, message: error.message });
+  } finally {
+    mappingPreviewInFlight = false;
+  }
+}
+
+function startMappingPreviewPolling() {
+  stopMappingPreviewPolling();
+  void refreshMappingPreview();
+  mappingPreviewTimer = setInterval(() => void refreshMappingPreview(), 2500);
+}
+
+function stopMappingPreviewPolling() {
+  if (mappingPreviewTimer) clearInterval(mappingPreviewTimer);
+  mappingPreviewTimer = null;
 }
 
 function renderMapping(payload) {
   state.mapping = payload;
   const health = payload?.health || {};
   const session = payload?.session || {};
+  mappingSessionStartedAt = session.started_at || "";
   const ready = health.ok === true;
   setText("mappingBadge", ready ? "接口已发现" : "未就绪");
   setClass("mappingBadge", `badge ${ready ? "ok" : "bad"}`);
@@ -161,6 +325,9 @@ async function startMappingFromConsole() {
   if (!state.mapping?.health?.ok) throw new Error("建图接口未就绪，请先检查接口");
   if (!window.confirm("即将启动激光建图。请确认机器人已由外置遥控器接管移动；网页不会控制机器人运动。")) return;
   $("mappingStartBtn").disabled = true;
+  mappingAccumulatedPoints = new Map();
+  mappingRobotPath = [];
+  mappingSessionKey = "";
   const result = await api("/api/robots/default/mapping/start", { method: "POST" });
   toast("AIMDK 建图已启动，请用外置遥控器移动机器人");
   await refreshMappingStatus();
