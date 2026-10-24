@@ -10,7 +10,7 @@ import zipfile
 HERE = Path(__file__).resolve().parent
 DELIVERY = HERE.parent
 SERVER = DELIVERY / "source/server"
-NAME = "lingxi-x2-mapping-workbench-0.1.2-20261024"
+NAME = "lingxi-x2-mapping-workbench-0.1.3-20261024"
 STAGE = DELIVERY / ".build" / NAME
 ARCHIVE_FILES = (
     "package.json", "package-lock.json", "tsconfig.json", "MAPPING_HANDOFF.md",
