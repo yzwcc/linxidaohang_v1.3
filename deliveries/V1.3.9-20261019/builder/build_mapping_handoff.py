@@ -10,7 +10,7 @@ import zipfile
 HERE = Path(__file__).resolve().parent
 DELIVERY = HERE.parent
 SERVER = DELIVERY / "source/server"
-NAME = "lingxi-x2-mapping-workbench-0.1.3-20261024"
+NAME = "lingxi-x2-mapping-workbench-0.1.4-20261024"
 STAGE = DELIVERY / ".build" / NAME
 ARCHIVE_FILES = (
     "package.json", "package-lock.json", "tsconfig.json", "MAPPING_HANDOFF.md",
@@ -44,9 +44,9 @@ def main() -> None:
             shutil.copy2(source, target)
     (STAGE / "README.md").write_text(
         "# Lingxi X2 Mapping Workbench Handoff\n\n"
-        "This bundle contains the integrated console source/build, automated tests, "
-        "and the robot-side interface handoff checklist. Mapping start/save remain "
-        "disabled until the target X2 adapter passes the documented physical acceptance. "
+        "This bundle contains the integrated robot-hosted console source/build, automated tests, "
+        "and the robot-side interface handoff checklist. The web app does not drive the base; "
+        "the external remote is used for motion. Collection/save remain disabled until the target X2 adapter passes acceptance. "
         "See `server/MAPPING_HANDOFF.md`. No credentials or robot maps are included.\n",
         encoding="utf-8", newline="\n",
     )

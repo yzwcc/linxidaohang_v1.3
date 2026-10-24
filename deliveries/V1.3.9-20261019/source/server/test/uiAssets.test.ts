@@ -50,9 +50,11 @@ describe("console UI assets", () => {
 
   it("keeps mapping mutations disabled until the robot adapter is verified", () => {
     expect(html).toContain("id=\"startMappingBtn\" class=\"primary-large\" disabled");
-    expect(html).toContain("id=\"mappingName\" maxlength=\"48\" placeholder=\"接口确认后启用\" disabled");
+    expect(html).toContain("id=\"mappingName\" maxlength=\"48\" placeholder=\"采集接口确认后启用\" disabled");
     expect(appScript).toContain("const canStart = false");
-    expect(html).toContain("传感器和 SLAM 定位可用不代表正在生成新地图");
+    expect(html).toContain("移动机器人请使用外置遥控器");
+    expect(html).toContain("本网页不发送底盘速度或导航运动指令");
+    expect(html).toContain("传感器录制数据本身不是可导航地图");
     expect(html).toContain("occupancy_map.png");
     expect(html).toContain("grid_map_info.txt");
     expect(appScript).toContain("mapping_backend_available ? \"已验证\" : \"未验证\"");

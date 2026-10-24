@@ -210,12 +210,12 @@
       <section id="mappingPanel" class="panel mapping-panel view-section" data-view-section="mapping" hidden>
         <div class="panel-head">
           <div>
-            <h2>现场建图</h2>
-            <p class="hint">检查 X2 雷达、IMU、定位输出及机器人 ROS 图中的地图接口。</p>
+            <h2>现场地图采集</h2>
+            <p class="hint">机器人由外置遥控器移动；本工作台只检查传感器、管理建图采集并保存地图。</p>
           </div>
           <span id="mappingBadge" class="badge bad">未检查</span>
         </div>
-        <div class="mapping-safety notice">传感器和 SLAM 定位可用不代表正在生成新地图。启动、停止及兼容 MapManager 的地图导出适配器尚未验证；当前只执行只读检查，不会触碰现有地图。</div>
+        <div class="mapping-safety notice">移动机器人请使用外置遥控器。本网页不发送底盘速度或导航运动指令。X2 地图采集/导出接口尚待现场验证；当前只执行只读检查，不会触碰现有地图。</div>
         <div class="mapping-grid">
           <div class="mapping-preview">
             <div class="mapping-preview-head"><strong>实时传感器状态</strong><button id="refreshMappingBtn" class="secondary">刷新状态</button></div>
@@ -238,13 +238,13 @@
             </div>
           </div>
           <div class="mapping-controls">
-            <label>地图名称<input id="mappingName" maxlength="48" placeholder="接口确认后启用" disabled></label>
+            <label>地图名称<input id="mappingName" maxlength="48" placeholder="采集接口确认后启用" disabled></label>
             <div class="split-actions">
-              <button id="startMappingBtn" class="primary-large" disabled>建图接口待确认</button>
-              <button id="saveMappingBtn" class="warning" disabled>停止并保存地图</button>
+              <button id="startMappingBtn" class="primary-large" disabled>采集接口待确认</button>
+              <button id="saveMappingBtn" class="warning" disabled>停止采集并保存地图</button>
             </div>
             <div id="mappingResult" class="mapping-result" aria-live="polite"></div>
-            <p class="hint">导航可识别的新地图必须保存为 MapManager 数字 ID 目录，包含 `occupancy_map.png` 和 `grid_map_info.txt`。社区 FAST-LIO/OctoMap 输出不会自动成为可用导航图。</p>
+            <p class="hint">采集后需由已验证的建图后端生成新地图，再保存到 MapManager 数字 ID 目录（`occupancy_map.png`、`grid_map_info.txt`）。传感器录制数据本身不是可导航地图。</p>
           </div>
         </div>
       </section>

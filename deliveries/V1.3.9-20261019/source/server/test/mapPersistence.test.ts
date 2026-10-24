@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { persistNav2Map } from "../src/mapPersistence.js";
+import { persistNav2Map, validateLingxiMapArtifacts } from "../src/mapPersistence.js";
 
 const roots: string[] = [];
 const yaml = "mode: trinary\nresolution: 0.05\norigin: [-2, -1, 0]\nnegate: 0\n";
@@ -45,6 +45,17 @@ describe("atomic Lingxi map persistence", () => {
     const root = await temporaryRoot();
     await expect(persistNav2Map(root, Buffer.from("not a map"), yaml, "123456")).rejects.toThrow();
     expect(await fs.readdir(root)).toEqual([]);
+  });
+
+  it("rejects PNGs with corrupted chunks, truncated payloads, or mismatched metadata", async () => {
+    const root = await temporaryRoot();
+    const result = await persistNav2Map(root, Buffer.from("P2\n2 1\n255\n0 254\n"), yaml, "123456");
+    const valid = await fs.readFile(path.join(result.directory, "occupancy_map.png"));
+    const corrupted = Buffer.from(valid);
+    corrupted[corrupted.length - 6] ^= 0xff;
+    expect(() => validateLingxiMapArtifacts(corrupted, "20\n39.5 -19.5\n2 1\n", 2, 1)).toThrow("校验失败");
+    expect(() => validateLingxiMapArtifacts(valid.subarray(0, valid.length - 2), "20\n39.5 -19.5\n2 1\n", 2, 1)).toThrow();
+    expect(() => validateLingxiMapArtifacts(valid, "20\n39.5 -19.5\n3 1\n", 2, 1)).toThrow("尺寸或分辨率不一致");
   });
 
   it.each(["0", "-1", "../123", "x123", "123456789012345678901"])("rejects unsafe map ID %s", async (mapId) => {
