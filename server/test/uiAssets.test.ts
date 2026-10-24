@@ -13,12 +13,16 @@ describe("console UI assets", () => {
   });
 
   it("provides all four product workspaces and mobile navigation", () => {
-    for (const workspace of ["nav", "task", "map", "system"]) {
+    for (const workspace of ["nav", "task", "map", "mapping", "system"]) {
       expect(html).toContain(`data-view="${workspace}"`);
       expect(html).toContain(`data-view-section="${workspace}"`);
     }
     expect(styles).toContain("@media (max-width: 640px)");
     expect(styles).toContain("position: fixed");
+    expect(styles).toContain(".mapping-panel { grid-column: 1 / -1; }");
+    expect(styles).toContain(".mapping-panel .split-actions { grid-template-columns: 1fr; }");
+    expect(appScript).toContain("if (session.active) startMappingPreviewPolling();");
+    expect(appScript).toContain("!state.mapping?.session?.active");
   });
 
   it("uses the modular API client without legacy robot IP editing", () => {

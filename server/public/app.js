@@ -133,7 +133,6 @@ function switchWorkspace(view, { scroll = false } = {}) {
   try { sessionStorage.setItem("lingxi-workspace", nextView); } catch { /* no-op */ }
   if (nextView === "mapping") {
     void refreshMappingStatus().catch((error) => setText("mappingDiagnosis", `读取建图接口失败：${error.message}`));
-    startMappingPreviewPolling();
   } else {
     stopMappingPreviewPolling();
   }
@@ -178,11 +177,12 @@ function renderMappingPreview(payload) {
     setText("mappingPreviewMeta", `${mappingAccumulatedPoints.size} 个累计栅格 · ${payload.source_frame} → ${payload.frame_id} · ${new Date(payload.updated_at * 1000).toLocaleTimeString()}`);
     drawMappingPreview();
   } else {
-    mappingPreviewData = null;
-    canvas.hidden = true;
-    empty.hidden = false;
-    state.textContent = "扫描未就绪";
-    state.className = "badge bad";
+    state.textContent = mappingPreviewData ? "数据暂中断" : "扫描未就绪";
+    state.className = `badge ${mappingPreviewData ? "warn" : "bad"}`;
+    if (!mappingPreviewData) {
+      canvas.hidden = true;
+      empty.hidden = false;
+    }
     setText("mappingPreviewMeta", payload?.message || "等待雷达点云和 SLAM 里程计");
   }
 }
@@ -283,6 +283,7 @@ async function refreshMappingPreview() {
 }
 
 function startMappingPreviewPolling() {
+  if (mappingPreviewTimer || !state.mapping?.session?.active) return;
   stopMappingPreviewPolling();
   void refreshMappingPreview();
   mappingPreviewTimer = setInterval(() => void refreshMappingPreview(), 2500);
@@ -298,6 +299,8 @@ function renderMapping(payload) {
   const health = payload?.health || {};
   const session = payload?.session || {};
   mappingSessionStartedAt = session.started_at || "";
+  if (session.active) startMappingPreviewPolling();
+  else stopMappingPreviewPolling();
   const ready = health.ok === true;
   setText("mappingBadge", ready ? "接口已发现" : "未就绪");
   setClass("mappingBadge", `badge ${ready ? "ok" : "bad"}`);

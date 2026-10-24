@@ -28,6 +28,8 @@ type MappingSession = { active: boolean; awaiting_save: boolean; map_name: strin
 const sessionPath = process.env.MAPPING_SESSION_PATH || "/var/lib/sparkrobot/lingxi-nav/mapping-session.json";
 let session: MappingSession = loadSession();
 let operation: Promise<unknown> | null = null;
+let previewOperation: Promise<unknown> | null = null;
+let previewCache: { expiresAt: number; payload: Record<string, unknown> } | null = null;
 
 function loadSession(): MappingSession {
   try {
@@ -53,6 +55,7 @@ function saveSession(): void {
 }
 
 function updateSession(value: MappingSession): void {
+  if (value.active !== session.active || value.started_at !== session.started_at) previewCache = null;
   session = value;
   try {
     saveSession();
@@ -346,7 +349,7 @@ listener = TransformListener(buffer, tf_node, spin_thread=True)
 latest = {'cloud': None, 'odom': None}
 qos = QoSProfile(depth=1, reliability=QoSReliabilityPolicy.BEST_EFFORT, durability=QoSDurabilityPolicy.VOLATILE)
 node.create_subscription(PointCloud2, '/aima/hal/sensor/lidar_chest_front/lidar_pointcloud', lambda msg: latest.__setitem__('cloud', msg), qos)
-node.create_subscription(Odometry, '/slam/lidar_odom', lambda msg: latest.__setitem__('odom', msg), QoSProfile(depth=1, reliability=QoSReliabilityPolicy.RELIABLE, durability=QoSDurabilityPolicy.VOLATILE))
+node.create_subscription(Odometry, '/slam/lidar_odom', lambda msg: latest.__setitem__('odom', msg), qos)
 deadline = time.monotonic() + 5.0
 while rclpy.ok() and (latest['cloud'] is None or latest['odom'] is None) and time.monotonic() < deadline:
     rclpy.spin_once(node, timeout_sec=0.1)
@@ -354,6 +357,11 @@ cloud, odom = latest['cloud'], latest['odom']
 if cloud is None or odom is None:
     print(json.dumps({'ok': False, 'message': '未同时收到雷达点云和 /slam/lidar_odom；请检查传感器与 SLAM'}))
 else:
+    cloud_stamp = cloud.header.stamp.sec + cloud.header.stamp.nanosec / 1e9
+    odom_stamp = odom.header.stamp.sec + odom.header.stamp.nanosec / 1e9
+    if abs(cloud_stamp - odom_stamp) > 0.5:
+        print(json.dumps({'ok': False, 'message': '雷达点云与 SLAM 里程计时间差超过 0.5 秒，已暂停绘制以避免地图错位', 'cloud_stamp': cloud_stamp, 'odom_stamp': odom_stamp}))
+        node.destroy_node(); tf_node.destroy_node(); rclpy.shutdown(); sys.exit(0)
     source_frame = cloud.header.frame_id.lstrip('/')
     target_frame = (odom.header.frame_id or 'map').lstrip('/')
     try:
@@ -385,28 +393,41 @@ else:
     p = odom.pose.pose.position
     o = odom.pose.pose.orientation
     yaw = math.atan2(2*(o.w*o.z + o.x*o.y), 1 - 2*(o.y*o.y + o.z*o.z))
-    print(json.dumps({'ok': True, 'topic': '/aima/hal/sensor/lidar_chest_front/lidar_pointcloud', 'frame_id': target_frame, 'source_frame': source_frame, 'point_count': len(points), 'points': points, 'robot': {'x': p.x, 'y': p.y, 'yaw': yaw}, 'updated_at': cloud.header.stamp.sec + cloud.header.stamp.nanosec / 1e9}))
+    print(json.dumps({'ok': True, 'topic': '/aima/hal/sensor/lidar_chest_front/lidar_pointcloud', 'frame_id': target_frame, 'source_frame': source_frame, 'point_count': len(points), 'points': points, 'robot': {'x': p.x, 'y': p.y, 'yaw': yaw}, 'updated_at': cloud_stamp}))
 node.destroy_node(); tf_node.destroy_node(); rclpy.shutdown()`;
 }
 
 export async function getMappingPreview(config: AppConfig) {
+  if (!session.active) return { ok: false, message: "建图会话未运行" };
+  if (previewCache && previewCache.expiresAt > Date.now()) return previewCache.payload;
+  if (previewOperation) return previewOperation;
   const script = Buffer.from(mappingPreviewScript(), "utf8").toString("base64");
-  const output = await runRos(
-    `python3 -c "import base64;exec(compile(base64.b64decode('${script}'),'<aimdk-map-preview>','exec'))"`,
-    config,
-    12_000
-  );
-  const payload = JSON.parse(output.trim().split(/\r?\n/).at(-1) || "{}");
-  if (!payload.ok) return payload;
-  return {
-    ok: true,
-    topic: String(payload.topic || ""),
-    frame_id: String(payload.frame_id || ""),
-    source_frame: String(payload.source_frame || ""),
-    point_count: Number(payload.point_count || 0),
-    points: Array.isArray(payload.points) ? payload.points : [],
-    robot: payload.robot,
-    updated_at: Number(payload.updated_at),
-    image: String(payload.image || "")
-  };
+  let task!: Promise<Record<string, unknown>>;
+  task = (async () => {
+    try {
+      const output = await runRos(
+        `python3 -c "import base64;exec(compile(base64.b64decode('${script}'),'<aimdk-map-preview>','exec'))"`,
+        config,
+        12_000
+      );
+      const payload = JSON.parse(output.trim().split(/\r?\n/).at(-1) || "{}");
+      if (!payload.ok) return payload;
+      const result = {
+        ok: true,
+        topic: String(payload.topic || ""),
+        frame_id: String(payload.frame_id || ""),
+        source_frame: String(payload.source_frame || ""),
+        point_count: Number(payload.point_count || 0),
+        points: Array.isArray(payload.points) ? payload.points : [],
+        robot: payload.robot,
+        updated_at: Number(payload.updated_at)
+      };
+      previewCache = { payload: result, expiresAt: Date.now() + 1000 };
+      return result;
+    } finally {
+      if (previewOperation === task) previewOperation = null;
+    }
+  })();
+  previewOperation = task;
+  return task;
 }

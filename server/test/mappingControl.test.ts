@@ -166,8 +166,16 @@ describe("AIMDK mapping adapter", () => {
     expect(script).toContain("'robot': {'x': p.x, 'y': p.y, 'yaw': yaw}");
     expect(script).toContain("QoSDurabilityPolicy.VOLATILE");
     expect(script).toContain("time.monotonic() + 5.0");
+    expect(script).toContain("abs(cloud_stamp - odom_stamp) > 0.5");
+    expect(script).toContain("QoSReliabilityPolicy.BEST_EFFORT");
     expect(script).not.toContain("start_mapping");
     expect(script).not.toContain("/integrated_command");
+  });
+
+  it("does not request sensor frames unless an AIMDK mapping session is active", async () => {
+    const preview = await import("../src/mappingControl.js");
+    const result = await preview.getMappingPreview(config);
+    expect(result).toMatchObject({ ok: false, message: "建图会话未运行" });
   });
 
   it("transforms cloud coordinates with the standard quaternion rotation and translation formula", () => {

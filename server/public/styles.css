@@ -163,7 +163,7 @@ p { color: #647180; line-height: 1.55; }
   padding: 17px;
 }
 .panel.is-loading { opacity: .72; }
-.primary-workspace, .wizard-panel, .map-panel, .editor-panel, .task-product-panel { grid-column: 1 / -1; }
+.primary-workspace, .wizard-panel, .map-panel, .editor-panel, .task-product-panel, .mapping-panel { grid-column: 1 / -1; }
 .panel-head, .panel-subhead { align-items: center; display: flex; gap: 12px; justify-content: space-between; margin-bottom: 13px; }
 .panel-head > div { min-width: 0; }
 .hint { color: #71808e; font-size: 13px; margin: 4px 0 12px; }
@@ -258,7 +258,7 @@ textarea { resize: vertical; }
   .customer-hero { grid-template-columns: 1fr; gap: 16px; }
   .customer-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .layout { grid-template-columns: 1fr; }
-  .primary-workspace, .wizard-panel, .map-panel, .editor-panel, .task-product-panel { grid-column: auto; }
+  .primary-workspace, .wizard-panel, .map-panel, .editor-panel, .task-product-panel, .mapping-panel { grid-column: auto; }
   .map-workspace { grid-template-columns: 1fr; }
   .map-frame { min-height: 360px; }
   .wizard-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -308,6 +308,9 @@ textarea { resize: vertical; }
   .map-workspace { display: block; }
   .map-frame { aspect-ratio: 1 / 1; min-height: 0; }
   .mapping-map-frame { aspect-ratio: 1 / 1; min-height: 260px; }
+  .mapping-live-head { align-items: flex-start; flex-direction: column; }
+  .mapping-panel .split-actions { grid-template-columns: 1fr; }
+  .mapping-panel .split-actions button { min-height: 44px; width: 100%; }
   .map-workspace > div + div { margin-top: 12px; }
   .split-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .split-actions button { min-width: 0; padding: 0 8px; }
