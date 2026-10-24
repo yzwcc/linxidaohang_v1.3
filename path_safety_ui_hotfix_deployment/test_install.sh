@@ -39,10 +39,17 @@ for relative in changed + ["console/dist/public/untouched.txt"]:
 (product / "payload-manifest.json").write_text(json.dumps({"format":"test", "files":entries}) + "\n")
 (product / "scripts/verify_payload.py").write_text("raise SystemExit(0)\n")
 PY
+cat > "${PRODUCT}/scripts/navigation_control.sh" <<'SH'
+#!/usr/bin/env bash
+exit 0
+SH
+chmod +x "${PRODUCT}/scripts/navigation_control.sh"
 ln -s "${PRODUCT}" "${ROOT}/opt/sparkrobot/lingxi-nav/current"
 touch "${ROOT}/var/lib/sparkrobot/lingxi-nav/console-active"
 
 LINGXI_HOTFIX_ROOT="${ROOT}" LINGXI_HOTFIX_TEST_MODE=true bash "${PACKAGE_DIR}/install.sh" install
+[[ -f "${ROOT}/var/lib/sparkrobot/lingxi-nav/console-active" ]]
+[[ -f "${ROOT}/var/lib/sparkrobot/lingxi-nav/navigation-stack-active" ]]
 python3 "${PRODUCT}/scripts/verify_payload.py" --root "${PRODUCT}" --manifest "${PRODUCT}/payload-manifest.json"
 grep -q 'id="robotRadius"' "${PRODUCT}/console/dist/public/index.html"
 grep -q 'id="extraClearance"' "${PRODUCT}/console/dist/public/index.html"
@@ -80,11 +87,28 @@ import sys
 installer = pathlib.Path(sys.argv[1]).read_text(encoding="utf-8")
 assert 'NAV_CONTROL' not in installer
 assert 'run_agi' not in installer
-assert 'navigation_control.sh' not in installer
+assert 'ensure_navigation_stack_online' in installer
+assert 'navigation_control_do stop' in installer
+assert 'navigation_control_do start' in installer
+assert 'http://127.0.0.1:18083/nav/status' in installer
 assert 'assert_navigation_idle || die' in installer
 assert 'assert_console_active || die' in installer
 assert 'systemctl_do restart "${CONSOLE_SERVICE}"' in installer
 PY
+
+# Unknown mixed console content must be rejected before starting a stopped stack.
+cp "${PRODUCT}/console/dist/app.js" "${TEMP_ROOT}/known-app.js"
+printf '\nunknown modification\n' >>"${PRODUCT}/console/dist/app.js"
+rm -f -- "${ROOT}/var/lib/sparkrobot/lingxi-nav/navigation-stack-active"
+if LINGXI_HOTFIX_ROOT="${ROOT}" LINGXI_HOTFIX_TEST_MODE=true bash "${PACKAGE_DIR}/install.sh" install; then
+  echo "未知控制台基线未被拒绝" >&2
+  exit 1
+fi
+[[ ! -f "${ROOT}/var/lib/sparkrobot/lingxi-nav/navigation-stack-active" ]]
+printf '\nunknown modification\n' >>"${TEMP_ROOT}/known-app.js"
+cmp -s "${PRODUCT}/console/dist/app.js" "${TEMP_ROOT}/known-app.js"
+cp "${PACKAGE_DIR}/payload/console/dist/app.js" "${PRODUCT}/console/dist/app.js"
+touch "${ROOT}/var/lib/sparkrobot/lingxi-nav/navigation-stack-active"
 
 BEFORE_REJECT="$(sha256sum "${PRODUCT}/console/dist/app.js" "${PRODUCT}/payload-manifest.json")"
 if LINGXI_HOTFIX_ROOT="${ROOT}" LINGXI_HOTFIX_TEST_MODE=true \
@@ -98,6 +122,8 @@ AFTER_REJECT="$(sha256sum "${PRODUCT}/console/dist/app.js" "${PRODUCT}/payload-m
 
 BACKUP="$(find "${ROOT}/var/lib/sparkrobot/lingxi-nav/path-safety-ui-hotfix-backups" -mindepth 1 -maxdepth 1 -type d -print -quit)"
 LINGXI_HOTFIX_ROOT="${ROOT}" LINGXI_HOTFIX_TEST_MODE=true bash "${PACKAGE_DIR}/install.sh" rollback "${BACKUP}"
+[[ -f "${ROOT}/var/lib/sparkrobot/lingxi-nav/console-active" ]]
+[[ -f "${ROOT}/var/lib/sparkrobot/lingxi-nav/navigation-stack-active" ]]
 python3 - "${PRODUCT}" "${BACKUP}" <<'PY'
 import hashlib
 import pathlib
@@ -115,7 +141,7 @@ for relative in (
 assert (product / "console/dist/public/untouched.txt").read_text() == "preserve\n"
 PY
 
-# Simulate an existing robot on the first hotfix, then verify upgrade and rollback.
+# Simulate a failed navigation restart after payload replacement; installation must restore R3.
 python3 - "${PRODUCT}" "${PACKAGE_DIR}" <<'PY'
 import hashlib
 import json
@@ -128,7 +154,7 @@ entries = []
 for line in paths:
     _, relative = line.split("  ", 1)
     target = product / relative
-    target.write_bytes((package / "test-fixtures-r1" / relative).read_bytes())
+    target.write_bytes((package / "test-fixtures-r3" / relative).read_bytes())
     entries.append({
         "path": relative,
         "size": target.stat().st_size,
@@ -143,10 +169,13 @@ entries.append({
 (product / "payload-manifest.json").write_text(json.dumps({"format":"test", "files":entries}) + "\n")
 PY
 sleep 1
-LINGXI_HOTFIX_ROOT="${ROOT}" LINGXI_HOTFIX_TEST_MODE=true bash "${PACKAGE_DIR}/install.sh" install
-grep -q 'form="pathSafetyForm"' "${PRODUCT}/console/dist/public/index.html"
-BACKUP_R1="$(find "${ROOT}/var/lib/sparkrobot/lingxi-nav/path-safety-ui-hotfix-backups" -mindepth 1 -maxdepth 1 -type d -printf '%T@ %p\n' | sort -n | tail -n 1 | cut -d' ' -f2-)"
-LINGXI_HOTFIX_ROOT="${ROOT}" LINGXI_HOTFIX_TEST_MODE=true bash "${PACKAGE_DIR}/install.sh" rollback "${BACKUP_R1}"
+if LINGXI_HOTFIX_ROOT="${ROOT}" LINGXI_HOTFIX_TEST_MODE=true \
+  LINGXI_HOTFIX_TEST_NAV_START_FAIL_ONCE=true bash "${PACKAGE_DIR}/install.sh" install; then
+  echo "导航栈启动验收失败时未触发回滚" >&2
+  exit 1
+fi
+[[ -f "${ROOT}/var/lib/sparkrobot/lingxi-nav/console-active" ]]
+[[ -f "${ROOT}/var/lib/sparkrobot/lingxi-nav/navigation-stack-active" ]]
 python3 - "${PRODUCT}" "${PACKAGE_DIR}" <<'PY'
 import hashlib
 import pathlib
@@ -158,7 +187,30 @@ for line in (package / "payload/SHA256SUMS.txt").read_text().splitlines():
         continue
     _, relative = line.split("  ", 1)
     actual = hashlib.sha256((product / relative).read_bytes()).digest()
-    previous = hashlib.sha256((package / "test-fixtures-r1" / relative).read_bytes()).digest()
+    previous = hashlib.sha256((package / "test-fixtures-r3" / relative).read_bytes()).digest()
+    assert actual == previous, relative
+PY
+
+# Upgrade and rollback from the known R3 hotfix.
+sleep 1
+LINGXI_HOTFIX_ROOT="${ROOT}" LINGXI_HOTFIX_TEST_MODE=true bash "${PACKAGE_DIR}/install.sh" install
+grep -q 'form="pathSafetyForm"' "${PRODUCT}/console/dist/public/index.html"
+BACKUP_R1="$(find "${ROOT}/var/lib/sparkrobot/lingxi-nav/path-safety-ui-hotfix-backups" -mindepth 1 -maxdepth 1 -type d -printf '%T@ %p\n' | sort -n | tail -n 1 | cut -d' ' -f2-)"
+LINGXI_HOTFIX_ROOT="${ROOT}" LINGXI_HOTFIX_TEST_MODE=true bash "${PACKAGE_DIR}/install.sh" rollback "${BACKUP_R1}"
+[[ -f "${ROOT}/var/lib/sparkrobot/lingxi-nav/console-active" ]]
+[[ -f "${ROOT}/var/lib/sparkrobot/lingxi-nav/navigation-stack-active" ]]
+python3 - "${PRODUCT}" "${PACKAGE_DIR}" <<'PY'
+import hashlib
+import pathlib
+import sys
+
+product, package = map(pathlib.Path, sys.argv[1:])
+for line in (package / "payload/SHA256SUMS.txt").read_text().splitlines():
+    if not line.strip():
+        continue
+    _, relative = line.split("  ", 1)
+    actual = hashlib.sha256((product / relative).read_bytes()).digest()
+    previous = hashlib.sha256((package / "test-fixtures-r3" / relative).read_bytes()).digest()
     assert actual == previous, relative
 PY
 echo "ISOLATED_INSTALL_ROLLBACK_OK"

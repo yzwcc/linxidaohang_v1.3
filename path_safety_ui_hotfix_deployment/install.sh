@@ -28,6 +28,13 @@ declare -A PREVIOUS_HOTFIX_SHA256=(
   [console/dist/public/index.html]="6cd122aa5a0aaceb09e34be34eebea0f5952b5b3691f058bfaa8960ecc2b8fa6"
   [console/dist/public/styles.css]="8b70fb1f33b5b7d7110b8bf27f55a42d0122e6766c1260a6541296c05738094f"
 )
+declare -A R3_HOTFIX_SHA256=(
+  [console/dist/app.js]="89ab364e75169095653c5cd5852c4159cd878f13a0d0279e7f65a56033851b1c"
+  [console/dist/robotClient.js]="d0b7e0f9101fe6d08b93f1fc7c71494a5c08c612250a6ea827c5bbc4acdc6ee0"
+  [console/dist/public/app.js]="c476dec96cc2b9ce5503231768b24a9c518a47951b7e284b1256bff826f5be1b"
+  [console/dist/public/index.html]="5c69982f70226cab13bc0215da91eb52415408c713823935980e51984db71721"
+  [console/dist/public/styles.css]="8b70fb1f33b5b7d7110b8bf27f55a42d0122e6766c1260a6541296c05738094f"
+)
 
 die() { echo "失败：$*" >&2; exit 1; }
 need_root() {
@@ -42,13 +49,49 @@ systemctl_do() {
   if [[ "${TEST_MODE}" == true ]]; then
     local state="${HOTFIX_ROOT}/var/lib/sparkrobot/lingxi-nav/console-active"
     case "$1" in
-      stop) rm -f -- "${state}" ;;
+      stop)
+        rm -f -- "${state}"
+        ;;
       restart) install -d "$(dirname "${state}")"; touch "${state}" ;;
       is-active) [[ -f "${state}" ]] ;;
       *) return 0 ;;
     esac
   else
     systemctl "$@"
+  fi
+}
+
+navigation_control_do() {
+  local action="$1"
+  if [[ "${TEST_MODE}" == true ]]; then
+    local state="${HOTFIX_ROOT}/var/lib/sparkrobot/lingxi-nav/navigation-stack-active"
+    case "${action}" in
+      stop) rm -f -- "${state}" ;;
+      start)
+        if [[ "${LINGXI_HOTFIX_TEST_NAV_START_FAIL_ONCE:-false}" == true ]]; then
+          local failed_once="${state}.start-failed-once"
+          if [[ ! -f "${failed_once}" ]]; then
+            install -d "$(dirname "${state}")"
+            touch "${failed_once}"
+            return 1
+          fi
+        fi
+        [[ "${LINGXI_HOTFIX_TEST_NAV_START_FAIL:-false}" != true ]] || return 1
+        install -d "$(dirname "${state}")"
+        touch "${state}"
+        ;;
+      status)
+        if [[ -f "${state}" ]]; then
+          printf '%s\n' 'lingxi_nav_bridge=running' 'map_label_server_v3=running' 'voice_nav_gateway=running'
+          return 0
+        fi
+        printf '%s\n' 'lingxi_nav_bridge=stopped' 'map_label_server_v3=stopped' 'voice_nav_gateway=stopped'
+        return 1
+        ;;
+      *) return 1 ;;
+    esac
+  else
+    runuser -u agi -- "${PRODUCT_ROOT}/scripts/navigation_control.sh" "${action}"
   fi
 }
 
@@ -66,6 +109,8 @@ assert_navigation_idle() {
   if [[ "${TEST_MODE}" == true ]]; then
     status="${LINGXI_HOTFIX_TEST_NAV_STATUS:-}"
     if [[ -z "${status}" ]]; then
+      [[ -f "${HOTFIX_ROOT}/var/lib/sparkrobot/lingxi-nav/navigation-stack-active" ]] \
+        || { echo "test navigation stack is stopped" >&2; return 1; }
       status='{"navigation":{"status":"idle"},"task":{"active":false},"auto_return":{"state":"idle"}}'
     fi
   else
@@ -81,16 +126,17 @@ assert_console_active() {
 }
 
 verify_baseline() {
-  local relative actual matches_original=1 matches_previous=1
+  local relative actual matches_original=1 matches_previous=1 matches_r3=1
   for relative in "${!BASELINE_SHA256[@]}"; do
     local target="${PRODUCT_ROOT}/${relative}"
     [[ -f "${target}" ]] || die "R16 基线文件缺失：${relative}"
     actual="$(sha256sum "${target}" | awk '{print $1}')"
     [[ "${actual}" == "${BASELINE_SHA256[${relative}]}" ]] || matches_original=0
     [[ "${actual}" == "${PREVIOUS_HOTFIX_SHA256[${relative}]}" ]] || matches_previous=0
+    [[ "${actual}" == "${R3_HOTFIX_SHA256[${relative}]}" ]] || matches_r3=0
   done
-  [[ "${matches_original}" -eq 1 || "${matches_previous}" -eq 1 ]] \
-    || die "当前控制台既不是精确 R16 基线，也不是首版路径安全热修；拒绝覆盖混合、其他版本或未知修改"
+  [[ "${matches_original}" -eq 1 || "${matches_previous}" -eq 1 || "${matches_r3}" -eq 1 ]] \
+    || die "当前控制台既不是精确 R16、首版热修，也不是 R3 热修；拒绝覆盖混合、其他版本或未知修改"
 }
 
 verify_backup() {
@@ -120,13 +166,60 @@ update_manifest() {
   fi
 }
 
-restart_and_check() {
+wait_for_http() {
+  local url="$1" attempts="${2:-30}"
+  for _ in $(seq 1 "${attempts}"); do
+    if curl -fsS --max-time 2 "${url}" >/dev/null; then return 0; fi
+    sleep 0.5
+  done
+  return 1
+}
+
+ensure_navigation_stack_online() {
+  if [[ "${TEST_MODE}" == true ]]; then
+    if [[ -f "${HOTFIX_ROOT}/var/lib/sparkrobot/lingxi-nav/navigation-stack-active" ]]; then
+      return 0
+    fi
+    local status
+    status="$(navigation_control_do status 2>&1 || true)"
+    [[ "${status}" == $'lingxi_nav_bridge=stopped\nmap_label_server_v3=stopped\nvoice_nav_gateway=stopped' ]] \
+      || die "测试导航栈状态不完整；拒绝自动启动"
+    navigation_control_do start || die "测试导航栈无法启动；尚未修改控制台文件"
+    return 0
+  fi
+
+  if curl -fsS --max-time 2 "${BRIDGE_STATUS_URL}" >/dev/null; then
+    return 0
+  fi
+
+  local status
+  status="$(navigation_control_do status 2>&1 || true)"
+  if [[ "${status}" != $'lingxi_nav_bridge=stopped\nmap_label_server_v3=stopped\nvoice_nav_gateway=stopped' ]]; then
+    die "导航状态接口不可用，且导航栈并非全部停止；为避免中断服务，不自动重启。先恢复 3000/导航服务后重试。"
+  fi
+
+  echo "检测到 bridge、8002 地图服务和导航语音 gateway 均已停止；先恢复服务以确认导航空闲..."
+  navigation_control_do start || die "R16 导航栈启动失败；控制台文件未修改，请检查导航启动日志"
+  wait_for_http "${BRIDGE_STATUS_URL}" 30 \
+    || die "导航栈已请求启动但仍无法读取 /nav/status；控制台文件未修改，请检查导航日志"
+}
+
+restart_console_and_check() {
   systemctl_do restart "${CONSOLE_SERVICE}" || return 1
   systemctl_do is-active --quiet "${CONSOLE_SERVICE}" || return 1
   if [[ "${TEST_MODE}" != true ]]; then
     python3 "${VERIFY_PAYLOAD}" --root "${PRODUCT_ROOT}" --manifest "${MANIFEST_TARGET}" || return 1
-    curl -fsS --max-time 10 http://127.0.0.1:3000/health >/dev/null || return 1
-    curl -fsS --max-time 5 http://127.0.0.1:8002/api/settings >/dev/null || return 1
+    wait_for_http http://127.0.0.1:3000/health 30 || return 1
+  fi
+}
+
+start_navigation_stack() {
+  navigation_control_do start || return 1
+  if [[ "${TEST_MODE}" != true ]]; then
+    wait_for_http http://127.0.0.1:18082/nav/status 30 || return 1
+    wait_for_http http://127.0.0.1:8002/api/settings 30 || return 1
+    wait_for_http http://127.0.0.1:18083/nav/status 30 || return 1
+    assert_navigation_idle || return 1
   fi
 }
 
@@ -162,33 +255,39 @@ install_hotfix() {
   [[ -d "${EXPECTED_RELEASE}" && "$(readlink -f -- "${PRODUCT_ROOT}")" == "$(readlink -f -- "${EXPECTED_RELEASE}")" ]] \
     || die "当前链接不是 R16 发布目录，拒绝安装"
   assert_console_active || die "控制台未处于活动状态，未修改任何文件"
-  assert_navigation_idle || die "导航未确认空闲，未修改任何文件"
   verify_baseline
   [[ -f "${MANIFEST_TARGET}" && -f "${VERIFY_PAYLOAD}" ]] \
     || die "当前 R16 安装不完整，缺少 payload 清单或校验脚本"
+  ensure_navigation_stack_online
+  assert_navigation_idle || die "导航未确认空闲，未修改任何文件"
 
   local stamp backup relative failed=0
   stamp="$(date -u +%Y%m%dT%H%M%SZ)"
   backup="${BACKUP_ROOT}/${stamp}"
   [[ ! -e "${backup}" ]] || die "同秒热修备份已存在；稍后重试以避免覆盖既有回滚点"
   backup_files "${backup}"
+  navigation_control_do stop || die "无法按 R16 服务脚本停止导航栈；控制台文件未修改，检查 navigation_control.sh 后重试"
   systemctl_do stop "${CONSOLE_SERVICE}"
 
   while IFS= read -r relative; do
     install_file "${PACKAGE_DIR}/payload/${relative}" "${PRODUCT_ROOT}/${relative}" 0640 || { failed=1; break; }
   done < <(changed_paths)
   if [[ "${failed}" -eq 0 ]]; then update_manifest || failed=1; fi
-  if [[ "${failed}" -eq 0 ]]; then assert_navigation_idle || failed=1; fi
-  if [[ "${failed}" -eq 0 ]]; then
-    restart_and_check || failed=1
-  fi
+  if [[ "${failed}" -eq 0 ]]; then restart_console_and_check || failed=1; fi
+  if [[ "${failed}" -eq 0 ]]; then start_navigation_stack || failed=1; fi
 
   if [[ "${failed}" -ne 0 ]]; then
     echo "验收失败，恢复原控制台文件和清单..." >&2
     systemctl_do stop "${CONSOLE_SERVICE}" 2>/dev/null || true
+    navigation_control_do stop >/dev/null 2>&1 || true
     restore_backup "${backup}"
-    systemctl_do restart "${CONSOLE_SERVICE}" || true
-    die "热修未通过安装验收，已回滚；备份：${backup}"
+    local rollback_ok=1
+    restart_console_and_check || rollback_ok=0
+    start_navigation_stack || rollback_ok=0
+    if [[ "${rollback_ok}" -eq 1 ]]; then
+      die "热修验收失败，控制台已回滚且 R16 导航栈已恢复；备份：${backup}"
+    fi
+    die "热修验收失败，原控制台文件已回滚，但服务恢复未通过；请检查控制台和导航日志；备份：${backup}"
   fi
 
   echo "R16 点位页全局路径安全设置已安装。"
@@ -211,9 +310,13 @@ rollback_hotfix() {
   verify_backup "${resolved}"
   assert_console_active || die "控制台未处于活动状态，未执行回滚"
   assert_navigation_idle || die "导航未确认空闲，未执行回滚"
+  ensure_navigation_stack_online
+  assert_navigation_idle || die "导航未确认空闲，未执行回滚"
+  navigation_control_do stop || die "无法按 R16 服务脚本停止导航栈；未执行回滚"
   systemctl_do stop "${CONSOLE_SERVICE}"
   restore_backup "${resolved}"
-  restart_and_check || die "已还原文件但验收失败，请检查系统日志"
+  restart_console_and_check || die "已还原文件但 3000 控制台验收失败，请检查系统日志"
+  start_navigation_stack || die "已还原控制台文件，但 R16 导航栈恢复验收失败"
   echo "R16 点位页热修已回滚：${resolved}"
 }
 
