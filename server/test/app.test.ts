@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { buildApp } from "../src/app.js";
 import type { AppConfig } from "../src/config.js";
 import type { RobotClient } from "../src/robotClient.js";
@@ -68,6 +68,12 @@ function robot(overrides: Partial<RobotClient> = {}): RobotClient {
     savePoint: async (point: unknown) => point,
     deletePoint: async (pointId: string) => ({ ok: true, point_id: pointId }),
     saveTask: async (task: unknown) => task,
+    pathSafety: async () => ({
+      path_safety: { robot_radius_m: 0.253, extra_clearance_m: 0.1 }
+    }),
+    savePathSafety: async (pathSafety: { robot_radius_m: number; extra_clearance_m: number }) => ({
+      path_safety: pathSafety
+    }),
     relocalizationStatus: async () => ({ running: false, result: {} }),
     startRelocalization: async (payload: unknown) => payload,
     ...overrides
@@ -108,6 +114,55 @@ describe("app", () => {
     });
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({ ok: true, target_name: "起点" });
+  });
+
+  it("reads and saves global path safety without mixing it into point data", async () => {
+    const savePathSafety = vi.fn(async (pathSafety: { robot_radius_m: number; extra_clearance_m: number }) => ({
+      path_safety: pathSafety
+    }));
+    const app = buildApp(config, robot({
+      pathSafety: async () => ({ path_safety: { robot_radius_m: 0.253, extra_clearance_m: 0.12 } }),
+      savePathSafety
+    }));
+
+    const loaded = await app.inject({ method: "GET", url: "/api/robots/default/navigation/path-safety" });
+    expect(loaded.statusCode).toBe(200);
+    expect(loaded.json()).toMatchObject({
+      ok: true,
+      path_safety: { robot_radius_m: 0.253, extra_clearance_m: 0.12 }
+    });
+
+    const saved = await app.inject({
+      method: "POST",
+      url: "/api/robots/default/navigation/path-safety",
+      payload: { robot_radius_m: 0.253, extra_clearance_m: 0.18 }
+    });
+    expect(saved.statusCode).toBe(200);
+    expect(saved.json()).toMatchObject({
+      ok: true,
+      path_safety: { robot_radius_m: 0.253, extra_clearance_m: 0.18 }
+    });
+    expect(savePathSafety).toHaveBeenCalledWith({ robot_radius_m: 0.253, extra_clearance_m: 0.18 });
+  });
+
+  it("requires a measured positive radius and rejects invalid global clearances", async () => {
+    const savePathSafety = vi.fn();
+    const app = buildApp(config, robot({ savePathSafety }));
+    for (const payload of [
+      { robot_radius_m: null, extra_clearance_m: 0.1 },
+      { robot_radius_m: 0, extra_clearance_m: 0.1 },
+      { robot_radius_m: 2.01, extra_clearance_m: 0.1 },
+      { robot_radius_m: 0.253, extra_clearance_m: -0.01 },
+      { robot_radius_m: 0.253, extra_clearance_m: 2.01 }
+    ]) {
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/robots/default/navigation/path-safety",
+        payload
+      });
+      expect(response.statusCode).toBe(400);
+    }
+    expect(savePathSafety).not.toHaveBeenCalled();
   });
 
   it("proxies the complete tour lifecycle", async () => {

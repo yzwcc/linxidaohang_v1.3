@@ -202,6 +202,16 @@ export function createRobotClient(config: AppConfig) {
         body: JSON.stringify(task)
       }), mapName);
     },
+    pathSafety() {
+      return requestJson<JsonObject>(`${webBase}/api/settings`, { timeoutMs: 5000 });
+    },
+    savePathSafety(pathSafety: { robot_radius_m: number; extra_clearance_m: number }) {
+      return mutation(() => requestJson<JsonObject>(`${webBase}/api/settings`, {
+        method: "POST",
+        body: JSON.stringify({ path_safety: pathSafety }),
+        timeoutMs: 5000
+      }));
+    },
     relocalizationStatus() {
       return requestJson(`${webBase}/api/relocalization/status`, { timeoutMs: 2500 });
     },

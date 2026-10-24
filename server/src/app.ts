@@ -32,6 +32,11 @@ const ttsSpeakSchema = z.object({
   text: z.string().trim().min(1).max(500),
   trace_id: z.string().trim().min(1).max(100).optional()
 });
+const pathSafetySchema = z.object({
+  robot_radius_m: z.number().finite().gt(0).max(2),
+  extra_clearance_m: z.number().finite().min(0).max(2)
+}).strict();
+
 const relocalizationSchema = z.object({
   map_id: z.number().positive(),
   x: z.number(),
@@ -732,6 +737,22 @@ export function buildApp(config: AppConfig, robotClient?: RobotClient): FastifyI
       map_name: params.mapName,
       ...(Number.isFinite(mapId) && mapId > 0 ? { map_id: mapId } : {})
     }, params.mapName);
+  });
+
+  app.get("/api/robots/default/navigation/path-safety", async () => {
+    const settings = await getRobot().pathSafety();
+    return { ok: true, ...settings };
+  });
+  app.post("/api/robots/default/navigation/path-safety", async (request, reply) => {
+    const parsed = pathSafetySchema.safeParse(request.body ?? {});
+    if (!parsed.success) {
+      return reply.code(400).send({
+        ok: false,
+        message: "机器人实测外接半径须大于 0 且不超过 2 米，额外障碍净空须在 0 到 2 米之间"
+      });
+    }
+    const settings = await getRobot().savePathSafety(parsed.data);
+    return { ok: true, ...settings };
   });
 
   app.get("/api/robots/default/relocalization/status", async () => getRobot().relocalizationStatus());

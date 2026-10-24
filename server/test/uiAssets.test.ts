@@ -26,4 +26,17 @@ describe("console UI assets", () => {
     expect(appScript).not.toContain("saveRobotHost");
     expect(html).not.toContain("saveRobotHostBtn");
   });
+
+  it("places global path safety inputs beside point task_type without making point editing require a radius", () => {
+    expect(html.indexOf('id="pointTaskType"')).toBeLessThan(html.indexOf('id="robotRadius"'));
+    expect(html.indexOf('id="robotRadius"')).toBeLessThan(html.indexOf('id="pointStart"'));
+    expect(html).toContain('id="extraClearance"');
+    expect(html).not.toMatch(/id="robotRadius"[^>]*\brequired/);
+    expect(appScript).toContain("radius.value.trim() === \"\"");
+    expect(appScript).not.toContain("radius.required");
+    expect(appScript).toContain("if (!state.pathSafetyLoaded)");
+    expect(appScript).toContain("state.pathSafetyLoaded = true");
+    expect(appScript).toContain("R16 不提供桥接应用回执");
+    expect(appScript).not.toContain("已保存并应用：半径");
+  });
 });

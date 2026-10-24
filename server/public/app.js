@@ -19,6 +19,8 @@ let state = {
   awaitingHeading: false,
   currentYaw: 0,
   linkcraftResources: [],
+  pathSafety: { robot_radius_m: null, extra_clearance_m: 0.1 },
+  pathSafetyLoaded: false,
   tasks: [],
   task: { name: "默认讲解任务", enabled: true, steps: [] }
 };
@@ -1150,6 +1152,68 @@ async function loadConfig(force = false) {
   renderConfig();
 }
 
+function renderPathSafetyStatus(message, stateName = "") {
+  const status = $("pathSafetyStatus");
+  if (!status) return;
+  status.textContent = message;
+  status.dataset.state = stateName;
+}
+
+async function loadPathSafety() {
+  const payload = await api("/api/robots/default/navigation/path-safety", { force: true });
+  const safety = payload.path_safety || {};
+  state.pathSafety = {
+    robot_radius_m: safety.robot_radius_m ?? null,
+    extra_clearance_m: safety.extra_clearance_m ?? 0.1
+  };
+  state.pathSafetyLoaded = true;
+  $("robotRadius").value = state.pathSafety.robot_radius_m ?? "";
+  $("extraClearance").value = state.pathSafety.extra_clearance_m;
+  if (state.pathSafety.robot_radius_m == null) {
+    renderPathSafetyStatus("尚未填写实测半径；R16 将拒绝下发 task_type=2、pnc_mode=0 全局导航。", "error");
+  } else {
+    renderPathSafetyStatus(
+      `已读取配置：半径 ${state.pathSafety.robot_radius_m} 米，额外净空 ${state.pathSafety.extra_clearance_m} 米。R16 不提供桥接应用回执。`,
+      "ok"
+    );
+  }
+  return state.pathSafety;
+}
+
+async function savePathSafety() {
+  const radius = $("robotRadius");
+  const clearance = $("extraClearance");
+  if (!state.pathSafetyLoaded) {
+    renderPathSafetyStatus("尚未成功读取机器人当前配置，请刷新页面后再保存，避免覆盖已有净空值。", "error");
+    return;
+  }
+  if (radius.value.trim() === "") {
+    renderPathSafetyStatus("必须先填写机器人实测外接半径，不能用估算默认值代替。", "error");
+    radius.focus();
+    return;
+  }
+  if (!radius.reportValidity()) return;
+  if (!clearance.reportValidity()) return;
+  const payload = await api("/api/robots/default/navigation/path-safety", {
+    method: "POST",
+    body: JSON.stringify({
+      robot_radius_m: Number(radius.value),
+      extra_clearance_m: Number(clearance.value)
+    })
+  });
+  const safety = payload.path_safety || {};
+  state.pathSafety = {
+    robot_radius_m: safety.robot_radius_m,
+    extra_clearance_m: safety.extra_clearance_m
+  };
+  radius.value = state.pathSafety.robot_radius_m;
+  clearance.value = state.pathSafety.extra_clearance_m;
+  renderPathSafetyStatus(
+    `已写入机器人全局配置：半径 ${state.pathSafety.robot_radius_m} 米，额外净空 ${state.pathSafety.extra_clearance_m} 米。R16 不提供桥接应用回执。`,
+    "ok"
+  );
+}
+
 function applyStartup(payload) {
   state.startup = payload;
   if (state.startup?.robot) {
@@ -1473,6 +1537,7 @@ function bindEvents() {
   $("refreshMapsBtn").onclick = () => runAction("地图列表已刷新", () => refreshMapList({ force: true, notify: true }));
   $("refreshLinkcraftBtn").onclick = () => runAction("灵创舞蹈和动作列表已刷新", () => loadLinkcraftResources(true));
   $("setActiveMapBtn").onclick = () => runAction("已切换为当前导航地图", () => setActiveMap());
+  $("savePathSafetyBtn").onclick = () => runAction("全局路径安全参数已保存", () => savePathSafety());
   $("newPointBtn").onclick = () => {
     fillPointForm(normalizePoint({
       name: "",
@@ -1567,6 +1632,11 @@ async function main() {
   bindEvents();
   try {
     await Promise.all([loadConfig(), refreshStartup()]);
+    try {
+      await loadPathSafety();
+    } catch (error) {
+      renderPathSafetyStatus(`读取机器人全局安全配置失败：${error.message}`, "error");
+    }
     renderSystemHealth();
     renderLocalization();
     try {
