@@ -4,19 +4,19 @@
 
 ## 文件
 
-`internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.1.0-20261025-r18-live-mapfit2.tar.gz`
+`internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.1.0-20261025-r18-live-mapfit3.tar.gz`
 
 SHA-256：
 
-`ef7f44ed69314ee4f84237b02d673ba3a7347c85b83c6cf9738da19fc9441974`
+`ea07b5763ea2d273a9e6c10d3a2fd5513398e1ef01c3d1c0c597382c46ea23d9`
 
 请先将 tar 包复制到机器人，然后校验并解压：
 
 ```bash
-sha256sum sparkrobot-lingxi-nav-internal-1.1.0-20261025-r18-live-mapfit2.tar.gz
-mkdir -p ~/r18-live-mapfit2
-tar -xzf sparkrobot-lingxi-nav-internal-1.1.0-20261025-r18-live-mapfit2.tar.gz -C ~/r18-live-mapfit2
-cd ~/r18-live-mapfit2/sparkrobot-lingxi-nav-internal-1.1.0-20261025-r18-live-mapfit2
+sha256sum sparkrobot-lingxi-nav-internal-1.1.0-20261025-r18-live-mapfit3.tar.gz
+mkdir -p ~/r18-live-mapfit3
+tar -xzf sparkrobot-lingxi-nav-internal-1.1.0-20261025-r18-live-mapfit3.tar.gz -C ~/r18-live-mapfit3
+cd ~/r18-live-mapfit3/sparkrobot-lingxi-nav-internal-1.1.0-20261025-r18-live-mapfit3
 ```
 
 首次安装若机器人尚未配置灵心/SOC2 凭据，使用 `sudo ./install.sh --secrets ./secrets.env --setup-soc2`；不要把真实凭据放进压缩包。已有 R18 安装只升级程序时，安装器会保留机器人现有配置、地图和任务：
@@ -28,7 +28,7 @@ sudo sparkrobot-lingxi-internal doctor
 readlink -f /opt/sparkrobot/lingxi-nav/current
 ```
 
-确认当前版本目录为 `1.1.0-20261025-r18-live-mapfit2`，并检查控制台健康状态：
+确认当前版本目录为 `1.1.0-20261025-r18-live-mapfit3`，并检查控制台健康状态：
 
 ```bash
 curl -fsS http://127.0.0.1:3000/health
