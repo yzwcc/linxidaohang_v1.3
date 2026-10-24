@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#ffffff">
     <title>灵犀导航</title>
-    <link rel="stylesheet" href="/console/styles.css?v=20260821-tour-effects-v2">
+    <link rel="stylesheet" href="/console/styles.css?v=20261024-r18-mapping-v1">
   </head>
   <body>
     <header class="topbar">
@@ -69,6 +69,7 @@
         <button type="button" role="tab" class="workspace-tab active" data-view="nav">导航</button>
         <button type="button" role="tab" class="workspace-tab" data-view="task">讲解</button>
         <button type="button" role="tab" class="workspace-tab" data-view="map">地图</button>
+        <button type="button" role="tab" class="workspace-tab" data-view="mapping">建图</button>
         <button type="button" role="tab" class="workspace-tab" data-view="system">服务</button>
       </nav>
     </section>
@@ -233,6 +234,32 @@
         </div>
       </section>
 
+      <section class="panel view-section mapping-panel" data-view-section="mapping" hidden>
+        <div class="panel-head">
+          <div>
+            <h2>激光建图</h2>
+            <p class="hint">网页只启动/保存 AIMDK 建图；机器人移动请使用外置遥控器。</p>
+          </div>
+          <span id="mappingBadge" class="badge bad">未检查</span>
+        </div>
+        <div class="status-grid compact">
+          <div><span>传感器</span><strong id="mappingSensors">检查中</strong></div>
+          <div><span>SLAM / 里程计</span><strong id="mappingSlam">检查中</strong></div>
+          <div><span>AIMDK 地图服务</span><strong id="mappingBackend">检查中</strong></div>
+          <div><span>建图会话</span><strong id="mappingSession">未启动</strong></div>
+        </div>
+        <p id="mappingDiagnosis" class="notice compact">正在检查传感器与建图接口。</p>
+        <form id="mappingSaveForm" class="mapping-controls">
+          <label>地图名称<input id="mappingName" maxlength="48" required placeholder="例如：一层展厅"></label>
+          <div class="split-actions">
+            <button id="mappingRefreshBtn" type="button" class="secondary">检查接口</button>
+            <button id="mappingStartBtn" type="button">开始建图</button>
+            <button id="mappingSaveBtn" type="submit" class="warning" disabled>停止并保存地图</button>
+          </div>
+        </form>
+        <pre id="mappingDetails" class="log neutral" aria-live="polite"></pre>
+      </section>
+
       <section class="panel editor-panel view-section" data-view-section="map" hidden>
         <h2 id="editorTitle">点位编辑</h2>
         <form id="pathSafetyForm"></form>
@@ -357,6 +384,6 @@
     </main>
 
     <div id="toast" class="toast"></div>
-    <script type="module" src="/console/app.js?v=20260825-linkcraft-tour"></script>
+    <script type="module" src="/console/app.js?v=20261024-r18-mapping-v1"></script>
   </body>
 </html>

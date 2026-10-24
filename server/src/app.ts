@@ -12,6 +12,7 @@ import { createRobotClient, type RobotClient } from "./robotClient.js";
 import { isBridgeAction, restartRobotVoiceStack, runBridgeAction } from "./sshControl.js";
 import { getJavaAgentStatus, startJavaAgent, stopJavaAgent } from "./javaAgentControl.js";
 import { getCurrentLocalization } from "./localizationControl.js";
+import { getMappingHealth, getMappingSession, startMapping, stopAndSaveMapping } from "./mappingControl.js";
 import { loadRuntimeConfig, loadRuntimeRobotHost, runtimeConfigPath, saveRobotHost } from "./runtimeConfig.js";
 import { getRobotSystemHealth, recoverRobotLocalization, restartRobotSystem } from "./systemControl.js";
 import { getTunnelDiagnostics } from "./tunnelDiagnostics.js";
@@ -35,6 +36,9 @@ const ttsSpeakSchema = z.object({
 const pathSafetySchema = z.object({
   robot_radius_m: z.number().finite().gt(0).max(2),
   extra_clearance_m: z.number().finite().min(0).max(2)
+}).strict();
+const mappingSaveSchema = z.object({
+  map_name: z.string().trim().min(1).max(48)
 }).strict();
 
 const relocalizationSchema = z.object({
@@ -676,6 +680,26 @@ export function buildApp(config: AppConfig, robotClient?: RobotClient): FastifyI
     return getTunnelDiagnostics(getConfig(), runtimeRobotHost);
   });
   app.get("/api/robots/default/system/health", async () => getRobotSystemHealth(getConfig()));
+  app.get("/api/robots/default/mapping/status", async () => ({
+    session: getMappingSession(),
+    health: await getMappingHealth(getConfig())
+  }));
+  app.post("/api/robots/default/mapping/start", async (_request, reply) => {
+    try {
+      return await startMapping(getConfig());
+    } catch (error) {
+      return reply.code(409).send({ ok: false, message: error instanceof Error ? error.message : String(error) });
+    }
+  });
+  app.post("/api/robots/default/mapping/stop-save", async (request, reply) => {
+    const parsed = mappingSaveSchema.safeParse(request.body ?? {});
+    if (!parsed.success) return reply.code(400).send({ ok: false, message: "请填写有效的地图名称" });
+    try {
+      return await stopAndSaveMapping(getConfig(), parsed.data.map_name);
+    } catch (error) {
+      return reply.code(409).send({ ok: false, message: error instanceof Error ? error.message : String(error) });
+    }
+  });
   app.post("/api/robots/default/system/restart", async () => restartRobotSystem(getConfig()));
   app.post("/api/robots/default/system/recover-localization", async () => recoverRobotLocalization(getConfig()));
 

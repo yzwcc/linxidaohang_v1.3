@@ -20,6 +20,7 @@ let state = {
   currentYaw: 0,
   linkcraftResources: [],
   pathSafety: { robot_radius_m: null, extra_clearance_m: 0.1 },
+  mapping: null,
   pathSafetyLoaded: false,
   tasks: [],
   task: { name: "默认讲解任务", enabled: true, steps: [] }
@@ -112,7 +113,7 @@ function renderStartAllResult(result, running = false) {
 }
 
 function switchWorkspace(view, { scroll = false } = {}) {
-  const allowed = new Set(["nav", "task", "map", "system"]);
+  const allowed = new Set(["nav", "task", "map", "mapping", "system"]);
   const nextView = allowed.has(view) ? view : "nav";
   document.querySelectorAll("[data-view-section]").forEach((section) => {
     section.hidden = section.dataset.viewSection !== nextView;
@@ -124,6 +125,58 @@ function switchWorkspace(view, { scroll = false } = {}) {
   });
   try { sessionStorage.setItem("lingxi-workspace", nextView); } catch { /* no-op */ }
   if (scroll) document.querySelector(".layout")?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function renderMapping(payload) {
+  state.mapping = payload;
+  const health = payload?.health || {};
+  const session = payload?.session || {};
+  const ready = health.ok === true;
+  setText("mappingBadge", ready ? "接口已发现" : "未就绪");
+  setClass("mappingBadge", `badge ${ready ? "ok" : "bad"}`);
+  setText("mappingSensors", health.lidar_data_available && health.imu_data_available ? "雷达与 IMU 有数据" : "未确认");
+  setText("mappingSlam", health.slam_running && health.odom_data_available ? "运行中" : "未确认");
+  setText("mappingBackend", (health.mapping_related_services || []).some((item) => item.includes("GetStoredMapByName")) ? "已发现" : "未发现");
+  setText("mappingSession", session.active ? `建图中 · ${session.started_at || ""}` : session.awaiting_save ? `待保存 · ${session.map_name || ""}` : session.map_name ? `已保存 · ${session.map_name}` : "未启动");
+  setText("mappingDiagnosis", health.diagnosis || "未读取到建图状态");
+  $("mappingStartBtn").disabled = !ready || Boolean(session.active || session.awaiting_save);
+  $("mappingSaveBtn").disabled = !session.active && !session.awaiting_save;
+  $("mappingDetails").textContent = [
+    ...(health.mapping_related_topics || []).map((item) => `Topic  ${item}`),
+    ...(health.mapping_related_services || []).map((item) => `Service ${item}`),
+    health.checked_at ? `检查时间 ${health.checked_at}` : ""
+  ].filter(Boolean).join("\n");
+}
+
+async function refreshMappingStatus() {
+  const payload = await api("/api/robots/default/mapping/status");
+  renderMapping(payload);
+  return payload;
+}
+
+async function startMappingFromConsole() {
+  if (!state.mapping?.health?.ok) throw new Error("建图接口未就绪，请先检查接口");
+  if (!window.confirm("即将启动激光建图。请确认机器人已由外置遥控器接管移动；网页不会控制机器人运动。")) return;
+  $("mappingStartBtn").disabled = true;
+  const result = await api("/api/robots/default/mapping/start", { method: "POST" });
+  toast("AIMDK 建图已启动，请用外置遥控器移动机器人");
+  await refreshMappingStatus();
+  return result;
+}
+
+async function stopAndSaveMappingFromConsole() {
+  const name = $("mappingName").value.trim();
+  if (!name) throw new Error("请先填写地图名称");
+  if (!window.confirm(`停止建图并保存为“${name}”？地图会写入机器人导航地图目录。`)) return;
+  $("mappingSaveBtn").disabled = true;
+  const result = await api("/api/robots/default/mapping/stop-save", {
+    method: "POST",
+    body: JSON.stringify({ map_name: name })
+  });
+  $("mappingDetails").textContent = `地图已保存\nID ${result.map.map_id}\n${result.map.path}\n${result.map.width} × ${result.map.height} px`;
+  toast("地图已保存，可到“地图”页刷新列表");
+  await Promise.all([refreshMappingStatus(), refreshMapList({ force: true })]);
+  return result;
 }
 
 function label(value, dict) {
@@ -1482,6 +1535,12 @@ function bindEvents() {
     initialWorkspace = requestedWorkspace || "nav";
   }
   switchWorkspace(initialWorkspace);
+  $("mappingRefreshBtn").onclick = () => runAction("建图接口状态已刷新", () => refreshMappingStatus());
+  $("mappingStartBtn").onclick = () => runAction("建图会话已启动", () => startMappingFromConsole());
+  $("mappingSaveForm").onsubmit = (event) => {
+    event.preventDefault();
+    void runAction("地图已保存", () => stopAndSaveMappingFromConsole());
+  };
   $("mapCanvas").onclick = (event) => handleMapPointer(event);
   $("mapCanvas").oncontextmenu = (event) => {
     event.preventDefault();
@@ -1669,6 +1728,9 @@ async function main() {
       toast(`灵创资源暂未读取：${error.message}`);
     }
     await loadMaps();
+    try { await refreshMappingStatus(); } catch (error) {
+      setText("mappingDiagnosis", `读取建图接口失败：${error.message}`);
+    }
   } catch (error) {
     toast(error.message);
   }

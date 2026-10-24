@@ -105,6 +105,23 @@ describe("app", () => {
     expect(response.statusCode).toBe(400);
   });
 
+  it("exposes mapping status and validates the save-map name", async () => {
+    const app = buildApp(config, robot());
+    const invalid = await app.inject({
+      method: "POST",
+      url: "/api/robots/default/mapping/stop-save",
+      payload: { map_name: "../unsafe" }
+    });
+    expect(invalid.statusCode).toBe(409);
+    expect(invalid.json().message).toContain("地图名称须为");
+    const badBody = await app.inject({
+      method: "POST",
+      url: "/api/robots/default/mapping/stop-save",
+      payload: { map_name: "valid", extra: true }
+    });
+    expect(badBody.statusCode).toBe(400);
+  });
+
   it("proxies navigation start", async () => {
     const app = buildApp(config, robot());
     const response = await app.inject({
