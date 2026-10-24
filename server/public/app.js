@@ -124,6 +124,9 @@ function switchWorkspace(view, { scroll = false } = {}) {
     tab.setAttribute("aria-selected", String(active));
   });
   try { sessionStorage.setItem("lingxi-workspace", nextView); } catch { /* no-op */ }
+  if (nextView === "mapping") {
+    void refreshMappingStatus().catch((error) => setText("mappingDiagnosis", `读取建图接口失败：${error.message}`));
+  }
   if (scroll) document.querySelector(".layout")?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 

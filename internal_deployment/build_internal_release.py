@@ -258,7 +258,15 @@ def audit(stage: Path) -> None:
     mapping_controller = (
         stage / "payload" / "console" / "dist" / "mappingControl.js"
     ).read_text(encoding="utf-8")
-    if "GetStoredMapByName" not in mapping_controller or "/integrated_command" not in mapping_controller:
+    if any(marker not in mapping_controller for marker in (
+        "GetStoredMapByName",
+        "/integrated_command",
+        "TRANSIENT_LOCAL",
+        "RELIABLE",
+        "get_subscription_count",
+        "mapping-session.json",
+        "awaiting_save",
+    )):
         raise RuntimeError("R18 控制台建图接口缺少 AIMDK v1.1.0 合约")
     if "data-view=\"mapping\"" not in console_html or "外置遥控器" not in console_html:
         raise RuntimeError("R18 控制台缺少建图工作区或外置遥控安全提示")

@@ -1,5 +1,7 @@
 import type { AppConfig } from "./config.js";
-import { runRobotSystemSshCommand, shellQuote } from "./sshControl.js";
+import fs from "node:fs";
+import path from "node:path";
+import { runRobotSshCommand, shellQuote } from "./sshControl.js";
 
 const lidarTopic = "/aima/hal/sensor/lidar_chest_front/lidar_pointcloud";
 const imuTopic = "/aima/hal/sensor/lidar_chest_front/imu";
@@ -22,28 +24,103 @@ export type MappingHealth = {
   diagnosis: string;
 };
 
-let session: { active: boolean; awaiting_save: boolean; map_name: string | null; started_at: string | null } = {
-  active: false, awaiting_save: false, map_name: null, started_at: null
-};
+type MappingSession = { active: boolean; awaiting_save: boolean; map_name: string | null; started_at: string | null };
+const sessionPath = process.env.MAPPING_SESSION_PATH || "/var/lib/sparkrobot/lingxi-nav/mapping-session.json";
+let session: MappingSession = loadSession();
 let operation: Promise<unknown> | null = null;
 
+function loadSession(): MappingSession {
+  try {
+    const value = JSON.parse(fs.readFileSync(sessionPath, "utf8")) as Partial<MappingSession>;
+    if (typeof value.active !== "boolean" || typeof value.awaiting_save !== "boolean") throw new Error("invalid session");
+    return {
+      active: value.active,
+      awaiting_save: value.awaiting_save,
+      map_name: typeof value.map_name === "string" ? value.map_name : null,
+      started_at: typeof value.started_at === "string" ? value.started_at : null
+    };
+  } catch {
+    return { active: false, awaiting_save: false, map_name: null, started_at: null };
+  }
+}
+
+function saveSession(): void {
+  const directory = path.dirname(sessionPath);
+  fs.mkdirSync(directory, { recursive: true, mode: 0o770 });
+  const temporary = `${sessionPath}.${process.pid}.tmp`;
+  fs.writeFileSync(temporary, `${JSON.stringify(session)}\n`, { encoding: "utf8", mode: 0o660 });
+  fs.renameSync(temporary, sessionPath);
+}
+
+function updateSession(value: MappingSession): void {
+  session = value;
+  try {
+    saveSession();
+  } catch (error) {
+    session = loadSession();
+    throw new Error(`无法持久化建图会话状态：${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
 function environment(): string {
-  return [
-    "set +u",
-    "source /opt/ros/humble/setup.bash",
-    "[ ! -f /agibot/software/common/local_setup.bash ] || source /agibot/software/common/local_setup.bash",
-    "[ ! -f /home/agi/aimdk/install/setup.bash ] || source /home/agi/aimdk/install/setup.bash",
-    "[ ! -f /agibot/software/entry/cfg/ros_dds_configuration.xml ] || export FASTRTPS_DEFAULT_PROFILES_FILE=/agibot/software/entry/cfg/ros_dds_configuration.xml",
-    "[ ! -f /agibot/software/nav/bin/librmw_fastrtps.so ] || export RMW_LIBRARY_PATH=/agibot/software/nav/bin/librmw_fastrtps.so",
-    "set -u"
-  ].join("; ");
+  return String.raw`set -u
+ROS_SETUP=/opt/ros/humble/setup.bash
+AIMDK_SETUP=/home/agi/aimdk/install/setup.bash
+set +u
+[ ! -r "$ROS_SETUP" ] || source "$ROS_SETUP"
+[ ! -r "$AIMDK_SETUP" ] || source "$AIMDK_SETUP"
+set -u
+[ ! -r /agibot/software/entry/cfg/ros_dds_configuration.xml ] || export FASTRTPS_DEFAULT_PROFILES_FILE=/agibot/software/entry/cfg/ros_dds_configuration.xml
+[ ! -r /agibot/software/nav/bin/librmw_fastrtps.so ] || export RMW_LIBRARY_PATH=/agibot/software/nav/bin/librmw_fastrtps.so
+for prefix in /opt/ros/humble /home/agi/aimdk/install; do
+  if [ -d "$prefix/lib" ]; then
+    export PYTHONPATH="$prefix/local/lib/python3.10/dist-packages:$prefix/lib/python3.10/site-packages:\${PYTHONPATH:-}"
+    export LD_LIBRARY_PATH="$prefix/lib:$prefix/lib/aarch64-linux-gnu:\${LD_LIBRARY_PATH:-}"
+  fi
+done`;
 }
 
 function runRos(command: string, config: AppConfig, timeoutMs = 15_000): Promise<string> {
-  return runRobotSystemSshCommand(`bash -lc ${shellQuote(`${environment()}; ${command}`)}`, config, timeoutMs);
+  return runRobotSshCommand(`bash -lc ${shellQuote(`${environment()}; ${command}`)}`, config, timeoutMs);
 }
 
-export function getMappingSession() {
+export function mappingCommandScript(): string {
+  return String.raw`import sys, time
+import rclpy
+from rclpy.node import Node
+from rclpy.qos import QoSProfile, QoSDurabilityPolicy, QoSReliabilityPolicy
+from std_msgs.msg import String
+
+rclpy.init()
+node = Node('lingxi_mapping_command_publisher')
+qos = QoSProfile(depth=10, durability=QoSDurabilityPolicy.TRANSIENT_LOCAL, reliability=QoSReliabilityPolicy.RELIABLE)
+publisher = node.create_publisher(String, '/integrated_command', qos)
+deadline = time.monotonic() + 8.0
+while rclpy.ok() and publisher.get_subscription_count() == 0 and time.monotonic() < deadline:
+    rclpy.spin_once(node, timeout_sec=0.1)
+if publisher.get_subscription_count() == 0:
+    raise RuntimeError('AIMDK /integrated_command 暂无订阅者，未发送建图命令')
+message = String()
+message.data = sys.argv[1]
+publisher.publish(message)
+deadline = time.monotonic() + 1.5
+while rclpy.ok() and time.monotonic() < deadline:
+    rclpy.spin_once(node, timeout_sec=0.1)
+node.destroy_node()
+rclpy.shutdown()`;
+}
+
+function publishIntegratedCommand(command: string, config: AppConfig): Promise<string> {
+  const source = mappingCommandScript();
+  const encoded = Buffer.from(source, "utf8").toString("base64");
+  return runRos(
+    `python3 -c "import base64;exec(compile(base64.b64decode('${encoded}'),'<aimdk-mapping-command>','exec'))" ${shellQuote(command)}`,
+    config,
+    12_000
+  );
+}
+
+export function getMappingSession(): MappingSession {
   return { ...session };
 }
 
@@ -63,7 +140,7 @@ export async function getMappingHealth(config: AppConfig): Promise<MappingHealth
     "timeout 3 ros2 topic list -t 2>/dev/null | grep -Ei 'map|slam|lidar|imu|integrated_command' | head -80 | sed 's/^/topic=/'",
     "timeout 3 ros2 service list -t 2>/dev/null | grep -Ei 'map|slam|lidar|imu|GetStoredMapByName' | head -80 | sed 's/^/service=/'"
   ].join("\n");
-  const output = await runRobotSystemSshCommand(`bash -lc ${shellQuote(lines)}`, config, 42_000);
+  const output = await runRobotSshCommand(`bash -lc ${shellQuote(lines)}`, config, 42_000);
   const fields: Record<string, string> = {};
   for (const line of output.split(/\r?\n/)) {
     const index = line.indexOf("=");
@@ -111,12 +188,8 @@ export async function startMapping(config: AppConfig) {
   const task = (async () => {
     const health = await getMappingHealth(config);
     if (!health.ok) throw new Error(`建图前置条件未就绪：${health.diagnosis}`);
-    const output = await runRos(
-      `timeout 8 ros2 topic pub --once --qos-reliability reliable --qos-durability transient_local /integrated_command std_msgs/msg/String ${shellQuote("{data: start_mapping}")}`,
-      config,
-      12_000
-    );
-    session = { active: true, awaiting_save: false, map_name: null, started_at: new Date().toISOString() };
+    const output = await publishIntegratedCommand("start_mapping", config);
+    updateSession({ active: true, awaiting_save: false, map_name: null, started_at: new Date().toISOString() });
     return { ok: true, session: getMappingSession(), output: output.trim() };
   })();
   operation = task;
@@ -132,12 +205,8 @@ export async function stopAndSaveMapping(config: AppConfig, mapName: string) {
   if (!session.active && !session.awaiting_save) throw new Error("当前没有由本控制台启动的建图任务");
   const task = (async () => {
     if (session.active) {
-      await runRos(
-        `timeout 8 ros2 topic pub --once --qos-reliability reliable --qos-durability transient_local /integrated_command std_msgs/msg/String ${shellQuote(`{data: "stop_mapping:${name}"}`)}`,
-        config,
-        12_000
-      );
-      session = { active: false, awaiting_save: true, map_name: name, started_at: null };
+      await publishIntegratedCommand(`stop_mapping:${name}`, config);
+      updateSession({ active: false, awaiting_save: true, map_name: name, started_at: null });
     } else if (session.map_name !== name) {
       throw new Error(`待保存地图名称为 ${session.map_name}，请使用相同名称重试`);
     }
@@ -149,14 +218,14 @@ export async function stopAndSaveMapping(config: AppConfig, mapName: string) {
     );
     const payload = JSON.parse(output.trim().split(/\r?\n/).at(-1) || "{}");
     if (!payload.ok) throw new Error(payload.message || "AIMDK 返回地图保存失败");
-    session = { active: false, awaiting_save: false, map_name: name, started_at: null };
+    updateSession({ active: false, awaiting_save: false, map_name: name, started_at: null });
     return { ok: true, session: getMappingSession(), map: payload };
   })();
   operation = task;
   try { return await task; } finally { if (operation === task) operation = null; }
 }
 
-function mapSaveScript(): string {
+export function mapSaveScript(): string {
   return String.raw`import json, math, os, pathlib, struct, sys, tempfile, time, zlib
 import rclpy
 from rclpy.node import Node
@@ -216,11 +285,22 @@ try:
         raise RuntimeError('AIMDK 未返回有效的数字地图 ID')
     target = root / str(map_id)
     if target.exists():
-        raise RuntimeError('地图 ID 目录已存在，拒绝覆盖：' + str(map_id))
+        existing_png = target / 'occupancy_map.png'
+        existing_info = target / 'grid_map_info.txt'
+        if not existing_png.is_file() or not existing_info.is_file():
+            raise RuntimeError('AIMDK 地图 ID 已存在，但不是完整导航地图；为避免覆盖，拒绝写入：' + str(map_id))
+        expected_info = f'{ppm:.12g}\n{origin_u:.12g} {origin_v:.12g}\n{width} {height}\n'.encode('utf-8')
+        if existing_png.read_bytes() != png or existing_info.read_bytes() != expected_info:
+            raise RuntimeError('该地图 ID 已存在且内容不同，为避免覆盖其他地图，拒绝写入：' + str(map_id))
+        print(json.dumps({'ok': True, 'map_name': name, 'map_id': map_id, 'width': width, 'height': height, 'resolution_m': resolution, 'path': str(target), 'reused_existing_map': True}, ensure_ascii=False))
+        sys.exit(0)
     tmp = pathlib.Path(tempfile.mkdtemp(prefix='.lingxi-map-', dir=root))
     try:
         (tmp / 'occupancy_map.png').write_bytes(png)
         (tmp / 'grid_map_info.txt').write_text(f'{ppm:.12g}\n{origin_u:.12g} {origin_v:.12g}\n{width} {height}\n', encoding='utf-8')
+        os.chmod(tmp / 'occupancy_map.png', 0o644)
+        os.chmod(tmp / 'grid_map_info.txt', 0o644)
+        os.chmod(tmp, 0o755)
         os.rename(tmp, target)
     finally:
         if tmp.exists():
