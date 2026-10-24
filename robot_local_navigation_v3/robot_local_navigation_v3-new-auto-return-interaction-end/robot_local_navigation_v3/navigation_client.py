@@ -20,7 +20,11 @@ from robot_local_navigation_v3.arrival_hysteresis import (
     is_within_arrival_hysteresis,
     is_yaw_within_tolerance,
 )
-from robot_local_navigation_v3.models import NavPoint, NavigationDefaults
+from robot_local_navigation_v3.models import (
+    MIN_TARGET_POSE_RADIUS,
+    NavPoint,
+    NavigationDefaults,
+)
 from robot_local_navigation_v3.navigation_events import (
     NavigationEvent,
     NavigationEventListener,
@@ -115,7 +119,7 @@ class NavigationClient:
         cmd_qos = QoSProfile(
             depth=10,
             reliability=QoSReliabilityPolicy.BEST_EFFORT,
-            durability=QoSDurabilityPolicy.TRANSIENT_LOCAL,
+            durability=QoSDurabilityPolicy.VOLATILE,
         )
         self.publisher = node.create_publisher(PncTaskRequest, topic_name, cmd_qos)
         odom_qos = QoSProfile(depth=10, reliability=QoSReliabilityPolicy.BEST_EFFORT)
@@ -402,7 +406,7 @@ class NavigationClient:
             response_qos = QoSProfile(
                 depth=10,
                 reliability=QoSReliabilityPolicy.BEST_EFFORT,
-                durability=QoSDurabilityPolicy.VOLATILE,
+                durability=QoSDurabilityPolicy.TRANSIENT_LOCAL,
             )
             self.pnc_response_subscription = self.node.create_subscription(
                 message_type,
@@ -794,7 +798,10 @@ class NavigationSession:
         msg.max_forward_speed = self.point.navigation.max_forward_speed
         msg.task_id = self.task_id
         msg.map_id = self.point.map_id
-        msg.target_pose_radius = self.point.navigation.target_pose_radius
+        msg.target_pose_radius = max(
+            MIN_TARGET_POSE_RADIUS,
+            float(self.point.navigation.target_pose_radius),
+        )
         msg.reserve_info = [0] * 64
         msg.target_pose = self._make_pose()
         reference_line = []

@@ -2,7 +2,7 @@
 set -Eeuo pipefail
 umask 0027
 
-FIX_VERSION="1.0.7-20261024-r17"
+FIX_VERSION="1.0.8-20261024-r18"
 FIX_STATE_ROOT="${FIX_STATE_ROOT:-/var/lib/sparkrobot/lingxi-consecutive-nav-fix}"
 BACKUP_ROOT="${BACKUP_ROOT:-${FIX_STATE_ROOT}/backups}"
 RUNTIME_STATE_ROOT="${SPARKROBOT_STATE_ROOT:-/var/lib/sparkrobot/lingxi-nav}"

@@ -3,9 +3,9 @@ set -euo pipefail
 
 [[ "$(id -un)" == "run" ]] || { echo "请使用 run 账号执行本脚本" >&2; exit 1; }
 
-ARCHIVE=/home/run/sparkrobot-lingxi-nav-internal-1.0.9-20261024-r17.tar.gz
+ARCHIVE=/home/run/sparkrobot-lingxi-nav-internal-1.1.0-20261024-r18.tar.gz
 CHECKSUM_FILE=${ARCHIVE}.sha256
-PACKAGE_DIR=/home/run/sparkrobot-lingxi-nav-internal-1.0.9-20261024-r17
+PACKAGE_DIR=/home/run/sparkrobot-lingxi-nav-internal-1.1.0-20261024-r18
 SECRETS=${PACKAGE_DIR}/secrets.env
 
 [[ -f "${ARCHIVE}" ]] || { echo "缺少 ${ARCHIVE}" >&2; exit 1; }
@@ -24,7 +24,7 @@ trap 'rm -f -- "${SECRETS}"' EXIT
 chmod 600 "${SECRETS}"
 
 INSTALL_ARGS=(--secrets "${SECRETS}" --setup-soc2)
-if [[ -d /opt/sparkrobot/lingxi-nav/releases/1.0.9-20261024-r17 ]]; then
+if [[ -d /opt/sparkrobot/lingxi-nav/releases/1.1.0-20261024-r18 ]]; then
   INSTALL_ARGS+=(--reinstall)
 fi
 sudo ./install.sh "${INSTALL_ARGS[@]}"

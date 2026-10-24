@@ -4,7 +4,7 @@ set -euo pipefail
 [[ "$(id -un)" == "run" ]] || { echo "请使用 run 账号执行本脚本" >&2; exit 1; }
 
 CURRENT="$(readlink -f /opt/sparkrobot/lingxi-nav/current)"
-[[ "${CURRENT}" == "/opt/sparkrobot/lingxi-nav/releases/1.0.9-20261024-r17" ]] || {
+[[ "${CURRENT}" == "/opt/sparkrobot/lingxi-nav/releases/1.1.0-20261024-r18" ]] || {
   echo "当前导航版本不正确：${CURRENT}" >&2
   exit 1
 }

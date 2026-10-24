@@ -17,7 +17,7 @@ from pathlib import Path, PurePosixPath
 ROOT = Path(__file__).resolve().parents[1]
 HERE = ROOT / "internal_deployment"
 PRODUCT_ID = "sparkrobot-lingxi-nav-internal"
-DEFAULT_VERSION = "1.0.9-20261024-r17"
+DEFAULT_VERSION = "1.1.0-20261024-r18"
 FIELD_VERIFIED_JAVA_SHA256 = "d3858827d71aa54dc4b7cc794a0d8446cf0168d65e4cca0a2e686b6f7012dd04"
 VERSION_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
 DEV_NODE_MODULES = {
@@ -210,6 +210,7 @@ def audit(stage: Path) -> None:
         "source/navigation/robot_local_navigation_v3/navigation_client.py",
         "source/navigation/test/test_path_clearance.py",
         "source/navigation/test/test_pnc_discovery.py",
+        "source/navigation/test/test_aimdk_110_contract.py",
         "source/navigation/test/test_map_label_path_safety_settings.py",
         "payload/navigation/robot_local_navigation_v3/robot_lingxi_bridge.py",
         "payload/java/robot-local-navigation-java-all.jar",
@@ -240,6 +241,9 @@ def audit(stage: Path) -> None:
     ).read_text(encoding="utf-8")
     pnc_discovery_tests = (
         stage / "source" / "navigation" / "test" / "test_pnc_discovery.py"
+    ).read_text(encoding="utf-8")
+    aimdk_contract_tests = (
+        stage / "source" / "navigation" / "test" / "test_aimdk_110_contract.py"
     ).read_text(encoding="utf-8")
     path_safety_settings_tests = (
         stage / "source" / "navigation" / "test" / "test_map_label_path_safety_settings.py"
@@ -274,8 +278,35 @@ def audit(stage: Path) -> None:
         raise RuntimeError("导航源码缺少静态障碍净空绕行测试")
     if "test_start_request_contains_the_planned_reference_line" not in pnc_discovery_tests:
         raise RuntimeError("导航源码缺少 reference_line 请求测试")
+    for marker in (
+        "test_pnc_request_uses_best_effort_volatile_qos",
+        "test_pnc_response_uses_best_effort_transient_local_qos",
+        "test_start_radius_is_clamped_to_sdk_minimum",
+        "test_stop_radius_remains_zero",
+        "aimdk v1.1.0-gfaf4c94",
+    ):
+        if marker not in aimdk_contract_tests:
+            raise RuntimeError(f"R18 AIMDK 契約測試缺少：{marker}")
     if "radius_cells = (config.robot_radius_m + config.extra_clearance_m)" not in path_clearance:
         raise RuntimeError("R17 地图障碍膨胀未使用页面实测半径和额外净空")
+    request_qos = """cmd_qos = QoSProfile(
+            depth=10,
+            reliability=QoSReliabilityPolicy.BEST_EFFORT,
+            durability=QoSDurabilityPolicy.VOLATILE,
+        )"""
+    response_qos = """response_qos = QoSProfile(
+                depth=10,
+                reliability=QoSReliabilityPolicy.BEST_EFFORT,
+                durability=QoSDurabilityPolicy.TRANSIENT_LOCAL,
+            )"""
+    if request_qos not in navigation_client:
+        raise RuntimeError("R18 PNC 请求 QoS 与 AIMDK 1.1.0 契约不一致")
+    if response_qos not in navigation_client:
+        raise RuntimeError("R18 PNC 响应 QoS 与 AIMDK 1.1.0 契约不一致")
+    if "MIN_TARGET_POSE_RADIUS" not in models or "max(\n            MIN_TARGET_POSE_RADIUS" not in navigation_client:
+        raise RuntimeError("R18 START 请求未落实 AIMDK 最小目标半径")
+    if "msg.target_pose_radius = 0.0" not in navigation_client:
+        raise RuntimeError("R18 STOP 请求必须保留 target_pose_radius=0")
     for marker in (
         "test_configured_radius_and_extra_clearance_move_route_farther_from_obstacle",
         "self.assertGreater(increased_clearance_distance, baseline_distance + 1.0)",

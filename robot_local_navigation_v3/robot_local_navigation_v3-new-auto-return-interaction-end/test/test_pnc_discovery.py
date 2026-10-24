@@ -118,14 +118,19 @@ class FakeNode:
         self.publishers = list(publishers or [])
         self.logger = FakeLogger()
         self.subscriptions: list[str] = []
+        self.subscription_qos: list[object] = []
         self.timers: list[FakeTimer] = []
         self.published_messages: list[object] = []
+        self.publisher_qos: list[object] = []
 
-    def create_publisher(self, *_args, **_kwargs):
+    def create_publisher(self, _message_type, _topic: str, qos_profile):
+        self.publisher_qos.append(qos_profile)
         return SimpleNamespace(publish=self.published_messages.append)
 
     def create_subscription(self, _message_type, topic: str, _callback, **_kwargs):
         self.subscriptions.append(topic)
+        if "qos_profile" in _kwargs:
+            self.subscription_qos.append(_kwargs["qos_profile"])
         return SimpleNamespace(topic=topic)
 
     def create_timer(self, _period_sec: float, callback):
@@ -236,6 +241,59 @@ def test_task_type_two_normal_mode_requires_the_safe_reference_line():
     assert not navigation_client.NavigationClient._requires_global_path_safety(point)
 
 
+def test_navigation_request_publisher_uses_aimdk_110_qos():
+    node = FakeNode()
+    _make_client(node)
+
+    qos = node.publisher_qos[0].options
+    assert qos["reliability"] == "best_effort"
+    assert qos["durability"] == "volatile"
+
+
+def test_pnc_response_subscription_uses_aimdk_110_qos():
+    node = FakeNode(publishers=[object()])
+    _make_client(node)
+
+    qos = node.subscription_qos[-1].options
+    assert qos["reliability"] == "best_effort"
+    assert qos["durability"] == "transient_local"
+
+
+def test_legacy_target_pose_radius_is_raised_to_aimdk_minimum():
+    from robot_local_navigation_v3.models import NavPoint
+
+    point = NavPoint.from_dict({
+        "name": "legacy-point",
+        "map_id": 7,
+        "navigation": {"target_pose_radius": 0.15},
+    })
+
+    assert point.navigation.target_pose_radius == 0.25
+
+
+def test_target_pose_radius_above_aimdk_minimum_is_preserved():
+    from robot_local_navigation_v3.models import NavPoint
+
+    point = NavPoint.from_dict({
+        "name": "precise-point",
+        "map_id": 7,
+        "navigation": {"target_pose_radius": 0.4},
+    })
+
+    assert point.navigation.target_pose_radius == 0.4
+
+
+def test_aimdk_minimum_does_not_change_arrival_position_tolerance():
+    from robot_local_navigation_v3.models import NavigationDefaults
+
+    defaults = NavigationDefaults.from_dict({
+        "default_target_pose_radius": 0.25,
+    })
+
+    assert defaults.default_target_pose_radius == 0.25
+    assert defaults.arrival_policy.position_tolerance_m == 0.15
+
+
 def test_start_request_contains_the_planned_reference_line():
     node = FakeNode()
     session = navigation_client.NavigationSession.__new__(
@@ -272,3 +330,32 @@ def test_start_request_contains_the_planned_reference_line():
         (1.0, 2.0, 0.0),
         (2.0, 3.0, 0.0),
     ]
+    assert message.target_pose_radius == 0.25
+
+
+def test_stop_request_keeps_zero_target_pose_radius():
+    node = FakeNode()
+    session = navigation_client.NavigationSession.__new__(
+        navigation_client.NavigationSession
+    )
+    session.node = node
+    session.point = SimpleNamespace(
+        map_id=7,
+        navigation=SimpleNamespace(
+            task_type=2,
+            pnc_mode=0,
+            max_forward_speed=0.3,
+        ),
+    )
+    session.task_id = 123
+    session._lock = threading.RLock()
+    session._stop_sent = False
+    session._make_header = lambda: "header"
+    session._start_publishing = node.published_messages.append
+    session._emit = lambda *_args, **_kwargs: None
+
+    session._send_stop()
+
+    message = node.published_messages[0]
+    assert message.task_request == navigation_client.TASK_REQUEST_STOP
+    assert message.target_pose_radius == 0.0

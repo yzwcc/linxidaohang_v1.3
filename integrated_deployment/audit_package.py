@@ -14,7 +14,7 @@ from pathlib import Path, PurePosixPath
 
 
 HERE = Path(__file__).resolve().parent
-VERSION = "1.3.1-complete-20261024-r17"
+VERSION = "1.3.1-complete-20261024-r18"
 NAME = f"lingxi-v{VERSION}-deployment"
 DIST = HERE / "dist"
 REQUIRED = {
@@ -26,14 +26,14 @@ REQUIRED = {
     "control_all.sh",
     "docs/灵犀完整部署教程-v1.3.1-complete.md",
     "docs/客户日常使用手册-v1.3.1.md",
-    "docs/已有AIMDK部署说明-v1.3.1-r17.md",
-    "components/lingxi-v1.3.1-full-deployment-20261024-r17.zip",
-    "components/aimdk-aarch64-1bde262f-artifacts.7z",
-    "components/sparkrobot-lingxi-nav-internal-1.0.9-20261024-r17.tar.gz",
-    "components/sparkrobot-lingxi-nav-internal-1.0.9-20261024-r17.tar.gz.sha256",
+    "docs/已有AIMDK部署说明-v1.3.1-r18.md",
+    "components/lingxi-v1.3.1-full-deployment-20261024-r18.zip",
+    "components/aimdk-sdk-v1_1_0-aimdk-aarch64-faf4c945-artifacts.zip",
+    "components/sparkrobot-lingxi-nav-internal-1.1.0-20261024-r18.tar.gz",
+    "components/sparkrobot-lingxi-nav-internal-1.1.0-20261024-r18.tar.gz.sha256",
     "components/sparkrobot-lingxi-kb-1.0.10-20261023.zip",
     "components/sparkrobot-lingxi-linkcraft-addon-1.0.3-20260902.tar.gz",
-    "components/sparkrobot-lingxi-consecutive-nav-fix-1.0.7-20261024-r17.tar.gz",
+    "components/sparkrobot-lingxi-consecutive-nav-fix-1.0.8-20261024-r18.tar.gz",
 }
 LINUX_TEXT_FILES = {
     "SHA256SUMS.txt",
@@ -42,32 +42,40 @@ LINUX_TEXT_FILES = {
     "README.md",
     "docs/灵犀完整部署教程-v1.3.1-complete.md",
     "docs/客户日常使用手册-v1.3.1.md",
-    "docs/已有AIMDK部署说明-v1.3.1-r17.md",
+    "docs/已有AIMDK部署说明-v1.3.1-r18.md",
 }
-BASE_BUNDLE = "lingxi-v1.3.1-full-deployment-20261024-r17.zip"
-BASE_ROOT = "lingxi-v1.3.1-full-deployment-20261024-r17"
-AIMDK_NAME = "aimdk-aarch64-1bde262f-artifacts.7z"
-NAV_NAME = "sparkrobot-lingxi-nav-internal-1.0.9-20261024-r17.tar.gz"
-FIX_NAME = "sparkrobot-lingxi-consecutive-nav-fix-1.0.7-20261024-r17.tar.gz"
+BASE_BUNDLE = "lingxi-v1.3.1-full-deployment-20261024-r18.zip"
+BASE_ROOT = "lingxi-v1.3.1-full-deployment-20261024-r18"
+AIMDK_NAME = "aimdk-sdk-v1_1_0-aimdk-aarch64-faf4c945-artifacts.zip"
+AIMDK_SHA256 = "dc80fe5d2907881ed77beb230680867efac6bd28b458f83d2ff4e9479abe3615"
+NAV_NAME = "sparkrobot-lingxi-nav-internal-1.1.0-20261024-r18.tar.gz"
+FIX_NAME = "sparkrobot-lingxi-consecutive-nav-fix-1.0.8-20261024-r18.tar.gz"
 INSTALLER_REQUIRED_SNIPPETS = (
     "verify_aimdk_runtime",
     "sudo test -f /etc/sparkrobot/lingxi-nav/lingxi-nav.properties",
     'resolved="$(realpath -m -- "${WORK_ROOT}")"',
     '[[ "${resolved}" == /home/run/* ]]',
     'WORK_ROOT="${resolved}"',
-    'BASE_ROOT="${WORK_ROOT}/base/lingxi-v1.3.1-full-deployment-20261024-r17"',
+    'BASE_ROOT="${WORK_ROOT}/base/lingxi-v1.3.1-full-deployment-20261024-r18"',
     'sudo rm -rf -- "${staging}"',
     'sudo bash "${LINKCRAFT_ROOT}/install.sh" --no-restart',
     'sudo bash "${FIX_ROOT}/install.sh"',
     'KB_NAME="sparkrobot-lingxi-kb-1.0.10-20261023.zip"',
     'KB_ROOT="${staging}/sparkrobot-lingxi-kb-1.0.10-20261023"',
-    'FIX_NAME="sparkrobot-lingxi-consecutive-nav-fix-1.0.7-20261024-r17.tar.gz"',
-    'FIX_ROOT="${staging}/sparkrobot-lingxi-consecutive-nav-fix-1.0.7-20261024-r17"',
+    'FIX_NAME="sparkrobot-lingxi-consecutive-nav-fix-1.0.8-20261024-r18.tar.gz"',
+    'FIX_ROOT="${staging}/sparkrobot-lingxi-consecutive-nav-fix-1.0.8-20261024-r18"',
+    'test "$(cat /home/agi/aimdk/version)" = "aimdk v1.1.0-gfaf4c94"',
+    "PncTaskRequest",
+    "reference_line",
     "repair-permissions",
     "sudo systemctl restart lingxi-nav-console.service",
 )
 README_REQUIRED_SNIPPETS = (
-    "v1.3.1-complete-20261024-r17",
+    "v1.3.1-complete-20261024-r18",
+    "aimdk v1.1.0-gfaf4c94",
+    "BEST_EFFORT + VOLATILE",
+    "BEST_EFFORT + TRANSIENT_LOCAL",
+    "0.25 m",
     "sparkrobot-lingxi-kb-1.0.10-20261023",
     "普通常识、科学原理、语言、历史、观点和开放问题",
     "使用模型已有知识正常回答",
@@ -96,7 +104,11 @@ README_REQUIRED_SNIPPETS = (
     "`18082`",
 )
 GUIDE_REQUIRED_SNIPPETS = (
-    "v1.3.1-complete-20261024-r17",
+    "v1.3.1-complete-20261024-r18",
+    "aimdk v1.1.0-gfaf4c94",
+    "BEST_EFFORT + VOLATILE",
+    "BEST_EFFORT + TRANSIENT_LOCAL",
+    "0.25 m",
     "sparkrobot-lingxi-kb-1.0.10-20261023",
     "### 10.5 已知点位导航快速路径",
     "r17 仍未实现端侧离线 ASR",
@@ -112,7 +124,7 @@ GUIDE_REQUIRED_SNIPPETS = (
     "不具备撤回或停止能力",
     "该值会保留",
     "不要因为当前上下文或知识库没有提供常识答案而拒答",
-    "### 13.4 R17 全局路径净空",
+    "### 13.4 R17 全局路径净空（R18 保留）",
     "所有地图、点位、任务和全局路径安全参数都只在机器人 `3000` 网页控制台配置",
     "无需打开 `8002` 或 `18082`",
     "所有地图、点位、任务和路径安全参数都只在 3000 网页控制台配置",
@@ -126,12 +138,16 @@ GUIDE_REQUIRED_SNIPPETS = (
     "`8002` 和 `18082` 是内部服务端口",
 )
 AIMDK_GUIDE_REQUIRED_SNIPPETS = (
-    "v1.3.1-complete-20261024-r17",
+    "v1.3.1-complete-20261024-r18",
+    "aimdk v1.1.0-gfaf4c94",
+    "BEST_EFFORT + VOLATILE",
+    "BEST_EFFORT + TRANSIENT_LOCAL",
+    "AIMDK_R18_CONTRACT_OK",
     "保留现有 `/home/agi/aimdk`",
     "该脚本用于编译并替换 AIMDK",
     "sparkrobot-lingxi-kb-1.0.10-20261023",
-    "sparkrobot-lingxi-nav-internal-1.0.9-20261024-r17",
-    "sparkrobot-lingxi-consecutive-nav-fix-1.0.7-20261024-r17",
+    "sparkrobot-lingxi-nav-internal-1.1.0-20261024-r18",
+    "sparkrobot-lingxi-consecutive-nav-fix-1.0.8-20261024-r18",
     "普通常识、科学原理、语言、历史、观点和开放问题",
     "使用模型已有知识正常回答",
     "doubao.streamingReplies=false",
@@ -144,6 +160,7 @@ AIMDK_GUIDE_REQUIRED_SNIPPETS = (
         "所有地图、点位、任务和路径安全参数都只在 3000 网页控制台配置",
         "8002 和 18082 是内部服务端口，不是配置页面",
     "### 7. R17 全局路径净空与导航安全",
+    "R18 AIMDK 接口行为",
     "所有地图、点位、任务和路径安全参数都只在 3000 网页控制台配置",
     "8002 和 18082 是内部服务端口，不是配置页面",
     "pnc_mode=0",
@@ -327,7 +344,7 @@ BASE_ROOT=/stale
 WORK_ROOT=/home/run/r17
 assert_work_root
 [[ "${WORK_ROOT}" == /home/run/r17 ]]
-[[ "${BASE_ROOT}" == /home/run/r17/base/lingxi-v1.3.1-full-deployment-20261024-r17 ]]
+[[ "${BASE_ROOT}" == /home/run/r17/base/lingxi-v1.3.1-full-deployment-20261024-r18 ]]
 for candidate in /home/run /home/run/../outside /home/run/../../tmp /home/run/link; do
   if ( WORK_ROOT="${candidate}"; assert_work_root ) >/dev/null 2>&1; then
     echo "WORK_ROOT escaped its allowed directory: ${candidate}" >&2
@@ -395,7 +412,7 @@ def audit_documentation(reader) -> None:
     documents = {
         "README.md": README_REQUIRED_SNIPPETS,
         "docs/灵犀完整部署教程-v1.3.1-complete.md": GUIDE_REQUIRED_SNIPPETS,
-        "docs/已有AIMDK部署说明-v1.3.1-r17.md": AIMDK_GUIDE_REQUIRED_SNIPPETS,
+        "docs/已有AIMDK部署说明-v1.3.1-r18.md": AIMDK_GUIDE_REQUIRED_SNIPPETS,
     }
     for relative, snippets in documents.items():
         text = reader(f"{NAME}/{relative}").decode("utf-8")
@@ -412,7 +429,18 @@ def audit_documentation(reader) -> None:
             )
         missing = [snippet for snippet in stable_markers if snippet not in text]
         if missing:
-            raise RuntimeError(f"部署文档 {relative} 缺少 r17 说明：{missing}")
+            raise RuntimeError(f"部署文档 {relative} 缺少 R18 说明：{missing}")
+
+    guide = reader(f"{NAME}/docs/灵犀完整部署教程-v1.3.1-complete.md").decode("utf-8")
+    stale_commands = (
+        "/home/run/lingxi-v1.3.1-complete-20261024-r17-deployment",
+        "/home/run/v1.3.1-complete-deployment-20261023-r17",
+        "1.0.7-20261024-r17",
+        "1.0.9-20261024-r17",
+    )
+    found = [marker for marker in stale_commands if marker in guide]
+    if found:
+        raise RuntimeError(f"R18 部署教程仍包含旧版可执行路径或组件号：{found}")
 
 
 def audit_fix_component(reader) -> None:
@@ -424,9 +452,9 @@ def audit_fix_component(reader) -> None:
         installer = read_tar_member(archive, prefix + "install.sh").decode("utf-8")
         manifest = json.loads(read_tar_member(archive, prefix + "manifest.json"))
         release_info = read_tar_member(archive, prefix + "release-info.txt").decode("utf-8")
-        if manifest.get("version") != "1.0.7-20261024-r17" or manifest.get("payload_count") != 11:
+        if manifest.get("version") != "1.0.8-20261024-r18" or manifest.get("payload_count") != 11:
             raise RuntimeError("连续导航修复组件版本或 payload 数量不正确")
-        if "version=1.0.7-20261024-r17" not in release_info:
+        if "version=1.0.8-20261024-r18" not in release_info:
             raise RuntimeError("连续导航修复组件 release-info 版本不正确")
         if "repair_runtime_permissions" not in control or "resolve_bridge_run_user" not in control:
             raise RuntimeError("连续导航修复组件缺少运行目录权限保护")
@@ -649,15 +677,36 @@ def audit_base_bundle(reader) -> None:
         prefix = f"{BASE_ROOT}/"
         script = archive.read(prefix + "scripts/robot/01-replace-aimdk.sh")
         check_linux_text("01-replace-aimdk.sh", script, "基础套件")
+        audit_shell_syntax(script, "基础套件 AIMDK 替换脚本")
         if b"set +u\nsource /opt/ros/humble/setup.bash\nset -u" not in script:
             raise RuntimeError("基础套件 AIMDK 脚本缺少 ROS nounset 兼容修复")
         nested_aimdk = archive.read(prefix + f"packages/{AIMDK_NAME}")
+        if digest_bytes(nested_aimdk) != AIMDK_SHA256:
+            raise RuntimeError("基础套件内 AIMDK v1.1.0 SHA-256 不一致")
+        with zipfile.ZipFile(io.BytesIO(nested_aimdk)) as sdk:
+            sdk_root = "aimdk-aarch64-faf4c945-artifacts"
+            request = sdk.read(
+                f"{sdk_root}/src/aimdk_msgs/interface/robot/task_engine/msg/PncTaskRequest.msg"
+            )
+            response = sdk.read(
+                f"{sdk_root}/src/aimdk_msgs/interface/robot/task_engine/msg/PncTaskResponse.msg"
+            )
+            if b"reference_line" not in request or b"target_pose_radius" not in request:
+                raise RuntimeError("基础套件 AIMDK PncTaskRequest 缺少 R18 字段")
+            if b"task_status" not in response:
+                raise RuntimeError("基础套件 AIMDK PncTaskResponse 缺少状态字段")
         nested_nav = archive.read(prefix + f"packages/{NAV_NAME}")
         nav_checksum = archive.read(prefix + f"packages/{NAV_NAME}.sha256").decode("ascii")
         nav_installer = archive.read(prefix + "scripts/robot/02-install-lingxi-navigation.sh").decode("utf-8")
         nav_verifier = archive.read(prefix + "scripts/robot/03-verify-after-web-start.sh").decode("utf-8")
-        if NAV_NAME not in nav_checksum or "1.0.9-20261024-r17" not in nav_installer or "1.0.9-20261024-r17" not in nav_verifier:
-            raise RuntimeError("基础套件独立安装脚本仍引用旧导航版本")
+        if (
+            NAV_NAME not in nav_checksum
+            or "1.1.0-20261024-r18" not in nav_installer
+            or "1.1.0-20261024-r18" not in nav_verifier
+            or "1.0.9-20261024-r17" in nav_installer
+            or "1.0.9-20261024-r17" in nav_verifier
+        ):
+            raise RuntimeError("基础套件独立安装脚本未全部指向 R18 导航版本")
     direct_aimdk = reader(f"{NAME}/components/{AIMDK_NAME}")
     direct_nav = reader(f"{NAME}/components/{NAV_NAME}")
     if digest_bytes(nested_aimdk) != digest_bytes(direct_aimdk):
@@ -679,6 +728,7 @@ def audit_base_bundle(reader) -> None:
             prefix + "source/navigation/robot_local_navigation_v3/navigation_client.py",
             prefix + "source/navigation/test/test_path_clearance.py",
             prefix + "source/navigation/test/test_pnc_discovery.py",
+            prefix + "source/navigation/test/test_aimdk_110_contract.py",
             prefix + "source/navigation/test/test_map_label_path_safety_settings.py",
             prefix + "templates/unified_nav_config.json",
             prefix + "SHA256SUMS",
@@ -707,11 +757,28 @@ def audit_base_bundle(reader) -> None:
             "point.navigation.task_type == 2 and point.navigation.pnc_mode == 0",
             "if not hasattr(msg, \"reference_line\")",
             "msg.reference_line = reference_line",
+            "QoSDurabilityPolicy.VOLATILE",
+            "QoSDurabilityPolicy.TRANSIENT_LOCAL",
+            "MIN_TARGET_POSE_RADIUS",
+            "msg.target_pose_radius = 0.0",
         ):
             if marker not in client:
-                raise RuntimeError(f"R17 导航客户端缺少路径净空保护：{marker}")
+                raise RuntimeError(f"R18 导航客户端缺少路径净空或 AIMDK 契约：{marker}")
         if client != source_client:
-            raise RuntimeError("R17 导航运行代码与交付源码中的 navigation_client.py 不一致")
+            raise RuntimeError("R18 导航运行代码与交付源码中的 navigation_client.py 不一致")
+        models = nav_text("payload/navigation/robot_local_navigation_v3/models.py")
+        if "DEFAULT_ARRIVAL_POSITION_TOLERANCE_M = 0.15" not in models:
+            raise RuntimeError("R18 PNC 半径下限意外改变了独立到达容差默认值")
+        contract_test = nav_text("source/navigation/test/test_aimdk_110_contract.py")
+        for marker in (
+            "test_pnc_request_uses_best_effort_volatile_qos",
+            "test_pnc_response_uses_best_effort_transient_local_qos",
+            "test_start_radius_is_clamped_to_sdk_minimum",
+            "test_stop_radius_remains_zero",
+            "aimdk v1.1.0-gfaf4c94",
+        ):
+            if marker not in contract_test:
+                raise RuntimeError(f"R18 导航包缺少 AIMDK 接口回归测试：{marker}")
         for marker in ("def plan_reference_line", "def inflate_obstacles"):
             if marker not in path_module:
                 raise RuntimeError(f"R17 路径规划模块缺少实现：{marker}")
@@ -765,7 +832,7 @@ def audit_base_bundle(reader) -> None:
             if marker not in console_html:
                 raise RuntimeError(f"R17 部署包的 3000 页面缺少安全配置字段：{marker}")
         if "R17 将拒绝下发 task_type=2" not in console_app or "R16 将拒绝下发 task_type=2" in console_app:
-            raise RuntimeError("R17 部署包的 3000 安全参数提示仍使用旧版本文案")
+            raise RuntimeError("R18 部署包的 3000 安全参数提示缺少 R17 路径保护提示")
         if not (
             console_html.index('id="pointTaskType"')
             < console_html.index('id="robotRadius"')

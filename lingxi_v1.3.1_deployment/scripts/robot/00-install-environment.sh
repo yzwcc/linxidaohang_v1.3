@@ -12,7 +12,7 @@ set -euo pipefail
 echo "安装 AIMDK 编译与部署环境..."
 sudo apt-get update
 sudo apt-get install -y \
-  p7zip-full \
+  unzip \
   build-essential \
   cmake \
   pkg-config \
@@ -26,7 +26,7 @@ sudo apt-get install -y \
   ros-humble-grid-map-msgs \
   ros-humble-visualization-msgs
 
-command -v 7z >/dev/null
+command -v unzip >/dev/null
 command -v colcon >/dev/null
 command -v cmake >/dev/null
 source /opt/ros/humble/setup.bash

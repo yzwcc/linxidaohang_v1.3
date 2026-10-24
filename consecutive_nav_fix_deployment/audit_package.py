@@ -13,7 +13,7 @@ from pathlib import Path, PurePosixPath
 
 
 HERE = Path(__file__).resolve().parent
-VERSION = "1.0.7-20261024-r17"
+VERSION = "1.0.8-20261024-r18"
 NAME = f"sparkrobot-lingxi-consecutive-nav-fix-{VERSION}"
 DIST = HERE / "dist"
 REQUIRED = {
@@ -106,9 +106,14 @@ def verify_contents(contents: dict[str, bytes], modes: dict[str, int], label: st
         "point.navigation.task_type == 2 and point.navigation.pnc_mode == 0",
         "if not hasattr(msg, \"reference_line\")",
         "msg.reference_line = reference_line",
+        "QoSDurabilityPolicy.VOLATILE",
+        "QoSDurabilityPolicy.TRANSIENT_LOCAL",
+        "MIN_TARGET_POSE_RADIUS",
     ):
         if marker not in client:
-            raise RuntimeError(f"{label} 缺少 R16 全局路径净空保护：{marker}")
+            raise RuntimeError(f"{label} 缺少 R18 AIMDK 1.1.0 / 全局路径契约：{marker}")
+    if "msg.target_pose_radius = 0.0" not in client:
+        raise RuntimeError(f"{label} STOP 请求未保留零目标半径")
     if "class PathSafetyConfig" not in models:
         raise RuntimeError(f"{label} 缺少 R16 路径安全配置模型")
     if "def plan_reference_line" not in path_clearance or "def inflate_obstacles" not in path_clearance:

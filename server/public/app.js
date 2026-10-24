@@ -323,7 +323,7 @@ function normalizePoint(point) {
     headingPixel: Number.isFinite(Number(ui.heading_pixel_u)) && Number.isFinite(Number(ui.heading_pixel_v))
       ? { u: Number(ui.heading_pixel_u), v: Number(ui.heading_pixel_v) }
       : { u: pixel.u + 28 * Math.cos(yaw), v: pixel.v - 28 * Math.sin(yaw) },
-    radius: Number(point.navigation?.target_pose_radius ?? 0.15),
+    radius: Math.max(0.25, Number(point.navigation?.target_pose_radius ?? 0.25)),
     maxSpeed: Number(point.navigation?.max_forward_speed ?? 0.3),
     pncMode: Number(point.navigation?.pnc_mode ?? 0),
     taskType: Number(point.navigation?.task_type ?? 2),
@@ -371,7 +371,7 @@ function pointFromForm() {
       orientation: { x: 0, y: 0, z: Math.sin(state.currentYaw / 2), w: Math.cos(state.currentYaw / 2) }
     },
     navigation: {
-      target_pose_radius: Number($("pointRadius").value || 0.15),
+      target_pose_radius: Math.max(0.25, Number($("pointRadius").value || 0.25)),
       pnc_mode: Number($("pointPncMode").value || 0),
       max_forward_speed: Number($("pointSpeed").value || 0.3),
       task_type: Number($("pointTaskType").value || 2)
@@ -398,7 +398,7 @@ function fillPointForm(point) {
   $("pointX").value = point?.x ?? 0;
   $("pointY").value = point?.y ?? 0;
   $("pointZ").value = point?.z ?? 0;
-  $("pointRadius").value = point?.radius ?? 0.15;
+  $("pointRadius").value = point?.radius ?? 0.25;
   $("pointSpeed").value = point?.maxSpeed ?? 0.3;
   $("pointPncMode").value = point?.pncMode ?? 0;
   $("pointTaskType").value = point?.taskType ?? 2;
@@ -1567,7 +1567,7 @@ function bindEvents() {
       aliases: [],
       is_start: false,
       pose: { position: { x: 0, y: 0, z: 0 }, orientation: { z: 0, w: 1 } },
-      navigation: { target_pose_radius: 0.15, max_forward_speed: 0.3, pnc_mode: 0, task_type: 2 },
+      navigation: { target_pose_radius: 0.25, max_forward_speed: 0.3, pnc_mode: 0, task_type: 2 },
       business: { on_arrival: [] }
     }));
     state.targetPixel = null;

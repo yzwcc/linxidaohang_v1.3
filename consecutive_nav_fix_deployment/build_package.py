@@ -5,13 +5,11 @@ import hashlib
 import inspect
 import json
 import os
-import runpy
 import shutil
 import subprocess
 import sys
 import tarfile
 import tempfile
-import unittest
 from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath
 
@@ -25,7 +23,7 @@ NAV_ROOT = (
 )
 SOURCE_ROOT = NAV_ROOT / "robot_local_navigation_v3"
 TEST_ROOT = NAV_ROOT / "test"
-VERSION = "1.0.7-20261024-r17"
+VERSION = "1.0.8-20261024-r18"
 NAME = f"sparkrobot-lingxi-consecutive-nav-fix-{VERSION}"
 DIST = HERE / "dist"
 PAYLOAD_FILES = (
@@ -186,40 +184,29 @@ def validate_sources() -> None:
 
 
 def run_navigation_tests() -> int:
-    old_path = list(sys.path)
-    sys.path.insert(0, str(NAV_ROOT))
     total = 0
-    try:
-        for path in sorted(TEST_ROOT.glob("test_*.py")):
-            namespace = runpy.run_path(str(path))
-            for name, function in sorted(namespace.items()):
-                if (
-                    name.startswith("test_")
-                    and callable(function)
-                    and not inspect.signature(function).parameters
-                ):
-                    function()
-                    total += 1
-            test_cases = [
-                value
-                for value in namespace.values()
-                if inspect.isclass(value)
-                and issubclass(value, unittest.TestCase)
-                and value is not unittest.TestCase
-            ]
-            for test_case in test_cases:
-                suite = unittest.defaultTestLoader.loadTestsFromTestCase(test_case)
-                result = unittest.TestResult()
-                suite.run(result)
-                if result.failures or result.errors:
-                    details = "\n".join(
-                        f"{case}: {message}"
-                        for case, message in (*result.failures, *result.errors)
-                    )
-                    raise AssertionError(f"{path.name} unittest 失败：\n{details}")
-                total += result.testsRun
-    finally:
-        sys.path[:] = old_path
+    for path in sorted(TEST_ROOT.glob("test_*.py")):
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "pytest",
+                "-q",
+                str(path),
+            ],
+            cwd=NAV_ROOT,
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode:
+            raise AssertionError(
+                f"{path.name} 离线测试失败：\n{result.stdout}\n{result.stderr}"
+            )
+        for line in result.stdout.splitlines():
+            if " passed" in line:
+                count = line.split(" passed", 1)[0].split()[-1]
+                if count.isdigit():
+                    total += int(count)
     return total
 
 
@@ -238,7 +225,7 @@ def stage_files(stage: Path) -> None:
     release_info = (
         f"version={VERSION}\n"
         "package=sparkrobot-lingxi-consecutive-nav-fix\n"
-        "compatibility=lingxi-v1.3.1-complete-20261024-r17\n"
+        "compatibility=lingxi-v1.3.1-complete-20261024-r18\n"
         f"built_at={datetime.now(timezone.utc).isoformat()}\n"
         "scope=continuous-navigation-motion-release-bounded-pnc-discovery-runtime-permissions-voice-preset-motions-ambiguous-point-clarification-atomic-streaming-tts-preemption-and-global-path-clearance\n"
     )

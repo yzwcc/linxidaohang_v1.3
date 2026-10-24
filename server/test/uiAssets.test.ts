@@ -45,4 +45,11 @@ describe("console UI assets", () => {
     expect(appScript).toContain("R17 将拒绝下发 task_type=2、pnc_mode=0 全局导航");
     expect(appScript).not.toContain("R17 不提供桥接应用回执");
   });
+
+  it("uses the AIMDK 1.1.0 minimum target pose radius in the point editor", () => {
+    expect(html).toContain('id="pointRadius" type="number" min="0.25"');
+    expect(html).toContain("AIMDK 1.1.0 最小 0.25 米");
+    expect(appScript).toContain("Math.max(0.25, Number(point.navigation?.target_pose_radius ?? 0.25))");
+    expect(appScript).toContain("target_pose_radius: Math.max(0.25");
+  });
 });

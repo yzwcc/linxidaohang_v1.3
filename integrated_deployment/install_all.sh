@@ -3,15 +3,15 @@ set -Eeuo pipefail
 umask 077
 
 PACKAGE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-VERSION="v1.3.1-complete-deployment-20261024-r17"
+VERSION="v1.3.1-complete-deployment-20261024-r18"
 WORK_ROOT="${WORK_ROOT:-/home/run/${VERSION}}"
-BASE_ROOT="${WORK_ROOT}/base/lingxi-v1.3.1-full-deployment-20261024-r17"
-BASE_ARCHIVE="${PACKAGE_DIR}/components/lingxi-v1.3.1-full-deployment-20261024-r17.zip"
-AIMDK_NAME="aimdk-aarch64-1bde262f-artifacts.7z"
-NAV_NAME="sparkrobot-lingxi-nav-internal-1.0.9-20261024-r17.tar.gz"
+BASE_ROOT="${WORK_ROOT}/base/lingxi-v1.3.1-full-deployment-20261024-r18"
+BASE_ARCHIVE="${PACKAGE_DIR}/components/lingxi-v1.3.1-full-deployment-20261024-r18.zip"
+AIMDK_NAME="aimdk-sdk-v1_1_0-aimdk-aarch64-faf4c945-artifacts.zip"
+NAV_NAME="sparkrobot-lingxi-nav-internal-1.1.0-20261024-r18.tar.gz"
 NAV_CHECKSUM_NAME="${NAV_NAME}.sha256"
 LINKCRAFT_NAME="sparkrobot-lingxi-linkcraft-addon-1.0.3-20260902.tar.gz"
-FIX_NAME="sparkrobot-lingxi-consecutive-nav-fix-1.0.7-20261024-r17.tar.gz"
+FIX_NAME="sparkrobot-lingxi-consecutive-nav-fix-1.0.8-20261024-r18.tar.gz"
 KB_NAME="sparkrobot-lingxi-kb-1.0.10-20261023.zip"
 
 die() { echo "失败：$*" >&2; exit 1; }
@@ -26,7 +26,7 @@ assert_work_root() {
   [[ "${resolved}" == /home/run/* ]] \
     || die "WORK_ROOT 解析后必须位于 /home/run 子目录：${resolved}"
   WORK_ROOT="${resolved}"
-  BASE_ROOT="${WORK_ROOT}/base/lingxi-v1.3.1-full-deployment-20261024-r17"
+  BASE_ROOT="${WORK_ROOT}/base/lingxi-v1.3.1-full-deployment-20261024-r18"
 }
 
 verify_aimdk_runtime() {
@@ -38,7 +38,9 @@ set -e
 source /opt/ros/humble/setup.bash
 test -r /home/agi/aimdk/install/setup.bash
 source /home/agi/aimdk/install/setup.bash
+test "$(cat /home/agi/aimdk/version)" = "aimdk v1.1.0-gfaf4c94"
 python3 -c "import rclpy; import aimdk_msgs.msg"
+python3 -c "from aimdk_msgs.msg import PncTaskRequest; assert hasattr(PncTaskRequest(), \"reference_line\")"
 ' >/dev/null 2>&1 || die "AIMDK 尚未替换完成或 aimdk_msgs 不可用；请先使用 agi 执行：cd /home/agi && bash ./01-replace-aimdk.sh"
 }
 
@@ -106,7 +108,7 @@ extract_addons() {
   tar -xzf "$(component "${FIX_NAME}")" -C "${staging}"
   safe_extract_zip "$(component "${KB_NAME}")" "${staging}"
   LINKCRAFT_ROOT="${staging}/sparkrobot-lingxi-linkcraft-addon-1.0.3-20260902"
-  FIX_ROOT="${staging}/sparkrobot-lingxi-consecutive-nav-fix-1.0.7-20261024-r17"
+  FIX_ROOT="${staging}/sparkrobot-lingxi-consecutive-nav-fix-1.0.8-20261024-r18"
   KB_ROOT="${staging}/sparkrobot-lingxi-kb-1.0.10-20261023"
   for path in "${LINKCRAFT_ROOT}" "${FIX_ROOT}" "${KB_ROOT}"; do [[ -d "${path}" ]] || die "附加包解压失败：${path}"; done
 }

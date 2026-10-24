@@ -14,24 +14,24 @@ from pathlib import Path, PurePosixPath
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
-VERSION = "1.3.1-complete-20261024-r17"
+VERSION = "1.3.1-complete-20261024-r18"
 NAME = f"lingxi-v{VERSION}-deployment"
 DIST = HERE / "dist"
 COMPONENTS = {
-    "lingxi-v1.3.1-full-deployment-20261024-r17.zip": ROOT / "lingxi_v1.3.1_deployment/dist/lingxi-v1.3.1-full-deployment-20261024-r17.zip",
+    "lingxi-v1.3.1-full-deployment-20261024-r18.zip": ROOT / "lingxi_v1.3.1_deployment/dist/lingxi-v1.3.1-full-deployment-20261024-r18.zip",
     "sparkrobot-lingxi-kb-1.0.10-20261023.zip": ROOT / "knowledge_base_deployment/dist/sparkrobot-lingxi-kb-1.0.10-20261023.zip",
     "sparkrobot-lingxi-linkcraft-addon-1.0.3-20260902.tar.gz": ROOT / "linkcraft_deployment/dist/sparkrobot-lingxi-linkcraft-addon-1.0.3-20260902.tar.gz",
-    "sparkrobot-lingxi-consecutive-nav-fix-1.0.7-20261024-r17.tar.gz": ROOT / "consecutive_nav_fix_deployment/dist/sparkrobot-lingxi-consecutive-nav-fix-1.0.7-20261024-r17.tar.gz",
+    "sparkrobot-lingxi-consecutive-nav-fix-1.0.8-20261024-r18.tar.gz": ROOT / "consecutive_nav_fix_deployment/dist/sparkrobot-lingxi-consecutive-nav-fix-1.0.8-20261024-r18.tar.gz",
 }
-BASE_BUNDLE_NAME = "lingxi-v1.3.1-full-deployment-20261024-r17.zip"
-BASE_BUNDLE_ROOT = "lingxi-v1.3.1-full-deployment-20261024-r17"
+BASE_BUNDLE_NAME = "lingxi-v1.3.1-full-deployment-20261024-r18.zip"
+BASE_BUNDLE_ROOT = "lingxi-v1.3.1-full-deployment-20261024-r18"
 EMBEDDED_COMPONENTS = (
-    "aimdk-aarch64-1bde262f-artifacts.7z",
-    "sparkrobot-lingxi-nav-internal-1.0.9-20261024-r17.tar.gz",
+    "aimdk-sdk-v1_1_0-aimdk-aarch64-faf4c945-artifacts.zip",
+    "sparkrobot-lingxi-nav-internal-1.1.0-20261024-r18.tar.gz",
 )
 AIMDK_SCRIPT_MEMBER = f"{BASE_BUNDLE_ROOT}/scripts/robot/01-replace-aimdk.sh"
 AIMDK_NOUNSET_GUARD = b"set +u\nsource /opt/ros/humble/setup.bash\nset -u"
-AIMDK_GUIDE_SOURCE = ROOT / "已有AIMDK部署说明-v1.3.1-r17.md"
+AIMDK_GUIDE_SOURCE = ROOT / "已有AIMDK部署说明-v1.3.1-r18.md"
 
 
 def write_text(path: Path, value: str, encoding: str = "utf-8") -> None:
@@ -74,8 +74,8 @@ def validate_component(name: str, path: Path) -> None:
     if name.startswith("lingxi-v"):
         with zipfile.ZipFile(path) as archive:
             required = (
-                "lingxi-v1.3.1-full-deployment-20261024-r17/packages/"
-                "sparkrobot-lingxi-nav-internal-1.0.9-20261024-r17.tar.gz"
+                "lingxi-v1.3.1-full-deployment-20261024-r18/packages/"
+                "sparkrobot-lingxi-nav-internal-1.1.0-20261024-r18.tar.gz"
             )
             if required not in archive.namelist():
                 raise RuntimeError("基础导航包缺少导航 TAR")
@@ -124,7 +124,7 @@ def validate_component(name: str, path: Path) -> None:
 
     if name.startswith("sparkrobot-lingxi-consecutive-nav-fix"):
         with tarfile.open(path, "r:gz") as archive:
-            prefix = "sparkrobot-lingxi-consecutive-nav-fix-1.0.7-20261024-r17/"
+            prefix = "sparkrobot-lingxi-consecutive-nav-fix-1.0.8-20261024-r18/"
             required = {
                 f"{prefix}install.sh",
                 f"{prefix}control.sh",
@@ -193,6 +193,18 @@ def copy_stage(stage: Path) -> dict[str, str]:
             hashes[name] = actual
             if name.endswith(".tar.gz"):
                 hashes[checksum_path.name] = digest(checksum_path)
+        aimdk_bytes = archive.read(
+            "lingxi-v1.3.1-full-deployment-20261024-r18/packages/"
+            "aimdk-sdk-v1_1_0-aimdk-aarch64-faf4c945-artifacts.zip"
+        )
+        if hashlib.sha256(aimdk_bytes).hexdigest() != "dc80fe5d2907881ed77beb230680867efac6bd28b458f83d2ff4e9479abe3615":
+            raise RuntimeError("基础套件中的 AIMDK v1.1.0 SHA-256 不正确")
+        with zipfile.ZipFile(io.BytesIO(aimdk_bytes)) as aimdk:
+            request = aimdk.read(
+                "aimdk-aarch64-faf4c945-artifacts/src/aimdk_msgs/interface/robot/task_engine/msg/PncTaskRequest.msg"
+            )
+            if b"reference_line" not in request or b"target_pose_radius" not in request:
+                raise RuntimeError("AIMDK v1.1.0 缺少 R18 所需 PNC 字段")
     for name in ("README.md", "install_all.sh", "control_all.sh"):
         source = HERE / name
         write_text(stage / name, source.read_text(encoding="utf-8"))
@@ -206,7 +218,7 @@ def copy_stage(stage: Path) -> dict[str, str]:
     if not AIMDK_GUIDE_SOURCE.is_file():
         raise RuntimeError(f"缺少已有 AIMDK 部署说明：{AIMDK_GUIDE_SOURCE}")
     write_text(
-        stage / "docs" / "已有AIMDK部署说明-v1.3.1-r17.md",
+        stage / "docs" / "已有AIMDK部署说明-v1.3.1-r18.md",
         AIMDK_GUIDE_SOURCE.read_text(encoding="utf-8"),
     )
     write_text(stage / "VERSION", f"LINGXI_COMPLETE_VERSION={VERSION}\n")

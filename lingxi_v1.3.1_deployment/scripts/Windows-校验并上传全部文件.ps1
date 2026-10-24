@@ -7,12 +7,12 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $BundleRoot = Split-Path -Parent $PSScriptRoot
-$AimdkName = 'aimdk-aarch64-1bde262f-artifacts.7z'
-$NavName = 'sparkrobot-lingxi-nav-internal-1.0.9-20261024-r17.tar.gz'
+$AimdkName = 'aimdk-sdk-v1_1_0-aimdk-aarch64-faf4c945-artifacts.zip'
+$NavName = 'sparkrobot-lingxi-nav-internal-1.1.0-20261024-r18.tar.gz'
 $AimdkPath = Join-Path $BundleRoot "packages\$AimdkName"
 $NavPath = Join-Path $BundleRoot "packages\$NavName"
 $NavChecksumPath = "$NavPath.sha256"
-$AimdkExpected = 'f13147a175bc3fb621fb118698aae0353c097adda38bba640f9a39c01433cc98'
+$AimdkExpected = 'dc80fe5d2907881ed77beb230680867efac6bd28b458f83d2ff4e9479abe3615'
 
 function Assert-Command([string]$Name) {
     if (-not (Get-Command $Name -ErrorAction SilentlyContinue)) {
@@ -48,7 +48,7 @@ Write-Host "检查机器人账号连接：$RobotIp" -ForegroundColor Cyan
 Invoke-Checked 'ssh' @("agi@$RobotIp", 'test "$(uname -m)" = aarch64 -o "$(uname -m)" = arm64')
 Invoke-Checked 'ssh' @("run@$RobotIp", 'id -u >/dev/null')
 
-Write-Host '上传 AIMDK 和 agi 脚本...' -ForegroundColor Cyan
+Write-Host '上传 AIMDK 1.1.0 ZIP 和 agi 脚本...' -ForegroundColor Cyan
 Invoke-Checked 'scp' @($AimdkPath, "agi@${RobotIp}:/home/agi/$AimdkName")
 Invoke-Checked 'scp' @((Join-Path $PSScriptRoot 'robot\01-replace-aimdk.sh'), "agi@${RobotIp}:/home/agi/")
 Invoke-Checked 'scp' @((Join-Path $PSScriptRoot 'robot\04-check-localization.sh'), "agi@${RobotIp}:/home/agi/")

@@ -15,15 +15,19 @@ from pathlib import Path, PurePosixPath
 ROOT = Path(__file__).resolve().parents[1]
 HERE = Path(__file__).resolve().parent
 VERSION = "1.3.1"
-RELEASE_TAG = "20261024-r17"
+RELEASE_TAG = "20261024-r18"
 RELEASE_DATE = "2026-10-24"
 BUNDLE_NAME = f"lingxi-v{VERSION}-full-deployment-{RELEASE_TAG}"
 
-AIMDK_SOURCE = Path(r"E:\1资料\0火花机器人资料\内部资料\aimdk-aarch64-1bde262f-artifacts.7z")
+AIMDK_SOURCE = (
+    Path.home()
+    / "Downloads"
+    / "aimdk-sdk-v1_1_0-aimdk-aarch64-faf4c945-artifacts.zip"
+)
 AIMDK_NAME = AIMDK_SOURCE.name
-AIMDK_SHA256 = "f13147a175bc3fb621fb118698aae0353c097adda38bba640f9a39c01433cc98"
+AIMDK_SHA256 = "dc80fe5d2907881ed77beb230680867efac6bd28b458f83d2ff4e9479abe3615"
 
-NAV_NAME = "sparkrobot-lingxi-nav-internal-1.0.9-20261024-r17.tar.gz"
+NAV_NAME = "sparkrobot-lingxi-nav-internal-1.1.0-20261024-r18.tar.gz"
 NAV_SOURCE = ROOT / "internal_deployment" / "dist" / NAV_NAME
 
 FULL_GUIDE_SOURCE = ROOT / "新机器人完整部署命令手册-AIMDK与灵犀导航-2026-09-01.md"
@@ -83,8 +87,8 @@ def build_stage(stage: Path) -> None:
 
 套件版本：`v{VERSION}`  
 套件发布日期：`2026-10-24`<br>
-内含 AIMDK：`aimdk v0.0.0-g1bde262`  
-内含导航运行组件：`1.0.9-20261024-r17`
+内含 AIMDK：`aimdk v1.1.0-gfaf4c94`
+内含导航运行组件：`1.1.0-20261024-r18`
 
 本文档是 v1.3.1 离线套件的完整教程。先按根目录《README-先看我》执行最短流程；需要逐步部署或排障时，按以下完整手册操作。
 
@@ -92,9 +96,52 @@ def build_stage(stage: Path) -> None:
 
 """
     full_guide = FULL_GUIDE_SOURCE.read_text(encoding="utf-8")
-    full_guide = full_guide.replace(
-        "1.0.8-20261023-r16", "1.0.9-20261024-r17"
-    ).replace("20261023-r16", "20261024-r17")
+    section_start = full_guide.index("## 6. 上传并更换 AIMDK")
+    section_end = full_guide.index("## 7. 上传灵犀导航安装包", section_start)
+    r18_aimdk_steps = """## 6. 上传并更换 AIMDK
+
+完整包的 `prepare` 阶段会校验并复制 AIMDK v1.1.0 ZIP 与替换脚本。先按完整包 README 执行 `prepare`。如果设备当前 AIMDK 不是 v1.1.0，或契约检查未通过，登录 `agi` 并执行：
+
+```bash
+cd /home/agi
+bash ./01-replace-aimdk.sh
+```
+
+脚本会核对 SHA-256 `dc80fe5d2907881ed77beb230680867efac6bd28b458f83d2ff4e9479abe3615`，安全解压并保留 ZIP 内的相对符号链接，在替换前完成编译、ROS 导入、PNC 消息字段和 `aimdk_msgs` 验证。编译/预检失败不会动旧目录。切换时旧 `/home/agi/aimdk` 会备份到 `/home/agi/aimdk-backups/`；干净 Shell 复验失败时会隔离新目录并恢复旧目录。
+
+部署包附带的接口依据：
+
+- PNC 请求 `/aima/te/pnc_task_request`：`BEST_EFFORT + VOLATILE`。
+- PNC 响应 `/aima/pnc/pnc_task_response`：`BEST_EFFORT + TRANSIENT_LOCAL`。
+- `PncTaskRequest` 保留 `reference_line`；START 的 `target_pose_radius` 最小有效值为 `0.25 m`，STOP 保持 `0.0`。
+
+若当前 `/home/agi/aimdk/version` 已为 `aimdk v1.1.0-gfaf4c94`，且消息契约检查通过，可按“已有 AIMDK”说明跳过替换；旧版本即使可以导入，也不能跳过 R18 契约门槛。
+
+"""
+    full_guide = full_guide[:section_start] + r18_aimdk_steps + full_guide[section_end:]
+    for old, new in (
+        ("v1.3.1-complete-20261024-r17", "v1.3.1-complete-20261024-r18"),
+        ("v1.3.1-complete-deployment-20261023-r17", "v1.3.1-complete-deployment-20261024-r18"),
+        ("lingxi-v1.3.1-complete-20261024-r17", "lingxi-v1.3.1-complete-20261024-r18"),
+        ("lingxi-v1.3.1-full-deployment-20261024-r17", "lingxi-v1.3.1-full-deployment-20261024-r18"),
+        ("sparkrobot-lingxi-consecutive-nav-fix-1.0.7-20261024-r17", "sparkrobot-lingxi-consecutive-nav-fix-1.0.8-20261024-r18"),
+        ("1.0.7-20261024-r17", "1.0.8-20261024-r18"),
+        ("aimdk-aarch64-1bde262f-artifacts.7z", AIMDK_NAME),
+        ("aimdk v0.0.0-g1bde262", "aimdk v1.1.0-gfaf4c94"),
+        ("f13147a175bc3fb621fb118698aae0353c097adda38bba640f9a39c01433cc98", AIMDK_SHA256),
+        ("1.0.8-20261023-r16", "1.1.0-20261024-r18"),
+        ("1.0.9-20261024-r17", "1.1.0-20261024-r18"),
+        ("20261023-r16", "20261024-r18"),
+        ("20261024-r17", "20261024-r18"),
+        ("1bde262f", "faf4c945"),
+        ("1bde262", "faf4c94"),
+        ("7z x", "unzip -q"),
+        ("p7zip-full", "unzip"),
+        ("command -v 7z", "command -v unzip"),
+        ("7z", "unzip"),
+        ("pnc_mode=0", "pnc_mode=0"),
+    ):
+        full_guide = full_guide.replace(old, new)
     full_guide = full_guide.replace(
         "| `8002` | 地图发现、预览、点位和任务配置 |",
         "| `8002` | 地图数据内部 API；用户不要直接访问此端口配置 |",
@@ -107,6 +154,11 @@ def build_stage(stage: Path) -> None:
     full_guide += (
         "\n\n地图、点位、任务及全局路径安全参数均只在机器人 `3000` 网页控制台配置。"
         "`8002` 和 `18082` 是内部服务端口，不是用户配置页面。\n"
+        "\nAIMDK v1.1.0 导航接口：PNC 请求 QoS 为 BEST_EFFORT + VOLATILE，响应 QoS 为 "
+        "BEST_EFFORT + TRANSIENT_LOCAL；START 的 target_pose_radius 不小于 0.25 m，"
+        "STOP 请求保持 0。`reference_line` 字段保留。替换脚本会先完整编译并验证新 SDK，"
+        "再保留旧 `/home/agi/aimdk` 备份并切换；健康检查失败会尝试恢复旧目录。\n"
+        "\nR18 AIMDK 的 START 最小半径只约束 PNC 下发字段，不改变独立的导航到达 `position_tolerance_m`（默认仍为 0.15 m）。\n"
     )
     write_text(stage / "docs" / "灵犀-v1.3.1-完整部署教程.md", guide_header + full_guide)
 
@@ -118,8 +170,8 @@ def build_stage(stage: Path) -> None:
     write_text(
         packages / "README.md",
         "# 安装组件\n\n"
-        "- `aimdk-aarch64-1bde262f-artifacts.7z`：AIMDK ARM64 原始构建包。\n"
-        "- `sparkrobot-lingxi-nav-internal-1.0.9-20261024-r17.tar.gz`：导航、地图、语音、网页和完整源码。\n\n"
+        f"- `{AIMDK_NAME}`：AIMDK v1.1.0 ARM64 SDK 原始构建包。\n"
+        f"- `{NAV_NAME}`：导航、地图、语音、网页和完整源码。\n\n"
         "不要重命名组件文件；自动上传和安装脚本会校验固定文件名与 SHA-256。\n",
     )
 
@@ -133,12 +185,12 @@ def build_stage(stage: Path) -> None:
         "contains_real_secrets": False,
         "components": {
             "aimdk": {
-                "version": "aimdk v0.0.0-g1bde262",
+                "version": "aimdk v1.1.0-gfaf4c94",
                 "file": f"packages/{AIMDK_NAME}",
                 "sha256": AIMDK_SHA256,
             },
             "lingxi_navigation": {
-                "version": "1.0.9-20261024-r17",
+                "version": "1.1.0-20261024-r18",
                 "file": f"packages/{NAV_NAME}",
                 "sha256": nav_sha256,
                 "includes_source": True,

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hashlib
+import io
 import json
 import shutil
 import subprocess
@@ -12,12 +13,14 @@ from pathlib import Path, PurePosixPath
 
 
 HERE = Path(__file__).resolve().parent
-NAME = "lingxi-v1.3.1-full-deployment-20261024-r17"
+NAME = "lingxi-v1.3.1-full-deployment-20261024-r18"
 ARCHIVE = HERE / "dist" / f"{NAME}.zip"
 SIDECAR = ARCHIVE.with_suffix(ARCHIVE.suffix + ".sha256")
 PREFIX = f"{NAME}/"
-AIMDK = "packages/aimdk-aarch64-1bde262f-artifacts.7z"
-NAV_VERSION = "1.0.9-20261024-r17"
+AIMDK = "packages/aimdk-sdk-v1_1_0-aimdk-aarch64-faf4c945-artifacts.zip"
+AIMDK_SHA256 = "dc80fe5d2907881ed77beb230680867efac6bd28b458f83d2ff4e9479abe3615"
+SDK_ROOT = "aimdk-aarch64-faf4c945-artifacts"
+NAV_VERSION = "1.1.0-20261024-r18"
 NAV_ROOT = f"sparkrobot-lingxi-nav-internal-{NAV_VERSION}"
 NAV = f"packages/{NAV_ROOT}.tar.gz"
 
@@ -69,12 +72,46 @@ def main() -> int:
         if missing:
             raise RuntimeError("ZIP 缺少文件：" + ", ".join(missing))
 
+        aimdk_bytes = archive.read(PREFIX + AIMDK)
+        if hashlib.sha256(aimdk_bytes).hexdigest() != AIMDK_SHA256:
+            raise RuntimeError("AIMDK v1.1.0 SHA-256 不一致")
+        with zipfile.ZipFile(io.BytesIO(aimdk_bytes)) as sdk:
+            sdk_names = {item.filename for item in sdk.infolist() if item.filename}
+            sdk_roots = {
+                PurePosixPath(name).parts[0]
+                for name in sdk_names
+                if PurePosixPath(name).parts
+            }
+            if sdk_roots != {SDK_ROOT}:
+                raise RuntimeError("AIMDK SDK ZIP 根目录不正确")
+            request_member = (
+                f"{SDK_ROOT}/src/aimdk_msgs/interface/robot/task_engine/msg/PncTaskRequest.msg"
+            )
+            if request_member not in sdk_names:
+                raise RuntimeError("AIMDK v1.1.0 缺少 PncTaskRequest 接口定义")
+            request_definition = sdk.read(request_member)
+            if b"reference_line" not in request_definition or b"target_pose_radius" not in request_definition:
+                raise RuntimeError("AIMDK v1.1.0 缺少路径或目标半径字段")
+            nav_doc = sdk.read(
+                f"{SDK_ROOT}/docs/cn/_build/html/zh-cn/dev/Interface/perception/navigation.html"
+            ).decode("utf-8", "replace")
+            for marker in ("BEST_EFFORT", "VOLATILE", "TRANSIENT_LOCAL", "0.25"):
+                if marker not in nav_doc:
+                    raise RuntimeError(f"AIMDK v1.1.0 导航接口文档缺少 {marker}")
+
         manifest = json.loads(archive.read(PREFIX + "bundle-manifest.json"))
         if manifest["bundle_version"] != "1.3.1" or manifest["contains_real_secrets"]:
             raise RuntimeError("套件版本或秘密标记不正确")
         nav_manifest = manifest["components"]["lingxi_navigation"]
         if nav_manifest["version"] != NAV_VERSION:
-            raise RuntimeError("导航组件版本不是 R17")
+            raise RuntimeError("导航组件版本不是 R18")
+        aimdk_manifest = manifest["components"]["aimdk"]
+        if (
+            aimdk_manifest.get("version") != "aimdk v1.1.0-gfaf4c94"
+            or aimdk_manifest.get("file") != AIMDK
+            or aimdk_manifest.get("sha256") != AIMDK_SHA256
+        ):
+            raise RuntimeError("AIMDK v1.1.0 清单信息不正确")
         guide_text = archive.read(
             PREFIX + "docs/灵犀-v1.3.1-完整部署教程.md"
         ).decode("utf-8")
@@ -132,6 +169,7 @@ def main() -> int:
             f"{NAV_ROOT}/source/navigation/robot_local_navigation_v3/navigation_client.py",
             f"{NAV_ROOT}/source/navigation/test/test_path_clearance.py",
             f"{NAV_ROOT}/source/navigation/test/test_pnc_discovery.py",
+            f"{NAV_ROOT}/source/navigation/test/test_aimdk_110_contract.py",
             f"{NAV_ROOT}/payload/java/robot-local-navigation-java-all.jar",
             f"{NAV_ROOT}/source/navigation/setup.py",
             f"{NAV_ROOT}/source/java/pom.xml",
@@ -173,6 +211,26 @@ def main() -> int:
                     raise RuntimeError("3000 点位页面缺少全局路径安全参数")
                 if "R17 将拒绝下发 task_type=2" not in app_text:
                     raise RuntimeError("3000 页面路径安全提示版本错误")
+                nav_client = nav_archive.extractfile(
+                    f"{NAV_ROOT}/payload/navigation/robot_local_navigation_v3/navigation_client.py"
+                )
+                nav_models = nav_archive.extractfile(
+                    f"{NAV_ROOT}/payload/navigation/robot_local_navigation_v3/models.py"
+                )
+                if nav_client is None or nav_models is None:
+                    raise RuntimeError("导航包缺少 R18 AIMDK 适配代码")
+                nav_client_text = nav_client.read().decode("utf-8")
+                nav_models_text = nav_models.read().decode("utf-8")
+                for marker in (
+                    "QoSDurabilityPolicy.VOLATILE",
+                    "QoSDurabilityPolicy.TRANSIENT_LOCAL",
+                    "MIN_TARGET_POSE_RADIUS",
+                    "msg.target_pose_radius = 0.0",
+                ):
+                    if marker not in nav_client_text:
+                        raise RuntimeError(f"R18 导航客户端缺少 AIMDK 契约：{marker}")
+                if "DEFAULT_ARRIVAL_POSITION_TOLERANCE_M = 0.15" not in nav_models_text:
+                    raise RuntimeError("AIMDK 半径下限错误影响了导航到达判定默认值")
 
     print("BUNDLE_AUDIT_OK")
     print(f"archive={ARCHIVE}")

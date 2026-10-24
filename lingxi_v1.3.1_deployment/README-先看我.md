@@ -6,8 +6,8 @@
 
 ## 套件内容
 
-- AIMDK：`aimdk v0.0.0-g1bde262`。
-- 导航运行组件：`1.0.9-20261024-r17`。
+- AIMDK：`aimdk v1.1.0-gfaf4c94`。
+- 导航运行组件：`1.1.0-20261024-r18`。
 - 导航、地图、语音 bridge、灵心 Java Agent、网页控制台及完整源码。
 - Windows 文件校验和上传脚本。
 - 新机器人环境、AIMDK、导航和验收脚本。
@@ -54,7 +54,7 @@ chmod +x /home/agi/01-replace-aimdk.sh
 exit
 ```
 
-脚本会先编译、验证新 AIMDK，再无备份删除旧 `/home/agi/aimdk`。验证失败时不会删除旧目录。
+脚本会先编译、验证新 AIMDK，再备份旧 `/home/agi/aimdk` 后切换。干净环境复验失败会隔离新目录并恢复旧目录。
 
 ## 第四步：安装导航产品
 

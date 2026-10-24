@@ -9,7 +9,7 @@
   },
   "navigation": {
     "default_task_type": 2,
-    "default_target_pose_radius": 0.2,
+    "default_target_pose_radius": 0.25,
     "default_max_forward_speed": 0.3,
     "default_pnc_mode": 0,
     "path_safety": {
