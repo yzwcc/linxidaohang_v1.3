@@ -265,12 +265,18 @@ try:
         raise RuntimeError('AIMDK 地图服务返回错误码 ' + str(result.code))
     info = result.map_info
     width, height, resolution = int(info.width), int(info.height), float(info.resolution)
-    if width < 1 or height < 1 or width * height != len(result.data) or width * height > 100000000:
+    if width < 1 or height < 1 or width * height != len(result.data) or width * height > 20000000:
         raise RuntimeError('AIMDK 地图宽高与栅格数据不一致')
+    if any(int(value) < -1 or int(value) > 100 for value in result.data):
+        raise RuntimeError('AIMDK 地图 occupancy data 超出 -1..100 范围')
     if not math.isfinite(resolution) or resolution <= 0:
         raise RuntimeError('AIMDK 地图分辨率无效')
     q = info.origin.orientation
-    if abs(q.x) > 1e-5 or abs(q.y) > 1e-5 or abs(q.z) > 1e-5 or abs(q.w - 1.0) > 1e-5:
+    q_norm = math.sqrt(q.x * q.x + q.y * q.y + q.z * q.z + q.w * q.w)
+    if not math.isfinite(q_norm) or q_norm < 1e-9:
+        raise RuntimeError('AIMDK 地图原点四元数无效')
+    qx, qy, qz, qw = q.x / q_norm, q.y / q_norm, q.z / q_norm, q.w / q_norm
+    if abs(qx) > 1e-5 or abs(qy) > 1e-5 or abs(qz) > 1e-5 or abs(abs(qw) - 1.0) > 1e-5:
         raise RuntimeError('当前导航地图格式不支持带旋转的地图原点，已拒绝写入以避免坐标错位')
     origin = info.origin.position
     ppm = 1.0 / resolution
@@ -283,13 +289,13 @@ try:
     map_id = int(result.map_id)
     if map_id <= 0:
         raise RuntimeError('AIMDK 未返回有效的数字地图 ID')
+    expected_info = f'{ppm:.12g}\n{origin_u:.12g} {origin_v:.12g}\n{width} {height}\n'.encode('utf-8')
     target = root / str(map_id)
     if target.exists():
         existing_png = target / 'occupancy_map.png'
         existing_info = target / 'grid_map_info.txt'
         if not existing_png.is_file() or not existing_info.is_file():
             raise RuntimeError('AIMDK 地图 ID 已存在，但不是完整导航地图；为避免覆盖，拒绝写入：' + str(map_id))
-        expected_info = f'{ppm:.12g}\n{origin_u:.12g} {origin_v:.12g}\n{width} {height}\n'.encode('utf-8')
         if existing_png.read_bytes() != png or existing_info.read_bytes() != expected_info:
             raise RuntimeError('该地图 ID 已存在且内容不同，为避免覆盖其他地图，拒绝写入：' + str(map_id))
         print(json.dumps({'ok': True, 'map_name': name, 'map_id': map_id, 'width': width, 'height': height, 'resolution_m': resolution, 'path': str(target), 'reused_existing_map': True}, ensure_ascii=False))
@@ -297,7 +303,7 @@ try:
     tmp = pathlib.Path(tempfile.mkdtemp(prefix='.lingxi-map-', dir=root))
     try:
         (tmp / 'occupancy_map.png').write_bytes(png)
-        (tmp / 'grid_map_info.txt').write_text(f'{ppm:.12g}\n{origin_u:.12g} {origin_v:.12g}\n{width} {height}\n', encoding='utf-8')
+        (tmp / 'grid_map_info.txt').write_bytes(expected_info)
         os.chmod(tmp / 'occupancy_map.png', 0o644)
         os.chmod(tmp / 'grid_map_info.txt', 0o644)
         os.chmod(tmp, 0o755)
