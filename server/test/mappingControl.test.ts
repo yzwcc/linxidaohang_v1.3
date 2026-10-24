@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
 import { mapSaveScript, mappingCommandScript } from "../src/mappingControl.js";
 
 const fakeAimdkRunner = String.raw`
-import base64, json, sys, types
+import base64, json, os, sys, types
 
 class Obj: pass
 origin = Obj(); origin.position = Obj(); origin.orientation = Obj()
@@ -16,6 +16,8 @@ origin.orientation.x, origin.orientation.y, origin.orientation.z, origin.orienta
 info = Obj(); info.width, info.height, info.resolution, info.origin = 3, 2, 0.5, origin
 response = Obj(); response.code = 0; response.map_id = 456; response.map_info = info
 response.map_path = '/agibot/data/var/MapManagerModule/456/source.map'; response.data = [0, 100, -1, 25, 64, 65]
+if os.environ.get('BAD_OCCUPANCY') == '1': response.data[0] = 101
+if os.environ.get('ROTATED_ORIGIN') == '1': origin.orientation.z, origin.orientation.w = 0.7071067811865476, 0.7071067811865476
 class Request: pass
 service = types.ModuleType('aimdk_msgs.srv'); service.GetStoredMapByName = type('GetStoredMapByName', (), {'Request': Request})
 aimdk = types.ModuleType('aimdk_msgs'); aimdk.srv = service
@@ -53,14 +55,15 @@ except SystemExit:
     pass
 `;
 
-function runMapSave(root: string) {
-  return execFileSync("python", [
+function runMapSave(root: string, env: NodeJS.ProcessEnv = {}) {
+  const python = process.env.PYTHON || (process.platform === "win32" ? "python" : "python3");
+  return execFileSync(python, [
     "-c",
     fakeAimdkRunner,
     Buffer.from(mapSaveScript(), "utf8").toString("base64"),
     "demo_map",
     root
-  ], { encoding: "utf8" }).trim().split(/\r?\n/).at(-1);
+  ], { encoding: "utf8", env: { ...process.env, ...env } }).trim().split(/\r?\n/).at(-1);
 }
 
 function decodeGrayPng(png: Buffer): { width: number; height: number; values: number[] } {
@@ -139,6 +142,21 @@ describe("AIMDK mapping adapter", () => {
       const conflict = JSON.parse(runMapSave(root) || "{}") as Record<string, unknown>;
       expect(conflict.ok).toBe(false);
       expect(String(conflict.message)).toMatch(/456/);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("fails closed on invalid occupancy values and rotated map origins", () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "lingxi-map-invalid-"));
+    try {
+      const badOccupancy = JSON.parse(runMapSave(root, { BAD_OCCUPANCY: "1" }) || "{}") as Record<string, unknown>;
+      expect(badOccupancy.ok).toBe(false);
+      expect(fs.existsSync(path.join(root, "456"))).toBe(false);
+
+      const rotatedOrigin = JSON.parse(runMapSave(root, { ROTATED_ORIGIN: "1" }) || "{}") as Record<string, unknown>;
+      expect(rotatedOrigin.ok).toBe(false);
+      expect(fs.existsSync(path.join(root, "456"))).toBe(false);
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
     }
