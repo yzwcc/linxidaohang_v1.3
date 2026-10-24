@@ -124,7 +124,10 @@ export function getMappingSession(): MappingSession {
   return { ...session };
 }
 
-export async function getMappingHealth(config: AppConfig): Promise<MappingHealth> {
+export async function getMappingHealth(
+  config: AppConfig,
+  runCommand: typeof runRobotSshCommand = runRobotSshCommand
+): Promise<MappingHealth> {
   const lines = [
     "set +e",
     environment(),
@@ -140,7 +143,7 @@ export async function getMappingHealth(config: AppConfig): Promise<MappingHealth
     "timeout 3 ros2 topic list -t 2>/dev/null | grep -Ei 'map|slam|lidar|imu|integrated_command' | head -80 | sed 's/^/topic=/'",
     "timeout 3 ros2 service list -t 2>/dev/null | grep -Ei 'map|slam|lidar|imu|GetStoredMapByName' | head -80 | sed 's/^/service=/'"
   ].join("\n");
-  const output = await runRobotSshCommand(`bash -lc ${shellQuote(lines)}`, config, 42_000);
+  const output = await runCommand(`bash -lc ${shellQuote(lines)}`, config, 42_000);
   const fields: Record<string, string> = {};
   for (const line of output.split(/\r?\n/)) {
     const index = line.indexOf("=");
@@ -214,7 +217,7 @@ export async function stopAndSaveMapping(config: AppConfig, mapName: string) {
     const output = await runRos(
       `python3 -c "import base64;exec(compile(base64.b64decode('${script}'),'<aimdk-map-save>','exec'))" ${shellQuote(name)} ${shellQuote(config.robot.mapRoot)}`,
       config,
-      90_000
+      140_000
     );
     const payload = JSON.parse(output.trim().split(/\r?\n/).at(-1) || "{}");
     if (!payload.ok) throw new Error(payload.message || "AIMDK 返回地图保存失败");
@@ -250,19 +253,21 @@ try:
     executor = SingleThreadedExecutor()
     executor.add_node(node)
     result = None
-    for attempt in range(6):
+    for attempt in range(8):
         future = client.call_async(request)
         executor.spin_until_future_complete(future, timeout_sec=15.0)
         result = future.result()
-        if result is not None and result.code == 0:
+        if result is not None and result.code == 0 and int(result.map_id) > 0:
             break
-        if attempt < 5:
-            time.sleep(2.0)
+        if attempt < 7:
+            time.sleep(1.0)
     executor.remove_node(node)
     if result is None:
         raise RuntimeError('等待 AIMDK 地图响应超时')
     if result.code != 0:
         raise RuntimeError('AIMDK 地图服务返回错误码 ' + str(result.code))
+    if int(result.map_id) <= 0:
+        raise RuntimeError('AIMDK 停止建图后仍未返回已保存的有效地图 ID；可使用相同地图名称重试查询')
     info = result.map_info
     width, height, resolution = int(info.width), int(info.height), float(info.resolution)
     if width < 1 or height < 1 or width * height != len(result.data) or width * height > 20000000:

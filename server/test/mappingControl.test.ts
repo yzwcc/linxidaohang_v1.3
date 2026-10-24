@@ -3,8 +3,13 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { inflateSync } from "node:zlib";
-import { describe, expect, it } from "vitest";
-import { mapSaveScript, mappingCommandScript } from "../src/mappingControl.js";
+import { describe, expect, it, vi } from "vitest";
+import { getMappingHealth, mapSaveScript, mappingCommandScript } from "../src/mappingControl.js";
+import type { AppConfig } from "../src/config.js";
+
+const config = {
+  robot: { host: "127.0.0.1", aimdkSetup: "/home/agi/aimdk/install/setup.bash" }
+} as AppConfig;
 
 const fakeAimdkRunner = String.raw`
 import base64, json, os, sys, types
@@ -18,6 +23,8 @@ response = Obj(); response.code = 0; response.map_id = 456; response.map_info = 
 response.map_path = '/agibot/data/var/MapManagerModule/456/source.map'; response.data = [0, 100, -1, 25, 64, 65]
 if os.environ.get('BAD_OCCUPANCY') == '1': response.data[0] = 101
 if os.environ.get('ROTATED_ORIGIN') == '1': origin.orientation.z, origin.orientation.w = 0.7071067811865476, 0.7071067811865476
+if os.environ.get('NO_MAP_ID') == '1': response.map_id = 0
+if os.environ.get('DELAY_MAP_ID') == '1': response.map_id = 0
 class Request: pass
 service = types.ModuleType('aimdk_msgs.srv'); service.GetStoredMapByName = type('GetStoredMapByName', (), {'Request': Request})
 aimdk = types.ModuleType('aimdk_msgs'); aimdk.srv = service
@@ -25,10 +32,17 @@ sys.modules['aimdk_msgs'] = aimdk; sys.modules['aimdk_msgs.srv'] = service
 std_msgs = types.ModuleType('std_msgs'); std_msg = types.ModuleType('std_msgs.msg'); std_msg.Header = type('Header', (), {})
 std_msgs.msg = std_msg; sys.modules['std_msgs'] = std_msgs; sys.modules['std_msgs.msg'] = std_msg
 class Future:
-    def result(self): return response
+    def __init__(self, attempt): self.attempt = attempt
+    def result(self):
+        if os.environ.get('DELAY_MAP_ID') == '1' and self.attempt < 3: return None
+        return response
 class Client:
     def wait_for_service(self, timeout_sec): return True
-    def call_async(self, request): return Future()
+    def __init__(self): self.attempt = 0
+    def call_async(self, request):
+        self.attempt += 1
+        if os.environ.get('DELAY_MAP_ID') == '1' and self.attempt == 3: response.map_id = 456
+        return Future(self.attempt)
 class Clock:
     def now(self): return types.SimpleNamespace(to_msg=lambda: None)
 class Node:
@@ -96,6 +110,30 @@ function decodeGrayPng(png: Buffer): { width: number; height: number; values: nu
 }
 
 describe("AIMDK mapping adapter", () => {
+  it("checks the robot's documented SLAM process and live sensor and odometry data", async () => {
+    const runCommand = vi.fn(async () => [
+      "agibot_software=active",
+      "hal_sensor_running=1",
+      "slam_running=1",
+      "lidar_publishers=1",
+      "imu_publishers=1",
+      "odom_publishers=1",
+      "mapping_command_subscribers=1",
+      "lidar_data=1",
+      "imu_data=1",
+      "odom_data=1",
+      "topic=/slam/lidar_odom",
+      "service=/aimdk_5Fmsgs/srv/GetStoredMapByName"
+    ].join("\n"));
+
+    const health = await getMappingHealth(config, runCommand);
+
+    expect(health.ok).toBe(true);
+    expect(runCommand.mock.calls[0][0]).toContain("./slam --cfg_file_path");
+    expect(runCommand.mock.calls[0][0]).toContain("/slam/lidar_odom");
+    expect(runCommand.mock.calls[0][0]).toContain("GetStoredMapByName");
+  });
+
   it("uses the SDK service and protects navigation map output", () => {
     const script = mapSaveScript();
     expect(script).toContain("/aimdk_5Fmsgs/srv/GetStoredMapByName");
@@ -105,6 +143,9 @@ describe("AIMDK mapping adapter", () => {
     expect(script).toContain("os.rename(tmp, target)");
     expect(script).toContain("reused_existing_map");
     expect(script).toContain("grid_map_info.txt");
+    expect(script).toContain("range(8)");
+    expect(script).toContain("timeout_sec=15.0");
+    expect(script).toContain("int(result.map_id) <= 0");
   });
 
   it("publishes the SDK command with transient-local reliable QoS and waits for a subscriber", () => {
@@ -157,6 +198,17 @@ describe("AIMDK mapping adapter", () => {
       const rotatedOrigin = JSON.parse(runMapSave(root, { ROTATED_ORIGIN: "1" }) || "{}") as Record<string, unknown>;
       expect(rotatedOrigin.ok).toBe(false);
       expect(fs.existsSync(path.join(root, "456"))).toBe(false);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("retries a temporarily empty AIMDK response until the saved map id becomes available", () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "lingxi-map-pending-"));
+    try {
+      const saved = JSON.parse(runMapSave(root, { DELAY_MAP_ID: "1" }) || "{}") as Record<string, unknown>;
+      expect(saved).toMatchObject({ ok: true, map_id: 456 });
+      expect(fs.existsSync(path.join(root, "456", "occupancy_map.png"))).toBe(true);
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
     }
