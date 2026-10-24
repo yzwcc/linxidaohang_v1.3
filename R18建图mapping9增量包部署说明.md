@@ -1,22 +1,22 @@
-# 灵犀 X2 R18 建图 mapping8 增量包
+# 灵犀 X2 R18 建图 mapping9 增量包
 
 本增量包基于 V1.3.1 R18 与 AIMDK v1.1.0，只更新机器人本机导航控制台及 AIMDK 建图适配器。它不替换 AIMDK、不发送机器人移动命令，也不包含新的 Java Agent 或导航控制行为。
 
 ## 文件
 
-`internal_deployment/dist/mapping8/sparkrobot-lingxi-nav-internal-1.1.0-20261024-r18-mapping8.tar.gz`
+`internal_deployment/dist/mapping9/sparkrobot-lingxi-nav-internal-1.1.0-20261024-r18-mapping9.tar.gz`
 
 SHA-256：
 
-`738866982742870aab9d409f9d242ac43cad6cfe71a8c207b938ad341e56eaa2`
+`4d45ee556d83a265ac25e3aec28e2bb88b3d654534cc1f3535e7d413c960db9a`
 
 请先将 tar 包复制到机器人，然后校验并解压：
 
 ```bash
-sha256sum sparkrobot-lingxi-nav-internal-1.1.0-20261024-r18-mapping8.tar.gz
-mkdir -p ~/r18-mapping8
-tar -xzf sparkrobot-lingxi-nav-internal-1.1.0-20261024-r18-mapping8.tar.gz -C ~/r18-mapping8
-cd ~/r18-mapping8/sparkrobot-lingxi-nav-internal-1.1.0-20261024-r18-mapping8
+sha256sum sparkrobot-lingxi-nav-internal-1.1.0-20261024-r18-mapping9.tar.gz
+mkdir -p ~/r18-mapping9
+tar -xzf sparkrobot-lingxi-nav-internal-1.1.0-20261024-r18-mapping9.tar.gz -C ~/r18-mapping9
+cd ~/r18-mapping9/sparkrobot-lingxi-nav-internal-1.1.0-20261024-r18-mapping9
 ```
 
 首次安装若机器人尚未配置灵心/SOC2 凭据，使用 `sudo ./install.sh --secrets ./secrets.env --setup-soc2`；不要把真实凭据放进压缩包。已有 R18 安装只升级程序时，安装器会保留机器人现有配置、地图和任务：
@@ -28,7 +28,7 @@ sudo sparkrobot-lingxi-internal doctor
 readlink -f /opt/sparkrobot/lingxi-nav/current
 ```
 
-确认当前版本目录为 `1.1.0-20261024-r18-mapping8`，并检查控制台健康状态：
+确认当前版本目录为 `1.1.0-20261024-r18-mapping9`，并检查控制台健康状态：
 
 ```bash
 curl -fsS http://127.0.0.1:3000/health
@@ -57,4 +57,4 @@ readlink -f /opt/sparkrobot/lingxi-nav/current
 
 ## 验证边界
 
-本次已执行生成保存脚本的离线 AIMDK mock 回归，验证栅格到 PNG 的方向/灰度、导航原点元数据、重复 ID 复用、冲突拒绝和停止后地图 ID 延迟可用时的重试。R18 已安装版本会被保留，出问题可回滚到升级前版本。机器人实机 SSH、实时传感器、完整建图、地图重载与现场导航仍须在目标 X2 上验收。
+保存操作外层 SSH 等待为 180 秒；AIMDK 查询轮询最多约 137 秒，预留地图转换和 ROS 清理时间。本次已执行生成保存脚本的离线 AIMDK mock 回归，验证栅格到 PNG 的方向/灰度、导航原点元数据、重复 ID 复用、冲突拒绝和停止后地图 ID 延迟可用时的重试。R18 已安装版本会被保留，出问题可回滚到升级前版本。机器人实机 SSH、实时传感器、完整建图、地图重载与现场导航仍须在目标 X2 上验收。

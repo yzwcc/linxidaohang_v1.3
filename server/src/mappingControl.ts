@@ -217,7 +217,7 @@ export async function stopAndSaveMapping(config: AppConfig, mapName: string) {
     const output = await runRos(
       `python3 -c "import base64;exec(compile(base64.b64decode('${script}'),'<aimdk-map-save>','exec'))" ${shellQuote(name)} ${shellQuote(config.robot.mapRoot)}`,
       config,
-      140_000
+      180_000
     );
     const payload = JSON.parse(output.trim().split(/\r?\n/).at(-1) || "{}");
     if (!payload.ok) throw new Error(payload.message || "AIMDK 返回地图保存失败");
