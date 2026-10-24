@@ -12,13 +12,22 @@ describe("console UI assets", () => {
     expect(duplicates).toEqual([]);
   });
 
-  it("provides all four product workspaces and mobile navigation", () => {
-    for (const workspace of ["nav", "task", "map", "system"]) {
+  it("provides all five product workspaces and mobile navigation", () => {
+    for (const workspace of ["nav", "task", "mapping", "map", "system"]) {
       expect(html).toContain(`data-view="${workspace}"`);
       expect(html).toContain(`data-view-section="${workspace}"`);
     }
     expect(styles).toContain("@media (max-width: 640px)");
     expect(styles).toContain("position: fixed");
+  });
+
+  it("keeps robot motion out of the mapping workspace and gates unverified collection", () => {
+    expect(html).toContain("本页面不会发送底盘速度或导航运动命令");
+    expect(html).toContain('id="startMappingBtn" class="primary-large" type="button" disabled');
+    expect(html).toContain('id="saveMappingBtn" class="warning" type="button" disabled');
+    expect(appScript).toContain('if (nextView === "mapping") void refreshMappingHealth()');
+    expect(appScript).toContain('$("startMappingBtn").disabled = true');
+    expect(styles).toContain(".mapping-grid");
   });
 
   it("uses the modular API client without legacy robot IP editing", () => {

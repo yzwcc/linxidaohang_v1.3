@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#ffffff">
     <title>灵犀导航</title>
-    <link rel="stylesheet" href="/console/styles.css?v=20260821-tour-effects-v2">
+    <link rel="stylesheet" href="/console/styles.css?v=20261024-mapping-workspace">
   </head>
   <body>
     <header class="topbar">
@@ -68,12 +68,51 @@
       <nav class="customer-shortcuts" aria-label="工作区" role="tablist">
         <button type="button" role="tab" class="workspace-tab active" data-view="nav">导航</button>
         <button type="button" role="tab" class="workspace-tab" data-view="task">讲解</button>
+        <button type="button" role="tab" class="workspace-tab" data-view="mapping">建图</button>
         <button type="button" role="tab" class="workspace-tab" data-view="map">地图</button>
         <button type="button" role="tab" class="workspace-tab" data-view="system">服务</button>
       </nav>
     </section>
 
     <main class="layout">
+      <section id="mappingPanel" class="panel mapping-panel view-section" data-view-section="mapping" hidden>
+        <div class="panel-head">
+          <div>
+            <h2>现场地图采集</h2>
+            <p class="hint">机器人移动由外置遥控器负责；本页面只读取传感器状态并管理建图采集与地图保存。</p>
+          </div>
+          <span id="mappingBadge" class="badge bad">尚未检查</span>
+        </div>
+        <div class="mapping-safety notice">本页面不会发送底盘速度或导航运动命令。当前机器人版本的建图启动与地图导出接口尚未完成实机验证，采集和保存功能保持关闭，不会触碰现有地图。</div>
+        <div class="mapping-grid">
+          <section class="mapping-preview" aria-label="传感器状态">
+            <div class="mapping-preview-head"><strong>传感器与 SLAM 状态</strong><button id="refreshMappingBtn" class="secondary" type="button">刷新状态</button></div>
+            <div class="status-grid compact">
+              <div><span>底层服务</span><strong id="mappingSoftware">-</strong></div>
+              <div><span>雷达点云</span><strong id="mappingLidar">-</strong></div>
+              <div><span>雷达 IMU</span><strong id="mappingImu">-</strong></div>
+              <div><span>SLAM</span><strong id="mappingSlam">-</strong></div>
+              <div><span>定位里程计</span><strong id="mappingOdom">-</strong></div>
+              <div><span>建图后端</span><strong id="mappingBackend">-</strong></div>
+            </div>
+            <pre id="mappingDiagnosis" class="log neutral">正在等待状态检查</pre>
+            <div class="mapping-graph">
+              <div><strong>地图相关 ROS 话题</strong><pre id="mappingTopics" class="log neutral">尚未检查</pre></div>
+              <div><strong>地图相关 ROS 服务</strong><pre id="mappingServices" class="log neutral">尚未检查</pre></div>
+            </div>
+            <div class="mapping-prerequisites"><strong>建图依赖预检</strong><ul id="mappingPrerequisites"><li>尚未检查</li></ul></div>
+          </section>
+          <section class="mapping-controls" aria-label="地图采集">
+            <label>地图名称<input id="mappingName" maxlength="48" placeholder="后端接口验证后启用" disabled></label>
+            <div class="split-actions">
+              <button id="startMappingBtn" class="primary-large" type="button" disabled>采集接口待验证</button>
+              <button id="saveMappingBtn" class="warning" type="button" disabled>停止采集并保存地图</button>
+            </div>
+            <div id="mappingResult" class="mapping-result" aria-live="polite"></div>
+            <p class="hint">只有经过验证的后端生成 Nav2 地图并通过格式检查后，才会写入 MapManager 下全新的数字 ID 目录。单纯录制传感器数据不能作为可导航地图。</p>
+          </section>
+        </div>
+      </section>
       <section id="serviceCheckPanel" class="panel wizard-panel view-section" data-view-section="system" hidden>
         <div class="panel-head">
           <div>
@@ -357,6 +396,6 @@
     </main>
 
     <div id="toast" class="toast"></div>
-    <script type="module" src="/console/app.js?v=20260825-linkcraft-tour"></script>
+    <script type="module" src="/console/app.js?v=20261024-mapping-workspace"></script>
   </body>
 </html>

@@ -81,6 +81,16 @@ function robot(overrides: Partial<RobotClient> = {}): RobotClient {
 }
 
 describe("app", () => {
+  it("refuses collection and save until a robot mapping adapter is verified", async () => {
+    const app = buildApp(config, robot());
+    const start = await app.inject({ method: "POST", url: "/api/robots/default/mapping/start" });
+    expect(start.statusCode).toBe(409);
+    expect(start.json().message).toContain("尚未通过实机验证");
+    const save = await app.inject({ method: "POST", url: "/api/robots/default/mapping/save" });
+    expect(save.statusCode).toBe(409);
+    expect(save.json().message).toContain("尚未通过实机验证");
+  });
+
   it("prevents target IP changes in robot product mode", async () => {
     const app = buildApp({ ...config, deploymentMode: "robot" }, robot());
     const response = await app.inject({

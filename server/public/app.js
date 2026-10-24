@@ -5,6 +5,7 @@ let state = {
   status: null,
   startup: null,
   systemHealth: null,
+  mappingHealth: null,
   localization: null,
   relocalization: null,
   lastRelocalizationPoint: "",
@@ -112,7 +113,7 @@ function renderStartAllResult(result, running = false) {
 }
 
 function switchWorkspace(view, { scroll = false } = {}) {
-  const allowed = new Set(["nav", "task", "map", "system"]);
+  const allowed = new Set(["nav", "task", "mapping", "map", "system"]);
   const nextView = allowed.has(view) ? view : "nav";
   document.querySelectorAll("[data-view-section]").forEach((section) => {
     section.hidden = section.dataset.viewSection !== nextView;
@@ -122,8 +123,48 @@ function switchWorkspace(view, { scroll = false } = {}) {
     tab.classList.toggle("active", active);
     tab.setAttribute("aria-selected", String(active));
   });
+  if (nextView === "mapping") void refreshMappingHealth().catch((error) => {
+    setText("mappingDiagnosis", error.message || "暂时无法读取机器人传感器状态");
+  });
   try { sessionStorage.setItem("lingxi-workspace", nextView); } catch { /* no-op */ }
   if (scroll) document.querySelector(".layout")?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function renderMappingHealth() {
+  const health = state.mappingHealth;
+  if (!health) return;
+  const ready = Boolean(health.ok);
+  setText("mappingBadge", ready ? "传感器就绪" : "尚未就绪");
+  setClass("mappingBadge", `badge ${ready ? "ok" : "bad"}`);
+  setText("mappingSoftware", health.agibot_software || "未知");
+  setText("mappingLidar", `${health.lidar_data_available ? "有实时数据" : "无实时数据"} · ${health.lidar_publishers || 0} 个发布者`);
+  setText("mappingImu", `${health.imu_data_available ? "有实时数据" : "无实时数据"} · ${health.imu_publishers || 0} 个发布者`);
+  setText("mappingSlam", health.slam_running ? "运行中" : "未运行");
+  setText("mappingOdom", `${health.odom_data_available ? "有实时数据" : "无实时数据"} · ${health.odom_publishers || 0} 个发布者`);
+  setText("mappingBackend", health.mapping_backend_available ? "已验证" : "未验证");
+  setText("mappingTopics", (health.mapping_related_topics || []).join("\n") || "未发现相关话题");
+  setText("mappingServices", (health.mapping_related_services || []).join("\n") || "未发现相关服务");
+  setText("mappingDiagnosis", `${health.diagnosis || ""}\n采集与保存仅在机器人后端接口完成实机验证后开放。`);
+  const list = $("mappingPrerequisites");
+  if (list) {
+    list.replaceChildren();
+    const items = health.mapping_prerequisites || [];
+    for (const item of items) {
+      const row = document.createElement("li");
+      row.className = item.available ? "available" : "missing";
+      row.textContent = `${item.name}：${item.available ? "可用" : "未安装"}`;
+      list.append(row);
+    }
+    if (!items.length) list.append(Object.assign(document.createElement("li"), { textContent: "未获取依赖状态" }));
+  }
+  $("startMappingBtn").disabled = true;
+  $("saveMappingBtn").disabled = true;
+}
+
+async function refreshMappingHealth() {
+  state.mappingHealth = await api("/api/robots/default/mapping/health", { force: true });
+  renderMappingHealth();
+  return state.mappingHealth;
 }
 
 function label(value, dict) {
@@ -1492,6 +1533,7 @@ function bindEvents() {
     });
   }
   $("startupRefreshBtn").onclick = () => runAction("启动状态已检查", () => refreshStartup());
+  $("refreshMappingBtn").onclick = () => runAction("传感器状态已刷新", () => refreshMappingHealth());
   $("checkSystemHealthBtn").onclick = () => runAction("底层服务已检查", () => refreshSystemHealth());
   $("restartSystemBtn").onclick = () => runAction("底层导航/传感器重启命令已提交", async () => {
     const result = await api("/api/robots/default/system/restart", { method: "POST" });
