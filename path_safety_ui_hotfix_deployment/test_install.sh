@@ -46,6 +46,9 @@ LINGXI_HOTFIX_ROOT="${ROOT}" LINGXI_HOTFIX_TEST_MODE=true bash "${PACKAGE_DIR}/i
 python3 "${PRODUCT}/scripts/verify_payload.py" --root "${PRODUCT}" --manifest "${PRODUCT}/payload-manifest.json"
 grep -q 'id="robotRadius"' "${PRODUCT}/console/dist/public/index.html"
 grep -q 'id="extraClearance"' "${PRODUCT}/console/dist/public/index.html"
+grep -q 'id="robotRadius" form="pathSafetyForm"' "${PRODUCT}/console/dist/public/index.html"
+grep -q 'id="extraClearance" form="pathSafetyForm"' "${PRODUCT}/console/dist/public/index.html"
+grep -q 'id="savePathSafetyBtn" form="pathSafetyForm" type="submit"' "${PRODUCT}/console/dist/public/index.html"
 grep -q '^preserve$' "${PRODUCT}/console/dist/public/untouched.txt"
 python3 - "${PRODUCT}" <<'PY'
 import hashlib
@@ -110,5 +113,52 @@ for relative in (
 ):
     assert hashlib.sha256((product / relative).read_bytes()).digest() == hashlib.sha256((backup / relative).read_bytes()).digest(), relative
 assert (product / "console/dist/public/untouched.txt").read_text() == "preserve\n"
+PY
+
+# Simulate an existing robot on the first hotfix, then verify upgrade and rollback.
+python3 - "${PRODUCT}" "${PACKAGE_DIR}" <<'PY'
+import hashlib
+import json
+import pathlib
+import sys
+
+product, package = map(pathlib.Path, sys.argv[1:])
+paths = [line.strip() for line in (package / "payload/SHA256SUMS.txt").read_text().splitlines() if line.strip()]
+entries = []
+for line in paths:
+    _, relative = line.split("  ", 1)
+    target = product / relative
+    target.write_bytes((package / "test-fixtures-r1" / relative).read_bytes())
+    entries.append({
+        "path": relative,
+        "size": target.stat().st_size,
+        "sha256": hashlib.sha256(target.read_bytes()).hexdigest(),
+    })
+untouched = product / "console/dist/public/untouched.txt"
+entries.append({
+    "path": "console/dist/public/untouched.txt",
+    "size": untouched.stat().st_size,
+    "sha256": hashlib.sha256(untouched.read_bytes()).hexdigest(),
+})
+(product / "payload-manifest.json").write_text(json.dumps({"format":"test", "files":entries}) + "\n")
+PY
+sleep 1
+LINGXI_HOTFIX_ROOT="${ROOT}" LINGXI_HOTFIX_TEST_MODE=true bash "${PACKAGE_DIR}/install.sh" install
+grep -q 'form="pathSafetyForm"' "${PRODUCT}/console/dist/public/index.html"
+BACKUP_R1="$(find "${ROOT}/var/lib/sparkrobot/lingxi-nav/path-safety-ui-hotfix-backups" -mindepth 1 -maxdepth 1 -type d -printf '%T@ %p\n' | sort -n | tail -n 1 | cut -d' ' -f2-)"
+LINGXI_HOTFIX_ROOT="${ROOT}" LINGXI_HOTFIX_TEST_MODE=true bash "${PACKAGE_DIR}/install.sh" rollback "${BACKUP_R1}"
+python3 - "${PRODUCT}" "${PACKAGE_DIR}" <<'PY'
+import hashlib
+import pathlib
+import sys
+
+product, package = map(pathlib.Path, sys.argv[1:])
+for line in (package / "payload/SHA256SUMS.txt").read_text().splitlines():
+    if not line.strip():
+        continue
+    _, relative = line.split("  ", 1)
+    actual = hashlib.sha256((product / relative).read_bytes()).digest()
+    previous = hashlib.sha256((package / "test-fixtures-r1" / relative).read_bytes()).digest()
+    assert actual == previous, relative
 PY
 echo "ISOLATED_INSTALL_ROLLBACK_OK"

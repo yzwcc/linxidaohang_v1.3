@@ -13,7 +13,9 @@ from pathlib import Path, PurePosixPath
 
 ROOT = Path(__file__).resolve().parents[1]
 HERE = Path(__file__).resolve().parent
-NAME = "lingxi-v1.3.1-r16-path-safety-ui-hotfix-20261024"
+NAME = "lingxi-v1.3.1-r16-path-safety-ui-hotfix-20261024-r3"
+PREVIOUS_HOTFIX_NAME = "lingxi-v1.3.1-r16-path-safety-ui-hotfix-20261024"
+PREVIOUS_HOTFIX_SHA256 = "debaad9de32796f80d1d183a7a27e91a10dc273ce48ad28d02490a020568ac25"
 BASE_ARCHIVE = ROOT / "lingxi_v1.3.1_deployment/dist/lingxi-v1.3.1-full-deployment-20261023-r16.zip"
 BASE_BUNDLE = "lingxi-v1.3.1-full-deployment-20261023-r16"
 BASE_NAV = "sparkrobot-lingxi-nav-internal-1.0.8-20261023-r16"
@@ -26,6 +28,13 @@ BASELINE = {
     "console/dist/public/app.js": "55d7154d8877784edbc901a2cbb8d0a84a030eec4edfab3d831999eed45f9f9a",
     "console/dist/public/index.html": "a689217542a93e14d210ded880d08601e5463bf9825c6c73a108866ff73298d0",
     "console/dist/public/styles.css": "3dad5f4344538fbb14b3e54ef60bcdc5acf8eee7fa690a4548060597ff04938a",
+}
+PREVIOUS_HOTFIX_BASELINE = {
+    "console/dist/app.js": "89ab364e75169095653c5cd5852c4159cd878f13a0d0279e7f65a56033851b1c",
+    "console/dist/robotClient.js": "d0b7e0f9101fe6d08b93f1fc7c71494a5c08c612250a6ea827c5bbc4acdc6ee0",
+    "console/dist/public/app.js": "8213e2676893ba1c1a12ccb36e515a95a1a27f7e5705a703f5b89d05dc41b3f4",
+    "console/dist/public/index.html": "6cd122aa5a0aaceb09e34be34eebea0f5952b5b3691f058bfaa8960ecc2b8fa6",
+    "console/dist/public/styles.css": "8b70fb1f33b5b7d7110b8bf27f55a42d0122e6766c1260a6541296c05738094f",
 }
 
 CHANGED_PATHS = tuple(BASELINE)
@@ -73,6 +82,37 @@ def read_baseline() -> dict[str, bytes]:
             if actual != expected:
                 raise RuntimeError(f"R16 基线不匹配 {relative}: {actual}")
             result[relative] = value
+    return result
+
+
+def read_previous_hotfix() -> dict[str, bytes]:
+    archive_path = OUTPUT_DIR / f"{PREVIOUS_HOTFIX_NAME}.tar.gz"
+    checksum_path = archive_path.with_suffix(archive_path.suffix + ".sha256")
+    result: dict[str, bytes] = {}
+    if archive_path.is_file() and checksum_path.is_file():
+        actual_archive_hash = digest_file(archive_path)
+        expected_archive_hash = checksum_path.read_text(encoding="ascii").split()[0].lower()
+        if actual_archive_hash != PREVIOUS_HOTFIX_SHA256 or actual_archive_hash != expected_archive_hash:
+            raise RuntimeError("首版 R16 热修归档 SHA-256 不匹配")
+        with tarfile.open(archive_path, "r:gz") as archive:
+            prefix = f"{PREVIOUS_HOTFIX_NAME}/payload/"
+            for relative, expected in PREVIOUS_HOTFIX_BASELINE.items():
+                member = archive.extractfile(prefix + relative)
+                if member is None:
+                    raise RuntimeError(f"首版热修缺少升级测试文件：{relative}")
+                result[relative] = member.read()
+    else:
+        for relative in PREVIOUS_HOTFIX_BASELINE:
+            fixture = HERE / "baseline-r1" / relative
+            if not fixture.is_file():
+                raise RuntimeError(f"缺少首版热修升级测试基线文件：{fixture}")
+            result[relative] = fixture.read_bytes()
+
+    for relative, value in result.items():
+        actual = digest_bytes(value)
+        expected = PREVIOUS_HOTFIX_BASELINE[relative]
+        if actual != expected:
+            raise RuntimeError(f"首版热修文件哈希不匹配 {relative}: {actual}")
     return result
 
 
@@ -153,7 +193,10 @@ def stage_payload(payload: Path, baseline: dict[str, bytes]) -> None:
     for marker, text in (
         ('id="pointTaskType"', index),
         ('id="robotRadius"', index),
+        ('id="robotRadius" form="pathSafetyForm"', index),
         ('id="extraClearance"', index),
+        ('id="extraClearance" form="pathSafetyForm"', index),
+        ('id="savePathSafetyBtn" form="pathSafetyForm" type="submit"', index),
         ('id="pointStart"', index),
         ("savePathSafety", app),
         ("/api/robots/default/navigation/path-safety", server_app),
@@ -182,6 +225,7 @@ def audit_package(stage: Path, baseline: dict[str, bytes]) -> None:
         "payload/SHA256SUMS.txt",
         "SHA256SUMS.txt",
         *(f"test-fixtures/{relative}" for relative in CHANGED_PATHS),
+        *(f"test-fixtures-r1/{relative}" for relative in CHANGED_PATHS),
         *(f"payload/{relative}" for relative in CHANGED_PATHS),
     }
     actual = {path.relative_to(stage).as_posix() for path in stage.rglob("*") if path.is_file()}
@@ -194,6 +238,7 @@ def audit_package(stage: Path, baseline: dict[str, bytes]) -> None:
 
 def main() -> None:
     baseline = read_baseline()
+    previous_hotfix = read_previous_hotfix()
     output = OUTPUT_DIR / f"{NAME}.tar.gz"
     sidecar = output.with_suffix(output.suffix + ".sha256")
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -206,8 +251,13 @@ def main() -> None:
             fixture = stage / "test-fixtures" / relative
             fixture.parent.mkdir(parents=True, exist_ok=True)
             fixture.write_bytes(value)
+        for relative, value in previous_hotfix.items():
+            fixture = stage / "test-fixtures-r1" / relative
+            fixture.parent.mkdir(parents=True, exist_ok=True)
+            fixture.write_bytes(value)
         for name in ("install.sh", "README.md", "test_install.sh", "update_payload_manifest.py"):
             shutil.copy2(HERE / name, stage / name)
+        shutil.copytree(HERE / "baseline-r1", stage / "test-fixtures-r1", dirs_exist_ok=True)
         (stage / "install.sh").chmod(0o755)
         (stage / "test_install.sh").chmod(0o755)
         (stage / "update_payload_manifest.py").chmod(0o755)

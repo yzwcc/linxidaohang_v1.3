@@ -21,6 +21,13 @@ declare -A BASELINE_SHA256=(
   [console/dist/public/index.html]="a689217542a93e14d210ded880d08601e5463bf9825c6c73a108866ff73298d0"
   [console/dist/public/styles.css]="3dad5f4344538fbb14b3e54ef60bcdc5acf8eee7fa690a4548060597ff04938a"
 )
+declare -A PREVIOUS_HOTFIX_SHA256=(
+  [console/dist/app.js]="89ab364e75169095653c5cd5852c4159cd878f13a0d0279e7f65a56033851b1c"
+  [console/dist/robotClient.js]="d0b7e0f9101fe6d08b93f1fc7c71494a5c08c612250a6ea827c5bbc4acdc6ee0"
+  [console/dist/public/app.js]="8213e2676893ba1c1a12ccb36e515a95a1a27f7e5705a703f5b89d05dc41b3f4"
+  [console/dist/public/index.html]="6cd122aa5a0aaceb09e34be34eebea0f5952b5b3691f058bfaa8960ecc2b8fa6"
+  [console/dist/public/styles.css]="8b70fb1f33b5b7d7110b8bf27f55a42d0122e6766c1260a6541296c05738094f"
+)
 
 die() { echo "失败：$*" >&2; exit 1; }
 need_root() {
@@ -74,14 +81,16 @@ assert_console_active() {
 }
 
 verify_baseline() {
+  local relative actual matches_original=1 matches_previous=1
   for relative in "${!BASELINE_SHA256[@]}"; do
     local target="${PRODUCT_ROOT}/${relative}"
     [[ -f "${target}" ]] || die "R16 基线文件缺失：${relative}"
-    local actual
     actual="$(sha256sum "${target}" | awk '{print $1}')"
-    [[ "${actual}" == "${BASELINE_SHA256[${relative}]}" ]] \
-      || die "当前文件不是精确 R16 基线：${relative}（SHA-256=${actual}）。拒绝覆盖其他版本/热修"
+    [[ "${actual}" == "${BASELINE_SHA256[${relative}]}" ]] || matches_original=0
+    [[ "${actual}" == "${PREVIOUS_HOTFIX_SHA256[${relative}]}" ]] || matches_previous=0
   done
+  [[ "${matches_original}" -eq 1 || "${matches_previous}" -eq 1 ]] \
+    || die "当前控制台既不是精确 R16 基线，也不是首版路径安全热修；拒绝覆盖混合、其他版本或未知修改"
 }
 
 verify_backup() {

@@ -1537,7 +1537,10 @@ function bindEvents() {
   $("refreshMapsBtn").onclick = () => runAction("地图列表已刷新", () => refreshMapList({ force: true, notify: true }));
   $("refreshLinkcraftBtn").onclick = () => runAction("灵创舞蹈和动作列表已刷新", () => loadLinkcraftResources(true));
   $("setActiveMapBtn").onclick = () => runAction("已切换为当前导航地图", () => setActiveMap());
-  $("savePathSafetyBtn").onclick = () => runAction("全局路径安全参数已保存", () => savePathSafety());
+  $("pathSafetyForm").onsubmit = (event) => {
+    event.preventDefault();
+    void runAction("全局路径安全参数已保存", () => savePathSafety());
+  };
   $("newPointBtn").onclick = () => {
     fillPointForm(normalizePoint({
       name: "",

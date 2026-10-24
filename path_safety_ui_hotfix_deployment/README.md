@@ -1,6 +1,6 @@
 # V1.3.1 R16 点位页全局路径安全设置热修
 
-此热修只适用于 V1.3.1 R16 基线，不修改 AIMDK、PNC 算法、Java Agent、地图点位或机器人外形参数。它把“机器人实测外接半径（米）”和“额外障碍净空（米）”放到 3000 控制台的点位编辑页，紧邻 `task_type`。两项仍写入全局 `navigation.path_safety`，不会成为单个点位字段。
+此热修只适用于 V1.3.1 R16 基线和首版 R16 路径安全 UI 热修，不修改 AIMDK、PNC 算法、Java Agent、地图点位或机器人外形参数。它把“机器人实测外接半径（米）”和“额外障碍净空（米）”放到 3000 控制台的点位编辑页，紧邻 `task_type`。两项仍写入全局 `navigation.path_safety`，不会成为单个点位字段。两个输入由独立表单承载，输入校验或回车提交不会干扰点位保存。安装器仅接受精确匹配的原始 R16 或首版热修五文件状态，并拒绝混合/未知状态。
 
 R16 的安全拒绝保持不变。机器人半径需要按现场整机外形实测填写；没有半径时 `task_type=2、pnc_mode=0` 全局导航继续被拒绝。额外净空范围为 0 到 2 米，机器人半径范围为大于 0 到 2 米。
 
@@ -16,9 +16,9 @@ R16 的安全拒绝保持不变。机器人半径需要按现场整机外形实�
 
 ```bash
 cd /home/run
-sha256sum -c lingxi-v1.3.1-r16-path-safety-ui-hotfix-20261024.tar.gz.sha256
-tar -xzf lingxi-v1.3.1-r16-path-safety-ui-hotfix-20261024.tar.gz
-cd lingxi-v1.3.1-r16-path-safety-ui-hotfix-20261024
+sha256sum -c lingxi-v1.3.1-r16-path-safety-ui-hotfix-20261024-r3.tar.gz.sha256
+tar -xzf lingxi-v1.3.1-r16-path-safety-ui-hotfix-20261024-r3.tar.gz
+cd lingxi-v1.3.1-r16-path-safety-ui-hotfix-20261024-r3
 sudo bash ./install.sh install
 ```
 

@@ -30,6 +30,10 @@ describe("console UI assets", () => {
   it("places global path safety inputs beside point task_type without making point editing require a radius", () => {
     expect(html.indexOf('id="pointTaskType"')).toBeLessThan(html.indexOf('id="robotRadius"'));
     expect(html.indexOf('id="robotRadius"')).toBeLessThan(html.indexOf('id="pointStart"'));
+    expect(html).toContain('<form id="pathSafetyForm"></form>');
+    expect(html).toContain('id="robotRadius" form="pathSafetyForm"');
+    expect(html).toContain('id="extraClearance" form="pathSafetyForm"');
+    expect(html).toContain('id="savePathSafetyBtn" form="pathSafetyForm" type="submit"');
     expect(html).toContain('id="extraClearance"');
     expect(html).not.toMatch(/id="robotRadius"[^>]*\brequired/);
     expect(appScript).toContain("radius.value.trim() === \"\"");
