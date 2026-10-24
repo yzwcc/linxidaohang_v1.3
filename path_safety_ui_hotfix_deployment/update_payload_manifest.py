@@ -15,6 +15,9 @@ CHANGED_PATHS = {
     "console/dist/public/index.html",
     "console/dist/public/styles.css",
 }
+PRESERVED_RUNTIME_PATHS = {
+    "java/robot-local-navigation-java-all.jar",
+}
 
 
 def digest(path: Path) -> str:
@@ -34,6 +37,9 @@ def update(root: Path, manifest: Path) -> None:
         if relative not in entries:
             payload.setdefault("files", []).append({"path": relative})
             entries[relative] = payload["files"][-1]
+    missing_preserved = PRESERVED_RUNTIME_PATHS - set(entries)
+    if missing_preserved:
+        raise RuntimeError(f"preserved runtime files missing from payload manifest: {sorted(missing_preserved)}")
 
     updated: set[str] = set()
     for entry in payload.get("files", []):
@@ -41,7 +47,7 @@ def update(root: Path, manifest: Path) -> None:
         if relative.is_absolute() or ".." in relative.parts:
             raise RuntimeError(f"invalid payload manifest path: {relative}")
         name = relative.as_posix()
-        if name not in CHANGED_PATHS:
+        if name not in CHANGED_PATHS | PRESERVED_RUNTIME_PATHS:
             continue
         target = root.joinpath(*relative.parts)
         if not target.is_file():
@@ -49,8 +55,9 @@ def update(root: Path, manifest: Path) -> None:
         entry["sha256"] = digest(target)
         entry["size"] = target.stat().st_size
         updated.add(name)
-    if updated != CHANGED_PATHS:
-        raise RuntimeError(f"changed-file set mismatch: {sorted(updated)}")
+    expected = CHANGED_PATHS | PRESERVED_RUNTIME_PATHS
+    if updated != expected:
+        raise RuntimeError(f"manifest update set mismatch: {sorted(updated)}")
 
     descriptor, temporary_name = tempfile.mkstemp(prefix=f".{manifest.name}.", dir=manifest.parent)
     try:

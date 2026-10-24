@@ -13,6 +13,9 @@ VERIFY_PAYLOAD="${PRODUCT_ROOT}/scripts/verify_payload.py"
 CONSOLE_SERVICE="lingxi-nav-console.service"
 BRIDGE_STATUS_URL="http://127.0.0.1:18082/nav/status"
 RUNTIME_GROUP="sparkrobot-nav"
+PRESERVED_JAVA_JAR="java/robot-local-navigation-java-all.jar"
+PRESERVED_JAVA_JAR_SHA256=""
+PRESERVED_JAVA_JAR_SIZE=""
 
 declare -A BASELINE_SHA256=(
   [console/dist/app.js]="27f249eb03e35a1a9dfa22cb5f1daed259c045d3d3296b5abbd6a9fe1b777185"
@@ -96,6 +99,68 @@ navigation_control_do() {
 }
 
 changed_paths() { printf '%s\n' "${!BASELINE_SHA256[@]}" | LC_ALL=C sort; }
+
+capture_preserved_java_jar() {
+  local jar="${PRODUCT_ROOT}/${PRESERVED_JAVA_JAR}"
+  [[ -f "${jar}" ]] || die "Java Agent JAR missing; hotfix will not replace it"
+  python3 - "${jar}" <<'PY' || die "Java Agent JAR is not a valid ZIP archive; hotfix will not replace it"
+import sys
+import zipfile
+if not zipfile.is_zipfile(sys.argv[1]):
+    raise SystemExit(1)
+with zipfile.ZipFile(sys.argv[1]) as archive:
+    if archive.testzip() is not None:
+        raise SystemExit(1)
+PY
+  PRESERVED_JAVA_JAR_SHA256="$(sha256sum "${jar}" | awk '{print $1}')"
+  PRESERVED_JAVA_JAR_SIZE="$(stat -c '%s' "${jar}")"
+}
+
+assert_preserved_java_jar_unchanged() {
+  local jar="${PRODUCT_ROOT}/${PRESERVED_JAVA_JAR}" actual_hash actual_size
+  [[ -f "${jar}" ]] || { echo "Java Agent JAR disappeared during hotfix" >&2; return 1; }
+  actual_hash="$(sha256sum "${jar}" | awk '{print $1}')"
+  actual_size="$(stat -c '%s' "${jar}")"
+  [[ "${actual_hash}" == "${PRESERVED_JAVA_JAR_SHA256}" && "${actual_size}" == "${PRESERVED_JAVA_JAR_SIZE}" ]] \
+    || { echo "Java Agent JAR changed during hotfix; refusing the changed file" >&2; return 1; }
+}
+
+verify_payload_except_preserved_java_jar() {
+  python3 - "${PRODUCT_ROOT}" "${MANIFEST_TARGET}" "${PRESERVED_JAVA_JAR}" <<'PY'
+import hashlib
+import json
+import sys
+from pathlib import Path, PurePosixPath
+
+root = Path(sys.argv[1]).resolve()
+manifest_path = Path(sys.argv[2])
+preserved = sys.argv[3]
+payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+found_preserved = False
+failures = []
+for entry in payload.get("files", []):
+    relative = PurePosixPath(str(entry.get("path", "")))
+    if relative.is_absolute() or ".." in relative.parts:
+        failures.append(f"invalid path: {relative}")
+        continue
+    name = relative.as_posix()
+    if name == preserved:
+        found_preserved = True
+        continue
+    target = root.joinpath(*relative.parts)
+    if not target.is_file():
+        failures.append(f"missing: {name}")
+        continue
+    digest = hashlib.sha256(target.read_bytes()).hexdigest()
+    if target.stat().st_size != int(entry["size"]) or digest != entry["sha256"]:
+        failures.append(f"modified: {name}")
+if not found_preserved:
+    failures.append(f"manifest entry missing: {preserved}")
+if failures:
+    raise SystemExit("\n".join(failures))
+print("All payload files except the preserved Java Agent JAR match the existing manifest.")
+PY
+}
 
 verify_package() {
   [[ -f "${PACKAGE_DIR}/SHA256SUMS.txt" ]] || die "缺少热修完整性清单"
@@ -208,6 +273,7 @@ restart_console_and_check() {
   systemctl_do restart "${CONSOLE_SERVICE}" || return 1
   systemctl_do is-active --quiet "${CONSOLE_SERVICE}" || return 1
   if [[ "${TEST_MODE}" != true ]]; then
+    assert_preserved_java_jar_unchanged || return 1
     python3 "${VERIFY_PAYLOAD}" --root "${PRODUCT_ROOT}" --manifest "${MANIFEST_TARGET}" || return 1
     wait_for_http http://127.0.0.1:3000/health 30 || return 1
   fi
@@ -247,6 +313,8 @@ restore_backup() {
     install -o root -g "${RUNTIME_GROUP}" -m 0640 "${backup}/payload-manifest.json" "${MANIFEST_TARGET}.rollback.$$"
   fi
   mv -f -- "${MANIFEST_TARGET}.rollback.$$" "${MANIFEST_TARGET}"
+  update_manifest
+  assert_preserved_java_jar_unchanged
 }
 
 install_hotfix() {
@@ -258,6 +326,9 @@ install_hotfix() {
   verify_baseline
   [[ -f "${MANIFEST_TARGET}" && -f "${VERIFY_PAYLOAD}" ]] \
     || die "当前 R16 安装不完整，缺少 payload 清单或校验脚本"
+  capture_preserved_java_jar
+  verify_payload_except_preserved_java_jar \
+    || die "除现场 Java Agent JAR 外，R16 payload 还有其他完整性差异；未修改任何控制台文件"
   ensure_navigation_stack_online
   assert_navigation_idle || die "导航未确认空闲，未修改任何文件"
 
@@ -309,6 +380,7 @@ rollback_hotfix() {
   [[ "$(basename "${resolved}")" =~ ^[0-9]{8}T[0-9]{6}Z$ ]] || die "无效的备份目录名称"
   verify_backup "${resolved}"
   assert_console_active || die "控制台未处于活动状态，未执行回滚"
+  capture_preserved_java_jar
   assert_navigation_idle || die "导航未确认空闲，未执行回滚"
   ensure_navigation_stack_online
   assert_navigation_idle || die "导航未确认空闲，未执行回滚"

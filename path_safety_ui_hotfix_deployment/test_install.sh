@@ -7,12 +7,13 @@ trap 'rm -rf -- "${TEMP_ROOT}"' EXIT
 
 ROOT="${TEMP_ROOT}/robot"
 PRODUCT="${ROOT}/opt/sparkrobot/lingxi-nav/releases/1.0.8-20261023-r16"
-mkdir -p "${PRODUCT}/console/dist/public" "${PRODUCT}/scripts" "${ROOT}/var/lib/sparkrobot/lingxi-nav"
+mkdir -p "${PRODUCT}/console/dist/public" "${PRODUCT}/scripts" "${PRODUCT}/java" "${ROOT}/var/lib/sparkrobot/lingxi-nav"
 python3 - "${PRODUCT}" "${PACKAGE_DIR}" <<'PY'
 import hashlib
 import json
 import pathlib
 import sys
+import zipfile
 
 product = pathlib.Path(sys.argv[1])
 package = pathlib.Path(sys.argv[2])
@@ -38,7 +39,17 @@ for relative in changed + ["console/dist/public/untouched.txt"]:
     })
 (product / "payload-manifest.json").write_text(json.dumps({"format":"test", "files":entries}) + "\n")
 (product / "scripts/verify_payload.py").write_text("raise SystemExit(0)\n")
+jar = product / "java/robot-local-navigation-java-all.jar"
+with zipfile.ZipFile(jar, "w") as archive:
+    archive.writestr("META-INF/MANIFEST.MF", "Manifest-Version: 1.0\n\n")
+entries.append({
+    "path": "java/robot-local-navigation-java-all.jar",
+    "size": jar.stat().st_size,
+    "sha256": hashlib.sha256(b"different-but-valid-previous-jar").hexdigest(),
+})
+(product / "payload-manifest.json").write_text(json.dumps({"format":"test", "files":entries}) + "\n")
 PY
+JAVA_JAR_BEFORE="$(sha256sum "${PRODUCT}/java/robot-local-navigation-java-all.jar")"
 cat > "${PRODUCT}/scripts/navigation_control.sh" <<'SH'
 #!/usr/bin/env bash
 exit 0
@@ -79,7 +90,10 @@ for relative in changed:
     assert entry["size"] == target.stat().st_size, relative
     assert entry["sha256"] == hashlib.sha256(target.read_bytes()).hexdigest(), relative
 assert "console/dist/public/untouched.txt" in entries
+jar = product / "java/robot-local-navigation-java-all.jar"
+assert entries["java/robot-local-navigation-java-all.jar"]["sha256"] == hashlib.sha256(jar.read_bytes()).hexdigest()
 PY
+[[ "${JAVA_JAR_BEFORE}" == "$(sha256sum "${PRODUCT}/java/robot-local-navigation-java-all.jar")" ]]
 python3 - "${PACKAGE_DIR}/install.sh" <<'PY'
 import pathlib
 import sys
@@ -91,6 +105,7 @@ assert 'ensure_navigation_stack_online' in installer
 assert 'navigation_control_do stop' in installer
 assert 'navigation_control_do start' in installer
 assert 'http://127.0.0.1:18083/nav/status' in installer
+assert 'java/robot-local-navigation-java-all.jar' in installer
 assert 'assert_navigation_idle || die' in installer
 assert 'assert_console_active || die' in installer
 assert 'systemctl_do restart "${CONSOLE_SERVICE}"' in installer
@@ -126,6 +141,7 @@ LINGXI_HOTFIX_ROOT="${ROOT}" LINGXI_HOTFIX_TEST_MODE=true bash "${PACKAGE_DIR}/i
 [[ -f "${ROOT}/var/lib/sparkrobot/lingxi-nav/navigation-stack-active" ]]
 python3 - "${PRODUCT}" "${BACKUP}" <<'PY'
 import hashlib
+import json
 import pathlib
 import sys
 
@@ -139,7 +155,12 @@ for relative in (
 ):
     assert hashlib.sha256((product / relative).read_bytes()).digest() == hashlib.sha256((backup / relative).read_bytes()).digest(), relative
 assert (product / "console/dist/public/untouched.txt").read_text() == "preserve\n"
+manifest = json.loads((product / "payload-manifest.json").read_text())
+entry = next(item for item in manifest["files"] if item["path"] == "java/robot-local-navigation-java-all.jar")
+jar = product / "java/robot-local-navigation-java-all.jar"
+assert entry["sha256"] == hashlib.sha256(jar.read_bytes()).hexdigest()
 PY
+[[ "${JAVA_JAR_BEFORE}" == "$(sha256sum "${PRODUCT}/java/robot-local-navigation-java-all.jar")" ]]
 
 # Simulate a failed navigation restart after payload replacement; installation must restore R3.
 python3 - "${PRODUCT}" "${PACKAGE_DIR}" <<'PY'
@@ -166,6 +187,12 @@ entries.append({
     "size": untouched.stat().st_size,
     "sha256": hashlib.sha256(untouched.read_bytes()).hexdigest(),
 })
+jar = product / "java/robot-local-navigation-java-all.jar"
+entries.append({
+    "path": "java/robot-local-navigation-java-all.jar",
+    "size": jar.stat().st_size,
+    "sha256": hashlib.sha256(b"different-but-valid-previous-jar").hexdigest(),
+})
 (product / "payload-manifest.json").write_text(json.dumps({"format":"test", "files":entries}) + "\n")
 PY
 sleep 1
@@ -178,6 +205,7 @@ fi
 [[ -f "${ROOT}/var/lib/sparkrobot/lingxi-nav/navigation-stack-active" ]]
 python3 - "${PRODUCT}" "${PACKAGE_DIR}" <<'PY'
 import hashlib
+import json
 import pathlib
 import sys
 
@@ -189,7 +217,12 @@ for line in (package / "payload/SHA256SUMS.txt").read_text().splitlines():
     actual = hashlib.sha256((product / relative).read_bytes()).digest()
     previous = hashlib.sha256((package / "test-fixtures-r3" / relative).read_bytes()).digest()
     assert actual == previous, relative
+manifest = json.loads((product / "payload-manifest.json").read_text())
+entry = next(item for item in manifest["files"] if item["path"] == "java/robot-local-navigation-java-all.jar")
+jar = product / "java/robot-local-navigation-java-all.jar"
+assert entry["sha256"] == hashlib.sha256(jar.read_bytes()).hexdigest()
 PY
+[[ "${JAVA_JAR_BEFORE}" == "$(sha256sum "${PRODUCT}/java/robot-local-navigation-java-all.jar")" ]]
 
 # Upgrade and rollback from the known R3 hotfix.
 sleep 1

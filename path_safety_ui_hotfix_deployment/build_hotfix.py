@@ -13,7 +13,7 @@ from pathlib import Path, PurePosixPath
 
 ROOT = Path(__file__).resolve().parents[1]
 HERE = Path(__file__).resolve().parent
-NAME = "lingxi-v1.3.1-r16-path-safety-ui-hotfix-20261024-r9"
+NAME = "lingxi-v1.3.1-r16-path-safety-ui-hotfix-20261024-r14"
 PREVIOUS_HOTFIX_NAME = "lingxi-v1.3.1-r16-path-safety-ui-hotfix-20261024"
 PREVIOUS_HOTFIX_SHA256 = "debaad9de32796f80d1d183a7a27e91a10dc273ce48ad28d02490a020568ac25"
 R3_HOTFIX_BASELINE = {
