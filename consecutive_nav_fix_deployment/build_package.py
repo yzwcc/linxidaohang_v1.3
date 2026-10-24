@@ -25,7 +25,7 @@ NAV_ROOT = (
 )
 SOURCE_ROOT = NAV_ROOT / "robot_local_navigation_v3"
 TEST_ROOT = NAV_ROOT / "test"
-VERSION = "1.0.6-20261023-r16"
+VERSION = "1.0.7-20261024-r17"
 NAME = f"sparkrobot-lingxi-consecutive-nav-fix-{VERSION}"
 DIST = HERE / "dist"
 PAYLOAD_FILES = (
@@ -97,7 +97,11 @@ def validate_sources() -> None:
             "msg.reference_line = reference_line",
         ),
         "models.py": ("class PathSafetyConfig", "path_safety: PathSafetyConfig"),
-        "path_clearance.py": ("def plan_reference_line", "def inflate_obstacles"),
+        "path_clearance.py": (
+            "def plan_reference_line",
+            "def inflate_obstacles",
+            "radius_cells = (config.robot_radius_m + config.extra_clearance_m)",
+        ),
         "voice_preset_motion.py": (
             "VOICE_PRESET_MOTIONS",
             "def resolve_voice_command",
@@ -234,7 +238,7 @@ def stage_files(stage: Path) -> None:
     release_info = (
         f"version={VERSION}\n"
         "package=sparkrobot-lingxi-consecutive-nav-fix\n"
-        "compatibility=lingxi-v1.3.1-complete-20261023-r16\n"
+        "compatibility=lingxi-v1.3.1-complete-20261024-r17\n"
         f"built_at={datetime.now(timezone.utc).isoformat()}\n"
         "scope=continuous-navigation-motion-release-bounded-pnc-discovery-runtime-permissions-voice-preset-motions-ambiguous-point-clarification-atomic-streaming-tts-preemption-and-global-path-clearance\n"
     )

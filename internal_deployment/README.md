@@ -11,8 +11,8 @@ python internal_deployment\build_internal_release.py --force
 
 默认输出：
 
-- `internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.8-20261023-r16.tar.gz`
-- `internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.8-20261023-r16.zip`
+- `internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.9-20261024-r17.tar.gz`
+- `internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.0.9-20261024-r17.zip`
 - 两个归档对应的 `.sha256`
 
 ## 构建输入
@@ -30,6 +30,8 @@ python internal_deployment\build_internal_release.py --force
 ```text
 SHA256 d3858827d71aa54dc4b7cc794a0d8446cf0168d65e4cca0a2e686b6f7012dd04
 ```
+
+地图、点位、任务和全局路径安全参数均通过 `3000` 网页控制台配置。`8002` 和 `18082` 是内部服务端口，不是用户配置页面。
 
 机器人端最短安装流程：
 

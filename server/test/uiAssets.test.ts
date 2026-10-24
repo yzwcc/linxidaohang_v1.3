@@ -40,7 +40,9 @@ describe("console UI assets", () => {
     expect(appScript).not.toContain("radius.required");
     expect(appScript).toContain("if (!state.pathSafetyLoaded)");
     expect(appScript).toContain("state.pathSafetyLoaded = true");
-    expect(appScript).toContain("R16 不提供桥接应用回执");
-    expect(appScript).not.toContain("已保存并应用：半径");
+    expect(appScript).toContain("运行桥接尚未确认应用");
+    expect(appScript).toContain("已应用并回读一致");
+    expect(appScript).toContain("R17 将拒绝下发 task_type=2、pnc_mode=0 全局导航");
+    expect(appScript).not.toContain("R17 不提供桥接应用回执");
   });
 });

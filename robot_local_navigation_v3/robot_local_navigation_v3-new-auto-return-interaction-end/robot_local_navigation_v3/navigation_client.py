@@ -247,7 +247,7 @@ class NavigationClient:
             start_y = float(position["y"])
         except (KeyError, TypeError, ValueError) as exc:
             raise PathClearanceError("当前定位数据无效，已拒绝下发导航") from exc
-        return plan_reference_line(
+        route = plan_reference_line(
             map_dir=Path(self.map_root).expanduser() / str(point.map_id),
             start_x=start_x,
             start_y=start_y,
@@ -255,6 +255,14 @@ class NavigationClient:
             goal_y=float(point.pose.position.y),
             config=safety,
         )
+        self.node.get_logger().info(
+            "Global path safety applied: "
+            f"point={point.name}, robot_radius_m={safety.robot_radius_m:.3f}, "
+            f"extra_clearance_m={safety.extra_clearance_m:.3f}, "
+            f"static_inflation_m={safety.robot_radius_m + safety.extra_clearance_m:.3f}, "
+            f"reference_points={len(route)}"
+        )
+        return route
 
     @staticmethod
     def _requires_global_path_safety(point: NavPoint) -> bool:

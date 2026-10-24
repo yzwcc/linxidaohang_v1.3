@@ -822,6 +822,7 @@ class LingxiNavBridge(Node):
             "ok": True,
             "active_map_name": self.active_map_name,
             "nav_mode": self.navigation_client.mode,
+            "path_safety": self.navigation_client.defaults.path_safety.__dict__,
             "config_path": str(self.config_store.file_path),
             "navigation": self.navigation_client.get_status(),
             "localization": self.current_localization(),
@@ -868,10 +869,11 @@ class LingxiNavBridge(Node):
         self.config_store.save(self.config)
         self.navigation_client.mode = mode
         self.navigation_client.defaults.path_safety = path_safety
+        applied_path_safety = self.navigation_client.defaults.path_safety.__dict__
         return {
             "ok": True,
             "nav_mode": mode,
-            "path_safety": path_safety.__dict__,
+            "path_safety": applied_path_safety,
         }
 
     def set_active_map(self, payload: dict[str, Any]) -> dict[str, Any]:

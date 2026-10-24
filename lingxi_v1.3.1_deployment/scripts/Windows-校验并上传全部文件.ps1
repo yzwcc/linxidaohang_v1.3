@@ -8,7 +8,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $BundleRoot = Split-Path -Parent $PSScriptRoot
 $AimdkName = 'aimdk-aarch64-1bde262f-artifacts.7z'
-$NavName = 'sparkrobot-lingxi-nav-internal-1.0.8-20261023-r16.tar.gz'
+$NavName = 'sparkrobot-lingxi-nav-internal-1.0.9-20261024-r17.tar.gz'
 $AimdkPath = Join-Path $BundleRoot "packages\$AimdkName"
 $NavPath = Join-Path $BundleRoot "packages\$NavName"
 $NavChecksumPath = "$NavPath.sha256"

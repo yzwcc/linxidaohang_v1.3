@@ -7,11 +7,9 @@ import json
 import os
 import re
 import shutil
-import stat
 import subprocess
 import tarfile
 import tempfile
-import zipfile
 from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath
 
@@ -19,7 +17,7 @@ from pathlib import Path, PurePosixPath
 ROOT = Path(__file__).resolve().parents[1]
 HERE = ROOT / "internal_deployment"
 PRODUCT_ID = "sparkrobot-lingxi-nav-internal"
-DEFAULT_VERSION = "1.0.8-20261023-r16"
+DEFAULT_VERSION = "1.0.9-20261024-r17"
 FIELD_VERIFIED_JAVA_SHA256 = "d3858827d71aa54dc4b7cc794a0d8446cf0168d65e4cca0a2e686b6f7012dd04"
 VERSION_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
 DEV_NODE_MODULES = {
@@ -28,7 +26,7 @@ DEV_NODE_MODULES = {
 }
 SKIP_DIRS = {
     ".git", ".github", ".deps", ".vite", "__pycache__", "benchmark",
-    "benchmarks", "coverage", "example", "examples", "obj.target", "test", "tests",
+    "benchmarks", "coverage", "example", "examples", "obj.target",
 }
 RUNTIME_SUFFIXES = {".js", ".cjs", ".mjs", ".json", ".node", ".wasm"}
 SOURCE_EXCLUDES = {".git", "node_modules", "target", "dist", "__pycache__", "pids", "maps"}
@@ -200,6 +198,9 @@ def audit(stage: Path) -> None:
         "payload/runtime/node", "payload/runtime/java/bin/java",
         "payload/console/dist/index.js",
         "payload/console/dist/public/index.html",
+        "payload/console/dist/public/app.js",
+        "payload/console/dist/robotClient.js",
+        "payload/console/dist/public/index.html",
         "payload/navigation/robot_local_navigation_v3/lingxi_nav_bridge.py",
         "payload/navigation/robot_local_navigation_v3/arrival_hysteresis.py",
         "payload/navigation/robot_local_navigation_v3/path_clearance.py",
@@ -209,6 +210,7 @@ def audit(stage: Path) -> None:
         "source/navigation/robot_local_navigation_v3/navigation_client.py",
         "source/navigation/test/test_path_clearance.py",
         "source/navigation/test/test_pnc_discovery.py",
+        "source/navigation/test/test_map_label_path_safety_settings.py",
         "payload/navigation/robot_local_navigation_v3/robot_lingxi_bridge.py",
         "payload/java/robot-local-navigation-java-all.jar",
         "payload/java/linksoul-agentsdk-1.4.0.jar",
@@ -239,6 +241,21 @@ def audit(stage: Path) -> None:
     pnc_discovery_tests = (
         stage / "source" / "navigation" / "test" / "test_pnc_discovery.py"
     ).read_text(encoding="utf-8")
+    path_safety_settings_tests = (
+        stage / "source" / "navigation" / "test" / "test_map_label_path_safety_settings.py"
+    ).read_text(encoding="utf-8")
+    console_html = (
+        stage / "payload" / "console" / "dist" / "public" / "index.html"
+    ).read_text(encoding="utf-8")
+    console_app = (
+        stage / "payload" / "console" / "dist" / "public" / "app.js"
+    ).read_text(encoding="utf-8")
+    robot_client = (
+        stage / "payload" / "console" / "dist" / "robotClient.js"
+    ).read_text(encoding="utf-8")
+    bridge = (
+        stage / "payload" / "navigation" / "robot_local_navigation_v3" / "lingxi_nav_bridge.py"
+    ).read_text(encoding="utf-8")
     for marker in ("class PathClearanceError", "def plan_reference_line", "inflate_obstacles"):
         if marker not in path_clearance:
             raise RuntimeError(f"安全路径模块缺少实现：{marker}")
@@ -257,6 +274,46 @@ def audit(stage: Path) -> None:
         raise RuntimeError("导航源码缺少静态障碍净空绕行测试")
     if "test_start_request_contains_the_planned_reference_line" not in pnc_discovery_tests:
         raise RuntimeError("导航源码缺少 reference_line 请求测试")
+    if "radius_cells = (config.robot_radius_m + config.extra_clearance_m)" not in path_clearance:
+        raise RuntimeError("R17 地图障碍膨胀未使用页面实测半径和额外净空")
+    for marker in (
+        "test_configured_radius_and_extra_clearance_move_route_farther_from_obstacle",
+        "self.assertGreater(increased_clearance_distance, baseline_distance + 1.0)",
+    ):
+        if marker not in path_clearance_tests:
+            raise RuntimeError(f"R17 半径/净空数值规划测试缺少：{marker}")
+    for marker in (
+        "test_saves_global_path_safety_and_reports_bridge_application",
+        "test_get_settings_reports_persisted_and_runtime_values_separately",
+        "test_bridge_application_requires_exact_runtime_readback",
+        '"robot_radius_m": 0.253',
+        '"extra_clearance_m": 0.18',
+    ):
+        if marker not in path_safety_settings_tests:
+            raise RuntimeError(f"R17 3000 设置落盘/运行回读测试缺少：{marker}")
+    for marker in (
+        'id="pointTaskType"',
+        'id="robotRadius" form="pathSafetyForm"',
+        'id="extraClearance" form="pathSafetyForm"',
+        'id="savePathSafetyBtn" form="pathSafetyForm"',
+    ):
+        if marker not in console_html:
+            raise RuntimeError(f"3000 点位配置页缺少全局安全参数字段：{marker}")
+    if not (
+        console_html.index('id="pointTaskType"')
+        < console_html.index('id="robotRadius"')
+        < console_html.index('id="pointStart"')
+    ):
+        raise RuntimeError("3000 全局安全参数未紧邻点位 task_type 配置")
+    for marker in ("/api/robots/default/navigation/path-safety", "path_safety_applied", "applied_path_safety"):
+        if marker not in console_app:
+            raise RuntimeError(f"3000 页面缺少安全参数保存/回读闭环：{marker}")
+    for marker in ("pathSafety()", "savePathSafety(pathSafety)", "/api/settings"):
+        if marker not in robot_client:
+            raise RuntimeError(f"3000 后端缺少路径安全设置代理：{marker}")
+    for marker in ('"path_safety": self.navigation_client.defaults.path_safety.__dict__', "applied_path_safety"):
+        if marker not in bridge:
+            raise RuntimeError(f"8002 map service 无法返回导航运行时安全配置：{marker}")
     for path in stage.rglob("*"):
         if not path.is_file() or path.suffix.lower() in {".jar", ".zip", ".gz", ".png", ".jpg", ".so", ".node"}:
             continue
@@ -270,14 +327,12 @@ def audit(stage: Path) -> None:
                 raise RuntimeError(f"发布包疑似包含秘密：{path.relative_to(stage)}")
 
 
-def create_archives(stage: Path, output: Path, name: str, force: bool) -> tuple[Path, Path]:
+def create_archives(stage: Path, output: Path, name: str, force: bool) -> Path:
     output.mkdir(parents=True, exist_ok=True)
     tar_path = output / f"{name}.tar.gz"
-    zip_path = output / f"{name}.zip"
-    for path in (tar_path, zip_path):
-        if path.exists() and not force:
-            raise RuntimeError(f"输出已存在：{path}")
-        path.unlink(missing_ok=True)
+    if tar_path.exists() and not force:
+        raise RuntimeError(f"输出已存在：{tar_path}")
+    tar_path.unlink(missing_ok=True)
 
     def normalize_tar_info(info: tarfile.TarInfo) -> tarfile.TarInfo:
         relative_text = PurePosixPath(info.name).relative_to(name).as_posix()
@@ -294,18 +349,10 @@ def create_archives(stage: Path, output: Path, name: str, force: bool) -> tuple[
 
     with tarfile.open(tar_path, "w:gz", format=tarfile.PAX_FORMAT) as archive:
         archive.add(stage, arcname=name, filter=normalize_tar_info)
-    with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=6) as archive:
-        for path in sorted(item for item in stage.rglob("*") if item.is_file()):
-            relative = PurePosixPath(name) / PurePosixPath(path.relative_to(stage).as_posix())
-            info = zipfile.ZipInfo(relative.as_posix())
-            info.compress_type = zipfile.ZIP_DEFLATED
-            info.external_attr = (stat.S_IFREG | package_mode(PurePosixPath(path.relative_to(stage).as_posix()))) << 16
-            archive.writestr(info, path.read_bytes())
-    for path in (tar_path, zip_path):
-        path.with_suffix(path.suffix + ".sha256").write_text(
-            f"{digest(path)}  {path.name}\n", encoding="ascii", newline="\n"
-        )
-    return tar_path, zip_path
+    tar_path.with_suffix(tar_path.suffix + ".sha256").write_text(
+        f"{digest(tar_path)}  {tar_path.name}\n", encoding="ascii", newline="\n"
+    )
+    return tar_path
 
 
 def parse_args() -> argparse.Namespace:
@@ -339,11 +386,9 @@ def main() -> int:
         copy_release_files(stage, args.version)
         build_manifests(stage)
         audit(stage)
-        tar_path, zip_path = create_archives(stage, output, name, args.force)
+        tar_path = create_archives(stage, output, name, args.force)
     print(f"Linux 部署归档：{tar_path}")
-    print(f"内部传输 ZIP：{zip_path}")
     print(f"TAR SHA-256：{digest(tar_path)}")
-    print(f"ZIP SHA-256：{digest(zip_path)}")
     return 0
 
 

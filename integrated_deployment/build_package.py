@@ -14,24 +14,24 @@ from pathlib import Path, PurePosixPath
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
-VERSION = "1.3.1-complete-20261023-r16"
+VERSION = "1.3.1-complete-20261024-r17"
 NAME = f"lingxi-v{VERSION}-deployment"
 DIST = HERE / "dist"
 COMPONENTS = {
-    "lingxi-v1.3.1-full-deployment-20261023-r16.zip": ROOT / "lingxi_v1.3.1_deployment/dist/lingxi-v1.3.1-full-deployment-20261023-r16.zip",
+    "lingxi-v1.3.1-full-deployment-20261024-r17.zip": ROOT / "lingxi_v1.3.1_deployment/dist/lingxi-v1.3.1-full-deployment-20261024-r17.zip",
     "sparkrobot-lingxi-kb-1.0.10-20261023.zip": ROOT / "knowledge_base_deployment/dist/sparkrobot-lingxi-kb-1.0.10-20261023.zip",
     "sparkrobot-lingxi-linkcraft-addon-1.0.3-20260902.tar.gz": ROOT / "linkcraft_deployment/dist/sparkrobot-lingxi-linkcraft-addon-1.0.3-20260902.tar.gz",
-    "sparkrobot-lingxi-consecutive-nav-fix-1.0.6-20261023-r16.tar.gz": ROOT / "consecutive_nav_fix_deployment/dist/sparkrobot-lingxi-consecutive-nav-fix-1.0.6-20261023-r16.tar.gz",
+    "sparkrobot-lingxi-consecutive-nav-fix-1.0.7-20261024-r17.tar.gz": ROOT / "consecutive_nav_fix_deployment/dist/sparkrobot-lingxi-consecutive-nav-fix-1.0.7-20261024-r17.tar.gz",
 }
-BASE_BUNDLE_NAME = "lingxi-v1.3.1-full-deployment-20261023-r16.zip"
-BASE_BUNDLE_ROOT = "lingxi-v1.3.1-full-deployment-20261023-r16"
+BASE_BUNDLE_NAME = "lingxi-v1.3.1-full-deployment-20261024-r17.zip"
+BASE_BUNDLE_ROOT = "lingxi-v1.3.1-full-deployment-20261024-r17"
 EMBEDDED_COMPONENTS = (
     "aimdk-aarch64-1bde262f-artifacts.7z",
-    "sparkrobot-lingxi-nav-internal-1.0.8-20261023-r16.tar.gz",
+    "sparkrobot-lingxi-nav-internal-1.0.9-20261024-r17.tar.gz",
 )
 AIMDK_SCRIPT_MEMBER = f"{BASE_BUNDLE_ROOT}/scripts/robot/01-replace-aimdk.sh"
 AIMDK_NOUNSET_GUARD = b"set +u\nsource /opt/ros/humble/setup.bash\nset -u"
-AIMDK_GUIDE_SOURCE = ROOT / "已有AIMDK部署说明-v1.3.1-r16.md"
+AIMDK_GUIDE_SOURCE = ROOT / "已有AIMDK部署说明-v1.3.1-r17.md"
 
 
 def write_text(path: Path, value: str, encoding: str = "utf-8") -> None:
@@ -74,12 +74,12 @@ def validate_component(name: str, path: Path) -> None:
     if name.startswith("lingxi-v"):
         with zipfile.ZipFile(path) as archive:
             required = (
-                "lingxi-v1.3.1-full-deployment-20261023-r16/packages/"
-                "sparkrobot-lingxi-nav-internal-1.0.8-20261023-r16.tar.gz"
+                "lingxi-v1.3.1-full-deployment-20261024-r17/packages/"
+                "sparkrobot-lingxi-nav-internal-1.0.9-20261024-r17.tar.gz"
             )
             if required not in archive.namelist():
                 raise RuntimeError("基础导航包缺少导航 TAR")
-            aimdk_script = archive.read(AIMDK_SCRIPT_MEMBER)
+            aimdk_script = archive.read(AIMDK_SCRIPT_MEMBER).replace(b"\r\n", b"\n")
             if AIMDK_NOUNSET_GUARD not in aimdk_script:
                 raise RuntimeError("基础导航包的 AIMDK 替换脚本缺少 ROS nounset 兼容修复")
     if name.startswith("sparkrobot-lingxi-kb"):
@@ -124,7 +124,7 @@ def validate_component(name: str, path: Path) -> None:
 
     if name.startswith("sparkrobot-lingxi-consecutive-nav-fix"):
         with tarfile.open(path, "r:gz") as archive:
-            prefix = "sparkrobot-lingxi-consecutive-nav-fix-1.0.6-20261023-r16/"
+            prefix = "sparkrobot-lingxi-consecutive-nav-fix-1.0.7-20261024-r17/"
             required = {
                 f"{prefix}install.sh",
                 f"{prefix}control.sh",
@@ -155,14 +155,14 @@ def validate_component(name: str, path: Path) -> None:
             client_member = archive.extractfile(f"{prefix}payload/navigation_client.py")
             path_member = archive.extractfile(f"{prefix}payload/path_clearance.py")
             if client_member is None or path_member is None:
-                raise RuntimeError("R16 连续导航修复包缺少路径净空模块")
+                raise RuntimeError("R17 连续导航修复包缺少路径净空模块")
             client_text = client_member.read().decode("utf-8")
             path_text = path_member.read().decode("utf-8")
             if (
                 "msg.reference_line = reference_line" not in client_text
                 or "def plan_reference_line" not in path_text
             ):
-                raise RuntimeError("连续导航修复包没有保留 R16 净空实现")
+                raise RuntimeError("连续导航修复包没有保留 R17 净空实现")
 
 
 def copy_stage(stage: Path) -> dict[str, str]:
@@ -206,7 +206,7 @@ def copy_stage(stage: Path) -> dict[str, str]:
     if not AIMDK_GUIDE_SOURCE.is_file():
         raise RuntimeError(f"缺少已有 AIMDK 部署说明：{AIMDK_GUIDE_SOURCE}")
     write_text(
-        stage / "docs" / "已有AIMDK部署说明-v1.3.1-r16.md",
+        stage / "docs" / "已有AIMDK部署说明-v1.3.1-r17.md",
         AIMDK_GUIDE_SOURCE.read_text(encoding="utf-8"),
     )
     write_text(stage / "VERSION", f"LINGXI_COMPLETE_VERSION={VERSION}\n")

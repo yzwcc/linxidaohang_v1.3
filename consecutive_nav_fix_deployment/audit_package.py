@@ -13,7 +13,7 @@ from pathlib import Path, PurePosixPath
 
 
 HERE = Path(__file__).resolve().parent
-VERSION = "1.0.6-20261023-r16"
+VERSION = "1.0.7-20261024-r17"
 NAME = f"sparkrobot-lingxi-consecutive-nav-fix-{VERSION}"
 DIST = HERE / "dist"
 REQUIRED = {
@@ -113,6 +113,8 @@ def verify_contents(contents: dict[str, bytes], modes: dict[str, int], label: st
         raise RuntimeError(f"{label} 缺少 R16 路径安全配置模型")
     if "def plan_reference_line" not in path_clearance or "def inflate_obstacles" not in path_clearance:
         raise RuntimeError(f"{label} 缺少 R16 静态地图路径净空规划器")
+    if "radius_cells = (config.robot_radius_m + config.extra_clearance_m)" not in path_clearance:
+        raise RuntimeError(f"{label} 未使用网页配置的实测半径和额外净空")
     for marker in (
         "def resolve_voice_command",
         "has_negation_or_quoted_speech",

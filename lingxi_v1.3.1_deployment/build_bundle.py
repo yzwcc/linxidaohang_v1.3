@@ -15,15 +15,15 @@ from pathlib import Path, PurePosixPath
 ROOT = Path(__file__).resolve().parents[1]
 HERE = Path(__file__).resolve().parent
 VERSION = "1.3.1"
-RELEASE_TAG = "20261023-r16"
-RELEASE_DATE = "2026-10-23"
+RELEASE_TAG = "20261024-r17"
+RELEASE_DATE = "2026-10-24"
 BUNDLE_NAME = f"lingxi-v{VERSION}-full-deployment-{RELEASE_TAG}"
 
 AIMDK_SOURCE = Path(r"E:\1资料\0火花机器人资料\内部资料\aimdk-aarch64-1bde262f-artifacts.7z")
 AIMDK_NAME = AIMDK_SOURCE.name
 AIMDK_SHA256 = "f13147a175bc3fb621fb118698aae0353c097adda38bba640f9a39c01433cc98"
 
-NAV_NAME = "sparkrobot-lingxi-nav-internal-1.0.8-20261023-r16.tar.gz"
+NAV_NAME = "sparkrobot-lingxi-nav-internal-1.0.9-20261024-r17.tar.gz"
 NAV_SOURCE = ROOT / "internal_deployment" / "dist" / NAV_NAME
 
 FULL_GUIDE_SOURCE = ROOT / "新机器人完整部署命令手册-AIMDK与灵犀导航-2026-09-01.md"
@@ -68,6 +68,10 @@ def build_stage(stage: Path) -> None:
     copy_file(ACCEPTANCE_SOURCE, stage / "docs" / "新机器人验收清单.md")
     copy_file(HERE / "templates" / "secrets.env.example", stage / "templates" / "secrets.env.example")
     shutil.copytree(HERE / "scripts", stage / "scripts")
+    for shell_script in stage.rglob("*.sh"):
+        shell_script.write_bytes(
+            shell_script.read_bytes().replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+        )
     powershell_script = stage / "scripts" / "Windows-校验并上传全部文件.ps1"
     powershell_script.write_text(
         powershell_script.read_text(encoding="utf-8"),
@@ -78,9 +82,9 @@ def build_stage(stage: Path) -> None:
     guide_header = f"""# 灵犀 v{VERSION} 完整部署教程
 
 套件版本：`v{VERSION}`  
-套件发布日期：`2026-10-23`  
+套件发布日期：`2026-10-24`<br>
 内含 AIMDK：`aimdk v0.0.0-g1bde262`  
-内含导航运行组件：`1.0.8-20261023-r16`
+内含导航运行组件：`1.0.9-20261024-r17`
 
 本文档是 v1.3.1 离线套件的完整教程。先按根目录《README-先看我》执行最短流程；需要逐步部署或排障时，按以下完整手册操作。
 
@@ -88,6 +92,22 @@ def build_stage(stage: Path) -> None:
 
 """
     full_guide = FULL_GUIDE_SOURCE.read_text(encoding="utf-8")
+    full_guide = full_guide.replace(
+        "1.0.8-20261023-r16", "1.0.9-20261024-r17"
+    ).replace("20261023-r16", "20261024-r17")
+    full_guide = full_guide.replace(
+        "| `8002` | 地图发现、预览、点位和任务配置 |",
+        "| `8002` | 地图数据内部 API；用户不要直接访问此端口配置 |",
+    )
+    full_guide = (
+        "所有地图、点位、任务和全局路径安全参数都只在机器人 `3000` 网页控制台配置。"
+        "`8002` 和 `18082` 是内部服务端口，不是给用户操作的配置页面。\n\n"
+        + full_guide
+    )
+    full_guide += (
+        "\n\n地图、点位、任务及全局路径安全参数均只在机器人 `3000` 网页控制台配置。"
+        "`8002` 和 `18082` 是内部服务端口，不是用户配置页面。\n"
+    )
     write_text(stage / "docs" / "灵犀-v1.3.1-完整部署教程.md", guide_header + full_guide)
 
     packages = stage / "packages"
@@ -99,7 +119,7 @@ def build_stage(stage: Path) -> None:
         packages / "README.md",
         "# 安装组件\n\n"
         "- `aimdk-aarch64-1bde262f-artifacts.7z`：AIMDK ARM64 原始构建包。\n"
-        "- `sparkrobot-lingxi-nav-internal-1.0.8-20261023-r16.tar.gz`：导航、地图、语音、网页和完整源码。\n\n"
+        "- `sparkrobot-lingxi-nav-internal-1.0.9-20261024-r17.tar.gz`：导航、地图、语音、网页和完整源码。\n\n"
         "不要重命名组件文件；自动上传和安装脚本会校验固定文件名与 SHA-256。\n",
     )
 
@@ -118,7 +138,7 @@ def build_stage(stage: Path) -> None:
                 "sha256": AIMDK_SHA256,
             },
             "lingxi_navigation": {
-                "version": "1.0.8-20261023-r16",
+                "version": "1.0.9-20261024-r17",
                 "file": f"packages/{NAV_NAME}",
                 "sha256": nav_sha256,
                 "includes_source": True,

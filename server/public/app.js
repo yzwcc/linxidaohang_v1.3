@@ -1170,10 +1170,16 @@ async function loadPathSafety() {
   $("robotRadius").value = state.pathSafety.robot_radius_m ?? "";
   $("extraClearance").value = state.pathSafety.extra_clearance_m;
   if (state.pathSafety.robot_radius_m == null) {
-    renderPathSafetyStatus("尚未填写实测半径；R16 将拒绝下发 task_type=2、pnc_mode=0 全局导航。", "error");
+    renderPathSafetyStatus("尚未填写实测半径；R17 将拒绝下发 task_type=2、pnc_mode=0 全局导航。", "error");
+  } else if (payload.path_safety_applied !== true) {
+    const applied = payload.applied_path_safety || {};
+    renderPathSafetyStatus(
+      `网页配置：半径 ${state.pathSafety.robot_radius_m} 米、额外净空 ${state.pathSafety.extra_clearance_m} 米；运行桥接尚未确认应用${applied.robot_radius_m == null ? "（桥接离线或未回报）" : `（当前半径 ${applied.robot_radius_m} 米、额外净空 ${applied.extra_clearance_m} 米）`}。`,
+      "error"
+    );
   } else {
     renderPathSafetyStatus(
-      `已读取配置：半径 ${state.pathSafety.robot_radius_m} 米，额外净空 ${state.pathSafety.extra_clearance_m} 米。R16 不提供桥接应用回执。`,
+      `已应用并回读一致：机器人半径 ${state.pathSafety.robot_radius_m} 米，额外净空 ${state.pathSafety.extra_clearance_m} 米。`,
       "ok"
     );
   }
@@ -1208,10 +1214,19 @@ async function savePathSafety() {
   };
   radius.value = state.pathSafety.robot_radius_m;
   clearance.value = state.pathSafety.extra_clearance_m;
-  renderPathSafetyStatus(
-    `已写入机器人全局配置：半径 ${state.pathSafety.robot_radius_m} 米，额外净空 ${state.pathSafety.extra_clearance_m} 米。R16 不提供桥接应用回执。`,
-    "ok"
-  );
+  if (payload.path_safety_applied === true) {
+    renderPathSafetyStatus(
+      `已保存并由运行桥接回读确认：半径 ${state.pathSafety.robot_radius_m} 米，额外净空 ${state.pathSafety.extra_clearance_m} 米。`,
+      "ok"
+    );
+  } else {
+    const applied = payload.applied_path_safety || {};
+    renderPathSafetyStatus(
+      `配置已保存，但运行桥接未确认应用。网页值：半径 ${state.pathSafety.robot_radius_m} 米、额外净空 ${state.pathSafety.extra_clearance_m} 米；运行值：${applied.robot_radius_m == null ? "未回报（桥接离线）" : `半径 ${applied.robot_radius_m} 米、额外净空 ${applied.extra_clearance_m} 米`}。请启动/重启导航桥接后刷新确认。`,
+      "error"
+    );
+  }
+  return { applied: payload.path_safety_applied === true };
 }
 
 function applyStartup(payload) {
@@ -1355,8 +1370,8 @@ async function loadMap(mapName, { force = false } = {}) {
 
 async function runAction(successMessage, fn) {
   try {
-    await fn();
-    toast(successMessage);
+    const result = await fn();
+    toast(typeof successMessage === "function" ? successMessage(result) : successMessage);
     scheduleDashboardRefresh();
   } catch (error) {
     toast(error.message);
@@ -1539,7 +1554,12 @@ function bindEvents() {
   $("setActiveMapBtn").onclick = () => runAction("已切换为当前导航地图", () => setActiveMap());
   $("pathSafetyForm").onsubmit = (event) => {
     event.preventDefault();
-    void runAction("全局路径安全参数已保存", () => savePathSafety());
+    void runAction(
+      (result) => result.applied
+        ? "全局路径安全参数已保存并由运行桥接确认应用"
+        : "配置已保存，但运行桥接尚未确认应用",
+      () => savePathSafety()
+    );
   };
   $("newPointBtn").onclick = () => {
     fillPointForm(normalizePoint({
