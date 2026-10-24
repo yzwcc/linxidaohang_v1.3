@@ -15,7 +15,7 @@ from pathlib import Path, PurePosixPath
 ROOT = Path(__file__).resolve().parents[1]
 HERE = Path(__file__).resolve().parent
 VERSION = "1.3.1"
-RELEASE_TAG = "20261024-r18"
+RELEASE_TAG = "20261024-r18-mapping6"
 RELEASE_DATE = "2026-10-24"
 BUNDLE_NAME = f"lingxi-v{VERSION}-full-deployment-{RELEASE_TAG}"
 
@@ -27,8 +27,10 @@ AIMDK_SOURCE = (
 AIMDK_NAME = AIMDK_SOURCE.name
 AIMDK_SHA256 = "dc80fe5d2907881ed77beb230680867efac6bd28b458f83d2ff4e9479abe3615"
 
-NAV_NAME = "sparkrobot-lingxi-nav-internal-1.1.0-20261024-r18.tar.gz"
-NAV_SOURCE = ROOT / "internal_deployment" / "dist" / NAV_NAME
+NAV_NAME = "sparkrobot-lingxi-nav-internal-1.1.0-20261024-r18-mapping6.tar.gz"
+NAV_VERSION = "1.1.0-20261024-r18-mapping6"
+NAV_ROOT = f"sparkrobot-lingxi-nav-internal-{NAV_VERSION}"
+NAV_SOURCE = ROOT / "internal_deployment" / "dist" / "mapping6" / NAV_NAME
 
 FULL_GUIDE_SOURCE = ROOT / "新机器人完整部署命令手册-AIMDK与灵犀导航-2026-09-01.md"
 ACCEPTANCE_SOURCE = ROOT / "internal_deployment" / "docs" / "新机器人验收清单.md"
@@ -88,7 +90,7 @@ def build_stage(stage: Path) -> None:
 套件版本：`v{VERSION}`  
 套件发布日期：`2026-10-24`<br>
 内含 AIMDK：`aimdk v1.1.0-gfaf4c94`
-内含导航运行组件：`1.1.0-20261024-r18`
+内含导航运行组件：`{NAV_VERSION}`（网页建图 mapping6）
 
 本文档是 v1.3.1 离线套件的完整教程。先按根目录《README-先看我》执行最短流程；需要逐步部署或排障时，按以下完整手册操作。
 
@@ -190,7 +192,7 @@ bash ./01-replace-aimdk.sh
                 "sha256": AIMDK_SHA256,
             },
             "lingxi_navigation": {
-                "version": "1.1.0-20261024-r18",
+        "version": NAV_VERSION,
                 "file": f"packages/{NAV_NAME}",
                 "sha256": nav_sha256,
                 "includes_source": True,
@@ -249,7 +251,8 @@ def audit_stage(stage: Path) -> None:
 
 
 def make_zip(stage: Path, output: Path) -> None:
-    output.unlink(missing_ok=True)
+    if output.exists():
+        raise RuntimeError(f"输出已存在，不覆盖：{output}")
     fixed_time = (2026, 9, 1, 0, 0, 0)
     with zipfile.ZipFile(output, "w", allowZip64=True) as archive:
         for path in sorted(item for item in stage.rglob("*") if item.is_file()):
@@ -276,7 +279,8 @@ def verify_zip(output: Path) -> None:
 
 def main() -> int:
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    output = OUTPUT_DIR / f"{BUNDLE_NAME}.zip"
+    output = OUTPUT_DIR / "mapping6" / f"{BUNDLE_NAME}.zip"
+    output.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix=".lingxi-v131-", dir=OUTPUT_DIR) as temp:
         stage = Path(temp) / BUNDLE_NAME
         stage.mkdir()

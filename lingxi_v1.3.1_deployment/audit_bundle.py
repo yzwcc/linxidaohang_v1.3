@@ -13,14 +13,14 @@ from pathlib import Path, PurePosixPath
 
 
 HERE = Path(__file__).resolve().parent
-NAME = "lingxi-v1.3.1-full-deployment-20261024-r18"
-ARCHIVE = HERE / "dist" / f"{NAME}.zip"
+NAME = "lingxi-v1.3.1-full-deployment-20261024-r18-mapping6"
+ARCHIVE = HERE / "dist" / "mapping6" / f"{NAME}.zip"
 SIDECAR = ARCHIVE.with_suffix(ARCHIVE.suffix + ".sha256")
 PREFIX = f"{NAME}/"
 AIMDK = "packages/aimdk-sdk-v1_1_0-aimdk-aarch64-faf4c945-artifacts.zip"
 AIMDK_SHA256 = "dc80fe5d2907881ed77beb230680867efac6bd28b458f83d2ff4e9479abe3615"
 SDK_ROOT = "aimdk-aarch64-faf4c945-artifacts"
-NAV_VERSION = "1.1.0-20261024-r18"
+NAV_VERSION = "1.1.0-20261024-r18-mapping6"
 NAV_ROOT = f"sparkrobot-lingxi-nav-internal-{NAV_VERSION}"
 NAV = f"packages/{NAV_ROOT}.tar.gz"
 
@@ -104,7 +104,7 @@ def main() -> int:
             raise RuntimeError("套件版本或秘密标记不正确")
         nav_manifest = manifest["components"]["lingxi_navigation"]
         if nav_manifest["version"] != NAV_VERSION:
-            raise RuntimeError("导航组件版本不是 R18")
+            raise RuntimeError("导航组件版本不是 R18 mapping6")
         aimdk_manifest = manifest["components"]["aimdk"]
         if (
             aimdk_manifest.get("version") != "aimdk v1.1.0-gfaf4c94"
@@ -211,6 +211,25 @@ def main() -> int:
                     raise RuntimeError("3000 点位页面缺少全局路径安全参数")
                 if "R17 将拒绝下发 task_type=2" not in app_text:
                     raise RuntimeError("3000 页面路径安全提示版本错误")
+                mapping_controller = nav_archive.extractfile(
+                    f"{NAV_ROOT}/payload/console/dist/mappingControl.js"
+                )
+                if mapping_controller is None:
+                    raise RuntimeError("R18 网页建图控制器缺失")
+                mapping_text = mapping_controller.read().decode("utf-8")
+                for marker in (
+                    "GetStoredMapByName",
+                    "/integrated_command",
+                    "TRANSIENT_LOCAL",
+                    "RELIABLE",
+                    "get_subscription_count",
+                    "mapping-session.json",
+                    "awaiting_save",
+                ):
+                    if marker not in mapping_text:
+                        raise RuntimeError(f"R18 网页建图缺少 AIMDK/会话契约：{marker}")
+                if "task_type" in mapping_text or "PncTaskRequest" in mapping_text:
+                    raise RuntimeError("网页建图控制器包含非预期的机器人移动/PNC 请求")
                 nav_client = nav_archive.extractfile(
                     f"{NAV_ROOT}/payload/navigation/robot_local_navigation_v3/navigation_client.py"
                 )

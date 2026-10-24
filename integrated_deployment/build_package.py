@@ -14,20 +14,20 @@ from pathlib import Path, PurePosixPath
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
-VERSION = "1.3.1-complete-20261024-r18"
+VERSION = "1.3.1-complete-20261024-r18-mapping6"
 NAME = f"lingxi-v{VERSION}-deployment"
-DIST = HERE / "dist"
+DIST = HERE / "dist" / "mapping6"
 COMPONENTS = {
-    "lingxi-v1.3.1-full-deployment-20261024-r18.zip": ROOT / "lingxi_v1.3.1_deployment/dist/lingxi-v1.3.1-full-deployment-20261024-r18.zip",
+    "lingxi-v1.3.1-full-deployment-20261024-r18-mapping6.zip": ROOT / "lingxi_v1.3.1_deployment/dist/mapping6/lingxi-v1.3.1-full-deployment-20261024-r18-mapping6.zip",
     "sparkrobot-lingxi-kb-1.0.10-20261023.zip": ROOT / "knowledge_base_deployment/dist/sparkrobot-lingxi-kb-1.0.10-20261023.zip",
     "sparkrobot-lingxi-linkcraft-addon-1.0.3-20260902.tar.gz": ROOT / "linkcraft_deployment/dist/sparkrobot-lingxi-linkcraft-addon-1.0.3-20260902.tar.gz",
     "sparkrobot-lingxi-consecutive-nav-fix-1.0.8-20261024-r18.tar.gz": ROOT / "consecutive_nav_fix_deployment/dist/sparkrobot-lingxi-consecutive-nav-fix-1.0.8-20261024-r18.tar.gz",
 }
-BASE_BUNDLE_NAME = "lingxi-v1.3.1-full-deployment-20261024-r18.zip"
-BASE_BUNDLE_ROOT = "lingxi-v1.3.1-full-deployment-20261024-r18"
+BASE_BUNDLE_NAME = "lingxi-v1.3.1-full-deployment-20261024-r18-mapping6.zip"
+BASE_BUNDLE_ROOT = "lingxi-v1.3.1-full-deployment-20261024-r18-mapping6"
 EMBEDDED_COMPONENTS = (
     "aimdk-sdk-v1_1_0-aimdk-aarch64-faf4c945-artifacts.zip",
-    "sparkrobot-lingxi-nav-internal-1.1.0-20261024-r18.tar.gz",
+    "sparkrobot-lingxi-nav-internal-1.1.0-20261024-r18-mapping6.tar.gz",
 )
 AIMDK_SCRIPT_MEMBER = f"{BASE_BUNDLE_ROOT}/scripts/robot/01-replace-aimdk.sh"
 AIMDK_NOUNSET_GUARD = b"set +u\nsource /opt/ros/humble/setup.bash\nset -u"
@@ -73,10 +73,7 @@ def validate_component(name: str, path: Path) -> None:
     safe_names(path)
     if name.startswith("lingxi-v"):
         with zipfile.ZipFile(path) as archive:
-            required = (
-                "lingxi-v1.3.1-full-deployment-20261024-r18/packages/"
-                "sparkrobot-lingxi-nav-internal-1.1.0-20261024-r18.tar.gz"
-            )
+            required = f"{BASE_BUNDLE_ROOT}/packages/{EMBEDDED_COMPONENTS[1]}"
             if required not in archive.namelist():
                 raise RuntimeError("基础导航包缺少导航 TAR")
             aimdk_script = archive.read(AIMDK_SCRIPT_MEMBER).replace(b"\r\n", b"\n")
@@ -194,8 +191,7 @@ def copy_stage(stage: Path) -> dict[str, str]:
             if name.endswith(".tar.gz"):
                 hashes[checksum_path.name] = digest(checksum_path)
         aimdk_bytes = archive.read(
-            "lingxi-v1.3.1-full-deployment-20261024-r18/packages/"
-            "aimdk-sdk-v1_1_0-aimdk-aarch64-faf4c945-artifacts.zip"
+            f"{BASE_BUNDLE_ROOT}/packages/aimdk-sdk-v1_1_0-aimdk-aarch64-faf4c945-artifacts.zip"
         )
         if hashlib.sha256(aimdk_bytes).hexdigest() != "dc80fe5d2907881ed77beb230680867efac6bd28b458f83d2ff4e9479abe3615":
             raise RuntimeError("基础套件中的 AIMDK v1.1.0 SHA-256 不正确")
@@ -207,19 +203,53 @@ def copy_stage(stage: Path) -> dict[str, str]:
                 raise RuntimeError("AIMDK v1.1.0 缺少 R18 所需 PNC 字段")
     for name in ("README.md", "install_all.sh", "control_all.sh"):
         source = HERE / name
-        write_text(stage / name, source.read_text(encoding="utf-8"))
+        text = source.read_text(encoding="utf-8")
+        for old, new in (
+            ("1.3.1-complete-20261024-r18", VERSION),
+            ("v1.3.1-complete-deployment-20261024-r18", "v1.3.1-complete-deployment-20261024-r18-mapping6"),
+            ("lingxi-v1.3.1-complete-20261024-r18-deployment", NAME),
+            ("lingxi-v1.3.1-full-deployment-20261024-r18", BASE_BUNDLE_ROOT),
+            ("sparkrobot-lingxi-nav-internal-1.1.0-20261024-r18", "sparkrobot-lingxi-nav-internal-1.1.0-20261024-r18-mapping6"),
+        ):
+            if new not in text:
+                text = text.replace(old, new)
+        write_text(stage / name, text)
     os.chmod(stage / "install_all.sh", 0o755)
     os.chmod(stage / "control_all.sh", 0o755)
+    replacements = (
+        ("1.3.1-complete-20261024-r18", VERSION),
+        ("v1.3.1-complete-deployment-20261024-r18", "v1.3.1-complete-deployment-20261024-r18-mapping6"),
+        ("lingxi-v1.3.1-complete-20261024-r18-deployment", NAME),
+        ("lingxi-v1.3.1-full-deployment-20261024-r18", BASE_BUNDLE_ROOT),
+        ("sparkrobot-lingxi-nav-internal-1.1.0-20261024-r18", "sparkrobot-lingxi-nav-internal-1.1.0-20261024-r18-mapping6"),
+    )
     for source in sorted((HERE / "docs").rglob("*")):
         if source.is_dir():
             continue
         relative = source.relative_to(HERE / "docs")
-        write_text(stage / "docs" / relative, source.read_text(encoding="utf-8"))
+        text = source.read_text(encoding="utf-8")
+        for old, new in replacements:
+            if new not in text:
+                text = text.replace(old, new)
+        write_text(stage / "docs" / relative, text)
     if not AIMDK_GUIDE_SOURCE.is_file():
         raise RuntimeError(f"缺少已有 AIMDK 部署说明：{AIMDK_GUIDE_SOURCE}")
     write_text(
         stage / "docs" / "已有AIMDK部署说明-v1.3.1-r18.md",
-        AIMDK_GUIDE_SOURCE.read_text(encoding="utf-8"),
+        f"套件版本：v{VERSION}\n\n" + AIMDK_GUIDE_SOURCE.read_text(encoding="utf-8")
+        .replace("v1.3.1-complete-20261024-r18", VERSION)
+        .replace(
+            "lingxi-v1.3.1-complete-20261024-r18-deployment",
+            NAME,
+        )
+        .replace(
+            "integrated_deployment\\dist\\lingxi-v1.3.1-complete-20261024-r18-deployment.tar.gz",
+            "integrated_deployment\\dist\\mapping6\\lingxi-v1.3.1-complete-20261024-r18-mapping6-deployment.tar.gz",
+        )
+        .replace(
+            "sparkrobot-lingxi-nav-internal-1.1.0-20261024-r18",
+            "sparkrobot-lingxi-nav-internal-1.1.0-20261024-r18-mapping6",
+        ),
     )
     write_text(stage / "VERSION", f"LINGXI_COMPLETE_VERSION={VERSION}\n")
     return hashes
@@ -255,7 +285,8 @@ def write_metadata(stage: Path, hashes: dict[str, str]) -> None:
 def make_tar(stage: Path) -> Path:
     DIST.mkdir(parents=True, exist_ok=True)
     output = DIST / f"{NAME}.tar.gz"
-    output.unlink(missing_ok=True)
+    if output.exists():
+        raise RuntimeError(f"输出已存在，不覆盖：{output}")
     with tarfile.open(output, "w:gz", compresslevel=6) as archive:
         archive.add(stage, arcname=NAME, recursive=True)
     return output

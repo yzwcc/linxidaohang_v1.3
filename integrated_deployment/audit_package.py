@@ -14,9 +14,9 @@ from pathlib import Path, PurePosixPath
 
 
 HERE = Path(__file__).resolve().parent
-VERSION = "1.3.1-complete-20261024-r18"
+VERSION = "1.3.1-complete-20261024-r18-mapping6"
 NAME = f"lingxi-v{VERSION}-deployment"
-DIST = HERE / "dist"
+DIST = HERE / "dist" / "mapping6"
 REQUIRED = {
     "README.md",
     "VERSION",
@@ -27,10 +27,10 @@ REQUIRED = {
     "docs/灵犀完整部署教程-v1.3.1-complete.md",
     "docs/客户日常使用手册-v1.3.1.md",
     "docs/已有AIMDK部署说明-v1.3.1-r18.md",
-    "components/lingxi-v1.3.1-full-deployment-20261024-r18.zip",
+    "components/lingxi-v1.3.1-full-deployment-20261024-r18-mapping6.zip",
     "components/aimdk-sdk-v1_1_0-aimdk-aarch64-faf4c945-artifacts.zip",
-    "components/sparkrobot-lingxi-nav-internal-1.1.0-20261024-r18.tar.gz",
-    "components/sparkrobot-lingxi-nav-internal-1.1.0-20261024-r18.tar.gz.sha256",
+    "components/sparkrobot-lingxi-nav-internal-1.1.0-20261024-r18-mapping6.tar.gz",
+    "components/sparkrobot-lingxi-nav-internal-1.1.0-20261024-r18-mapping6.tar.gz.sha256",
     "components/sparkrobot-lingxi-kb-1.0.10-20261023.zip",
     "components/sparkrobot-lingxi-linkcraft-addon-1.0.3-20260902.tar.gz",
     "components/sparkrobot-lingxi-consecutive-nav-fix-1.0.8-20261024-r18.tar.gz",
@@ -44,11 +44,11 @@ LINUX_TEXT_FILES = {
     "docs/客户日常使用手册-v1.3.1.md",
     "docs/已有AIMDK部署说明-v1.3.1-r18.md",
 }
-BASE_BUNDLE = "lingxi-v1.3.1-full-deployment-20261024-r18.zip"
-BASE_ROOT = "lingxi-v1.3.1-full-deployment-20261024-r18"
+BASE_BUNDLE = "lingxi-v1.3.1-full-deployment-20261024-r18-mapping6.zip"
+BASE_ROOT = "lingxi-v1.3.1-full-deployment-20261024-r18-mapping6"
 AIMDK_NAME = "aimdk-sdk-v1_1_0-aimdk-aarch64-faf4c945-artifacts.zip"
 AIMDK_SHA256 = "dc80fe5d2907881ed77beb230680867efac6bd28b458f83d2ff4e9479abe3615"
-NAV_NAME = "sparkrobot-lingxi-nav-internal-1.1.0-20261024-r18.tar.gz"
+NAV_NAME = "sparkrobot-lingxi-nav-internal-1.1.0-20261024-r18-mapping6.tar.gz"
 FIX_NAME = "sparkrobot-lingxi-consecutive-nav-fix-1.0.8-20261024-r18.tar.gz"
 INSTALLER_REQUIRED_SNIPPETS = (
     "verify_aimdk_runtime",
@@ -56,7 +56,7 @@ INSTALLER_REQUIRED_SNIPPETS = (
     'resolved="$(realpath -m -- "${WORK_ROOT}")"',
     '[[ "${resolved}" == /home/run/* ]]',
     'WORK_ROOT="${resolved}"',
-    'BASE_ROOT="${WORK_ROOT}/base/lingxi-v1.3.1-full-deployment-20261024-r18"',
+    'BASE_ROOT="${WORK_ROOT}/base/lingxi-v1.3.1-full-deployment-20261024-r18-mapping6"',
     'sudo rm -rf -- "${staging}"',
     'sudo bash "${LINKCRAFT_ROOT}/install.sh" --no-restart',
     'sudo bash "${FIX_ROOT}/install.sh"',
@@ -71,7 +71,7 @@ INSTALLER_REQUIRED_SNIPPETS = (
     "sudo systemctl restart lingxi-nav-console.service",
 )
 README_REQUIRED_SNIPPETS = (
-    "v1.3.1-complete-20261024-r18",
+    "v1.3.1-complete-20261024-r18-mapping6",
     "aimdk v1.1.0-gfaf4c94",
     "BEST_EFFORT + VOLATILE",
     "BEST_EFFORT + TRANSIENT_LOCAL",
@@ -104,7 +104,7 @@ README_REQUIRED_SNIPPETS = (
     "`18082`",
 )
 GUIDE_REQUIRED_SNIPPETS = (
-    "v1.3.1-complete-20261024-r18",
+    "v1.3.1-complete-20261024-r18-mapping6",
     "aimdk v1.1.0-gfaf4c94",
     "BEST_EFFORT + VOLATILE",
     "BEST_EFFORT + TRANSIENT_LOCAL",
@@ -138,7 +138,7 @@ GUIDE_REQUIRED_SNIPPETS = (
     "`8002` 和 `18082` 是内部服务端口",
 )
 AIMDK_GUIDE_REQUIRED_SNIPPETS = (
-    "v1.3.1-complete-20261024-r18",
+    "v1.3.1-complete-20261024-r18-mapping6",
     "aimdk v1.1.0-gfaf4c94",
     "BEST_EFFORT + VOLATILE",
     "BEST_EFFORT + TRANSIENT_LOCAL",
@@ -146,7 +146,7 @@ AIMDK_GUIDE_REQUIRED_SNIPPETS = (
     "保留现有 `/home/agi/aimdk`",
     "该脚本用于编译并替换 AIMDK",
     "sparkrobot-lingxi-kb-1.0.10-20261023",
-    "sparkrobot-lingxi-nav-internal-1.1.0-20261024-r18",
+    "sparkrobot-lingxi-nav-internal-1.1.0-20261024-r18-mapping6",
     "sparkrobot-lingxi-consecutive-nav-fix-1.0.8-20261024-r18",
     "普通常识、科学原理、语言、历史、观点和开放问题",
     "使用模型已有知识正常回答",
@@ -344,7 +344,7 @@ BASE_ROOT=/stale
 WORK_ROOT=/home/run/r17
 assert_work_root
 [[ "${WORK_ROOT}" == /home/run/r17 ]]
-[[ "${BASE_ROOT}" == /home/run/r17/base/lingxi-v1.3.1-full-deployment-20261024-r18 ]]
+[[ "${BASE_ROOT}" == /home/run/r17/base/lingxi-v1.3.1-full-deployment-20261024-r18-mapping6 ]]
 for candidate in /home/run /home/run/../outside /home/run/../../tmp /home/run/link; do
   if ( WORK_ROOT="${candidate}"; assert_work_root ) >/dev/null 2>&1; then
     echo "WORK_ROOT escaped its allowed directory: ${candidate}" >&2
@@ -701,12 +701,39 @@ def audit_base_bundle(reader) -> None:
         nav_verifier = archive.read(prefix + "scripts/robot/03-verify-after-web-start.sh").decode("utf-8")
         if (
             NAV_NAME not in nav_checksum
-            or "1.1.0-20261024-r18" not in nav_installer
-            or "1.1.0-20261024-r18" not in nav_verifier
+            or "1.1.0-20261024-r18-mapping6" not in nav_installer
+            or "1.1.0-20261024-r18-mapping6" not in nav_verifier
             or "1.0.9-20261024-r17" in nav_installer
             or "1.0.9-20261024-r17" in nav_verifier
         ):
             raise RuntimeError("基础套件独立安装脚本未全部指向 R18 导航版本")
+        with tarfile.open(fileobj=io.BytesIO(nested_nav), mode="r:gz") as nav_archive:
+            nav_prefix = NAV_NAME.removesuffix(".tar.gz") + "/"
+            mapping_member = nav_archive.extractfile(
+                nav_prefix + "payload/console/dist/mappingControl.js"
+            )
+            mapping_html_member = nav_archive.extractfile(
+                nav_prefix + "payload/console/dist/public/index.html"
+            )
+            if mapping_member is None or mapping_html_member is None:
+                raise RuntimeError("R18 mapping6 导航包缺少建图控制器或网页")
+            mapping_text = mapping_member.read().decode("utf-8")
+            mapping_html = mapping_html_member.read().decode("utf-8")
+            for marker in (
+                "GetStoredMapByName",
+                "/integrated_command",
+                "TRANSIENT_LOCAL",
+                "RELIABLE",
+                "get_subscription_count",
+                "mapping-session.json",
+                "awaiting_save",
+            ):
+                if marker not in mapping_text:
+                    raise RuntimeError(f"R18 网页建图缺少 AIMDK/会话契约：{marker}")
+            if "data-view=\"mapping\"" not in mapping_html or "外置遥控器" not in mapping_html:
+                raise RuntimeError("R18 网页建图页面或外置遥控提示缺失")
+            if "task_type" in mapping_text or "PncTaskRequest" in mapping_text:
+                raise RuntimeError("网页建图控制器包含非预期的机器人移动/PNC 请求")
     direct_aimdk = reader(f"{NAME}/components/{AIMDK_NAME}")
     direct_nav = reader(f"{NAME}/components/{NAV_NAME}")
     if digest_bytes(nested_aimdk) != digest_bytes(direct_aimdk):

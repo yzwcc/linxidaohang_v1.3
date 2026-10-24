@@ -3,12 +3,12 @@ set -Eeuo pipefail
 umask 077
 
 PACKAGE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-VERSION="v1.3.1-complete-deployment-20261024-r18"
+VERSION="v1.3.1-complete-deployment-20261024-r18-mapping6"
 WORK_ROOT="${WORK_ROOT:-/home/run/${VERSION}}"
-BASE_ROOT="${WORK_ROOT}/base/lingxi-v1.3.1-full-deployment-20261024-r18"
-BASE_ARCHIVE="${PACKAGE_DIR}/components/lingxi-v1.3.1-full-deployment-20261024-r18.zip"
+BASE_ROOT="${WORK_ROOT}/base/lingxi-v1.3.1-full-deployment-20261024-r18-mapping6"
+BASE_ARCHIVE="${PACKAGE_DIR}/components/lingxi-v1.3.1-full-deployment-20261024-r18-mapping6.zip"
 AIMDK_NAME="aimdk-sdk-v1_1_0-aimdk-aarch64-faf4c945-artifacts.zip"
-NAV_NAME="sparkrobot-lingxi-nav-internal-1.1.0-20261024-r18.tar.gz"
+NAV_NAME="sparkrobot-lingxi-nav-internal-1.1.0-20261024-r18-mapping6.tar.gz"
 NAV_CHECKSUM_NAME="${NAV_NAME}.sha256"
 LINKCRAFT_NAME="sparkrobot-lingxi-linkcraft-addon-1.0.3-20260902.tar.gz"
 FIX_NAME="sparkrobot-lingxi-consecutive-nav-fix-1.0.8-20261024-r18.tar.gz"
@@ -26,7 +26,7 @@ assert_work_root() {
   [[ "${resolved}" == /home/run/* ]] \
     || die "WORK_ROOT 解析后必须位于 /home/run 子目录：${resolved}"
   WORK_ROOT="${resolved}"
-  BASE_ROOT="${WORK_ROOT}/base/lingxi-v1.3.1-full-deployment-20261024-r18"
+  BASE_ROOT="${WORK_ROOT}/base/lingxi-v1.3.1-full-deployment-20261024-r18-mapping6"
 }
 
 verify_aimdk_runtime() {

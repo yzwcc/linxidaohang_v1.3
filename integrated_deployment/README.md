@@ -1,6 +1,6 @@
 # 灵犀 v1.3.1 完整部署包
 
-版本：v1.3.1-complete-20261024-r18
+版本：v1.3.1-complete-20261024-r18-mapping6
 适用对象：内部部署人员  
 目标系统：Ubuntu 22.04 ARM64、ROS 2 Humble、智元 X2 系列机器人
 
@@ -9,7 +9,7 @@
 ## 包含内容
 
 - 新 AIMDK：aimdk-sdk-v1_1_0-aimdk-aarch64-faf4c945-artifacts.zip，版本 aimdk v1.1.0-gfaf4c94。
-- 导航主包：sparkrobot-lingxi-nav-internal-1.1.0-20261024-r18。
+- 导航主包：sparkrobot-lingxi-nav-internal-1.1.0-20261024-r18-mapping6，包含网页建图。
 - 地图服务、导航 bridge、网页控制台、语音兼容网关和灵心 Java Agent。
 - 灵创动作、表情和可选舞蹈资源编排能力：1.0.3-20260902。
 - 灵心知识库检索和语音接入：sparkrobot-lingxi-kb-1.0.10-20261023。
@@ -29,6 +29,8 @@
 - 中文部署教程和客户日常使用手册。
 
 完整包内部已经包含 AIMDK 和导航主包，不需要另外下载或上传这两个组件。components/ 中的副本用于校验和安装，不能删掉。
+
+网页建图：在机器人 `3000` 控制台进入“网页建图”，由 AIMDK/SLAM 接口记录并保存地图；机器人移动由外置遥控器负责，网页不发送底盘移动或导航任务命令。
 
 ## 不包含的内容
 
@@ -110,6 +112,8 @@ doctor 只检查服务、文件、ROS/AIMDK 导入、资源和权限，不会发
 http://机器人当前IP:3000/console/
 ~~~
 
+建图前确认激光雷达、IMU 与 AIMDK/SLAM 服务在线。在“网页建图”页开始记录后，用外置遥控器缓慢移动机器人覆盖环境；网页只负责开始/结束记录和保存地图。保存后在地图页打开并检查地图图像与尺寸，未通过检查的地图不要用于导航。
+
 客户在网页中可以选择地图、查看和编辑点位、根据机器人实际位置自动重定位、启动/停止导航、配置讲解任务，以及在点位讲解和普通动作完成后选择灵创舞蹈。机器人更换网络后 IP 可能变化，网页地址也应使用新的 IP；本包不固定某一台机器人的地址。
 
 ## 文档
@@ -134,8 +138,8 @@ python .\integrated_deployment\audit_package.py
 交付给 Linux 机器人优先使用：
 
 ~~~text
-integrated_deployment/dist/lingxi-v1.3.1-complete-20261024-r18-deployment.tar.gz
-integrated_deployment/dist/lingxi-v1.3.1-complete-20261024-r18-deployment.tar.gz.sha256
+integrated_deployment/dist/mapping6/lingxi-v1.3.1-complete-20261024-r18-mapping6-deployment.tar.gz
+integrated_deployment/dist/mapping6/lingxi-v1.3.1-complete-20261024-r18-mapping6-deployment.tar.gz.sha256
 ~~~
 
 本次外层交付只生成 TAR.GZ 和对应 `.sha256`；内部基础套件 ZIP 仅作为 components/ 中的安装组件和一致性校验副本保留。每台新机器人都必须独立完成定位、急停、短距离导航和语音验收；离线审计不能替代现场安全验收。
