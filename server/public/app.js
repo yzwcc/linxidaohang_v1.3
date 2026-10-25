@@ -364,15 +364,31 @@ async function stopAndSaveMappingFromConsole() {
   const name = $("mappingName").value.trim();
   if (!name) throw new Error("请先填写地图名称");
   if (!window.confirm(`停止建图并保存为“${name}”？地图会写入机器人导航地图目录。`)) return;
-  $("mappingSaveBtn").disabled = true;
-  const result = await api("/api/robots/default/mapping/stop-save", {
-    method: "POST",
-    body: JSON.stringify({ map_name: name })
-  });
-  $("mappingDetails").textContent = `地图已保存\nID ${result.map.map_id}\n${result.map.path}\n${result.map.width} × ${result.map.height} px`;
-  toast("地图已保存，可到“地图”页刷新列表");
-  await Promise.all([refreshMappingStatus(), refreshMapList({ force: true })]);
-  return result;
+  const button = $("mappingSaveBtn");
+  if (button) {
+    button.disabled = true;
+    button.textContent = "保存中，请勿关闭…";
+  }
+  setText("mappingDiagnosis", "已停止建图，正在等待 AIMDK 返回并导入保存地图；最长约 3 分钟…");
+  try {
+    const result = await api("/api/robots/default/mapping/stop-save", {
+      method: "POST",
+      body: JSON.stringify({ map_name: name }),
+      timeoutMs: 185000
+    });
+    $("mappingDetails").textContent = `地图已保存\nID ${result.map.map_id}\n${result.map.path}\n${result.map.width} × ${result.map.height} px`;
+    toast("地图已保存，可到“地图”页刷新列表");
+    await Promise.all([refreshMappingStatus(), refreshMapList({ force: true })]);
+    return result;
+  } catch (error) {
+    setText("mappingDiagnosis", `地图尚未确认保存：${error.message}。会话保留为待保存，请使用相同地图名称重试。`);
+    throw error;
+  } finally {
+    if (button) {
+      button.disabled = false;
+      button.textContent = "停止并保存地图";
+    }
+  }
 }
 
 function label(value, dict) {
