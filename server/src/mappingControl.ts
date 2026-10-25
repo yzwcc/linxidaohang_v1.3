@@ -76,6 +76,9 @@ set +u
 set -u
 [ ! -r /agibot/software/entry/cfg/ros_dds_configuration.xml ] || export FASTRTPS_DEFAULT_PROFILES_FILE=/agibot/software/entry/cfg/ros_dds_configuration.xml
 [ ! -r /agibot/software/nav/bin/librmw_fastrtps.so ] || export RMW_LIBRARY_PATH=/agibot/software/nav/bin/librmw_fastrtps.so
+export ROS_HOME=/var/tmp/sparkrobot-lingxi-nav/ros-home
+export ROS_LOG_DIR=/var/tmp/sparkrobot-lingxi-nav/ros-log
+mkdir -p "$ROS_HOME/log" "$ROS_LOG_DIR"
 for prefix in /opt/ros/humble /home/agi/aimdk/install; do
   if [ -d "$prefix/lib" ]; then
     export PYTHONPATH="$prefix/local/lib/python3.10/dist-packages:$prefix/lib/python3.10/site-packages:\${PYTHONPATH:-}"

@@ -17,7 +17,7 @@ from pathlib import Path, PurePosixPath
 ROOT = Path(__file__).resolve().parents[1]
 HERE = ROOT / "internal_deployment"
 PRODUCT_ID = "sparkrobot-lingxi-nav-internal"
-DEFAULT_VERSION = "1.1.0-20261025-r18-live-mapfit7"
+DEFAULT_VERSION = "1.1.0-20261025-r18-live-mapfit8"
 FIELD_VERIFIED_JAVA_SHA256 = "d3858827d71aa54dc4b7cc794a0d8446cf0168d65e4cca0a2e686b6f7012dd04"
 VERSION_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
 DEV_NODE_MODULES = {

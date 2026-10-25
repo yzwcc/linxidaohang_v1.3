@@ -132,6 +132,8 @@ describe("AIMDK mapping adapter", () => {
     expect(runCommand.mock.calls[0][0]).toContain("./slam --cfg_file_path");
     expect(runCommand.mock.calls[0][0]).toContain("/slam/lidar_odom");
     expect(runCommand.mock.calls[0][0]).toContain("GetStoredMapByName");
+    expect(runCommand.mock.calls[0][0]).toContain("ROS_HOME=/var/tmp/sparkrobot-lingxi-nav/ros-home");
+    expect(runCommand.mock.calls[0][0]).toContain("ROS_LOG_DIR=/var/tmp/sparkrobot-lingxi-nav/ros-log");
   });
 
   it("allows mapping to start when sensors and SLAM are ready before odometry begins publishing data", async () => {
