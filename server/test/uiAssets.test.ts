@@ -31,6 +31,11 @@ describe("console UI assets", () => {
     expect(html).not.toContain("saveRobotHostBtn");
   });
 
+  it("revalidates versioned console assets so mobile browsers cannot keep stale mapping controls", () => {
+    expect(html).toContain("/console/app.js?v=20261025-r18-live-mapfit7");
+    expect(html).toContain("/console/styles.css?v=20261025-r18-live-mapfit7");
+  });
+
   it("places global path safety inputs beside point task_type without making point editing require a radius", () => {
     expect(html.indexOf('id="pointTaskType"')).toBeLessThan(html.indexOf('id="robotRadius"'));
     expect(html.indexOf('id="robotRadius"')).toBeLessThan(html.indexOf('id="pointStart"'));

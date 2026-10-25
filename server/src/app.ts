@@ -196,7 +196,7 @@ export function buildApp(config: AppConfig, robotClient?: RobotClient): FastifyI
 
   app.addHook("onSend", async (request, reply, payload) => {
     if (/^\/console\/[^/?]+\.(css|js)(\?|$)/.test(request.url)) {
-      reply.header("Cache-Control", "public, max-age=3600, stale-while-revalidate=86400");
+      reply.header("Cache-Control", "no-cache, must-revalidate");
     } else if (request.url.startsWith("/console/") || request.url.startsWith("/api/")) {
       reply.header("Cache-Control", "no-store, no-cache, must-revalidate");
       reply.header("Pragma", "no-cache");
