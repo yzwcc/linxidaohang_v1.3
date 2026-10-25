@@ -158,19 +158,22 @@ export async function getMappingHealth(
   const lidar = Number(fields.lidar_publishers) || 0;
   const imu = Number(fields.imu_publishers) || 0;
   const odom = Number(fields.odom_publishers) || 0;
-  const sensorsHealthy = (fields.agibot_software || "unknown") === "active" && hal
-    && lidar > 0 && imu > 0 && fields.lidar_data === "1" && fields.imu_data === "1";
+  const sensorPublishersReady = (fields.agibot_software || "unknown") === "active" && hal
+    && lidar > 0 && imu > 0;
+  const sensorsHealthy = sensorPublishersReady && fields.lidar_data === "1" && fields.imu_data === "1";
   const topics = output.split(/\r?\n/).filter((line) => line.startsWith("topic=")).map((line) => line.slice(6));
   const services = output.split(/\r?\n/).filter((line) => line.startsWith("service=")).map((line) => line.slice(8));
   const mappingService = services.some((item) => item.includes("GetStoredMapByName"));
   const odomHealthy = slam && odom > 0 && fields.odom_data === "1";
-  const canStart = sensorsHealthy && slam && mappingService;
-  const diagnosis = !sensorsHealthy
-    ? "底层服务、雷达点云或 IMU 数据未就绪"
+  const canStart = sensorPublishersReady && slam && mappingService;
+  const diagnosis = !sensorPublishersReady
+    ? "底层服务或雷达/IMU 发布者未就绪"
     : !slam
     ? "传感器输入可用，但 SLAM 进程尚未运行"
     : !mappingService
     ? "传感器与 SLAM 进程可用，但 AIMDK 地图存储服务尚未发现"
+    : !sensorsHealthy
+    ? "启动条件已满足；网页数据探测暂未确认雷达/IMU 帧，开始后观察实时扫描状态"
     : !odomHealthy
     ? "建图前置条件已满足；开始后等待 SLAM 里程计输出，再显示实时地图"
     : "传感器、SLAM 与 AIMDK 地图服务均已发现；仍需实机验证完整建图保存链路";

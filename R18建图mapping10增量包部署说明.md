@@ -4,19 +4,19 @@
 
 ## 文件
 
-`internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.1.0-20261025-r18-live-mapfit5.tar.gz`
+`internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.1.0-20261025-r18-live-mapfit6.tar.gz`
 
 SHA-256：
 
-`d851f2dc9f3bf7bd7137969f871566ebb03f0b411bec1d6dbb3bf921491f5036`
+`505cd6ca81bc56c905b0d412264a4c0b6e1a39f9054c2dcde57917b4af6cf2d9`
 
 请先将 tar 包复制到机器人，然后校验并解压：
 
 ```bash
-sha256sum sparkrobot-lingxi-nav-internal-1.1.0-20261025-r18-live-mapfit5.tar.gz
-mkdir -p ~/r18-live-mapfit5
-tar -xzf sparkrobot-lingxi-nav-internal-1.1.0-20261025-r18-live-mapfit5.tar.gz -C ~/r18-live-mapfit5
-cd ~/r18-live-mapfit5/sparkrobot-lingxi-nav-internal-1.1.0-20261025-r18-live-mapfit5
+sha256sum sparkrobot-lingxi-nav-internal-1.1.0-20261025-r18-live-mapfit6.tar.gz
+mkdir -p ~/r18-live-mapfit6
+tar -xzf sparkrobot-lingxi-nav-internal-1.1.0-20261025-r18-live-mapfit6.tar.gz -C ~/r18-live-mapfit6
+cd ~/r18-live-mapfit6/sparkrobot-lingxi-nav-internal-1.1.0-20261025-r18-live-mapfit6
 ```
 
 首次安装若机器人尚未配置灵心/SOC2 凭据，使用 `sudo ./install.sh --secrets ./secrets.env --setup-soc2`；不要把真实凭据放进压缩包。已有 R18 安装只升级程序时，安装器会保留机器人现有配置、地图和任务：
@@ -28,7 +28,7 @@ sudo sparkrobot-lingxi-internal doctor
 readlink -f /opt/sparkrobot/lingxi-nav/current
 ```
 
-确认当前版本目录为 `1.1.0-20261025-r18-live-mapfit5`，并检查控制台健康状态：
+确认当前版本目录为 `1.1.0-20261025-r18-live-mapfit6`，并检查控制台健康状态：
 
 ```bash
 curl -fsS http://127.0.0.1:3000/health
@@ -40,7 +40,7 @@ curl -fsS http://127.0.0.1:3000/health
 
 ## 建图启动条件
 
-本版允许在雷达点云、IMU、SLAM 进程和 AIMDK 地图服务就绪时启动建图，不再要求 SLAM 里程计必须在开始前已有数据。若里程计暂未输出，界面会提示等待建图位姿，实时地图将在数据和 TF 到达后显示；保存地图仍由 AIMDK 保存接口确认。
+本版允许在底层服务、雷达与 IMU 发布者、SLAM 进程和 AIMDK 地图服务就绪时启动建图，不要求启动前单次消息探测和 SLAM 里程计已有数据。若网页暂未收到传感器帧或里程计，界面会提示观察实时扫描状态；实时地图仍需要有效点云、位姿和 TF，保存地图仍由 AIMDK 保存接口确认。
 
 ## 建图操作
 
