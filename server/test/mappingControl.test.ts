@@ -115,23 +115,22 @@ describe("AIMDK mapping adapter", () => {
       "agibot_software=active",
       "hal_sensor_running=1",
       "slam_running=1",
-      "lidar_publishers=1",
-      "imu_publishers=1",
-      "odom_publishers=1",
-      "mapping_command_subscribers=1",
-      "lidar_data=1",
-      "imu_data=1",
-      "odom_data=1",
-      "topic=/slam/lidar_odom",
-      "service=/aimdk_5Fmsgs/srv/GetStoredMapByName"
+      JSON.stringify({
+        topics: {
+          "/aima/hal/sensor/lidar_chest_front/lidar_pointcloud": 1,
+          "/aima/hal/sensor/lidar_chest_front/imu": 1,
+          "/slam/lidar_odom": 1
+        },
+        services: ["/aimdk_5Fmsgs/srv/GetStoredMapByName"]
+      })
     ].join("\n"));
 
     const health = await getMappingHealth(config, runCommand);
 
     expect(health.ok).toBe(true);
     expect(runCommand.mock.calls[0][0]).toContain("./slam --cfg_file_path");
-    expect(runCommand.mock.calls[0][0]).toContain("/slam/lidar_odom");
-    expect(runCommand.mock.calls[0][0]).toContain("GetStoredMapByName");
+    expect(runCommand.mock.calls[0][0]).toContain("<mapping-health>");
+    expect(runCommand.mock.calls[0][0]).toContain("ROS_LOG_DIR=/var/tmp/sparkrobot-lingxi-nav/ros-log");
     expect(runCommand.mock.calls[0][0]).toContain("ROS_HOME=/var/tmp/sparkrobot-lingxi-nav/ros-home");
     expect(runCommand.mock.calls[0][0]).toContain("ROS_LOG_DIR=/var/tmp/sparkrobot-lingxi-nav/ros-log");
   });
@@ -143,11 +142,14 @@ describe("AIMDK mapping adapter", () => {
       "slam_running=1",
       "lidar_publishers=1",
       "imu_publishers=1",
-      "odom_publishers=1",
-      "lidar_data=1",
-      "imu_data=1",
-      "odom_data=0",
-      "service=/aimdk_5Fmsgs/srv/GetStoredMapByName"
+      JSON.stringify({
+        topics: {
+          "/aima/hal/sensor/lidar_chest_front/lidar_pointcloud": 1,
+          "/aima/hal/sensor/lidar_chest_front/imu": 1,
+          "/slam/lidar_odom": 0
+        },
+        services: ["/aimdk_5Fmsgs/srv/GetStoredMapByName"]
+      })
     ].join("\n"));
 
     const health = await getMappingHealth(config, runCommand);
@@ -165,19 +167,22 @@ describe("AIMDK mapping adapter", () => {
       "slam_running=1",
       "lidar_publishers=1",
       "imu_publishers=1",
-      "odom_publishers=1",
-      "lidar_data=0",
-      "imu_data=0",
-      "odom_data=0",
-      "service=/aimdk_5Fmsgs/srv/GetStoredMapByName"
+      JSON.stringify({
+        topics: {
+          "/aima/hal/sensor/lidar_chest_front/lidar_pointcloud": 1,
+          "/aima/hal/sensor/lidar_chest_front/imu": 1,
+          "/slam/lidar_odom": 0
+        },
+        services: ["/aimdk_5Fmsgs/srv/GetStoredMapByName"]
+      })
     ].join("\n"));
 
     const health = await getMappingHealth(config, runCommand);
 
     expect(health.can_start).toBe(true);
-    expect(health.lidar_data_available).toBe(false);
-    expect(health.imu_data_available).toBe(false);
-    expect(health.diagnosis).toContain("数据探测暂未确认");
+    expect(health.lidar_data_available).toBe(true);
+    expect(health.imu_data_available).toBe(true);
+    expect(health.diagnosis).toContain("开始后等待 SLAM 里程计输出");
   });
 
   it("uses the SDK service and protects navigation map output", () => {

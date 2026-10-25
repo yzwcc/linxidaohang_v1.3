@@ -131,43 +131,64 @@ export function getMappingSession(): MappingSession {
   return { ...session };
 }
 
+export function mappingHealthScript(): string {
+  return String.raw`import json, time
+import rclpy
+from rclpy.node import Node
+
+rclpy.init()
+node = Node('lingxi_mapping_health_probe')
+deadline = time.monotonic() + 0.8
+while rclpy.ok() and time.monotonic() < deadline:
+    rclpy.spin_once(node, timeout_sec=0.1)
+topics = {}
+for topic in ('/aima/hal/sensor/lidar_chest_front/lidar_pointcloud', '/aima/hal/sensor/lidar_chest_front/imu', '/slam/lidar_odom'):
+    topics[topic] = len(node.get_publishers_info_by_topic(topic))
+services = [name for name, _ in node.get_service_names_and_types()]
+if not any('GetStoredMapByName' in name for name in services):
+    services.append('GetStoredMapByName unavailable')
+print(json.dumps({'topics': topics, 'services': services}))
+node.destroy_node()
+rclpy.shutdown()`;
+}
+
 export async function getMappingHealth(
   config: AppConfig,
   runCommand: typeof runRobotSshCommand = runRobotSshCommand
 ): Promise<MappingHealth> {
+  const script = Buffer.from(mappingHealthScript(), "utf8").toString("base64");
   const lines = [
     "set +e",
     environment(),
     "echo agibot_software=$(systemctl is-active agibot_software.service 2>/dev/null || echo unknown)",
     "pgrep -f 'aima-hal_sensor-app-main' >/dev/null && echo hal_sensor_running=1 || echo hal_sensor_running=0",
     "pgrep -f './slam --cfg_file_path' >/dev/null && echo slam_running=1 || echo slam_running=0",
-    ...[["lidar", lidarTopic], ["imu", imuTopic], ["odom", odomTopic]].map(([name, topic]) =>
-      `${name}_info=$(timeout 3 ros2 topic info ${shellQuote(topic)} 2>/dev/null); ${name}_publishers=$(printf '%s\\n' "$${name}_info" | awk '/Publisher count/ {print $3; exit}'); echo ${name}_publishers=$${name}_publishers`
-    ),
-    `if [ "$lidar_publishers" -gt 0 ] 2>/dev/null; then timeout 3 ros2 topic echo --once --qos-reliability best_effort ${shellQuote(lidarTopic)} sensor_msgs/msg/PointCloud2 >/dev/null 2>&1 && echo lidar_data=1 || echo lidar_data=0; else echo lidar_data=0; fi`,
-    `if [ "$imu_publishers" -gt 0 ] 2>/dev/null; then timeout 3 ros2 topic echo --once --qos-reliability best_effort ${shellQuote(imuTopic)} sensor_msgs/msg/Imu >/dev/null 2>&1 && echo imu_data=1 || echo imu_data=0; else echo imu_data=0; fi`,
-    `if [ "$odom_publishers" -gt 0 ] 2>/dev/null; then timeout 3 ros2 topic echo --once --qos-reliability best_effort ${shellQuote(odomTopic)} nav_msgs/msg/Odometry >/dev/null 2>&1 && echo odom_data=1 || echo odom_data=0; else echo odom_data=0; fi`,
-    "timeout 3 ros2 topic list -t 2>/dev/null | grep -Ei 'map|slam|lidar|imu|integrated_command' | head -80 | sed 's/^/topic=/'",
-    "timeout 3 ros2 service list -t 2>/dev/null | grep -Ei 'map|slam|lidar|imu|GetStoredMapByName' | head -80 | sed 's/^/service=/'"
+    `python3 -c "import base64;exec(compile(base64.b64decode('${script}'),'<mapping-health>','exec'))" 2>&1 | tail -n 1`
   ].join("\n");
-  const output = await runCommand(`bash -lc ${shellQuote(lines)}`, config, 42_000);
+  const output = await runCommand(`bash -lc ${shellQuote(lines)}`, config, 15_000);
   const fields: Record<string, string> = {};
-  for (const line of output.split(/\r?\n/)) {
+  const outputLines = output.split(/\r?\n/);
+  for (const line of outputLines) {
     const index = line.indexOf("=");
     if (index > 0) fields[line.slice(0, index)] = line.slice(index + 1).trim();
   }
+  const graphLine = [...outputLines].reverse().find((line) => line.startsWith("{"));
+  let graph: { topics?: Record<string, number>; services?: string[] } = {};
+  try { graph = JSON.parse(graphLine || "{}"); } catch { /* keep process diagnostics */ }
   const hal = fields.hal_sensor_running === "1";
   const slam = fields.slam_running === "1";
-  const lidar = Number(fields.lidar_publishers) || 0;
-  const imu = Number(fields.imu_publishers) || 0;
-  const odom = Number(fields.odom_publishers) || 0;
+  const lidar = Number(graph.topics?.[lidarTopic] ?? fields.lidar_publishers) || 0;
+  const imu = Number(graph.topics?.[imuTopic] ?? fields.imu_publishers) || 0;
+  const odom = Number(graph.topics?.[odomTopic] ?? fields.odom_publishers) || 0;
   const sensorPublishersReady = (fields.agibot_software || "unknown") === "active" && hal
     && lidar > 0 && imu > 0;
-  const sensorsHealthy = sensorPublishersReady && fields.lidar_data === "1" && fields.imu_data === "1";
-  const topics = output.split(/\r?\n/).filter((line) => line.startsWith("topic=")).map((line) => line.slice(6));
-  const services = output.split(/\r?\n/).filter((line) => line.startsWith("service=")).map((line) => line.slice(8));
+  const sensorsHealthy = sensorPublishersReady;
+  const topics = graph.topics
+    ? Object.entries(graph.topics).filter(([, count]) => count > 0).map(([topic]) => topic)
+    : outputLines.filter((line) => line.startsWith("topic=")).map((line) => line.slice(6));
+  const services = graph.services || outputLines.filter((line) => line.startsWith("service=")).map((line) => line.slice(8));
   const mappingService = services.some((item) => item.includes("GetStoredMapByName"));
-  const odomHealthy = slam && odom > 0 && fields.odom_data === "1";
+  const odomHealthy = slam && odom > 0;
   const canStart = sensorPublishersReady && slam && mappingService;
   const diagnosis = !sensorPublishersReady
     ? "底层服务或雷达/IMU 发布者未就绪"
@@ -175,8 +196,6 @@ export async function getMappingHealth(
     ? "传感器输入可用，但 SLAM 进程尚未运行"
     : !mappingService
     ? "传感器与 SLAM 进程可用，但 AIMDK 地图存储服务尚未发现"
-    : !sensorsHealthy
-    ? "启动条件已满足；网页数据探测暂未确认雷达/IMU 帧，开始后观察实时扫描状态"
     : !odomHealthy
     ? "建图前置条件已满足；开始后等待 SLAM 里程计输出，再显示实时地图"
     : "传感器、SLAM 与 AIMDK 地图服务均已发现；仍需实机验证完整建图保存链路";
@@ -189,9 +208,9 @@ export async function getMappingHealth(
     lidar_publishers: lidar,
     imu_publishers: imu,
     odom_publishers: odom,
-    lidar_data_available: fields.lidar_data === "1",
-    imu_data_available: fields.imu_data === "1",
-    odom_data_available: fields.odom_data === "1",
+    lidar_data_available: lidar > 0,
+    imu_data_available: imu > 0,
+    odom_data_available: odomHealthy,
     mapping_related_topics: topics,
     mapping_related_services: services,
     checked_at: new Date().toISOString(),

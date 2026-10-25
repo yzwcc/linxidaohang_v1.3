@@ -680,10 +680,17 @@ export function buildApp(config: AppConfig, robotClient?: RobotClient): FastifyI
     return getTunnelDiagnostics(getConfig(), runtimeRobotHost);
   });
   app.get("/api/robots/default/system/health", async () => getRobotSystemHealth(getConfig()));
-  app.get("/api/robots/default/mapping/status", async () => ({
-    session: getMappingSession(),
-    health: await getMappingHealth(getConfig())
-  }));
+  app.get("/api/robots/default/mapping/status", async (_request, reply) => {
+    try {
+      return { session: getMappingSession(), health: await getMappingHealth(getConfig()) };
+    } catch (error) {
+      return reply.code(503).send({
+        ok: false,
+        session: getMappingSession(),
+        message: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
   app.get("/api/robots/default/mapping/preview", async () => getMappingPreview(getConfig()));
   app.post("/api/robots/default/mapping/start", async (_request, reply) => {
     try {

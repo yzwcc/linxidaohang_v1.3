@@ -319,9 +319,32 @@ function renderMapping(payload) {
 }
 
 async function refreshMappingStatus() {
-  const payload = await api("/api/robots/default/mapping/status");
-  renderMapping(payload);
-  return payload;
+  const button = $("mappingRefreshBtn");
+  const oldText = button?.textContent || "检查接口";
+  if (button) {
+    button.disabled = true;
+    button.textContent = "检查中…";
+  }
+  setText("mappingDiagnosis", "正在通过机器人 SSH 检查 ROS 2、传感器和 AIMDK 建图接口…");
+  setText("mappingSensors", "检查中");
+  setText("mappingSlam", "检查中");
+  setText("mappingBackend", "检查中");
+  try {
+    const payload = await api("/api/robots/default/mapping/status", { timeoutMs: 20000, force: true });
+    if (!payload?.health) throw new Error(payload?.message || "机器人未返回建图接口状态");
+    renderMapping(payload);
+    return payload;
+  } catch (error) {
+    setText("mappingBadge", "检查失败");
+    setClass("mappingBadge", "badge bad");
+    setText("mappingDiagnosis", `检查接口失败：${error.message}`);
+    throw error;
+  } finally {
+    if (button) {
+      button.disabled = false;
+      button.textContent = oldText;
+    }
+  }
 }
 
 async function startMappingFromConsole() {
@@ -1708,7 +1731,9 @@ function bindEvents() {
     initialWorkspace = requestedWorkspace || "nav";
   }
   switchWorkspace(initialWorkspace);
-  $("mappingRefreshBtn").onclick = () => runAction("建图接口状态已刷新", () => refreshMappingStatus());
+  $("mappingRefreshBtn").onclick = () => void refreshMappingStatus()
+    .then(() => toast("建图接口状态已刷新"))
+    .catch((error) => toast(error.message));
   $("mappingStartBtn").onclick = () => runAction("建图会话已启动", () => startMappingFromConsole());
   $("mappingSaveForm").onsubmit = (event) => {
     event.preventDefault();

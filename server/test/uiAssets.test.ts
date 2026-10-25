@@ -32,8 +32,10 @@ describe("console UI assets", () => {
   });
 
   it("revalidates versioned console assets so mobile browsers cannot keep stale mapping controls", () => {
-    expect(html).toContain("/console/app.js?v=20261025-r18-live-mapfit7");
-    expect(html).toContain("/console/styles.css?v=20261025-r18-live-mapfit7");
+    expect(html).toContain("/console/app.js?v=20261025-r18-live-mapfit10");
+    expect(html).toContain("/console/styles.css?v=20261025-r18-live-mapfit10");
+    expect(appScript).toContain('button.textContent = "检查中…"');
+    expect(appScript).toContain('setText("mappingBadge", "检查失败")');
   });
 
   it("places global path safety inputs beside point task_type without making point editing require a radius", () => {
