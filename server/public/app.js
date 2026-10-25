@@ -720,7 +720,8 @@ function renderStatus() {
     button.textContent = name;
     button.onclick = () => runAction(`正在导航到 ${name}`, () => api("/api/robots/default/nav/start", {
       method: "POST",
-      body: JSON.stringify({ target_name: name })
+      body: JSON.stringify({ target_name: name }),
+      timeoutMs: 25000
     }));
     $("pointButtons").appendChild(button);
   });

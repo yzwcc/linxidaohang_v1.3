@@ -19,6 +19,23 @@ describe("robot gateway URL", () => {
   });
 });
 
+describe("navigation request timeout", () => {
+  it("allows route planning time before the local navigation bridge responds", async () => {
+    process.env.DEPLOYMENT_MODE = "robot";
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      expect(String(input)).toBe("http://127.0.0.1:18080/nav/start");
+      expect(JSON.parse(String(init?.body))).toMatchObject({ target_name: "展厅" });
+      expect(init?.signal).toBeInstanceOf(AbortSignal);
+      return new Response(JSON.stringify({ ok: true, accepted: true, status: "started" }), { status: 200 });
+    });
+    const client = createRobotClient(loadConfig());
+
+    await expect(client.navStart("展厅")).resolves.toMatchObject({ accepted: true });
+
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
+});
+
 describe("global path safety settings", () => {
   it("reads and saves safety settings through the robot map service", async () => {
     process.env.DEPLOYMENT_MODE = "robot";

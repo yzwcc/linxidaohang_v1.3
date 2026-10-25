@@ -114,7 +114,8 @@ export function createRobotClient(config: AppConfig) {
     navStart(targetName: string) {
       return mutation(() => requestJson(`${bridgeBase}/nav/start`, {
         method: "POST",
-        body: JSON.stringify({ event_id: `mp_${Date.now()}`, target_name: targetName })
+        body: JSON.stringify({ event_id: `mp_${Date.now()}`, target_name: targetName }),
+        timeoutMs: 20000
       }));
     },
     navStop() {
