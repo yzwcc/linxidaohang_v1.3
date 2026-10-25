@@ -9,6 +9,7 @@ const odomTopic = "/slam/lidar_odom";
 
 export type MappingHealth = {
   ok: boolean;
+  can_start: boolean;
   agibot_software: string;
   hal_sensor_running: boolean;
   slam_running: boolean;
@@ -163,15 +164,19 @@ export async function getMappingHealth(
   const services = output.split(/\r?\n/).filter((line) => line.startsWith("service=")).map((line) => line.slice(8));
   const mappingService = services.some((item) => item.includes("GetStoredMapByName"));
   const odomHealthy = slam && odom > 0 && fields.odom_data === "1";
+  const canStart = sensorsHealthy && slam && mappingService;
   const diagnosis = !sensorsHealthy
     ? "底层服务、雷达点云或 IMU 数据未就绪"
-    : !odomHealthy
-    ? "传感器输入可用，但 SLAM 定位输出尚未确认"
+    : !slam
+    ? "传感器输入可用，但 SLAM 进程尚未运行"
     : !mappingService
-    ? "传感器与定位可用，但 AIMDK 地图存储服务尚未发现"
+    ? "传感器与 SLAM 进程可用，但 AIMDK 地图存储服务尚未发现"
+    : !odomHealthy
+    ? "建图前置条件已满足；开始后等待 SLAM 里程计输出，再显示实时地图"
     : "传感器、SLAM 与 AIMDK 地图服务均已发现；仍需实机验证完整建图保存链路";
   return {
-    ok: sensorsHealthy && odomHealthy && mappingService,
+    ok: canStart && odomHealthy,
+    can_start: canStart,
     agibot_software: fields.agibot_software || "unknown",
     hal_sensor_running: hal,
     slam_running: slam,
@@ -193,7 +198,7 @@ export async function startMapping(config: AppConfig) {
   if (session.active || session.awaiting_save) throw new Error("当前已有建图任务或待保存地图，请先完成保存");
   const task = (async () => {
     const health = await getMappingHealth(config);
-    if (!health.ok) throw new Error(`建图前置条件未就绪：${health.diagnosis}`);
+    if (!health.can_start) throw new Error(`建图前置条件未就绪：${health.diagnosis}`);
     const output = await publishIntegratedCommand("start_mapping", config);
     updateSession({ active: true, awaiting_save: false, map_name: null, started_at: new Date().toISOString() });
     return { ok: true, session: getMappingSession(), output: output.trim() };

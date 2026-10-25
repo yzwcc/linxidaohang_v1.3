@@ -301,11 +301,11 @@ function renderMapping(payload) {
   mappingSessionStartedAt = session.started_at || "";
   if (session.active) startMappingPreviewPolling();
   else stopMappingPreviewPolling();
-  const ready = health.ok === true;
-  setText("mappingBadge", ready ? "接口已发现" : "未就绪");
+  const ready = health.can_start === true;
+  setText("mappingBadge", ready ? "可开始" : "未就绪");
   setClass("mappingBadge", `badge ${ready ? "ok" : "bad"}`);
   setText("mappingSensors", health.lidar_data_available && health.imu_data_available ? "雷达与 IMU 有数据" : "未确认");
-  setText("mappingSlam", health.slam_running && health.odom_data_available ? "运行中" : "未确认");
+  setText("mappingSlam", !health.slam_running ? "未运行" : health.odom_data_available ? "位姿已输出" : ready ? "等待建图位姿" : "未确认");
   setText("mappingBackend", (health.mapping_related_services || []).some((item) => item.includes("GetStoredMapByName")) ? "已发现" : "未发现");
   setText("mappingSession", session.active ? `建图中 · ${session.started_at || ""}` : session.awaiting_save ? `待保存 · ${session.map_name || ""}` : session.map_name ? `已保存 · ${session.map_name}` : "未启动");
   setText("mappingDiagnosis", health.diagnosis || "未读取到建图状态");
@@ -325,7 +325,7 @@ async function refreshMappingStatus() {
 }
 
 async function startMappingFromConsole() {
-  if (!state.mapping?.health?.ok) throw new Error("建图接口未就绪，请先检查接口");
+  if (!state.mapping?.health?.can_start) throw new Error("建图前置条件未就绪，请先检查接口");
   if (!window.confirm("即将启动激光建图。请确认机器人已由外置遥控器接管移动；网页不会控制机器人运动。")) return;
   $("mappingStartBtn").disabled = true;
   mappingAccumulatedPoints = new Map();

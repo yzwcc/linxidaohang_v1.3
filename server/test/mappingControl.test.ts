@@ -134,6 +134,28 @@ describe("AIMDK mapping adapter", () => {
     expect(runCommand.mock.calls[0][0]).toContain("GetStoredMapByName");
   });
 
+  it("allows mapping to start when sensors and SLAM are ready before odometry begins publishing data", async () => {
+    const runCommand = vi.fn(async () => [
+      "agibot_software=active",
+      "hal_sensor_running=1",
+      "slam_running=1",
+      "lidar_publishers=1",
+      "imu_publishers=1",
+      "odom_publishers=1",
+      "lidar_data=1",
+      "imu_data=1",
+      "odom_data=0",
+      "service=/aimdk_5Fmsgs/srv/GetStoredMapByName"
+    ].join("\n"));
+
+    const health = await getMappingHealth(config, runCommand);
+
+    expect(health.can_start).toBe(true);
+    expect(health.ok).toBe(false);
+    expect(health.odom_data_available).toBe(false);
+    expect(health.diagnosis).toContain("开始后等待 SLAM 里程计输出");
+  });
+
   it("uses the SDK service and protects navigation map output", () => {
     const script = mapSaveScript();
     expect(script).toContain("/aimdk_5Fmsgs/srv/GetStoredMapByName");

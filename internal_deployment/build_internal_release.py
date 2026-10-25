@@ -17,7 +17,7 @@ from pathlib import Path, PurePosixPath
 ROOT = Path(__file__).resolve().parents[1]
 HERE = ROOT / "internal_deployment"
 PRODUCT_ID = "sparkrobot-lingxi-nav-internal"
-DEFAULT_VERSION = "1.1.0-20261025-r18-live-mapfit4"
+DEFAULT_VERSION = "1.1.0-20261025-r18-live-mapfit5"
 FIELD_VERIFIED_JAVA_SHA256 = "d3858827d71aa54dc4b7cc794a0d8446cf0168d65e4cca0a2e686b6f7012dd04"
 VERSION_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
 DEV_NODE_MODULES = {
@@ -275,6 +275,11 @@ def audit(stage: Path) -> None:
         raise RuntimeError("R18 控制台建图接口缺少 AIMDK v1.1.0 合约")
     if "data-view=\"mapping\"" not in console_html or "外置遥控器" not in console_html:
         raise RuntimeError("R18 控制台缺少建图工作区或外置遥控安全提示")
+    mapping_controller_source = (
+        stage / "source" / "server" / "src" / "mappingControl.ts"
+    ).read_text(encoding="utf-8")
+    if '"can_start"' not in mapping_controller and 'can_start: canStart' not in mapping_controller_source:
+        raise RuntimeError("R18 建图控制器缺少启动条件与实时里程计输出分离逻辑")
     robot_client = (
         stage / "payload" / "console" / "dist" / "robotClient.js"
     ).read_text(encoding="utf-8")
