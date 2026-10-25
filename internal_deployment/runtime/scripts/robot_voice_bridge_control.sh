@@ -34,6 +34,8 @@ import rclpy
 import rclpy.action
 from robot_local_navigation_v3 import robot_lingxi_bridge
 print(f"语音 Python 环境正常：rclpy={rclpy.__file__} bridge={robot_lingxi_bridge.__file__}")
+if robot_lingxi_bridge.PlayMediaFile is None:
+    print("AIMDK 未提供 PlayMediaFile；媒体文件唱歌已禁用，TTS/导航桥接可继续启动")
 PY
 }
 

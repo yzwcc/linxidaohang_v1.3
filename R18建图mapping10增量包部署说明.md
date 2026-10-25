@@ -4,19 +4,19 @@
 
 ## 文件
 
-`internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.1.0-20261025-r18-live-mapfit3.tar.gz`
+`internal_deployment/dist/sparkrobot-lingxi-nav-internal-1.1.0-20261025-r18-live-mapfit4.tar.gz`
 
 SHA-256：
 
-`ea07b5763ea2d273a9e6c10d3a2fd5513398e1ef01c3d1c0c597382c46ea23d9`
+`b7319cdc9c83506769c5870b8463ed1979ef0f3cf2f7abbde001ebbe253128ac`
 
 请先将 tar 包复制到机器人，然后校验并解压：
 
 ```bash
-sha256sum sparkrobot-lingxi-nav-internal-1.1.0-20261025-r18-live-mapfit3.tar.gz
-mkdir -p ~/r18-live-mapfit3
-tar -xzf sparkrobot-lingxi-nav-internal-1.1.0-20261025-r18-live-mapfit3.tar.gz -C ~/r18-live-mapfit3
-cd ~/r18-live-mapfit3/sparkrobot-lingxi-nav-internal-1.1.0-20261025-r18-live-mapfit3
+sha256sum sparkrobot-lingxi-nav-internal-1.1.0-20261025-r18-live-mapfit4.tar.gz
+mkdir -p ~/r18-live-mapfit4
+tar -xzf sparkrobot-lingxi-nav-internal-1.1.0-20261025-r18-live-mapfit4.tar.gz -C ~/r18-live-mapfit4
+cd ~/r18-live-mapfit4/sparkrobot-lingxi-nav-internal-1.1.0-20261025-r18-live-mapfit4
 ```
 
 首次安装若机器人尚未配置灵心/SOC2 凭据，使用 `sudo ./install.sh --secrets ./secrets.env --setup-soc2`；不要把真实凭据放进压缩包。已有 R18 安装只升级程序时，安装器会保留机器人现有配置、地图和任务：
@@ -28,11 +28,15 @@ sudo sparkrobot-lingxi-internal doctor
 readlink -f /opt/sparkrobot/lingxi-nav/current
 ```
 
-确认当前版本目录为 `1.1.0-20261025-r18-live-mapfit3`，并检查控制台健康状态：
+确认当前版本目录为 `1.1.0-20261025-r18-live-mapfit4`，并检查控制台健康状态：
 
 ```bash
 curl -fsS http://127.0.0.1:3000/health
 ```
+
+## AIMDK 可选媒体接口兼容
+
+部分 R18 AIMDK v1.1.0 安装中的 `aimdk_msgs.srv` 未包含 `PlayMediaFile`。本修复版将该服务视为可选能力：缺失时只禁用媒体文件唱歌，语音 bridge（18080）、TTS、导航及建图仍可启动。升级后检查 `doctor` 中 18080 已监听，并从 `http://127.0.0.1:18080/health` 查看 `media_supported_by_sdk`；若为 `false` 属预期状态。无需 `--reinstall`，不要卸载或删除现有地图、配置和任务。
 
 ## 建图操作
 

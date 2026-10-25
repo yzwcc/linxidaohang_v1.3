@@ -25,7 +25,12 @@ import rclpy
 from rclpy.node import Node
 
 from aimdk_msgs.msg import McActionCommand, McControlArea, McPresetMotion, TtsPriorityLevel
-from aimdk_msgs.srv import ExecuteActionResource, PlayAudioFile, PlayMediaFile, PlayTts, SetMcAction, SetMcPresetMotion
+from aimdk_msgs.srv import ExecuteActionResource, PlayAudioFile, PlayTts, SetMcAction, SetMcPresetMotion
+
+try:
+    from aimdk_msgs.srv import PlayMediaFile
+except ImportError:
+    PlayMediaFile = None
 
 
 DEFAULT_HOST = "0.0.0.0"
@@ -264,10 +269,16 @@ class LingxiRobotBridge(Node):
             PlayAudioFile,
             os.environ.get("LINGXI_AUDIO_SERVICE", DEFAULT_AUDIO_SERVICE),
         )
-        self.media_client = self.create_client(
-            PlayMediaFile,
-            os.environ.get("LINGXI_MEDIA_SERVICE", DEFAULT_MEDIA_SERVICE),
+        self.media_service_name = os.environ.get("LINGXI_MEDIA_SERVICE", DEFAULT_MEDIA_SERVICE)
+        self.media_client = (
+            self.create_client(PlayMediaFile, self.media_service_name)
+            if PlayMediaFile is not None
+            else None
         )
+        if self.media_client is None:
+            self.get_logger().warning(
+                "PlayMediaFile is not available in the installed AIMDK SDK; media-file singing is disabled"
+            )
         self.motion_client = self.create_client(
             SetMcPresetMotion,
             os.environ.get("LINGXI_PRESET_MOTION_SERVICE", DEFAULT_PRESET_MOTION_SERVICE),
@@ -336,9 +347,12 @@ class LingxiRobotBridge(Node):
                 "audio_service": self.audio_client.srv_name,
                 "audio_ready": self.audio_client.service_is_ready()
                 or self.audio_client.wait_for_service(timeout_sec=0.05),
-                "media_service": self.media_client.srv_name,
-                "media_ready": self.media_client.service_is_ready()
-                or self.media_client.wait_for_service(timeout_sec=0.05),
+                "media_service": self.media_service_name,
+                "media_ready": self.media_client is not None and (
+                    self.media_client.service_is_ready()
+                    or self.media_client.wait_for_service(timeout_sec=0.05)
+                ),
+                "media_supported_by_sdk": self.media_client is not None,
                 "motion_service": self.motion_client.srv_name,
                 "motion_ready": self.motion_client.service_is_ready()
                 or self.motion_client.wait_for_service(timeout_sec=0.05),
@@ -640,6 +654,13 @@ class LingxiRobotBridge(Node):
         }
 
     def _sing_media_file(self, event_id: str) -> dict[str, Any]:
+        if self.media_client is None:
+            return {
+                "ok": False,
+                "accepted": False,
+                "status": "media_service_unsupported_by_sdk",
+                "message": "当前 AIMDK aimdk_msgs 未提供 PlayMediaFile；请使用 TTS 模式或 PlayAudioFile 曲库播放",
+            }
         if not self.media_client.wait_for_service(timeout_sec=1.0):
             return {
                 "ok": False,

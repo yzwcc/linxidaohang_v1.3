@@ -17,7 +17,7 @@ from pathlib import Path, PurePosixPath
 ROOT = Path(__file__).resolve().parents[1]
 HERE = ROOT / "internal_deployment"
 PRODUCT_ID = "sparkrobot-lingxi-nav-internal"
-DEFAULT_VERSION = "1.1.0-20261024-r18"
+DEFAULT_VERSION = "1.1.0-20261025-r18-live-mapfit4"
 FIELD_VERIFIED_JAVA_SHA256 = "d3858827d71aa54dc4b7cc794a0d8446cf0168d65e4cca0a2e686b6f7012dd04"
 VERSION_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
 DEV_NODE_MODULES = {
@@ -217,6 +217,7 @@ def audit(stage: Path) -> None:
         "source/navigation/test/test_pnc_discovery.py",
         "source/navigation/test/test_aimdk_110_contract.py",
         "source/navigation/test/test_map_label_path_safety_settings.py",
+        "source/navigation/test/test_r18_voice_bridge_sdk_optional.py",
         "payload/navigation/robot_local_navigation_v3/robot_lingxi_bridge.py",
         "payload/java/robot-local-navigation-java-all.jar",
         "payload/java/linksoul-agentsdk-1.4.0.jar",
@@ -280,6 +281,25 @@ def audit(stage: Path) -> None:
     bridge = (
         stage / "payload" / "navigation" / "robot_local_navigation_v3" / "lingxi_nav_bridge.py"
     ).read_text(encoding="utf-8")
+    voice_bridge = (
+        stage / "payload" / "navigation" / "robot_local_navigation_v3" / "robot_lingxi_bridge.py"
+    ).read_text(encoding="utf-8")
+    voice_bridge_control = (stage / "scripts" / "robot_voice_bridge_control.sh").read_text(encoding="utf-8")
+    for marker in (
+        "try:\n    from aimdk_msgs.srv import PlayMediaFile",
+        "except ImportError:\n    PlayMediaFile = None",
+        "if PlayMediaFile is not None",
+        '"media_service_unsupported_by_sdk"',
+    ):
+        if marker not in voice_bridge:
+            raise RuntimeError(f"R18 语音桥接未对可选 PlayMediaFile SDK 接口安全降级：{marker}")
+    if "if robot_lingxi_bridge.PlayMediaFile is None" not in voice_bridge_control:
+        raise RuntimeError("语音 bridge 预检必须识别缺少 PlayMediaFile 但允许其余功能启动")
+    voice_bridge_test = (
+        stage / "source" / "navigation" / "test" / "test_r18_voice_bridge_sdk_optional.py"
+    ).read_text(encoding="utf-8")
+    if "test_sdk_without_play_media_file_imports_bridge_capability_as_unavailable" not in voice_bridge_test:
+        raise RuntimeError("R18 缺少 AIMDK 不含 PlayMediaFile 时的启动兼容性回归")
     for marker in ("class PathClearanceError", "def plan_reference_line", "inflate_obstacles"):
         if marker not in path_clearance:
             raise RuntimeError(f"安全路径模块缺少实现：{marker}")
