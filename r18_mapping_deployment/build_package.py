@@ -108,7 +108,7 @@ def build(stage: Path, server: Path) -> None:
         encoding="utf-8",
         newline="\n",
     )
-    scripts = [HERE / "install.sh", HERE / "README.md"]
+    scripts = [HERE / "install.sh", HERE / "README.md", HERE / "DEPLOYMENT-GUIDE.md"]
     for source in scripts:
         copy_file(source, stage / source.name, 0o755 if source.suffix == ".sh" else None)
     (stage / "server.env.template").write_text(
