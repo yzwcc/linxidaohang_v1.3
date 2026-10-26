@@ -1,0 +1,89 @@
+aimdk 简单部署命令
+==================
+
+下面只保留最少命令。机器人 IP 和本地文件路径替换成实际值。
+
+
+一、电脑上传 aimdk 压缩包
+-------------------------
+
+在 Windows PowerShell 执行：
+
+    $RobotIp = "192.168.1.202"
+    scp "E:\你的路径\aimdk.tar.gz" "agi@${RobotIp}:/home/agi/"
+    ssh "agi@${RobotIp}"
+
+
+二、机器人编译 aimdk
+--------------------
+
+进入机器人后执行下面整段命令：
+
+    cd /home/agi
+    mkdir -p /home/agi/aimdk
+    tar -xzf aimdk.tar.gz -C /home/agi/aimdk --strip-components=1
+    source /opt/ros/humble/setup.bash
+    colcon build --base-paths /home/agi/aimdk --merge-install --install-base /home/agi/aimdk/install --cmake-args -DCMAKE_BUILD_TYPE=Release
+    source /home/agi/aimdk/install/setup.bash
+    python3 -c "import rclpy; import rclpy.action; print('aimdk 编译成功')"
+
+如果解压后提示找不到 ROS 包，说明官网压缩包没有外层目录。重新解压时去掉参数：
+
+    tar -xzf aimdk.tar.gz -C /home/agi/aimdk
+
+然后再次执行编译命令：
+
+    source /opt/ros/humble/setup.bash
+    colcon build --base-paths /home/agi/aimdk --merge-install --install-base /home/agi/aimdk/install --cmake-args -DCMAKE_BUILD_TYPE=Release
+
+
+三、验证 aimdk
+--------------
+
+    source /opt/ros/humble/setup.bash
+    source /home/agi/aimdk/install/setup.bash
+    python3 -c "import rclpy; import rclpy.action; print('ROS 和 aimdk 正常')"
+
+
+四、安装灵犀导航新版
+--------------------
+
+aimdk 验证成功后，进入灵犀导航部署包目录：
+
+cd /home/agi/sparkrobot-lingxi-nav-internal-1.0.3-20260828
+
+新机器人首次安装：
+
+    ./quick_install.sh
+
+旧版机器人升级：
+
+    sudo ./install.sh
+
+启动全部服务并检查：
+
+    sudo sparkrobot-lingxi-internal start
+    sudo sparkrobot-lingxi-internal doctor
+
+
+五、最少验收
+------------
+
+    curl -fsS http://127.0.0.1:3000/health
+    curl -fsS http://127.0.0.1:8002/api/discover_maps
+    curl -fsS http://127.0.0.1:18082/nav/status
+
+手机访问：
+
+    http://机器人IP:3000
+
+
+说明
+----
+
+- aimdk 建议安装到 /home/agi/aimdk/install。
+- 灵犀导航启动脚本会自动读取该目录。
+- 如果机器人已经有可用 aimdk，不需要重复编译，直接安装灵犀导航包。
+- 如果 colcon 命令不存在，先执行：
+
+    sudo apt-get update && sudo apt-get install -y python3-colcon-common-extensions
