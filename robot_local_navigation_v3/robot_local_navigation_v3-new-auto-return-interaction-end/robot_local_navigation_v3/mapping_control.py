@@ -8,8 +8,9 @@ import os
 import math
 import struct
 import zlib
+from array import array
 from pathlib import Path
-from typing import Any
+from typing import Any, Sequence
 
 from aimdk_msgs.srv import GetStoredMapByName
 from nav_msgs.msg import Odometry
@@ -336,15 +337,30 @@ class MappingController:
         if not math.isfinite(resolution) or resolution <= 0:
             raise ValueError("AIMDK 返回的地图 ID、栅格尺寸或分辨率无效")
         origin = info.origin
-        q = origin.orientation
-        if not _is_axis_aligned(q):
-            raise ValueError("该地图原点包含旋转；当前标点坐标模型不支持旋转地图，未导入以避免点位坐标错位")
+        origin_x = float(origin.position.x)
+        origin_y = float(origin.position.y)
+        origin_z = float(getattr(origin.position, "z", 0.0))
+        if not all(math.isfinite(value) for value in (origin_x, origin_y, origin_z)) or abs(origin_z) > 1e-5:
+            raise ValueError("AIMDK 地图原点位置无效；仅支持位于水平平面内的二维地图")
+        yaw = _planar_yaw(origin.orientation)
         try:
-            values = [int(value) for value in result.data]
+            values = array("b")
+            for raw_value in result.data:
+                value = int(raw_value)
+                if value != raw_value or value < -1 or value > 100:
+                    raise ValueError
+                values.append(value)
         except (TypeError, ValueError, OverflowError) as exc:
             raise ValueError("AIMDK 地图 occupancy data 包含非整数值") from exc
-        if len(values) != width * height or any(int(value) < -1 or int(value) > 100 for value in values):
+        if len(values) != width * height:
             raise ValueError("AIMDK 地图 occupancy data 长度或取值无效")
+
+        source_width, source_height = width, height
+        rotated = abs(yaw) > 1e-8
+        if rotated:
+            values, width, height, origin_x, origin_y = _rotate_occupancy_to_axis_aligned(
+                values, width, height, resolution, origin_x, origin_y, yaw,
+            )
 
         target = self._map_root / str(map_id)
         self._map_root.mkdir(parents=True, exist_ok=True)
@@ -356,8 +372,8 @@ class MappingController:
         info_path = target / "grid_map_info.txt"
         metadata_path = target / "lingxi_map_import.json"
         pixels_per_meter = 1.0 / resolution
-        origin_u = -float(origin.position.x) * pixels_per_meter
-        origin_v = height + float(origin.position.y) * pixels_per_meter
+        origin_u = -origin_x * pixels_per_meter
+        origin_v = height + origin_y * pixels_per_meter
         try:
             _write_new_file(image_path, _occupancy_png(values, width, height))
             _write_new_file(info_path, (
@@ -373,6 +389,12 @@ class MappingController:
                     "origin_v": origin_v,
                     "width": width,
                     "height": height,
+                    "source_width": source_width,
+                    "source_height": source_height,
+                    "source_origin_x": float(origin.position.x),
+                    "source_origin_y": float(origin.position.y),
+                    "source_origin_yaw": yaw,
+                    "rotation_resampled_to_axis_aligned": rotated,
                 },
             }, ensure_ascii=False, indent=2).encode("utf-8"))
         except Exception:
@@ -400,6 +422,7 @@ class MappingController:
             "width": width,
             "height": height,
             "resolution_m_per_cell": resolution,
+            "rotation_resampled_to_axis_aligned": rotated,
             "imported_for_point_editing": True,
         }
 
@@ -426,17 +449,91 @@ class MappingController:
         temp.replace(self._state_path)
 
 
-def _is_axis_aligned(q: Any, tolerance: float = 1e-5) -> bool:
+def _planar_yaw(q: Any, tolerance: float = 1e-5) -> float:
     x, y, z, w = float(q.x), float(q.y), float(q.z), float(q.w)
     norm = math.sqrt(x * x + y * y + z * z + w * w)
     if not math.isfinite(norm) or norm < 1e-9:
-        return False
+        raise ValueError("AIMDK 地图原点方向四元数无效")
     x, y, z, w = x / norm, y / norm, z / norm, w / norm
-    # q and -q encode the same rotation; require roll, pitch and yaw to be zero.
-    return abs(x) <= tolerance and abs(y) <= tolerance and abs(z) <= tolerance and abs(abs(w) - 1.0) <= tolerance
+    roll = math.atan2(2.0 * (w * x + y * z), 1.0 - 2.0 * (x * x + y * y))
+    sin_pitch = max(-1.0, min(1.0, 2.0 * (w * y - z * x)))
+    pitch = math.asin(sin_pitch)
+    if abs(roll) > tolerance or abs(pitch) > tolerance:
+        raise ValueError("AIMDK 地图原点包含 roll/pitch；仅支持二维水平地图")
+    return math.atan2(2.0 * (w * z + x * y), 1.0 - 2.0 * (y * y + z * z))
 
 
-def _occupancy_png(values: list[int], width: int, height: int) -> bytes:
+def _rotate_occupancy_to_axis_aligned(
+    values: Sequence[int],
+    width: int,
+    height: int,
+    resolution: float,
+    origin_x: float,
+    origin_y: float,
+    yaw: float,
+) -> tuple[array, int, int, float, float]:
+    cosine, sine = math.cos(yaw), math.sin(yaw)
+    corners = (
+        (0.0, 0.0),
+        (width * resolution, 0.0),
+        (0.0, height * resolution),
+        (width * resolution, height * resolution),
+    )
+    world_corners = [
+        (origin_x + cosine * x - sine * y, origin_y + sine * x + cosine * y)
+        for x, y in corners
+    ]
+    output_origin_x = min(point[0] for point in world_corners)
+    output_origin_y = min(point[1] for point in world_corners)
+    max_x = max(point[0] for point in world_corners)
+    max_y = max(point[1] for point in world_corners)
+
+    def cell_count(span: float) -> int:
+        count = span / resolution
+        nearest = round(count)
+        if math.isclose(count, nearest, rel_tol=1e-12, abs_tol=1e-9):
+            return max(1, nearest)
+        return math.ceil(count)
+
+    output_width = cell_count(max_x - output_origin_x)
+    output_height = cell_count(max_y - output_origin_y)
+    if output_width <= 0 or output_height <= 0 or output_width * output_height > MAX_MAP_CELLS:
+        raise ValueError("旋转地图轴对齐后的栅格尺寸无效或超过导入上限")
+
+    output = array("b", [-1]) * (output_width * output_height)
+    source_limit_x, source_limit_y = width * resolution, height * resolution
+    for row in range(output_height):
+        world_y = output_origin_y + (row + 0.5) * resolution
+        for column in range(output_width):
+            world_x = output_origin_x + (column + 0.5) * resolution
+            dx, dy = world_x - origin_x, world_y - origin_y
+            local_x = cosine * dx + sine * dy
+            local_y = -sine * dx + cosine * dy
+            if 0.0 <= local_x < source_limit_x and 0.0 <= local_y < source_limit_y:
+                source_column = min(width - 1, int(local_x / resolution))
+                source_row = min(height - 1, int(local_y / resolution))
+                output[row * output_width + column] = int(values[source_row * width + source_column])
+
+    # Preserve thin occupied cells that inverse sampling can miss at diagonal angles.
+    for source_row in range(height):
+        for source_column in range(width):
+            value = int(values[source_row * width + source_column])
+            if value < 25:
+                continue
+            local_x = (source_column + 0.5) * resolution
+            local_y = (source_row + 0.5) * resolution
+            world_x = origin_x + cosine * local_x - sine * local_y
+            world_y = origin_y + sine * local_x + cosine * local_y
+            target_column = min(output_width - 1, max(0, int((world_x - output_origin_x) / resolution)))
+            target_row = min(output_height - 1, max(0, int((world_y - output_origin_y) / resolution)))
+            target_index = target_row * output_width + target_column
+            if output[target_index] < 65:
+                output[target_index] = value
+
+    return output, output_width, output_height, output_origin_x, output_origin_y
+
+
+def _occupancy_png(values: Sequence[int], width: int, height: int) -> bytes:
     rows = bytearray()
     for row in range(height):
         rows.append(0)

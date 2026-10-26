@@ -1,8 +1,8 @@
 # 灵犀 X2 R18 建图网页增量包
 
-目标版本：V1.3.1 R18，使用 AIMDK v1.1.0。网页运行在机器人本机 `:3000`，同一局域网的手机/电脑访问；网页只采集和保存地图，机器人移动由外置遥控器控制。`20261026-r18-mapfit16` 还包含机器人端 ROS 实时点云累积、手机/电脑扫描预览、R18 桥接 `18082` 端口兼容，以及较长的手动导航接口等待时间。
+目标版本：V1.3.1 R18，使用 AIMDK v1.1.0。网页运行在机器人本机 `:3000`，同一局域网的手机/电脑访问；网页只采集和保存地图，机器人移动由外置遥控器控制。`20261026-r18-mapfit17` 还包含机器人端 ROS 实时点云累积、手机/电脑扫描预览、R18 桥接 `18082` 端口兼容、较长的手动导航接口等待时间，以及纯平面 yaw 原点地图的轴对齐重采样。
 
-网页读取机器人导航桥接对激光雷达、IMU、里程计、SLAM 和 AIMDK 建图服务的状态。开始/停止建图只向 AIMDK `/integrated_command` 发布 `start_mapping` / `stop_mapping:<地图名>`，保存后通过 `GetStoredMapByName` 读取 occupancy grid 并导入现有数字地图目录。扫描预览由 ROS 节点订阅胸前雷达与 `/slam/lidar_odom`，用 TF 转到 SLAM 坐标系后向网页提供累计点云和轨迹。网页不会发布 PNC、速度或底盘移动命令。
+网页读取机器人导航桥接对激光雷达、IMU、里程计、SLAM 和 AIMDK 建图服务的状态。开始/停止建图只向 AIMDK `/integrated_command` 发布 `start_mapping` / `stop_mapping:<地图名>`，保存后通过 `GetStoredMapByName` 读取 occupancy grid 并导入现有数字地图目录。纯平面 yaw 原点会按原分辨率重采样为轴对齐栅格，保存源原点与 yaw 供追溯；障碍单元优先保留。roll/pitch、无效四元数、非水平原点和超过上限的结果会明确拒绝。扫描预览由 ROS 节点订阅胸前雷达与 `/slam/lidar_odom`，用 TF 转到 SLAM 坐标系后向网页提供累计点云和轨迹。网页不会发布 PNC、速度或底盘移动命令。
 
 ## 前置条件
 
@@ -19,7 +19,7 @@
 
 ```powershell
 $RobotIp = "机器人当前IP"
-$Package = "sparkrobot-lingxi-r18-mapping-1.1.0-20261026-r18-mapfit16.tar.gz"
+$Package = "sparkrobot-lingxi-r18-mapping-1.1.0-20261026-r18-mapfit17.tar.gz"
 scp ".\$Package" "agi@${RobotIp}:/home/agi/"
 scp ".\$Package.sha256" "agi@${RobotIp}:/home/agi/"
 ssh "agi@${RobotIp}"
@@ -29,8 +29,8 @@ ssh "agi@${RobotIp}"
 
 ```bash
 cd /home/agi
-sha256sum -c sparkrobot-lingxi-r18-mapping-1.1.0-20261026-r18-mapfit16.tar.gz.sha256
-tar -xzf sparkrobot-lingxi-r18-mapping-1.1.0-20261026-r18-mapfit16.tar.gz
+sha256sum -c sparkrobot-lingxi-r18-mapping-1.1.0-20261026-r18-mapfit17.tar.gz.sha256
+tar -xzf sparkrobot-lingxi-r18-mapping-1.1.0-20261026-r18-mapfit17.tar.gz
 cd sparkrobot-lingxi-r18-mapping
 sha256sum -c SHA256SUMS
 sudo env ROBOT_AIMDK_SETUP=/机器人实际路径/aimdk-v1.1.0/install/setup.bash ./install.sh
@@ -65,14 +65,14 @@ sudo -u agi env ROBOT_AIMDK_SETUP=/机器人实际路径/aimdk-v1.1.0/install/se
 curl -fsS http://127.0.0.1:18082/mapping/status
 ```
 
-网页健康接口的 `version` 应为 `1.1.0-20261026-r18-mapfit16`；安装器会在重启后核对健康端点返回的版本，不接受仅端口可访问但实际仍运行旧版本的情况。其他产品目录里的旧预览实例或 v140 服务不能作为 R18 部署验收。
+网页健康接口的 `version` 应为 `1.1.0-20261026-r18-mapfit17`；安装器会在重启后核对健康端点返回的版本，不接受仅端口可访问但实际仍运行旧版本的情况。其他产品目录里的旧预览实例或 v140 服务不能作为 R18 部署验收。
 
-本次离线测试不能代替 X2 实机验收。首次部署必须确认传感器帧、地图保存延迟、地图原点及现场已知位置；不要把旋转地图导入当前不支持旋转原点的点位坐标模型。导航桥接不使用已经废弃的 AimDK setup 默认路径；本次使用的 `/integrated_command`、地图查询和 PNC 接口均来自显式配置的 AIMDK v1.1.0 overlay。
+本次离线测试不能代替 X2 实机验收。首次部署必须确认传感器帧、地图保存延迟、导入后的地图方向及现场已知位置，尤其检查旋转原点重采样后的墙体与占用区域。导航桥接不使用已经废弃的 AimDK setup 默认路径；本次使用的 `/integrated_command`、地图查询和 PNC 接口均来自显式配置的 AIMDK v1.1.0 overlay。
 
 ## 本次交付验证范围
 
 - 服务端 Node 测试：55 项通过；TypeScript 构建通过。
-- 导航与建图 Python 全量测试：130 项通过，4 个子测试通过；Python 编译和 Shell 语法检查通过。
+- 导航与建图 Python 全量测试：135 项通过，4 个子测试通过；包括 90° 与任意 yaw 原点、已知占用格世界坐标精度、灰度占用保留、地图目录发现闭环、重采样尺寸上限和 roll/pitch 拒绝；Python 编译和 Shell 语法检查通过。
 - 安装器负向测试：缺少 AIMDK setup 时明确拒绝，隔离目标目录未创建。
 - 打包审计：归档与 payload manifest / SHA256SUMS 一致；ARM64 Node ELF64 架构及可执行权限通过；未包含 Windows 原生模块或 `.env`/私钥。
 - 浏览器检查：1440×1000 桌面、390×844 手机无横向溢出；建图视图 axe 扫描 0 项违规、3 项对比度结果需人工复核。

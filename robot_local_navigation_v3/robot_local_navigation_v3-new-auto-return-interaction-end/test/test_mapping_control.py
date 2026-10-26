@@ -424,43 +424,161 @@ def test_materialized_png_encodes_known_free_and_occupied_cells(monkeypatch, tmp
     assert pixels == bytes((0, 254, 0))
 
 
-def test_materialize_refuses_rotated_origin_and_does_not_create_map_dir(monkeypatch, tmp_path):
+def test_materialize_refuses_roll_or_pitch_and_does_not_create_map_dir(monkeypatch, tmp_path):
     controller, _, _, _, _ = _controller(monkeypatch, tmp_path)
     response = SimpleNamespace(
         map_id=125,
         map_path="/vendor/maps/125.png",
         data=[0],
         map_info=SimpleNamespace(width=1, height=1, resolution=0.05, origin=SimpleNamespace(
-            position=SimpleNamespace(x=0.0, y=0.0),
-            orientation=SimpleNamespace(x=0.0, y=0.0, z=math.sin(0.2), w=math.cos(0.2)),
+            position=SimpleNamespace(x=0.0, y=0.0, z=0.0),
+            orientation=SimpleNamespace(x=math.sin(0.05), y=0.0, z=0.0, w=math.cos(0.05)),
         )),
     )
     try:
         controller._materialize_map("room", response)
     except ValueError as exc:
-        assert "不支持旋转地图" in str(exc)
+        assert "roll/pitch" in str(exc)
     else:
-        raise AssertionError("rotated map was imported with axis-aligned pixel coordinates")
+        raise AssertionError("a non-planar map origin was imported")
     assert not (controller._map_root / "125").exists()
 
 
 def test_invalid_saved_map_fails_immediately_and_clears_stopped_session(monkeypatch, tmp_path):
     controller, publisher, client, _, _ = _controller(monkeypatch, tmp_path)
-    client.response.map_info.origin.orientation.z = math.sin(0.2)
-    client.response.map_info.origin.orientation.w = math.cos(0.2)
+    client.response.map_info.origin.orientation.x = math.sin(0.05)
+    client.response.map_info.origin.orientation.w = math.cos(0.05)
     controller.start("rotated_room")
 
     try:
         controller.stop_and_save("rotated_room", timeout_sec=1)
     except RuntimeError as exc:
-        assert "不支持旋转地图" in str(exc)
+        assert "roll/pitch" in str(exc)
     else:
-        raise AssertionError("unsupported map origin should fail instead of timing out")
+        raise AssertionError("a non-planar map origin should fail instead of timing out")
 
     status = controller.status()
     assert publisher.messages == ["start_mapping", "stop_mapping:rotated_room"]
     assert status["active"] is False
     assert status["last_result"]["status"] == "import_failed"
+
+
+def test_rotated_origin_is_resampled_and_discovered_by_existing_map_api(monkeypatch, tmp_path):
+    yaw = math.pi / 4
+    response = SimpleNamespace(
+        code=0,
+        map_id=127,
+        map_path="/vendor/maps/127.png",
+        data=[100, 0],
+        map_info=SimpleNamespace(width=2, height=1, resolution=0.1, origin=SimpleNamespace(
+            position=SimpleNamespace(x=2.0, y=3.0, z=0.0),
+            orientation=SimpleNamespace(x=0.0, y=0.0, z=math.sin(yaw / 2), w=math.cos(yaw / 2)),
+        )),
+    )
+    controller, publisher, _, _, _ = _controller(monkeypatch, tmp_path, response=response)
+    controller.start("diagonal_room")
+    imported = controller.stop_and_save("diagonal_room", timeout_sec=1)
+    app_home = tmp_path / "rotated-web-app"
+    config_store = UnifiedConfigStore(app_home / "unified_nav_config.json")
+    config_store.save(UnifiedNavConfig())
+    app = V3LabelApp(config_store, MapPointStore(app_home / "maps"), Mock(), Mock())
+
+    maps = app.discover_maps(str(controller._map_root))
+    payload = app.get_map_payload(str(controller._map_root), "127")["map"]
+    info_lines = Path(imported["grid_map_info_path"]).read_text().splitlines()
+    metadata = __import__("json").loads(Path(imported["map_metadata_path"]).read_text())
+    corners = [
+        (2.0, 3.0),
+        (2.0 + 0.2 * math.cos(yaw), 3.0 + 0.2 * math.sin(yaw)),
+        (2.0 - 0.1 * math.sin(yaw), 3.0 + 0.1 * math.cos(yaw)),
+        (2.0 + 0.2 * math.cos(yaw) - 0.1 * math.sin(yaw), 3.0 + 0.2 * math.sin(yaw) + 0.1 * math.cos(yaw)),
+    ]
+
+    assert imported["rotation_resampled_to_axis_aligned"] is True
+    assert publisher.messages == ["start_mapping", "stop_mapping:diagonal_room"]
+    assert [item["map_id"] for item in maps] == [127]
+    assert payload["width"] == imported["width"]
+    assert payload["height"] == imported["height"]
+    assert payload["resolution_pixels_per_meter"] == 10.0
+    assert float(info_lines[1].split()[0]) == __import__("pytest").approx(-min(p[0] for p in corners) * 10)
+    assert float(info_lines[1].split()[1]) == __import__("pytest").approx(imported["height"] + min(p[1] for p in corners) * 10)
+    assert metadata["map_info"]["rotation_resampled_to_axis_aligned"] is True
+    assert metadata["map_info"]["source_origin_yaw"] == __import__("pytest").approx(yaw)
+
+
+def test_arbitrary_rotation_preserves_occupied_cell_and_world_coordinate_accuracy(monkeypatch, tmp_path):
+    controller, _, _, _, _ = _controller(monkeypatch, tmp_path)
+    module = importlib.import_module("robot_local_navigation_v3.mapping_control")
+    width, height, resolution = 5, 3, 0.2
+    origin_x, origin_y, yaw = -1.25, 2.75, 0.37
+    source = [0] * (width * height)
+    occupied_column, occupied_row = 3, 1
+    source[occupied_row * width + occupied_column] = 100
+
+    output, output_width, output_height, output_x, output_y = module._rotate_occupancy_to_axis_aligned(
+        source, width, height, resolution, origin_x, origin_y, yaw,
+    )
+
+    cosine, sine = math.cos(yaw), math.sin(yaw)
+    occupied_local_x = (occupied_column + 0.5) * resolution
+    occupied_local_y = (occupied_row + 0.5) * resolution
+    occupied_world_x = origin_x + cosine * occupied_local_x - sine * occupied_local_y
+    occupied_world_y = origin_y + sine * occupied_local_x + cosine * occupied_local_y
+    target_column = min(output_width - 1, int((occupied_world_x - output_x) / resolution))
+    target_row = min(output_height - 1, int((occupied_world_y - output_y) / resolution))
+    assert output[target_row * output_width + target_column] >= 65
+
+    for row in range(height):
+        for column in range(width):
+            local_x, local_y = (column + 0.5) * resolution, (row + 0.5) * resolution
+            world_x = origin_x + cosine * local_x - sine * local_y
+            world_y = origin_y + sine * local_x + cosine * local_y
+            raster_column = min(output_width - 1, int((world_x - output_x) / resolution))
+            raster_row = min(output_height - 1, int((world_y - output_y) / resolution))
+            center_x = output_x + (raster_column + 0.5) * resolution
+            center_y = output_y + (raster_row + 0.5) * resolution
+            assert math.hypot(center_x - world_x, center_y - world_y) <= resolution * math.sqrt(0.5) + 1e-9
+
+
+def test_ninety_degree_rotation_keeps_occupancy_grid_axes_and_values(monkeypatch, tmp_path):
+    controller, _, _, _, _ = _controller(monkeypatch, tmp_path)
+    module = importlib.import_module("robot_local_navigation_v3.mapping_control")
+
+    output, width, height, origin_x, origin_y = module._rotate_occupancy_to_axis_aligned(
+        [100, 0], 2, 1, 0.1, 2.0, 3.0, math.pi / 2,
+    )
+
+    assert (width, height) == (1, 2)
+    assert origin_x == __import__("pytest").approx(1.9)
+    assert origin_y == __import__("pytest").approx(3.0)
+    assert list(output) == [100, 0]
+
+
+def test_rotated_resampling_preserves_vendor_gray_occupied_cells(monkeypatch, tmp_path):
+    controller, _, _, _, _ = _controller(monkeypatch, tmp_path)
+    module = importlib.import_module("robot_local_navigation_v3.mapping_control")
+
+    output, width, height, origin_x, origin_y = module._rotate_occupancy_to_axis_aligned(
+        [50], 1, 1, 0.1, 0.0, 0.0, math.pi / 4,
+    )
+    center_x = (math.cos(math.pi / 4) - math.sin(math.pi / 4)) * 0.05
+    center_y = (math.sin(math.pi / 4) + math.cos(math.pi / 4)) * 0.05
+    column = min(width - 1, int((center_x - origin_x) / 0.1))
+    row = min(height - 1, int((center_y - origin_y) / 0.1))
+
+    assert output[row * width + column] == 50
+
+
+def test_rotated_resample_enforces_axis_aligned_output_size_limit(monkeypatch, tmp_path):
+    controller, _, _, _, _ = _controller(monkeypatch, tmp_path)
+    module = importlib.import_module("robot_local_navigation_v3.mapping_control")
+    monkeypatch.setattr(module, "MAX_MAP_CELLS", 8)
+    try:
+        module._rotate_occupancy_to_axis_aligned([0] * 4, 2, 2, 1.0, 0.0, 0.0, math.pi / 4)
+    except ValueError as exc:
+        assert "超过导入上限" in str(exc)
+    else:
+        raise AssertionError("resampled map larger than the import limit was accepted")
 
 
 def test_materialize_refuses_to_overwrite_existing_map_directory(monkeypatch, tmp_path):

@@ -15,7 +15,7 @@ ROOT = Path(__file__).resolve().parents[1]
 HERE = Path(__file__).resolve().parent
 NAV_SOURCE = ROOT / "robot_local_navigation_v3" / "robot_local_navigation_v3-new-auto-return-interaction-end"
 NODE_RUNTIME = ROOT / "productization" / "build" / "node-arm64"
-VERSION = "1.1.0-20261026-r18-mapfit16"
+VERSION = "1.1.0-20261026-r18-mapfit17"
 PACKAGE_PREFIX = "sparkrobot-lingxi-r18-mapping"
 
 
