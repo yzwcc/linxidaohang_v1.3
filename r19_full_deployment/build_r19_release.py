@@ -726,6 +726,7 @@ body.mapping-focus .mapping-side-rail { max-height: 100%; overflow-y: auto; over
     expect(html.indexOf('class="mapping-live"')).toBeLessThan(html.indexOf('class="mapping-side-rail"'));
     expect(appScript).toContain('screen.orientation.lock("landscape")');
     expect(appScript).toContain("panel.requestFullscreen");
+    expect(appScript).toContain('if (window.matchMedia("(pointer: coarse)").matches) enterMappingFocus();');
     expect(appScript).toContain("setInterval(() => void refreshMappingPreview(), 500)");
     expect(styles).toContain("@media (max-width: 980px) and (orientation: landscape)");
     expect(styles).toContain("body.mapping-focus #mappingPanel");
