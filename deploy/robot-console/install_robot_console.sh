@@ -22,8 +22,29 @@ for required in \
   fi
 done
 
+if [[ -z "${ROBOT_AIMDK_SETUP:-}" ]]; then
+  echo "部署前必须设置 ROBOT_AIMDK_SETUP 为 AIMDK v1.1.0 install/setup.bash，例如：" >&2
+  echo "sudo ROBOT_AIMDK_SETUP=/opt/aimdk-v1.1.0/install/setup.bash bash $0" >&2
+  exit 1
+fi
+if [[ ! -r "${ROBOT_AIMDK_SETUP}" ]]; then
+  echo "AIMDK setup 不可读：${ROBOT_AIMDK_SETUP}" >&2
+  exit 1
+fi
+if ! bash -lc 'source "$1" && python3 -c "from aimdk_msgs.msg import PncTaskRequest; from aimdk_msgs.srv import GetStoredMapByName"' _ "${ROBOT_AIMDK_SETUP}"; then
+  echo "AIMDK overlay 未提供 v1.1.0 导航与建图接口，拒绝部署" >&2
+  exit 1
+fi
+
 install -d -m 0755 "${TARGET_ROOT}" "${TARGET_ROOT}/server"
-rm -rf "${TARGET_ROOT}/server/dist" "${TARGET_ROOT}/server/public" "${TARGET_ROOT}/server/node_modules" "${TARGET_ROOT}/runtime"
+backup_dir="${TARGET_ROOT}/backups/aimdk-v1.1.0-$(date +%Y%m%d-%H%M%S)"
+install -d -m 0700 "${backup_dir}"
+for path in "${TARGET_ROOT}/server/dist" "${TARGET_ROOT}/server/public" "${TARGET_ROOT}/server/node_modules" "${TARGET_ROOT}/runtime"; do
+  if [[ -e "${path}" ]]; then
+    install -d -m 0755 "${backup_dir}/$(dirname "${path#${TARGET_ROOT}/}")"
+    mv "${path}" "${backup_dir}/${path#${TARGET_ROOT}/}"
+  fi
+done
 cp -a "${SERVER_SOURCE}/dist" "${SERVER_SOURCE}/public" "${SERVER_SOURCE}/node_modules" "${TARGET_ROOT}/server/"
 cp -a "${SERVER_SOURCE}/package.json" "${SERVER_SOURCE}/package-lock.json" "${TARGET_ROOT}/server/"
 cp -a "${RUNTIME_SOURCE}" "${TARGET_ROOT}/runtime"
@@ -32,10 +53,22 @@ if [[ -f "${PACKAGE_DIR}/deploy/robot-console/install_navigation_update.sh" ]]; 
   bash "${PACKAGE_DIR}/deploy/robot-console/install_navigation_update.sh"
 fi
 
-if [[ -f "${TARGET_ROOT}/server/.env" ]]; then
-  cp -a "${TARGET_ROOT}/server/.env" "${TARGET_ROOT}/server/.env.backup.$(date +%Y%m%d-%H%M%S)"
+env_file="${TARGET_ROOT}/server/.env"
+if [[ -f "${env_file}" ]]; then
+  cp -a "${env_file}" "${backup_dir}/server.env"
+else
+  cp "${PACKAGE_DIR}/deploy/robot-console/robot-console.env" "${env_file}"
 fi
-cp "${PACKAGE_DIR}/deploy/robot-console/robot-console.env" "${TARGET_ROOT}/server/.env"
+if grep -q '^ROBOT_AIMDK_SETUP=' "${env_file}"; then
+  sed -i "s|^ROBOT_AIMDK_SETUP=.*|ROBOT_AIMDK_SETUP=${ROBOT_AIMDK_SETUP}|" "${env_file}"
+else
+  printf '\nROBOT_AIMDK_SETUP=%s\n' "${ROBOT_AIMDK_SETUP}" >>"${env_file}"
+fi
+if grep -q '^ROBOT_BRIDGE_PORT=' "${env_file}"; then
+  sed -i 's/^ROBOT_BRIDGE_PORT=.*/ROBOT_BRIDGE_PORT=18082/' "${env_file}"
+else
+  printf '\nROBOT_BRIDGE_PORT=18082\n' >>"${env_file}"
+fi
 token="$(od -An -N32 -tx1 /dev/urandom | tr -d ' \n')"
 sed -i "s/^TOKEN_SECRET=.*/TOKEN_SECRET=${token}/" "${TARGET_ROOT}/server/.env"
 chmod 0600 "${TARGET_ROOT}/server/.env"

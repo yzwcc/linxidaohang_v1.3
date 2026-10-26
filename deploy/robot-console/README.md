@@ -18,8 +18,10 @@
 
 ```bash
 cd lingxi-nav-robot-console
-sudo bash deploy/robot-console/install_robot_console.sh
+sudo env ROBOT_AIMDK_SETUP=/机器人上/AIMDK-v1.1.0/install/setup.bash bash deploy/robot-console/install_robot_console.sh
 ```
+
+安装器会拒绝空配置。必须先在机器人安装供应商提供的 AIMDK v1.1.0 overlay；用户提供的 SDK artifacts 开发归档不等于机器人可直接替换安装包。该路径会保存到控制台环境文件，并用于导航、定位、传感器/地图诊断。
 
 安装脚本会：
 

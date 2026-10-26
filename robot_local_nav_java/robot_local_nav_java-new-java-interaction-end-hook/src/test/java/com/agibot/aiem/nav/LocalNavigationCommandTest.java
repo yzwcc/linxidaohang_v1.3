@@ -292,11 +292,53 @@ final class LocalNavigationCommandTest {
         }
     }
 
+    private static void testNavigationRejectionReasonIsPreserved() throws Exception {
+        HttpServer navServer = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        navServer.createContext("/", exchange -> {
+            String path = exchange.getRequestURI().getPath();
+            String response = switch (path) {
+                case "/nav/start" -> "{\"ok\":false,\"accepted\":false,"
+                        + "\"status\":\"path_safety_rejected\","
+                        + "\"reason\":\"尚未配置机器人实测外接半径，已拒绝下发导航\"}";
+                case "/task/start" -> "{\"ok\":false,\"accepted\":false,"
+                        + "\"status\":\"path_safety_rejected\","
+                        + "\"reason\":\"尚未配置机器人实测外接半径，已拒绝下发导航\"}";
+                default -> "{\"ok\":true}";
+            };
+            byte[] body = response.getBytes(StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(200, body.length);
+            exchange.getResponseBody().write(body);
+            exchange.close();
+        });
+        navServer.start();
+        try {
+            AppConfig config = config("http://127.0.0.1:1/chat/completions",
+                    "http://127.0.0.1:" + navServer.getAddress().getPort());
+            Method handleIntent = LingxiNavAgentApp.class.getDeclaredMethod(
+                    "handleIntent", String.class, String.class, NavigationIntent.class,
+                    NavBridgeClient.class, DoubaoArkClient.class, QaStore.class, boolean.class);
+            handleIntent.setAccessible(true);
+            NavBridgeClient bridge = new NavBridgeClient(config);
+            for (NavigationIntent intent : List.of(
+                    NavigationIntent.navigate("门口", "带我去门口"), NavigationIntent.startTask())) {
+                Object result = handleIntent.invoke(null, "safety-rejection-test", "", intent,
+                        bridge, new DoubaoArkClient(config), null, false);
+                Field reply = result.getClass().getDeclaredField("reply");
+                reply.setAccessible(true);
+                check("尚未配置机器人实测外接半径，已拒绝下发导航".equals(reply.get(result)),
+                        "navigation and tour voice responses preserve the bridge rejection reason");
+            }
+        } finally {
+            navServer.stop(0);
+        }
+    }
+
     public static void main(String[] args) throws Exception {
         testExactCommandsAndGuards();
         testTextFastPath();
         testAmbiguousAliasAndStopCommandsStayLocal();
         testLowConfidenceRobotPrompt();
+        testNavigationRejectionReasonIsPreserved();
         System.out.println("LocalNavigationCommandTest passed: " + checks + " assertions");
     }
 }

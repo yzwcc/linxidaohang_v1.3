@@ -22,7 +22,10 @@ export async function getCurrentLocalization(config: AppConfig): Promise<Current
     "export PYTHONPATH=" + shellQuote(config.robot.navHome) + ":${PYTHONPATH:-}",
     "[ -f /opt/ros/humble/setup.bash ] && source /opt/ros/humble/setup.bash",
     "[ -f /agibot/software/common/local_setup.bash ] && source /agibot/software/common/local_setup.bash",
-    "[ -f /home/agi/aimdk/install/setup.bash ] && source /home/agi/aimdk/install/setup.bash",
+    `AIMDK_SETUP=${shellQuote(config.robot.aimdkSetup || "")}`,
+    "[ -n \"$AIMDK_SETUP\" ] && [ -r \"$AIMDK_SETUP\" ] || { echo AIMDK_v1_1_0_setup_missing; exit 1; }",
+    "source \"$AIMDK_SETUP\"",
+    "python3 -c 'from aimdk_msgs.msg import PncTaskRequest' >/dev/null 2>&1 || { echo AIMDK_v1_1_0_interface_unavailable; exit 1; }",
     "[ -f /agibot/software/entry/cfg/ros_dds_configuration.xml ] && export FASTRTPS_DEFAULT_PROFILES_FILE=/agibot/software/entry/cfg/ros_dds_configuration.xml",
     "[ -f /agibot/software/nav/bin/librmw_fastrtps.so ] && export RMW_LIBRARY_PATH=/agibot/software/nav/bin/librmw_fastrtps.so",
     `timeout 8 ros2 topic echo --once ${odomTopic} --field pose.pose`

@@ -19,6 +19,7 @@ export type AppConfig = {
     systemSshPrivateKeyPath?: string;
     systemSshPort: number;
     navHome: string;
+    aimdkSetup: string;
     javaAgentHome: string;
     javaAgentExecutionMode: "local" | "robot";
     robotJavaAgentHome: string;
@@ -74,7 +75,7 @@ export function loadConfig(): AppConfig {
         ? "direct"
         : (process.env.ROBOT_CONNECTION_MODE === "tunnel" ? "tunnel" : "direct"),
       host: deploymentMode === "robot" ? "127.0.0.1" : (process.env.ROBOT_HOST || "127.0.0.1"),
-      bridgePort: readNumber("ROBOT_BRIDGE_PORT", 18080),
+      bridgePort: readNumber("ROBOT_BRIDGE_PORT", 18082),
       webPort: readNumber("ROBOT_WEB_PORT", 8002),
       mapRoot: process.env.ROBOT_MAP_ROOT || "/agibot/data/var/MapManagerModule/",
       sshUser: process.env.ROBOT_SSH_USER || "agi",
@@ -88,6 +89,7 @@ export function loadConfig(): AppConfig {
         || undefined,
       systemSshPort: readNumber("ROBOT_SYSTEM_SSH_PORT", readNumber("ROBOT_SSH_PORT", 22)),
       navHome: process.env.ROBOT_NAV_HOME || "/home/agi/robot_local_navigation_v3",
+      aimdkSetup: process.env.ROBOT_AIMDK_SETUP || "",
       javaAgentHome: process.env.JAVA_AGENT_HOME || "../robot_local_nav_java/robot_local_nav_java-new-java-interaction-end-hook",
       javaAgentExecutionMode: process.env.JAVA_AGENT_EXECUTION_MODE === "robot" ? "robot" : "local",
       robotJavaAgentHome: process.env.ROBOT_JAVA_AGENT_HOME || "/home/run/lingxi_java_agent",

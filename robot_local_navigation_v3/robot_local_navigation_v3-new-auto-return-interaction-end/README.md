@@ -45,9 +45,9 @@ relocalization_result.json             # 最近一次重定位结果
 
 - 机器人：灵犀 X2 本机环境。
 - ROS2：默认加载 `/opt/ros/humble/setup.bash`。
-- AimDK：默认加载 `/home/agi/aimdk/install/setup.bash`。
+- AIMDK：必须通过 `ROBOT_AIMDK_SETUP` 指定 v1.1.0 的 `install/setup.bash`；不再默认加载旧版路径。
 - Python：Python 3，依赖 ROS2 Python、`rclpy`、`aimdk_msgs`、`geometry_msgs`、`nav_msgs`、`std_msgs`。
-- SLAM 地图目录：默认 `/agibot/data/var/MapManagerModule/`，每张地图目录名应为数字 map id，目录内需要包含 `occupancy_map.png` 和 `grid_map_info.txt`。
+- SLAM 地图目录：默认 `/agibot/data/var/MapManagerModule/`。网页通过 AIMDK v1.1.0 建图并保存后，会将返回的 occupancy grid 转换为数字 map id 目录下的 `occupancy_map.png`、`grid_map_info.txt` 和导入元数据，供点位编辑器加载。
 
 如果 ROS2 或 AimDK 安装路径不同，先手动 `source` 对应的 `setup.bash`，或通过环境变量覆盖启动脚本默认值。
 
@@ -111,11 +111,12 @@ Java Agent 配置: nav.baseUrl=http://<机器人 IP>:18080
 | `ROBOT_LOCAL_NAVIGATION_V3_WEB_PORT` | `8002` | Web 服务监听端口 |
 | `ROBOT_LOCAL_NAV_MAP_ROOT` | `/agibot/data/var/MapManagerModule/` | SLAM 地图根目录 |
 | `ROBOT_LOCAL_NAV_ROS_SETUP` | `/opt/ros/humble/setup.bash` | ROS2 setup 文件 |
-| `ROBOT_LOCAL_NAV_AIMDK_SETUP` | `/home/agi/aimdk/install/setup.bash` | AimDK setup 文件 |
+| `ROBOT_AIMDK_SETUP` | 必填 | AIMDK v1.1.0 的 `install/setup.bash` |
 
 示例：
 
 ```bash
+ROBOT_AIMDK_SETUP=/path/to/aimdk-v1.1.0/install/setup.bash \
 ROBOT_LOCAL_NAVIGATION_V3_ACTIVE_MAP_NAME=1779436804244 \
 ROBOT_LOCAL_NAVIGATION_V3_NAV_MODE=execute \
 ROBOT_LOCAL_NAVIGATION_V3_WEB_PORT=8002 \
@@ -129,7 +130,7 @@ ROBOT_LOCAL_NAVIGATION_V3_WEB_PORT=8002 \
 ```bash
 cd /home/agi
 source /opt/ros/humble/setup.bash
-source /home/agi/aimdk/install/setup.bash
+source "$ROBOT_AIMDK_SETUP"
 colcon build --base-paths robot_local_navigation_v3 --packages-select robot_local_navigation_v3
 source install/setup.bash
 ```
@@ -361,15 +362,17 @@ http://<机器人 IP>:8002
 
 Web 服务逻辑：
 
-1. 从 SLAM 地图根目录发现地图。
-2. 只识别目录名为数字的地图目录。
-3. 每张地图必须包含：
+1. 建图页只读取传感器/SLAM 状态，并通过 AIMDK v1.1.0 `/integrated_command` 发送 `start_mapping`、`stop_mapping:<name>`；机器人移动由外置遥控器负责，网页不发送底盘速度或 PNC 导航命令。
+2. 停止后，桥接调用 `/aimdk_5Fmsgs/srv/GetStoredMapByName`，将 occupancy grid 转换到 SLAM 地图根目录的数字 map id 子目录。
+3. 自动生成以下兼容文件，供点位编辑器、地图发现和图片 API 使用：
    - `occupancy_map.png`
    - `grid_map_info.txt`
-4. 加载地图后，在 canvas 上点击设置点位位置，再点击或右键设置朝向。
-5. 保存点位时写入 `maps/<map_name>.json`。
-6. 同时更新 `unified_nav_config.json` 的 `maps` 列表。
-7. 如果 bridge 正在运行，会自动切换 active map 并 `/nav/reload`。
+4. 只发现数字 map id 目录；有导入元数据的地图加载时会校验元数据 ID 与目录名相同。
+5. 页面保存后强制刷新地图列表，只有发现新 map id 才报告导入成功；可直接打开新地图编辑点位。
+6. 加载地图后，在 canvas 上点击设置点位位置，再点击或右键设置朝向。
+7. 保存点位时写入 `maps/<map_name>.json`，同时更新 `unified_nav_config.json` 的 `maps` 列表；如果 bridge 正在运行，会自动切换 active map 并 `/nav/reload`。
+
+occupancy grid 仅支持 axis-aligned 原点。若 AIMDK 返回带旋转的地图原点，保存接口会明确报告导入失败，不会生成可能导致点位坐标错误的地图。代码级闭环覆盖了 map id 发现、地图元数据/图片读取和像素-世界原点约定；现场首次建图仍需核对机器人固件服务响应和已知实地位置。
 
 `grid_map_info.txt` 读取规则：
 

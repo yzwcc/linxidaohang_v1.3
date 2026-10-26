@@ -120,12 +120,16 @@ class FakeNode:
         self.subscriptions: list[str] = []
         self.timers: list[FakeTimer] = []
         self.published_messages: list[object] = []
+        self.publisher_qos: list[object] = []
+        self.subscription_qos: list[object] = []
 
-    def create_publisher(self, *_args, **_kwargs):
+    def create_publisher(self, _message_type, _topic, qos):
+        self.publisher_qos.append(qos)
         return SimpleNamespace(publish=self.published_messages.append)
 
-    def create_subscription(self, _message_type, topic: str, _callback, **_kwargs):
+    def create_subscription(self, _message_type, topic: str, _callback, **kwargs):
         self.subscriptions.append(topic)
+        self.subscription_qos.append(kwargs.get("qos_profile"))
         return SimpleNamespace(topic=topic)
 
     def create_timer(self, _period_sec: float, callback):
@@ -226,6 +230,18 @@ def test_publisher_appearing_during_retry_enables_the_subscription():
     assert client._pnc_response_retry_timer is None
     assert timer.cancelled
     assert node.subscriptions == ["/slam/lidar_odom", navigation_client.PNC_RESPONSE_TOPIC]
+
+
+def test_r18_pnc_endpoints_use_compatible_durability_qos():
+    GET_MESSAGE_STATE["calls"] = 0
+    GET_MESSAGE_STATE["value"] = type("PncResponse", (), {})
+    node = FakeNode(publishers=[object()])
+    client = _make_client(node)
+
+    assert node.publisher_qos[0].options["durability"] == "volatile"
+    assert node.subscription_qos[0].options["reliability"] == "best_effort"
+    assert node.subscription_qos[1].options["durability"] == "transient_local"
+    assert client._pnc_response_status == "enabled"
 
 
 def test_task_type_two_normal_mode_requires_the_safe_reference_line():

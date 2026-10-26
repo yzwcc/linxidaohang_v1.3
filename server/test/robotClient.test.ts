@@ -17,6 +17,28 @@ describe("robot gateway URL", () => {
 
     expect(robotGatewayBaseUrl(loadConfig())).toBe("http://127.0.0.1:18083");
   });
+
+  it("calls the robot mapping live-preview endpoint", async () => {
+    process.env.DEPLOYMENT_MODE = "robot";
+    process.env.ROBOT_BRIDGE_PORT = "18082";
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ ok: true, points: [] })));
+    const client = createRobotClient(loadConfig());
+
+    await expect(client.mappingPreview()).resolves.toMatchObject({ ok: true, points: [] });
+    expect(fetchMock).toHaveBeenCalledWith("http://127.0.0.1:18082/mapping/preview", expect.objectContaining({ signal: expect.any(AbortSignal) }));
+  });
+
+  it("allows R18 navigation start feedback to arrive before timing out", async () => {
+    process.env.DEPLOYMENT_MODE = "robot";
+    process.env.ROBOT_BRIDGE_PORT = "18082";
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ ok: true })));
+    const client = createRobotClient(loadConfig());
+    await client.navStart("大厅");
+    expect(fetchMock).toHaveBeenCalledWith("http://127.0.0.1:18082/nav/start", expect.objectContaining({
+      timeoutMs: 60000,
+      signal: expect.any(AbortSignal)
+    }));
+  });
 });
 
 describe("global path safety settings", () => {

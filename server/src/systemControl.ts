@@ -1,5 +1,5 @@
 import type { AppConfig } from "./config.js";
-import { runRobotSshCommand } from "./sshControl.js";
+import { runRobotSshCommand, shellQuote } from "./sshControl.js";
 
 type TopicHealth = {
   topic: string;
@@ -9,6 +9,7 @@ type TopicHealth = {
 
 export type RobotSystemHealth = {
   ok: boolean;
+  aimdk_v1_1_0_ready: boolean;
   agibot_software: string;
   hal_sensor_running: boolean;
   slam_running: boolean;
@@ -35,7 +36,7 @@ const requiredTopics = [
 ];
 
 export async function getRobotSystemHealth(config: AppConfig): Promise<RobotSystemHealth> {
-  const output = await runRobotSystemCommand(healthCommand(), config, 20000);
+  const output = await runRobotSystemCommand(healthCommand(config), config, 20000);
   const fields = parseKeyValues(output);
   const topics = Object.fromEntries(requiredTopics.map((topic) => {
     const key = topicKey(topic);
@@ -46,6 +47,7 @@ export async function getRobotSystemHealth(config: AppConfig): Promise<RobotSyst
     }];
   }));
   const halSensorRunning = fields.hal_sensor_running === "1";
+  const aimdkV110Ready = fields.aimdk_v1_1_0_ready === "1";
   const slamRunning = fields.slam_running === "1";
   const autoIntegratedRunning = fields.auto_integrated_running === "1";
   const mapManagerRunning = fields.map_manager_running === "1";
@@ -59,7 +61,8 @@ export async function getRobotSystemHealth(config: AppConfig): Promise<RobotSyst
   const slamOdomPublisherOk = (topics["/slam/lidar_odom"].publishers || 0) > 0;
   const slamOdomDataOk = fields.slam_lidar_odom_data === "1";
   const slamOdomOk = slamOdomPublisherOk && slamOdomDataOk;
-  const ok = fields.agibot_software === "active"
+  const ok = aimdkV110Ready
+    && fields.agibot_software === "active"
     && halSensorRunning
     && slamRunning
     && autoIntegratedRunning
@@ -70,6 +73,7 @@ export async function getRobotSystemHealth(config: AppConfig): Promise<RobotSyst
 
   return {
     ok,
+    aimdk_v1_1_0_ready: aimdkV110Ready,
     agibot_software: fields.agibot_software || "unknown",
     hal_sensor_running: halSensorRunning,
     slam_running: slamRunning,
@@ -82,14 +86,14 @@ export async function getRobotSystemHealth(config: AppConfig): Promise<RobotSyst
     network_interfaces: networkInterfaces,
     topics,
     slam_lidar_odom_data: slamOdomDataOk,
-    diagnosis: diagnosis({ ok, lidarPointcloudOk, lidarImuOk, slamOdomOk, halSensorRunning, slamRunning, soc1Visible }),
+    diagnosis: diagnosis({ ok, aimdkV110Ready, lidarPointcloudOk, lidarImuOk, slamOdomOk, halSensorRunning, slamRunning, soc1Visible }),
     advice: advice({ ok, lidarPointcloudOk, lidarImuOk, slamOdomOk, halSensorRunning, slamRunning, soc1Visible, systemState }),
     checked_at: new Date().toISOString()
   };
 }
 
 export async function restartRobotSystem(config: AppConfig): Promise<{ ok: boolean; output: string; health: RobotSystemHealth }> {
-  const output = await runRobotSystemCommand(restartCommand(), config, 120000);
+  const output = await runRobotSystemCommand(restartCommand(config), config, 120000);
   const health = await getRobotSystemHealth(config);
   return {
     ok: health.ok,
@@ -113,7 +117,7 @@ export async function recoverRobotLocalization(config: AppConfig): Promise<{
       after: before
     };
   }
-  const output = await runRobotSystemCommand(recoverCommand(), config, 150000);
+  const output = await runRobotSystemCommand(recoverCommand(config), config, 150000);
   const after = await getRobotSystemHealth(config);
   return {
     ok: after.ok,
@@ -123,7 +127,7 @@ export async function recoverRobotLocalization(config: AppConfig): Promise<{
   };
 }
 
-function healthCommand(): string {
+function healthCommand(config: AppConfig): string {
   const topicLines = requiredTopics.map((topic) => {
     const key = topicKey(topic);
     return [
@@ -137,7 +141,8 @@ function healthCommand(): string {
     "set +e",
     "[ -f /opt/ros/humble/setup.bash ] && source /opt/ros/humble/setup.bash",
     "[ -f /agibot/software/common/local_setup.bash ] && source /agibot/software/common/local_setup.bash",
-    "[ -f /home/agi/aimdk/install/setup.bash ] && source /home/agi/aimdk/install/setup.bash",
+    `AIMDK_SETUP=${shellQuote(config.robot.aimdkSetup || "")}`,
+    "if [ -n \"$AIMDK_SETUP\" ] && [ -r \"$AIMDK_SETUP\" ] && source \"$AIMDK_SETUP\"; then aimdk_setup_ok=1; else aimdk_setup_ok=0; fi",
     "[ -f /agibot/software/entry/cfg/ros_dds_configuration.xml ] && export FASTRTPS_DEFAULT_PROFILES_FILE=/agibot/software/entry/cfg/ros_dds_configuration.xml",
     "[ -f /agibot/software/nav/bin/librmw_fastrtps.so ] && export RMW_LIBRARY_PATH=/agibot/software/nav/bin/librmw_fastrtps.so",
     "echo agibot_software=$(systemctl is-active agibot_software.service 2>/dev/null || echo unknown)",
@@ -152,13 +157,19 @@ function healthCommand(): string {
     "state=$(timeout 8 ros2 service call /aimdk_5Fmsgs/srv/GetSystemState aimdk_msgs/srv/GetSystemState \"{header: {header: {stamp: {sec: 0, nanosec: 0}}}}\" 2>/dev/null | sed -n \"s/.*cur_state='\\([^']*\\)'.*/\\1/p\" | tail -1)",
     "echo system_state=${state:-unknown}",
     "if timeout 8 ros2 topic echo --once /slam/lidar_odom nav_msgs/msg/Odometry 2>/dev/null | grep -Eq '^(header|pose):'; then echo slam_lidar_odom_data=1; else echo slam_lidar_odom_data=0; fi",
+    "if [ \"$aimdk_setup_ok\" = 1 ] && python3 -c 'from aimdk_msgs.msg import PncTaskRequest; from aimdk_msgs.srv import GetStoredMapByName' >/dev/null 2>&1; then echo aimdk_v1_1_0_ready=1; else echo aimdk_v1_1_0_ready=0; fi",
     topicLines
   ].join("\n");
 }
 
-function restartCommand(): string {
+function restartCommand(config: AppConfig): string {
   return [
     "set -e",
+    "[ -f /opt/ros/humble/setup.bash ] && source /opt/ros/humble/setup.bash",
+    "[ -f /agibot/software/common/local_setup.bash ] && source /agibot/software/common/local_setup.bash",
+    `AIMDK_SETUP=${shellQuote(config.robot.aimdkSetup || "")}`,
+    "if [ -n \"$AIMDK_SETUP\" ] && [ -r \"$AIMDK_SETUP\" ]; then source \"$AIMDK_SETUP\"; else echo 'AIMDK v1.1.0 setup missing'; exit 1; fi",
+    "python3 -c 'from aimdk_msgs.msg import PncTaskRequest; from aimdk_msgs.srv import GetStoredMapByName' || { echo 'AIMDK v1.1.0 interfaces unavailable'; exit 1; }",
     "echo '正在重启机器人底层导航与传感器服务：agibot_software.service'",
     "sudo systemctl restart agibot_software.service",
     "echo '底层服务重启命令已提交，等待关键进程恢复'",
@@ -172,7 +183,7 @@ function restartCommand(): string {
   ].join("\n");
 }
 
-function recoverCommand(): string {
+function recoverCommand(config: AppConfig): string {
   const topicChecks = [
     "/aima/hal/sensor/lidar_chest_front/lidar_pointcloud",
     "/aima/hal/sensor/lidar_chest_front/imu",
@@ -188,7 +199,9 @@ function recoverCommand(): string {
     "echo '开始执行底层定位链路恢复'",
     "[ -f /opt/ros/humble/setup.bash ] && source /opt/ros/humble/setup.bash",
     "[ -f /agibot/software/common/local_setup.bash ] && source /agibot/software/common/local_setup.bash",
-    "[ -f /home/agi/aimdk/install/setup.bash ] && source /home/agi/aimdk/install/setup.bash",
+    `AIMDK_SETUP=${shellQuote(config.robot.aimdkSetup || "")}`,
+    "if [ -n \"$AIMDK_SETUP\" ] && [ -r \"$AIMDK_SETUP\" ]; then source \"$AIMDK_SETUP\"; else echo 'AIMDK v1.1.0 setup missing'; exit 1; fi",
+    "python3 -c 'from aimdk_msgs.msg import PncTaskRequest; from aimdk_msgs.srv import GetStoredMapByName' >/dev/null 2>&1 || { echo 'AIMDK v1.1.0 interfaces unavailable'; exit 1; }",
     "[ -f /agibot/software/entry/cfg/ros_dds_configuration.xml ] && export FASTRTPS_DEFAULT_PROFILES_FILE=/agibot/software/entry/cfg/ros_dds_configuration.xml",
     "[ -f /agibot/software/nav/bin/librmw_fastrtps.so ] && export RMW_LIBRARY_PATH=/agibot/software/nav/bin/librmw_fastrtps.so",
     "echo '1/4 重启 ROS2 daemon，清理本机发现缓存'",
@@ -222,6 +235,7 @@ function recoverCommand(): string {
 
 function diagnosis(flags: {
   ok: boolean;
+  aimdkV110Ready?: boolean;
   lidarPointcloudOk: boolean;
   lidarImuOk: boolean;
   slamOdomOk: boolean;
@@ -230,6 +244,7 @@ function diagnosis(flags: {
   soc1Visible: boolean;
 }): string {
   if (flags.ok) return "底层导航与定位数据正常";
+  if (flags.aimdkV110Ready === false) return "未配置或未加载 AIMDK v1.1.0；请检查机器人端 ROBOT_AIMDK_SETUP 与新版导航/建图消息接口";
   if (!flags.halSensorRunning) return "底层传感器服务未运行，请重启机器人底层服务";
   if (!flags.soc1Visible) return "SOC1 导航/传感器节点未出现在 ROS 图中，可能是底层业务模块未激活或 DDS 网络发现异常";
   if (!flags.lidarPointcloudOk || !flags.lidarImuOk) {

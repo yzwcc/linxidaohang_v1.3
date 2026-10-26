@@ -18,6 +18,7 @@ from typing import Any
 import rclpy
 from rclpy.node import Node
 
+from robot_local_navigation_v3.action_feedback import with_rejection_message
 from robot_local_navigation_v3.config_store import UnifiedConfigStore
 from robot_local_navigation_v3.linkcraft_resources import (
     DEFAULT_RESOURCE_CONFIG_PATH,
@@ -26,6 +27,7 @@ from robot_local_navigation_v3.linkcraft_resources import (
     normalize_linkcraft_action,
 )
 from robot_local_navigation_v3.map_point_store import MapPointStore
+from robot_local_navigation_v3.mapping_control import MappingController
 from robot_local_navigation_v3.motion_option_policy import ArrivalMotionTracker, is_empty_motion
 from robot_local_navigation_v3.navigation_client import NavigationClient, NavigationSessionHandle
 from robot_local_navigation_v3.navigation_events import NavigationEvent, NavigationEventType
@@ -109,6 +111,7 @@ class LingxiNavBridge(Node):
                 "/agibot/data/var/MapManagerModule/",
             ),
         )
+        self.mapping_controller = MappingController(self)
         # 语音播报和动作控制都通过本地 AimDK/ROS2 服务完成。
         self.tts_speaker = TtsSpeaker(self)
         self.motion_controller = SdkMotionController(self)
@@ -197,6 +200,18 @@ class LingxiNavBridge(Node):
             "resources": resources,
         }
 
+    def mapping_status(self) -> dict[str, Any]:
+        return self.mapping_controller.status()
+
+    def mapping_preview(self) -> dict[str, Any]:
+        return self.mapping_controller.live_preview()
+
+    def start_mapping(self, payload: dict[str, Any]) -> dict[str, Any]:
+        return self.mapping_controller.start(str(payload.get("map_name", "")).strip())
+
+    def stop_mapping(self, payload: dict[str, Any]) -> dict[str, Any]:
+        return self.mapping_controller.stop_and_save(str(payload.get("map_name", "")).strip())
+
     def start_navigation(self, payload: dict[str, Any]) -> dict[str, Any]:
         """解析请求中的目标点名称，并启动一次导航任务。"""
 
@@ -252,7 +267,7 @@ class LingxiNavBridge(Node):
             "matched_by": match.matched_by,
             "target_name": match.point.name,
         })
-        return result
+        return with_rejection_message(result)
 
     def stop_navigation(self, payload: dict[str, Any]) -> dict[str, Any]:
         """停止当前导航任务，并把这次停止记为有效用户交互。"""
@@ -347,7 +362,7 @@ class LingxiNavBridge(Node):
             "task_name": task_name,
             "step_count": len(steps),
         })
-        return result
+        return with_rejection_message(result)
 
     def pause_task(self, payload: dict[str, Any]) -> dict[str, Any]:
         """暂停讲解并保留当前任务、步骤和讲解内容。"""
@@ -822,6 +837,7 @@ class LingxiNavBridge(Node):
             "ok": True,
             "active_map_name": self.active_map_name,
             "nav_mode": self.navigation_client.mode,
+            "path_safety": self.navigation_client.defaults.path_safety.__dict__,
             "config_path": str(self.config_store.file_path),
             "navigation": self.navigation_client.get_status(),
             "localization": self.current_localization(),
@@ -868,10 +884,11 @@ class LingxiNavBridge(Node):
         self.config_store.save(self.config)
         self.navigation_client.mode = mode
         self.navigation_client.defaults.path_safety = path_safety
+        applied_path_safety = self.navigation_client.defaults.path_safety.__dict__
         return {
             "ok": True,
             "nav_mode": mode,
-            "path_safety": path_safety.__dict__,
+            "path_safety": applied_path_safety,
         }
 
     def set_active_map(self, payload: dict[str, Any]) -> dict[str, Any]:
@@ -2393,6 +2410,12 @@ class NavHttpHandler(BaseHTTPRequestHandler):
         if self.path == "/localization/current":
             self.write_json(200, self.server.bridge.current_localization())
             return
+        if self.path == "/mapping/status":
+            self.write_json(200, self.server.bridge.mapping_status())
+            return
+        if self.path == "/mapping/preview":
+            self.write_json(200, self.server.bridge.mapping_preview())
+            return
         self.write_json(404, {"ok": False, "message": "not found"})
 
     def do_POST(self) -> None:
@@ -2400,6 +2423,12 @@ class NavHttpHandler(BaseHTTPRequestHandler):
 
         try:
             payload = self.read_json()
+            if self.path == "/mapping/start":
+                self.write_json(200, self.server.bridge.start_mapping(payload))
+                return
+            if self.path == "/mapping/stop":
+                self.write_json(200, self.server.bridge.stop_mapping(payload))
+                return
             # 会改变状态的接口：启动/停止导航、切换配置、记录交互和 TTS 播报。
             if self.path == "/nav/start":
                 self.write_json(200, self.server.bridge.start_navigation(payload))

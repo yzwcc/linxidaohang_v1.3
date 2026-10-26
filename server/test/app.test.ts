@@ -76,19 +76,52 @@ function robot(overrides: Partial<RobotClient> = {}): RobotClient {
     }),
     relocalizationStatus: async () => ({ running: false, result: {} }),
     startRelocalization: async (payload: unknown) => payload,
+    mappingStatus: async () => ({ active: false }),
+    startMapping: async (mapName: string) => ({ ok: true, map_name: mapName }),
+    stopMapping: async (mapName: string) => ({ ok: true, map_name: mapName, map_id: 7 }),
     ...overrides
   };
 }
 
 describe("app", () => {
-  it("refuses collection and save until a robot mapping adapter is verified", async () => {
+  it("validates and proxies AIMDK mapping start and save without using navigation endpoints", async () => {
     const app = buildApp(config, robot());
-    const start = await app.inject({ method: "POST", url: "/api/robots/default/mapping/start" });
-    expect(start.statusCode).toBe(409);
-    expect(start.json().message).toContain("尚未通过实机验证");
-    const save = await app.inject({ method: "POST", url: "/api/robots/default/mapping/save" });
-    expect(save.statusCode).toBe(409);
-    expect(save.json().message).toContain("尚未通过实机验证");
+    const badName = await app.inject({
+      method: "POST",
+      url: "/api/robots/default/mapping/start",
+      payload: { map_name: "../existing-map" }
+    });
+    expect(badName.statusCode).toBe(400);
+
+    const startMapping = vi.fn(async (mapName: string) => ({ ok: true, status: "mapping", map_name: mapName }));
+    const stopMapping = vi.fn(async (mapName: string) => ({ ok: true, status: "saved", map_name: mapName, map_id: 1001 }));
+    const mappingApp = buildApp(config, robot({ startMapping, stopMapping }));
+    const start = await mappingApp.inject({
+      method: "POST",
+      url: "/api/robots/default/mapping/start",
+      payload: { map_name: "demo_1" }
+    });
+    const save = await mappingApp.inject({
+      method: "POST",
+      url: "/api/robots/default/mapping/save",
+      payload: { map_name: "demo_1" }
+    });
+    expect(start.statusCode).toBe(200);
+    expect(save.statusCode).toBe(200);
+    expect(startMapping).toHaveBeenCalledWith("demo_1");
+    expect(stopMapping).toHaveBeenCalledWith("demo_1");
+  });
+
+  it("serves mapping sensor diagnostics from the injected read-only adapter", async () => {
+    const health = { ok: false, mapping_backend_available: false, diagnosis: "接口待实机验证" };
+    const reader = vi.fn(async () => health);
+    const app = buildApp(config, robot(), reader);
+    const response = await app.inject({ method: "GET", url: "/api/robots/default/mapping/health" });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual(health);
+    expect(reader).toHaveBeenCalledOnce();
+    expect(reader.mock.calls[0][0].robot.host).toBeTruthy();
   });
 
   it("prevents target IP changes in robot product mode", async () => {
@@ -173,6 +206,38 @@ describe("app", () => {
       expect(response.statusCode).toBe(400);
     }
     expect(savePathSafety).not.toHaveBeenCalled();
+  });
+
+  it("reports navigation business rejection as a failed request", async () => {
+    const app = buildApp(config, robot({
+      navStart: async () => ({ ok: false, accepted: false, status: "path_safety_rejected", reason: "尚未配置机器人实测外接半径" })
+    }));
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/robots/default/nav/start",
+      payload: { target_name: "起点" }
+    });
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({
+      ok: false,
+      accepted: false,
+      status: "path_safety_rejected",
+      message: "尚未配置机器人实测外接半径"
+    });
+  });
+
+  it("reports rejected tour start without changing successful lifecycle responses", async () => {
+    const rejectedApp = buildApp(config, robot({
+      taskStart: async () => ({ ok: false, accepted: false, reason: "讲解首个点位不安全" })
+    }));
+    const rejected = await rejectedApp.inject({ method: "POST", url: "/api/robots/default/task/start" });
+    expect(rejected.statusCode).toBe(409);
+    expect(rejected.json()).toMatchObject({ ok: false, message: "讲解首个点位不安全" });
+
+    const acceptedApp = buildApp(config, robot());
+    const accepted = await acceptedApp.inject({ method: "POST", url: "/api/robots/default/task/start" });
+    expect(accepted.statusCode).toBe(200);
+    expect(accepted.json()).toMatchObject({ ok: true });
   });
 
   it("proxies the complete tour lifecycle", async () => {

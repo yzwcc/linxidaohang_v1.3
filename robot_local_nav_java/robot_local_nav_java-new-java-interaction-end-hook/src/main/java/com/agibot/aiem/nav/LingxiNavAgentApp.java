@@ -1229,7 +1229,8 @@ public final class LingxiNavAgentApp {
             if ("busy".equals(string3)) {
                 return new InteractionResult("\u5f53\u524d\u5df2\u6709\u5bfc\u822a\u4efb\u52a1\u5728\u8fdb\u884c\u4e2d\uff0c\u8bf7\u7a0d\u540e\u518d\u8bd5", TtsPriority.NAVIGATION);
             }
-            String string4 = jSONObject.getString("message") == null ? navigationIntent.replyOrDefault("\u5bfc\u822a\u8bf7\u6c42\u6ca1\u6709\u88ab\u63a5\u53d7") : jSONObject.getString("message");
+            String string4 = navigationRejectionReply(
+                    jSONObject, "\u5bfc\u822a\u672a\u80fd\u542f\u52a8\uff0c\u8bf7\u68c0\u67e5\u5bfc\u822a\u72b6\u6001\u548c\u5b89\u5168\u8bbe\u7f6e");
             return new InteractionResult(string4, TtsPriority.NAVIGATION);
         }
         if (navigationIntent.isStop()) {
@@ -1250,7 +1251,8 @@ public final class LingxiNavAgentApp {
             if ("busy".equals(string5)) {
                 return new InteractionResult("\u5f53\u524d\u5df2\u6709\u5bfc\u822a\u4efb\u52a1\u5728\u8fdb\u884c\u4e2d\uff0c\u8bf7\u7a0d\u540e\u518d\u8bd5", TtsPriority.NAVIGATION);
             }
-            String string6 = jSONObject.getString("message") == null ? navigationIntent.replyOrDefault("\u8bb2\u89e3\u4efb\u52a1\u6ca1\u6709\u88ab\u63a5\u53d7") : jSONObject.getString("message");
+            String string6 = navigationRejectionReply(
+                    jSONObject, "\u8bb2\u89e3\u4efb\u52a1\u672a\u80fd\u542f\u52a8\uff0c\u8bf7\u68c0\u67e5\u9996\u4e2a\u70b9\u4f4d\u548c\u5bfc\u822a\u5b89\u5168\u8bbe\u7f6e");
             return new InteractionResult(string6, TtsPriority.NAVIGATION);
         }
         if (navigationIntent.isPauseTask()) {
@@ -1353,6 +1355,21 @@ public final class LingxiNavAgentApp {
             object = doubaoArkClient.identityReply();
         }
         return new InteractionResult((String)object, TtsPriority.NORMAL);
+    }
+
+    private static String navigationRejectionReply(JSONObject response, String fallback) {
+        String message = response.getString("message");
+        if (message != null && !message.isBlank()) {
+            return message.trim();
+        }
+        String reason = response.getString("reason");
+        if (reason != null && !reason.isBlank()) {
+            return reason.trim();
+        }
+        if ("path_safety_rejected".equals(response.getString("status"))) {
+            return "\u5168\u5c40\u8def\u5f84\u5b89\u5168\u68c0\u67e5\u672a\u901a\u8fc7\uff0c\u5df2\u62d2\u7edd\u4e0b\u53d1\u5bfc\u822a\uff0c\u8bf7\u68c0\u67e5\u5730\u56fe\u4e2d\u7684\u8def\u5f84\u5b89\u5168\u8bbe\u7f6e";
+        }
+        return fallback;
     }
 
     private static String knowledgeAnswer(String eventId, String question) {

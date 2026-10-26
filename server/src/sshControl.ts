@@ -28,8 +28,9 @@ export async function restartRobotVoiceStack(config: AppConfig): Promise<{ outpu
 }
 
 export async function runRobotSshCommand(command: string, config: AppConfig, readyTimeout = 8000): Promise<string> {
+  const commandWithAimdk = `export ROBOT_AIMDK_SETUP=${shellQuote(config.robot.aimdkSetup || "")}; ${command}`;
   if (shouldExecuteRobotCommandLocally(config)) {
-    return runLocalRobotCommand(command, config.robot.sshUser, readyTimeout);
+    return runLocalRobotCommand(commandWithAimdk, config.robot.sshUser, readyTimeout);
   }
   const privateKey = readPrivateKey(config.robot.sshPrivateKeyPath);
   if (!config.robot.sshPassword && !privateKey) {
@@ -53,7 +54,7 @@ export async function runRobotSshCommand(command: string, config: AppConfig, rea
       reject(new Error(toChineseSshError(error, config)));
     };
     client.on("ready", () => {
-      client.exec(command, (error, stream) => {
+      client.exec(commandWithAimdk, (error, stream) => {
         if (error) {
           fail(error);
           return;

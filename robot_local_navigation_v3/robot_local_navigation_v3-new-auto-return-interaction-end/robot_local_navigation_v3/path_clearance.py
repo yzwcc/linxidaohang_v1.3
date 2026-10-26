@@ -4,6 +4,7 @@ import heapq
 import math
 import struct
 import zlib
+from array import array
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -12,6 +13,10 @@ from robot_local_navigation_v3.models import PathSafetyConfig
 
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 MAX_MAP_PIXELS = 20_000_000
+ROUTE_CLEARANCE_PREFERENCE_M = 0.35
+ROUTE_CLEARANCE_COST_WEIGHT = 12.0
+CHAMFER_DISTANCE_LOWER_BOUND_SCALE = 0.92
+ROUTE_CELL_GEOMETRY_MARGIN = 2.0
 
 
 class PathClearanceError(ValueError):
@@ -196,8 +201,41 @@ def plan_reference_line(
         if blocked[y * width + x]:
             raise PathClearanceError(f"{label} pose is inside the inflated obstacle clearance")
 
-    pixels = astar(blocked, width, height, start, goal)
-    pixels = compress_path(pixels, blocked, width, height)
+    clearance = distance_to_blocked(blocked, width, height)
+    for index, distance in enumerate(clearance):
+        clearance[index] = max(
+            0.0,
+            distance * CHAMFER_DISTANCE_LOWER_BOUND_SCALE
+            - ROUTE_CELL_GEOMETRY_MARGIN,
+        )
+    preferred_clearance_cells = ROUTE_CLEARANCE_PREFERENCE_M * info.resolution_pixels_per_meter
+    for label, (x, y) in (("start", start), ("goal", goal)):
+        if clearance[y * width + x] < preferred_clearance_cells:
+            raise PathClearanceError(
+                f"{label} pose cannot maintain the minimum global path clearance"
+            )
+
+    route_blocked = bytearray(
+        1 if is_blocked or clearance[index] < preferred_clearance_cells else 0
+        for index, is_blocked in enumerate(blocked)
+    )
+    pixels = astar(
+        route_blocked,
+        width,
+        height,
+        start,
+        goal,
+        clearance_cells=clearance,
+        preferred_clearance_cells=preferred_clearance_cells,
+    )
+    pixels = compress_path(
+        pixels,
+        route_blocked,
+        width,
+        height,
+        clearance_cells=clearance,
+        preferred_clearance_cells=preferred_clearance_cells,
+    )
     if len(pixels) > config.max_reference_points:
         raise PathClearanceError(
             f"safe reference line requires {len(pixels)} points; configured limit is {config.max_reference_points}"
@@ -208,6 +246,20 @@ def plan_reference_line(
     else:
         world[0] = (start_x, start_y)
         world[-1] = (goal_x, goal_y)
+    for start_world, goal_world in zip(world, world[1:]):
+        if not world_line_is_clear(
+            start_world,
+            goal_world,
+            info,
+            route_blocked,
+            width,
+            height,
+            clearance,
+            preferred_clearance_cells,
+        ):
+            raise PathClearanceError(
+                "exact reference line cannot maintain the minimum global path clearance"
+            )
     return world
 
 
@@ -269,6 +321,9 @@ def astar(
     height: int,
     start: tuple[int, int],
     goal: tuple[int, int],
+    *,
+    clearance_cells: array | None = None,
+    preferred_clearance_cells: float = 0.0,
 ) -> list[tuple[int, int]]:
     start_index = start[1] * width + start[0]
     goal_index = goal[1] * width + goal[0]
@@ -299,7 +354,14 @@ def astar(
                 continue
             if dx and dy and (blocked[y * width + nx] or blocked[ny * width + x]):
                 continue
-            next_cost = cost + step_cost
+            clearance_penalty = 0.0
+            if clearance_cells is not None and preferred_clearance_cells > 0:
+                ratio = preferred_clearance_cells / max(
+                    preferred_clearance_cells,
+                    clearance_cells[next_index],
+                )
+                clearance_penalty = ROUTE_CLEARANCE_COST_WEIGHT * ratio * ratio
+            next_cost = cost + step_cost * (1.0 + clearance_penalty)
             if next_cost >= costs.get(next_index, math.inf):
                 continue
             costs[next_index] = next_cost
@@ -314,6 +376,9 @@ def compress_path(
     blocked: list[bool],
     width: int,
     height: int,
+    *,
+    clearance_cells: array | None = None,
+    preferred_clearance_cells: float = 0.0,
 ) -> list[tuple[int, int]]:
     if len(path) <= 2:
         return path
@@ -321,10 +386,22 @@ def compress_path(
     anchor = 0
     while anchor < len(path) - 1:
         candidate = len(path) - 1
-        while candidate > anchor + 1 and not line_is_clear(path[anchor], path[candidate], blocked, width, height):
+        preferred_candidate = None
+        while candidate > anchor:
+            segment_clearance = line_clearance(
+                path[anchor], path[candidate], blocked, width, height, clearance_cells
+            )
+            if segment_clearance is None:
+                candidate -= 1
+                continue
+            if segment_clearance >= preferred_clearance_cells:
+                preferred_candidate = candidate
+                break
             candidate -= 1
-        result.append(path[candidate])
-        anchor = candidate
+        if preferred_candidate is None:
+            raise PathClearanceError("safe route compression could not preserve a clear segment")
+        result.append(path[preferred_candidate])
+        anchor = preferred_candidate
     return result
 
 
@@ -334,18 +411,43 @@ def line_is_clear(
     blocked: list[bool],
     width: int,
     height: int,
+    *,
+    clearance_cells: array | None = None,
+    preferred_clearance_cells: float = 0.0,
 ) -> bool:
+    minimum_clearance = line_clearance(
+        start, end, blocked, width, height, clearance_cells
+    )
+    if minimum_clearance is None:
+        return False
+    return preferred_clearance_cells <= 0 or minimum_clearance >= preferred_clearance_cells
+
+
+def line_clearance(
+    start: tuple[int, int],
+    end: tuple[int, int],
+    blocked: list[bool],
+    width: int,
+    height: int,
+    clearance_cells: array | None = None,
+) -> float | None:
     x0, y0 = start
     x1, y1 = end
     dx, dy = abs(x1 - x0), abs(y1 - y0)
     sx = 1 if x0 < x1 else -1
     sy = 1 if y0 < y1 else -1
     error = dx - dy
+    minimum_clearance = math.inf
     while True:
-        if not (0 <= x0 < width and 0 <= y0 < height) or blocked[y0 * width + x0]:
-            return False
+        if not (0 <= x0 < width and 0 <= y0 < height):
+            return None
+        index = y0 * width + x0
+        if blocked[index]:
+            return None
+        if clearance_cells is not None:
+            minimum_clearance = min(minimum_clearance, clearance_cells[index])
         if x0 == x1 and y0 == y1:
-            return True
+            return minimum_clearance
         doubled = error * 2
         old_x, old_y = x0, y0
         if doubled > -dy:
@@ -356,4 +458,82 @@ def line_is_clear(
             y0 += sy
         if x0 != old_x and y0 != old_y:
             if blocked[old_y * width + x0] or blocked[y0 * width + old_x]:
-                return False
+                return None
+            if clearance_cells is not None:
+                minimum_clearance = min(
+                    minimum_clearance,
+                    clearance_cells[old_y * width + x0],
+                    clearance_cells[y0 * width + old_x],
+                )
+
+
+def world_line_is_clear(
+    start: tuple[float, float],
+    end: tuple[float, float],
+    info: GridMapInfo,
+    blocked: list[bool],
+    width: int,
+    height: int,
+    clearance_cells: array,
+    preferred_clearance_cells: float,
+) -> bool:
+    scale = info.resolution_pixels_per_meter
+    start_u = start[0] * scale + info.origin_u
+    start_v = info.origin_v - start[1] * scale
+    end_u = end[0] * scale + info.origin_u
+    end_v = info.origin_v - end[1] * scale
+    pixel_length = math.hypot(end_u - start_u, end_v - start_v)
+    sample_count = max(1, math.ceil(pixel_length * 2.0))
+    for sample in range(sample_count + 1):
+        ratio = sample / sample_count
+        u = start_u + (end_u - start_u) * ratio
+        v = start_v + (end_v - start_v) * ratio
+        if not (0.0 <= u <= width - 1 and 0.0 <= v <= height - 1):
+            return False
+        x, y = int(round(u)), int(round(v))
+        index = y * width + x
+        if blocked[index] or clearance_cells[index] < preferred_clearance_cells:
+            return False
+    return True
+
+
+def distance_to_blocked(blocked: list[bool], width: int, height: int) -> array:
+    if len(blocked) != width * height or width <= 0 or height <= 0:
+        raise PathClearanceError("invalid blocked grid for clearance calculation")
+    inf = float(max(width, height) + 1)
+    distance = array("f", [inf]) * (width * height)
+    for index, is_blocked in enumerate(blocked):
+        if is_blocked:
+            distance[index] = 0.0
+
+    diagonal = 1.4142135623730951
+    for y in range(height):
+        row = y * width
+        for x in range(width):
+            index = row + x
+            value = distance[index]
+            if x:
+                value = min(value, distance[index - 1] + 1.0)
+            if y:
+                value = min(value, distance[index - width] + 1.0)
+                if x:
+                    value = min(value, distance[index - width - 1] + diagonal)
+                if x + 1 < width:
+                    value = min(value, distance[index - width + 1] + diagonal)
+            distance[index] = value
+
+    for y in range(height - 1, -1, -1):
+        row = y * width
+        for x in range(width - 1, -1, -1):
+            index = row + x
+            value = distance[index]
+            if x + 1 < width:
+                value = min(value, distance[index + 1] + 1.0)
+            if y + 1 < height:
+                value = min(value, distance[index + width] + 1.0)
+                if x:
+                    value = min(value, distance[index + width - 1] + diagonal)
+                if x + 1 < width:
+                    value = min(value, distance[index + width + 1] + diagonal)
+            distance[index] = value
+    return distance

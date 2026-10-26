@@ -6,6 +6,9 @@ let state = {
   startup: null,
   systemHealth: null,
   mappingHealth: null,
+  mappingStatus: null,
+  mappingActiveName: "",
+  mappingPreview: null,
   localization: null,
   relocalization: null,
   lastRelocalizationPoint: "",
@@ -29,6 +32,11 @@ let state = {
 const $ = (id) => document.getElementById(id);
 const mapImage = new Image();
 let mapListRefreshInFlight = false;
+let mappingPreviewTimer = null;
+let mappingPreviewInFlight = false;
+let mappingPointCells = new Map();
+let mappingRobotPath = [];
+let mappingSessionKey = "";
 let dashboardRefreshInFlight = false;
 let startAllInFlight = false;
 let dashboardRefreshTimer = null;
@@ -126,25 +134,121 @@ function switchWorkspace(view, { scroll = false } = {}) {
   if (nextView === "mapping") void refreshMappingHealth().catch((error) => {
     setText("mappingDiagnosis", error.message || "暂时无法读取机器人传感器状态");
   });
+  else stopMappingPreviewPolling();
   try { sessionStorage.setItem("lingxi-workspace", nextView); } catch { /* no-op */ }
   if (scroll) document.querySelector(".layout")?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
+function drawMappingPreview() {
+  const canvas = $("mappingPreviewCanvas");
+  const payload = state.mappingPreview;
+  if (!canvas || !payload) return;
+  const rect = canvas.getBoundingClientRect();
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const width = Math.max(1, Math.round(rect.width * dpr));
+  const height = Math.max(1, Math.round(rect.height * dpr));
+  if (canvas.width !== width || canvas.height !== height) { canvas.width = width; canvas.height = height; }
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+  ctx.clearRect(0, 0, width, height);
+  const robot = payload.robot || { x: 0, y: 0, yaw: 0 };
+  const points = payload.points || [];
+  const path = payload.robot_path || [];
+  let minX = Number(robot.x || 0), maxX = minX, minY = Number(robot.y || 0), maxY = minY;
+  for (const [xValue, yValue] of points) {
+    const x = Number(xValue), y = Number(yValue);
+    if (Number.isFinite(x)) { minX = Math.min(minX, x); maxX = Math.max(maxX, x); }
+    if (Number.isFinite(y)) { minY = Math.min(minY, y); maxY = Math.max(maxY, y); }
+  }
+  for (const pose of path) {
+    const x = Number(pose.x), y = Number(pose.y);
+    if (Number.isFinite(x)) { minX = Math.min(minX, x); maxX = Math.max(maxX, x); }
+    if (Number.isFinite(y)) { minY = Math.min(minY, y); maxY = Math.max(maxY, y); }
+  }
+  minX -= 1.5; maxX += 1.5; minY -= 1.5; maxY += 1.5;
+  const pixelsPerMeter = Math.max(1, Math.min(width / Math.max(8, maxX - minX), height / Math.max(8, maxY - minY)));
+  const centerX = (minX + maxX) / 2, centerY = (minY + maxY) / 2;
+  const project = (x, y) => [width / 2 + (x - centerX) * pixelsPerMeter, height / 2 - (y - centerY) * pixelsPerMeter];
+  ctx.strokeStyle = "rgba(160,180,190,.15)"; ctx.lineWidth = Math.max(1, dpr);
+  for (let meter = Math.floor(minX); meter <= maxX; meter += 1) { const [x] = project(meter, centerY); ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, height); ctx.stroke(); }
+  for (let meter = Math.floor(minY); meter <= maxY; meter += 1) { const [, y] = project(centerX, meter); ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(width, y); ctx.stroke(); }
+  ctx.fillStyle = "#49d6ba"; const dot = Math.max(2, dpr * 1.5);
+  for (const [xValue, yValue] of points) { const [x, y] = project(Number(xValue), Number(yValue)); if (x >= 0 && y >= 0 && x < width && y < height) ctx.fillRect(x, y, dot, dot); }
+  if (path.length > 1) {
+    ctx.strokeStyle = "rgba(255,202,103,.65)"; ctx.lineWidth = Math.max(1, dpr * 1.5); ctx.beginPath();
+    path.forEach((pose, index) => { const [x, y] = project(pose.x, pose.y); if (index) ctx.lineTo(x, y); else ctx.moveTo(x, y); }); ctx.stroke();
+  }
+  const [rx, ry] = project(Number(robot.x || 0), Number(robot.y || 0));
+  ctx.save(); ctx.translate(rx, ry); ctx.rotate(-Number(robot.yaw || 0)); ctx.fillStyle = "#ffca67";
+  ctx.beginPath(); ctx.moveTo(10 * dpr, 0); ctx.lineTo(-6 * dpr, -5 * dpr); ctx.lineTo(-4 * dpr, 0); ctx.lineTo(-6 * dpr, 5 * dpr); ctx.closePath(); ctx.fill(); ctx.restore();
+}
+
+function renderMappingPreview(payload) {
+  const canvas = $("mappingPreviewCanvas"), empty = $("mappingPreviewEmpty"), badge = $("mappingPreviewState");
+  if (payload?.ok && Array.isArray(payload.points)) {
+    const sessionKey = String(state.mappingActiveName || "active");
+    if (sessionKey !== mappingSessionKey) { mappingPointCells.clear(); mappingRobotPath = []; mappingSessionKey = sessionKey; }
+    for (const [xValue, yValue] of payload.points) {
+      const x = Number(xValue), y = Number(yValue);
+      if (Number.isFinite(x) && Number.isFinite(y)) mappingPointCells.set(`${Math.round(x * 12)}:${Math.round(y * 12)}`, [x, y]);
+    }
+    while (mappingPointCells.size > 50000) mappingPointCells.delete(mappingPointCells.keys().next().value);
+    for (const pose of payload.robot_path || []) {
+      const previous = mappingRobotPath.at(-1);
+      if (!previous || Math.hypot(Number(pose.x) - previous.x, Number(pose.y) - previous.y) >= 0.1) mappingRobotPath.push({ x: Number(pose.x), y: Number(pose.y) });
+    }
+    state.mappingPreview = { ...payload, points: [...mappingPointCells.values()], robot_path: mappingRobotPath };
+    canvas.hidden = false; empty.hidden = true; badge.textContent = "实时扫描"; badge.className = "badge ok";
+    setText("mappingPreviewMeta", `${mappingPointCells.size.toLocaleString()} 个累计栅格 · ${payload.source_frame || "雷达"} → ${payload.frame_id || "SLAM"} · ${new Date(Number(payload.updated_at) * 1000).toLocaleTimeString()}`);
+    drawMappingPreview();
+  } else {
+    badge.textContent = state.mappingPreview ? "数据等待更新" : "等待扫描数据";
+    badge.className = `badge ${state.mappingPreview ? "warn" : "bad"}`;
+    if (!state.mappingPreview) { canvas.hidden = true; empty.hidden = false; }
+    setText("mappingPreviewMeta", payload?.message || "等待雷达点云和 SLAM 位姿");
+  }
+}
+
+async function refreshMappingPreview() {
+  if (mappingPreviewInFlight || document.hidden || !state.mappingStatus?.active) return;
+  mappingPreviewInFlight = true;
+  try { renderMappingPreview(await api("/api/robots/default/mapping/preview")); }
+  catch (error) { renderMappingPreview({ ok: false, message: error.message }); }
+  finally { mappingPreviewInFlight = false; }
+}
+
+function startMappingPreviewPolling() {
+  if (mappingPreviewTimer) return;
+  void refreshMappingPreview();
+  mappingPreviewTimer = setInterval(() => void refreshMappingPreview(), 2500);
+}
+
+function stopMappingPreviewPolling() {
+  if (mappingPreviewTimer) clearInterval(mappingPreviewTimer);
+  mappingPreviewTimer = null;
+}
+
+window.addEventListener("resize", () => { if (state.mappingPreview) drawMappingPreview(); });
+
 function renderMappingHealth() {
   const health = state.mappingHealth;
   if (!health) return;
-  const ready = Boolean(health.ok);
-  setText("mappingBadge", ready ? "传感器就绪" : "尚未就绪");
-  setClass("mappingBadge", `badge ${ready ? "ok" : "bad"}`);
+  const mappingActive = Boolean(state.mappingStatus?.active);
+  const mappingSaving = Boolean(state.mappingStatus?.saving);
+  const backendReady = Boolean(health.aimdk_v1_1_0_ready && health.mapping_backend_available);
+  const canStartMapping = Boolean((health.can_start ?? health.ok) && backendReady);
+  const ready = mappingActive || mappingSaving || canStartMapping;
+  setText("mappingBadge", mappingSaving ? "保存确认中" : mappingActive ? "正在扫描" : canStartMapping ? "可开始" : "尚未就绪");
+  setClass("mappingBadge", `badge ${mappingSaving ? "warn" : ready ? "ok" : "bad"}`);
   setText("mappingSoftware", health.agibot_software || "未知");
   setText("mappingLidar", `${health.lidar_data_available ? "有实时数据" : "无实时数据"} · ${health.lidar_publishers || 0} 个发布者`);
   setText("mappingImu", `${health.imu_data_available ? "有实时数据" : "无实时数据"} · ${health.imu_publishers || 0} 个发布者`);
   setText("mappingSlam", health.slam_running ? "运行中" : "未运行");
   setText("mappingOdom", `${health.odom_data_available ? "有实时数据" : "无实时数据"} · ${health.odom_publishers || 0} 个发布者`);
-  setText("mappingBackend", health.mapping_backend_available ? "已验证" : "未验证");
+  setText("mappingBackend", health.mapping_backend_available ? "接口就绪" : "未就绪");
   setText("mappingTopics", (health.mapping_related_topics || []).join("\n") || "未发现相关话题");
   setText("mappingServices", (health.mapping_related_services || []).join("\n") || "未发现相关服务");
-  setText("mappingDiagnosis", `${health.diagnosis || ""}\n采集与保存仅在机器人后端接口完成实机验证后开放。`);
+  setText("mappingDiagnosis", health.diagnosis || "未读取到建图诊断");
   const list = $("mappingPrerequisites");
   if (list) {
     list.replaceChildren();
@@ -152,19 +256,102 @@ function renderMappingHealth() {
     for (const item of items) {
       const row = document.createElement("li");
       row.className = item.available ? "available" : "missing";
-      row.textContent = `${item.name}：${item.available ? "可用" : "未安装"}`;
+      row.textContent = `${item.name}：${item.available ? "可用" : "未就绪"}`;
       list.append(row);
     }
     if (!items.length) list.append(Object.assign(document.createElement("li"), { textContent: "未获取依赖状态" }));
   }
-  $("startMappingBtn").disabled = true;
-  $("saveMappingBtn").disabled = true;
+  $("mappingName").disabled = mappingActive || mappingSaving || !canStartMapping;
+  $("startMappingBtn").disabled = mappingActive || mappingSaving || !canStartMapping;
+  $("saveMappingBtn").disabled = !mappingActive && !mappingSaving;
+  $("startMappingBtn").textContent = mappingSaving ? "等待保存确认" : mappingActive ? "采集中" : "开始采集";
+  $("saveMappingBtn").textContent = mappingSaving ? "重试地图保存确认" : "停止采集并保存地图";
 }
 
 async function refreshMappingHealth() {
   state.mappingHealth = await api("/api/robots/default/mapping/health", { force: true });
+  try { state.mappingStatus = await api("/api/robots/default/mapping/status", { force: true }); }
+  catch { state.mappingStatus = null; }
+  if (state.mappingStatus?.map_name && (state.mappingStatus.active || state.mappingStatus.saving)) {
+    state.mappingActiveName = state.mappingStatus.map_name;
+    $("mappingName").value = state.mappingStatus.map_name;
+  } else if (!state.mappingStatus?.active && !state.mappingStatus?.saving) {
+    state.mappingActiveName = "";
+  }
+  if (state.mappingStatus?.last_result?.status === "saved") {
+    setText("mappingResult", `地图 ${state.mappingStatus.last_result.map_id} 已保存并导入点位编辑列表。`);
+  } else if (state.mappingStatus?.last_result?.status === "import_failed") {
+    setText("mappingResult", `AIMDK 地图已保存，但导入失败：${state.mappingStatus.last_result.message || "请检查机器人地图目录"}`);
+  } else if (state.mappingStatus?.saving) {
+    setText("mappingResult", `地图 ${state.mappingStatus.map_name} 正在等待 AIMDK 确认保存；可以重试确认，不会重复停止建图。`);
+  } else if (state.mappingStatus?.active) {
+    setText("mappingResult", `正在采集地图 ${state.mappingStatus.map_name}。请使用外置遥控器移动机器人；本网页不会控制机器人运动。`);
+  }
   renderMappingHealth();
+  if (state.mappingStatus?.active) startMappingPreviewPolling();
+  else stopMappingPreviewPolling();
+  await renderMappingSavedMaps();
   return state.mappingHealth;
+}
+
+async function renderMappingSavedMaps() {
+  const list = $("mappingSavedMaps");
+  if (!list) return;
+  const maps = state.maps.length ? state.maps : await api("/api/robots/default/maps?refresh=1", { force: true }).then((payload) => {
+    const found = payload.maps || payload.map_names || payload.items || [];
+    state.maps = found;
+    return found;
+  });
+  list.replaceChildren();
+  if (!maps.length) {
+    list.append(Object.assign(document.createElement("li"), { textContent: "没有发现可用于点位编辑的地图" }));
+    return;
+  }
+  for (const map of [...maps].sort((a, b) => Number(b.map_name || b.name) - Number(a.map_name || a.name))) {
+    const name = mapNameOf(map);
+    const row = document.createElement("li");
+    const label = document.createElement("span");
+    label.textContent = `${name} · ${map.width || "?"}×${map.height || "?"}`;
+    const open = document.createElement("button");
+    open.type = "button";
+    open.className = "secondary";
+    open.textContent = "查看并编辑点位";
+    open.addEventListener("click", async () => {
+      await loadMap(name, { force: true });
+      switchWorkspace("map", { scroll: true });
+    });
+    row.append(label, open);
+    list.append(row);
+  }
+}
+
+async function startMapping() {
+  const name = $("mappingName").value.trim();
+  if (!/^[A-Za-z0-9_-]{1,48}$/.test(name)) throw new Error("地图名称仅支持 1-48 位字母、数字、下划线和连字符");
+  await api("/api/robots/default/mapping/start", { method: "POST", body: JSON.stringify({ map_name: name }) });
+  state.mappingActiveName = name;
+  state.mappingPreview = null;
+  mappingPointCells.clear(); mappingRobotPath = []; mappingSessionKey = name;
+  startMappingPreviewPolling();
+  await refreshMappingHealth();
+  setText("mappingResult", `正在采集地图 ${name}。请使用外置遥控器移动机器人；本网页不会控制机器人运动。`);
+}
+
+async function saveMapping() {
+  const name = state.mappingActiveName || state.mappingStatus?.map_name;
+  if (!name) throw new Error("当前没有可停止或确认保存的网页建图会话");
+  const result = await api("/api/robots/default/mapping/save", {
+    method: "POST",
+    body: JSON.stringify({ map_name: name }),
+    timeoutMs: 135000
+  });
+  state.mappingActiveName = "";
+  await refreshMapList({ force: true, notify: true });
+  const discovered = state.maps.some((map) => mapNameOf(map) === String(result.map_id));
+  if (!discovered) throw new Error(`AIMDK 已保存地图 ${result.map_id}，但地图网页服务未发现它；地图转换文件未通过列表校验，请检查服务器日志`);
+  setText("mappingResult", `地图 ${result.map_id} 已保存并导入点位编辑列表。`);
+  await refreshMappingHealth();
+  return result;
 }
 
 function label(value, dict) {
@@ -496,7 +683,8 @@ function renderStatus() {
     button.textContent = name;
     button.onclick = () => runAction(`正在导航到 ${name}`, () => api("/api/robots/default/nav/start", {
       method: "POST",
-      body: JSON.stringify({ target_name: name })
+      body: JSON.stringify({ target_name: name }),
+      timeoutMs: 65000
     }));
     $("pointButtons").appendChild(button);
   });
@@ -1212,9 +1400,15 @@ async function loadPathSafety() {
   $("extraClearance").value = state.pathSafety.extra_clearance_m;
   if (state.pathSafety.robot_radius_m == null) {
     renderPathSafetyStatus("尚未填写实测半径；R16 将拒绝下发 task_type=2、pnc_mode=0 全局导航。", "error");
+  } else if (payload.path_safety_applied !== true) {
+    const applied = payload.applied_path_safety || {};
+    renderPathSafetyStatus(
+      `网页配置：半径 ${state.pathSafety.robot_radius_m} 米、额外净空 ${state.pathSafety.extra_clearance_m} 米；运行桥接尚未确认应用${applied.robot_radius_m == null ? "（桥接离线或未回报）" : `（当前半径 ${applied.robot_radius_m} 米、额外净空 ${applied.extra_clearance_m} 米）`}。`,
+      "error"
+    );
   } else {
     renderPathSafetyStatus(
-      `已读取配置：半径 ${state.pathSafety.robot_radius_m} 米，额外净空 ${state.pathSafety.extra_clearance_m} 米。R16 不提供桥接应用回执。`,
+      `已应用并回读一致：机器人半径 ${state.pathSafety.robot_radius_m} 米，额外净空 ${state.pathSafety.extra_clearance_m} 米。`,
       "ok"
     );
   }
@@ -1249,10 +1443,19 @@ async function savePathSafety() {
   };
   radius.value = state.pathSafety.robot_radius_m;
   clearance.value = state.pathSafety.extra_clearance_m;
-  renderPathSafetyStatus(
-    `已写入机器人全局配置：半径 ${state.pathSafety.robot_radius_m} 米，额外净空 ${state.pathSafety.extra_clearance_m} 米。R16 不提供桥接应用回执。`,
-    "ok"
-  );
+  if (payload.path_safety_applied === true) {
+    renderPathSafetyStatus(
+      `已保存并由运行桥接回读确认：半径 ${state.pathSafety.robot_radius_m} 米，额外净空 ${state.pathSafety.extra_clearance_m} 米。`,
+      "ok"
+    );
+  } else {
+    const applied = payload.applied_path_safety || {};
+    renderPathSafetyStatus(
+      `配置已保存，但运行桥接未确认应用。网页值：半径 ${state.pathSafety.robot_radius_m} 米、额外净空 ${state.pathSafety.extra_clearance_m} 米；运行值：${applied.robot_radius_m == null ? "未回报（桥接离线）" : `半径 ${applied.robot_radius_m} 米、额外净空 ${applied.extra_clearance_m} 米`}。请启动/重启导航桥接后刷新确认。`,
+      "error"
+    );
+  }
+  return { applied: payload.path_safety_applied === true };
 }
 
 function applyStartup(payload) {
@@ -1396,8 +1599,8 @@ async function loadMap(mapName, { force = false } = {}) {
 
 async function runAction(successMessage, fn) {
   try {
-    await fn();
-    toast(successMessage);
+    const result = await fn();
+    toast(typeof successMessage === "function" ? successMessage(result) : successMessage);
     scheduleDashboardRefresh();
   } catch (error) {
     toast(error.message);
@@ -1534,6 +1737,9 @@ function bindEvents() {
   }
   $("startupRefreshBtn").onclick = () => runAction("启动状态已检查", () => refreshStartup());
   $("refreshMappingBtn").onclick = () => runAction("传感器状态已刷新", () => refreshMappingHealth());
+  $("startMappingBtn").onclick = () => runAction("建图采集已开始；请通过外置遥控器移动机器人", startMapping);
+  $("saveMappingBtn").onclick = () => runAction((result) => `地图 ${result.map_name} 已保存`, saveMapping);
+  $("refreshMappingMapsBtn").onclick = () => runAction("保存地图列表已刷新", renderMappingSavedMaps);
   $("checkSystemHealthBtn").onclick = () => runAction("底层服务已检查", () => refreshSystemHealth());
   $("restartSystemBtn").onclick = () => runAction("底层导航/传感器重启命令已提交", async () => {
     const result = await api("/api/robots/default/system/restart", { method: "POST" });
@@ -1581,7 +1787,12 @@ function bindEvents() {
   $("setActiveMapBtn").onclick = () => runAction("已切换为当前导航地图", () => setActiveMap());
   $("pathSafetyForm").onsubmit = (event) => {
     event.preventDefault();
-    void runAction("全局路径安全参数已保存", () => savePathSafety());
+    void runAction(
+      (result) => result.applied
+        ? "全局路径安全参数已保存并由运行桥接确认应用"
+        : "配置已保存，但运行桥接尚未确认应用",
+      () => savePathSafety()
+    );
   };
   $("newPointBtn").onclick = () => {
     fillPointForm(normalizePoint({

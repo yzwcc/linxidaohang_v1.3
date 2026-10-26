@@ -8,6 +8,12 @@ afterEach(() => {
 });
 
 describe("loadConfig", () => {
+  it("defaults the robot bridge to the R18 navigation and mapping port", () => {
+    delete process.env.ROBOT_BRIDGE_PORT;
+    process.env.DEPLOYMENT_MODE = "robot";
+    expect(loadConfig().robot.bridgePort).toBe(18082);
+  });
+
   it("uses the local cloud proxy when no transport host is configured", () => {
     delete process.env.ROBOT_HOST;
 
@@ -18,6 +24,14 @@ describe("loadConfig", () => {
     process.env.ROBOT_HOST = "192.168.1.221";
 
     expect(loadConfig().robot.host).toBe("192.168.1.221");
+  });
+
+  it("requires an explicit AIMDK v1.1.0 overlay instead of assuming the legacy install path", () => {
+    delete process.env.ROBOT_AIMDK_SETUP;
+    expect(loadConfig().robot.aimdkSetup).toBe("");
+
+    process.env.ROBOT_AIMDK_SETUP = "/opt/aimdk-v1.1.0/install/setup.bash";
+    expect(loadConfig().robot.aimdkSetup).toBe("/opt/aimdk-v1.1.0/install/setup.bash");
   });
 
   it("uses robot Java Agent mode and home from environment", () => {

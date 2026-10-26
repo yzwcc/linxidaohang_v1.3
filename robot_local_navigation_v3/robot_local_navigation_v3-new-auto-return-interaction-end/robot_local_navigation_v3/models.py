@@ -9,7 +9,9 @@ from typing import Any
 DEFAULT_PROVIDER = "doubao_multimodal"
 DEFAULT_MODEL = "doubao-seed-2-0-pro-260215"
 DEFAULT_TASK_TYPE = 2
-DEFAULT_TARGET_POSE_RADIUS = 0.15
+MIN_TARGET_POSE_RADIUS = 0.25
+DEFAULT_TARGET_POSE_RADIUS = MIN_TARGET_POSE_RADIUS
+DEFAULT_ARRIVAL_POSITION_TOLERANCE_M = 0.15
 DEFAULT_YAW_TOLERANCE_RAD = math.radians(10.0)
 DEFAULT_MAX_FORWARD_SPEED = 0.3
 DEFAULT_PNC_MODE = 0
@@ -111,7 +113,7 @@ class AppSettings:
 
 @dataclass
 class ArrivalPolicyConfig:
-    position_tolerance_m: float = DEFAULT_TARGET_POSE_RADIUS
+    position_tolerance_m: float = DEFAULT_ARRIVAL_POSITION_TOLERANCE_M
     yaw_tolerance_rad: float | None = DEFAULT_YAW_TOLERANCE_RAD
     stable_duration_sec: float = 0.8
     require_low_speed: bool = False
@@ -123,7 +125,7 @@ class ArrivalPolicyConfig:
         yaw_tolerance = payload.get("yaw_tolerance_rad", DEFAULT_YAW_TOLERANCE_RAD)
         return cls(
             position_tolerance_m=float(
-                payload.get("position_tolerance_m", DEFAULT_TARGET_POSE_RADIUS)
+                payload.get("position_tolerance_m", DEFAULT_ARRIVAL_POSITION_TOLERANCE_M)
             ),
             yaw_tolerance_rad=None if yaw_tolerance is None else float(yaw_tolerance),
             stable_duration_sec=float(payload.get("stable_duration_sec", 0.8)),
@@ -249,10 +251,13 @@ class PointNavigationConfig:
     ) -> "PointNavigationConfig":
         payload = payload or {}
         defaults = defaults or NavigationDefaults()
+        target_pose_radius = float(
+            payload.get("target_pose_radius", payload.get("radius", defaults.default_target_pose_radius))
+        )
+        if not math.isfinite(target_pose_radius) or target_pose_radius < 0:
+            raise ValueError("navigation.target_pose_radius must be finite and non-negative")
         return cls(
-            target_pose_radius=float(
-                payload.get("target_pose_radius", payload.get("radius", defaults.default_target_pose_radius))
-            ),
+            target_pose_radius=max(MIN_TARGET_POSE_RADIUS, target_pose_radius),
             pnc_mode=int(payload.get("pnc_mode", defaults.default_pnc_mode)),
             max_forward_speed=float(
                 payload.get("max_forward_speed", defaults.default_max_forward_speed)

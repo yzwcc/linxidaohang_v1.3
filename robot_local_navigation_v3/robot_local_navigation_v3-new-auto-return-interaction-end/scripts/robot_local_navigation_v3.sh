@@ -15,7 +15,7 @@ WEB_HOST="${ROBOT_LOCAL_NAVIGATION_V3_WEB_HOST:-0.0.0.0}"
 WEB_PORT="${ROBOT_LOCAL_NAVIGATION_V3_WEB_PORT:-8002}"
 NAV_ODOM_TOPIC="${NAV_ODOM_TOPIC:-/slam/lidar_odom}"
 ROS_DISTRO_SETUP="${ROBOT_LOCAL_NAV_ROS_SETUP:-/opt/ros/humble/setup.bash}"
-AIMDK_SETUP="${ROBOT_LOCAL_NAV_AIMDK_SETUP:-/home/agi/aimdk/install/setup.bash}"
+AIMDK_SETUP="${ROBOT_AIMDK_SETUP:-}"
 
 PID_DIR="${APP_HOME}/pids"
 LOG_DIR="${APP_HOME}/logs"
@@ -49,6 +49,7 @@ EOF
 
 source_env() {
   export ROBOT_LOCAL_NAVIGATION_V3_HOME="${APP_HOME}"
+  export ROBOT_LOCAL_NAV_MAP_ROOT="${DEFAULT_MAP_ROOT}"
   export NAV_ODOM_TOPIC="${NAV_ODOM_TOPIC}"
   if [[ -z "${FASTRTPS_DEFAULT_PROFILES_FILE:-}" ]]; then
     if [[ -r "${APP_HOME}/ros_dds_configuration.xml" ]]; then
@@ -74,11 +75,16 @@ source_env() {
     # shellcheck disable=SC1090
     source "${ROS_DISTRO_SETUP}"
   fi
-  if [[ -f "${AIMDK_SETUP}" ]]; then
+  if [[ -n "${AIMDK_SETUP}" && -r "${AIMDK_SETUP}" ]]; then
     # shellcheck disable=SC1090
     source "${AIMDK_SETUP}"
+  else
+    echo "错误：请将 ROBOT_AIMDK_SETUP 设置为 AIMDK v1.1.0 的 install/setup.bash。" >&2
+    return 1
   fi
   set -u
+  python3 -c 'from aimdk_msgs.msg import PncTaskRequest; from aimdk_msgs.srv import GetStoredMapByName' \
+    || { echo "错误：当前 AIMDK 缺少 v1.1.0 导航/地图接口" >&2; return 1; }
 }
 
 display_host_ips() {

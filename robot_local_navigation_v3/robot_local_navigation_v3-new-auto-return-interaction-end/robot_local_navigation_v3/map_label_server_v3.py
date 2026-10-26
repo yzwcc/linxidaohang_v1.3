@@ -1185,7 +1185,22 @@ class V3LabelApp:
 
     def get_settings(self) -> dict[str, object]:
         config = self.config_store.load()
-        return {**config.app.__dict__, "path_safety": config.navigation.path_safety.__dict__}
+        bridge_status = self.bridge_manager.status()
+        bridge = bridge_status.get("bridge")
+        bridge = bridge if isinstance(bridge, dict) else {}
+        applied_path_safety = bridge.get("path_safety")
+        return {
+            **config.app.__dict__,
+            "path_safety": config.navigation.path_safety.__dict__,
+            "path_safety_applied": bool(
+                bridge.get("ok") is True
+                and path_safety_matches(
+                    config.navigation.path_safety.__dict__, applied_path_safety
+                )
+            ),
+            "applied_path_safety": applied_path_safety,
+            "bridge_running": bridge.get("ok") is True,
+        }
 
     def save_settings(self, payload: dict[str, object]) -> dict[str, object]:
         config = self.config_store.load()
@@ -1200,11 +1215,19 @@ class V3LabelApp:
             safety_payload.update(path_safety)
             config.navigation.path_safety = config.navigation.path_safety.from_dict(safety_payload)
         self.config_store.save(config)
-        self.bridge_manager.set_nav_mode(
+        bridge_update = self.bridge_manager.set_nav_mode(
             config.app.nav_mode,
             path_safety=config.navigation.path_safety.__dict__,
         )
-        return {**config.app.__dict__, "path_safety": config.navigation.path_safety.__dict__}
+        return {
+            **config.app.__dict__,
+            "path_safety": config.navigation.path_safety.__dict__,
+            "path_safety_saved": True,
+            "path_safety_applied": bool(bridge_update.get("applied")),
+            "applied_path_safety": bridge_update.get("path_safety"),
+            "bridge_running": bool(bridge_update.get("running")),
+            "path_safety_apply_error": bridge_update.get("error", ""),
+        }
 
     def get_bridge_status(self) -> dict[str, object]:
         return self.bridge_manager.status()
@@ -1250,9 +1273,27 @@ class V3LabelApp:
                 continue
             map_image = child / "occupancy_map.png"
             grid_info = child / "grid_map_info.txt"
-            if not map_image.exists() or not grid_info.exists():
+            metadata = child / "lingxi_map_import.json"
+            if not map_image.is_file():
                 continue
-            maps.append(build_map_payload(child.name, int(child.name), map_image))
+            if grid_info.is_file():
+                maps.append(build_map_payload(child.name, int(child.name), map_image))
+            else:
+                if not metadata.is_file():
+                    continue
+                imported = json.loads(metadata.read_text(encoding="utf-8"))
+                if imported.get("map_id") != int(child.name) or imported.get("map_name") != child.name:
+                    continue
+                info = imported.get("map_info")
+                if not isinstance(info, dict):
+                    continue
+                maps.append({
+                    "map_name": child.name,
+                    "map_id": int(child.name),
+                    "map_path": str(map_image),
+                    "grid_map_info_path": str(grid_info),
+                    **info,
+                })
         return maps
 
     def get_map_payload(self, map_root: str, map_name: str) -> dict[str, object]:
@@ -1337,7 +1378,24 @@ class V3LabelApp:
         map_dir = resolve_map_root(map_root) / map_name
         if not map_dir.is_dir() or not map_name.isdigit():
             raise FileNotFoundError(f"Map not found: {map_name}")
-        return build_map_payload(map_name, int(map_name), map_dir / "occupancy_map.png")
+        image = map_dir / "occupancy_map.png"
+        grid_info = map_dir / "grid_map_info.txt"
+        metadata = map_dir / "lingxi_map_import.json"
+        if image.is_file() and grid_info.is_file():
+            return build_map_payload(map_name, int(map_name), image)
+        if metadata.is_file() and image.is_file():
+            imported = json.loads(metadata.read_text(encoding="utf-8"))
+            if imported.get("map_id") == int(map_name) and imported.get("map_name") == map_name:
+                info = imported.get("map_info")
+                if isinstance(info, dict):
+                    return {
+                        "map_name": map_name,
+                        "map_id": int(map_name),
+                        "map_path": str(image),
+                        "grid_map_info_path": str(grid_info),
+                        **info,
+                    }
+        raise FileNotFoundError(f"Map metadata is incomplete: {map_name}")
 
 
 class V3LabelRequestHandler(BaseHTTPRequestHandler):
@@ -1555,11 +1613,37 @@ class BridgeServiceManager:
         mode: str,
         *,
         path_safety: dict[str, object] | None = None,
-    ) -> None:
+    ) -> dict[str, object]:
         payload: dict[str, object] = {"nav_mode": mode}
         if path_safety is not None:
             payload["path_safety"] = path_safety
-        self._post_json("/nav/mode", payload)
+        remote_status = self._get_remote_status()
+        running = remote_status.get("ok") is True
+        if not running:
+            return {"running": False, "applied": False, "error": "导航桥接未在线"}
+        try:
+            result = self._post_json("/nav/mode", payload)
+        except (urllib.error.URLError, TimeoutError, OSError, ValueError) as exc:
+            return {"running": False, "applied": False, "error": str(exc)}
+        if result.get("ok") is not True:
+            return {
+                "running": True,
+                "applied": False,
+                "path_safety": None,
+                "error": str(result.get("message", "导航桥接拒绝应用安全参数")),
+            }
+        runtime_status = self._get_remote_status()
+        applied_path_safety = runtime_status.get("path_safety")
+        applied = (
+            runtime_status.get("ok") is True
+            and path_safety_matches(path_safety or {}, applied_path_safety)
+        )
+        return {
+            "running": True,
+            "applied": applied,
+            "path_safety": applied_path_safety,
+            "error": "" if applied else "桥接未回读到与网页保存值一致的全局路径安全参数",
+        }
 
     def set_active_map(self, map_name: str) -> None:
         self._post_json("/nav/map", {"active_map_name": map_name})
@@ -1585,7 +1669,7 @@ class BridgeServiceManager:
             return {}
         return payload if isinstance(payload, dict) else {}
 
-    def _post_json(self, path: str, payload: dict[str, object]) -> None:
+    def _post_json(self, path: str, payload: dict[str, object]) -> dict[str, object]:
         data = json.dumps(payload).encode("utf-8")
         request = urllib.request.Request(
             f"{self.base_url}{path}",
@@ -1593,10 +1677,9 @@ class BridgeServiceManager:
             headers={"Content-Type": "application/json"},
             method="POST",
         )
-        try:
-            urllib.request.urlopen(request, timeout=0.5).read()
-        except (urllib.error.URLError, TimeoutError, OSError):
-            return
+        with urllib.request.urlopen(request, timeout=0.5) as response:
+            result = json.loads(response.read().decode("utf-8"))
+        return result if isinstance(result, dict) else {}
 
     def _read_pid(self) -> int | None:
         if not self.pid_file.exists():
@@ -1843,6 +1926,36 @@ def parse_grid_map_info(path: Path) -> dict[str, object]:
         "width": width,
         "height": height,
     }
+
+
+def path_safety_matches(expected: object, actual: object) -> bool:
+    if not isinstance(expected, dict) or not isinstance(actual, dict):
+        return False
+    numeric_fields = (
+        "robot_radius_m",
+        "extra_clearance_m",
+        "max_odom_age_sec",
+        "max_start_drift_m",
+    )
+    integer_fields = ("occupied_threshold", "max_reference_points")
+    for name in numeric_fields:
+        left, right = expected.get(name), actual.get(name)
+        if left is None or right is None:
+            if left is not right:
+                return False
+            continue
+        try:
+            if not math.isclose(float(left), float(right), rel_tol=0.0, abs_tol=1e-9):
+                return False
+        except (TypeError, ValueError):
+            return False
+    for name in integer_fields:
+        try:
+            if int(expected.get(name)) != int(actual.get(name)):
+                return False
+        except (TypeError, ValueError):
+            return False
+    return True
 
 
 def build_map_payload(map_name: str, map_id: int, map_path: Path) -> dict[str, object]:

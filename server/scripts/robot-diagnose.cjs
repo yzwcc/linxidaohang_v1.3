@@ -6,7 +6,8 @@ if (!robotHost || !robotPassword) throw new Error("请设置 ROBOT_HOST 和 ROBO
 
 const command = [
   "source /opt/ros/humble/setup.bash 2>/dev/null || true",
-  "source /home/agi/aimdk/install/setup.bash 2>/dev/null || true",
+  'source "$ROBOT_AIMDK_SETUP" 2>/dev/null || true',
+  "python3 -c 'from aimdk_msgs.msg import PncTaskRequest; from aimdk_msgs.srv import GetStoredMapByName' 2>/dev/null || echo AIMDK_v1_1_0_interfaces_missing",
   "echo integrated_command",
   "ros2 topic info /integrated_command 2>/dev/null",
   "echo relocalization_pose",

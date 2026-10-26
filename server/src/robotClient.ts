@@ -114,7 +114,8 @@ export function createRobotClient(config: AppConfig) {
     navStart(targetName: string) {
       return mutation(() => requestJson(`${bridgeBase}/nav/start`, {
         method: "POST",
-        body: JSON.stringify({ event_id: `mp_${Date.now()}`, target_name: targetName })
+        body: JSON.stringify({ event_id: `mp_${Date.now()}`, target_name: targetName }),
+        timeoutMs: 60000
       }));
     },
     navStop() {
@@ -172,6 +173,26 @@ export function createRobotClient(config: AppConfig) {
     },
     currentLocalization() {
       return requestJson(`${bridgeBase}/localization/current`, { timeoutMs: 2500 });
+    },
+    mappingStatus() {
+      return requestJson(`${bridgeBase}/mapping/status`, { timeoutMs: 3000 });
+    },
+    mappingPreview() {
+      return requestJson(`${bridgeBase}/mapping/preview`, { timeoutMs: 5000 });
+    },
+    startMapping(mapName: string) {
+      return requestJson(`${bridgeBase}/mapping/start`, {
+        method: "POST",
+        body: JSON.stringify({ map_name: mapName }),
+        timeoutMs: 5000
+      });
+    },
+    stopMapping(mapName: string) {
+      return requestJson(`${bridgeBase}/mapping/stop`, {
+        method: "POST",
+        body: JSON.stringify({ map_name: mapName }),
+        timeoutMs: 130000
+      });
     },
     maps(force = false) {
       return mapsCache.get(force);

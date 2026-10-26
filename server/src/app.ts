@@ -1,15 +1,17 @@
 import cors from "@fastify/cors";
-import Fastify, { type FastifyInstance } from "fastify";
+import Fastify, { type FastifyInstance, type FastifyReply } from "fastify";
 import { spawn } from "node:child_process";
+import { existsSync } from "node:fs";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { z } from "zod";
 import type { AppConfig } from "./config.js";
+import { UpstreamError } from "./http.js";
 import { loginWithWxCode, verifyToken } from "./auth.js";
 import { createRobotClient, type RobotClient } from "./robotClient.js";
-import { isBridgeAction, restartRobotVoiceStack, runBridgeAction } from "./sshControl.js";
+import { isBridgeAction, restartRobotVoiceStack, runBridgeAction, shellQuote } from "./sshControl.js";
 import { getJavaAgentStatus, startJavaAgent, stopJavaAgent } from "./javaAgentControl.js";
 import { getCurrentLocalization } from "./localizationControl.js";
 import { loadRuntimeConfig, loadRuntimeRobotHost, runtimeConfigPath, saveRobotHost } from "./runtimeConfig.js";
@@ -25,6 +27,7 @@ import {
   discoverLinkcraftResourcesAsRobotUser,
   discoverLocalLinkcraftResources
 } from "./linkcraftResources.js";
+import { getMappingHealth as readMappingHealth } from "./mappingControl.js";
 
 const loginSchema = z.object({ code: z.string().optional() });
 const navStartSchema = z.object({ target_name: z.string().trim().min(1) });
@@ -36,6 +39,17 @@ const pathSafetySchema = z.object({
   robot_radius_m: z.number().finite().gt(0).max(2),
   extra_clearance_m: z.number().finite().min(0).max(2)
 }).strict();
+
+function sendActionResult(reply: FastifyReply, result: unknown) {
+  if (!result || typeof result !== "object" || Array.isArray(result)) return result;
+  const payload = result as Record<string, unknown>;
+  if (payload.ok !== false && payload.accepted !== false) return result;
+
+  const message = [payload.message, payload.reason, payload.status].find(
+    (value): value is string => typeof value === "string" && value.trim().length > 0
+  ) || "机器人未接受该操作";
+  return reply.code(409).send({ ...payload, ok: false, message });
+}
 
 const relocalizationSchema = z.object({
   map_id: z.number().positive(),
@@ -162,10 +176,18 @@ async function clearStaleCloudTunnel(): Promise<{ ok: boolean; output: string }>
   return runLocalCommand("pkill", ["-f", "sshd: robot-tunnel"], 5000);
 }
 
-export function buildApp(config: AppConfig, robotClient?: RobotClient): FastifyInstance {
+export function buildApp(
+  config: AppConfig,
+  robotClient?: RobotClient,
+  mappingHealthReader: (config: AppConfig) => Promise<unknown> = readMappingHealth
+): FastifyInstance {
   const app = Fastify({ logger: true });
-  // The compiled server and its bundled public assets are both under console/dist.
-  const publicDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "public");
+  const moduleDir = path.dirname(fileURLToPath(import.meta.url));
+  const compiledPublicDir = path.resolve(moduleDir, "public");
+  const sourcePublicDir = path.resolve(moduleDir, "..", "public");
+  const publicDir = existsSync(path.join(compiledPublicDir, "index.html"))
+    ? compiledPublicDir
+    : sourcePublicDir;
   let activeConfig = loadRuntimeConfig(config);
   const usesInjectedRobotClient = robotClient != null;
   let activeRobotClient = robotClient ?? createRobotClient(activeConfig);
@@ -544,7 +566,7 @@ export function buildApp(config: AppConfig, robotClient?: RobotClient): FastifyI
   app.post("/api/robots/default/nav/start", async (request, reply) => {
     const parsed = navStartSchema.safeParse(request.body);
     if (!parsed.success) return reply.code(400).send({ ok: false, message: "请选择导航点位" });
-    return getRobot().navStart(parsed.data.target_name);
+    return sendActionResult(reply, await getRobot().navStart(parsed.data.target_name));
   });
 
   app.get("/api/robots/default/config", async () => ({
@@ -614,7 +636,8 @@ export function buildApp(config: AppConfig, robotClient?: RobotClient): FastifyI
   });
 
   app.post("/api/robots/default/nav/stop", async () => getRobot().navStop());
-  app.post("/api/robots/default/task/start", async () => getRobot().taskStart());
+  app.post("/api/robots/default/task/start", async (_request, reply) =>
+    sendActionResult(reply, await getRobot().taskStart()));
   app.post("/api/robots/default/task/pause", async () => getRobot().taskPause());
   app.post("/api/robots/default/task/resume", async () => getRobot().taskResume());
   app.post("/api/robots/default/task/stop", async () => getRobot().taskStop());
@@ -676,11 +699,19 @@ export function buildApp(config: AppConfig, robotClient?: RobotClient): FastifyI
     return getTunnelDiagnostics(getConfig(), runtimeRobotHost);
   });
   app.get("/api/robots/default/system/health", async () => getRobotSystemHealth(getConfig()));
-  app.get("/api/robots/default/mapping/health", async () => getMappingHealth(getConfig()));
-  app.post("/api/robots/default/mapping/start", async (_request, reply) =>
-    reply.code(409).send({ ok: false, message: "灵犀 X2 建图采集后端尚未通过实机验证；未启动采集，也未发送任何底盘或导航运动指令。" }));
-  app.post("/api/robots/default/mapping/save", async (_request, reply) =>
-    reply.code(409).send({ ok: false, message: "灵犀 X2 地图导出后端尚未通过实机验证；未写入或修改任何地图。" }));
+  app.get("/api/robots/default/mapping/health", async () => mappingHealthReader(getConfig()));
+  app.get("/api/robots/default/mapping/status", async () => getRobot().mappingStatus());
+  app.get("/api/robots/default/mapping/preview", async () => getRobot().mappingPreview());
+  app.post("/api/robots/default/mapping/start", async (request, reply) => {
+    const parsed = z.object({ map_name: z.string().trim().regex(/^[A-Za-z0-9_-]{1,48}$/) }).safeParse(request.body ?? {});
+    if (!parsed.success) return reply.code(400).send({ ok: false, message: "地图名称仅支持 1-48 位字母、数字、下划线和连字符" });
+    return getRobot().startMapping(parsed.data.map_name);
+  });
+  app.post("/api/robots/default/mapping/save", async (request, reply) => {
+    const parsed = z.object({ map_name: z.string().trim().regex(/^[A-Za-z0-9_-]{1,48}$/) }).safeParse(request.body ?? {});
+    if (!parsed.success) return reply.code(400).send({ ok: false, message: "地图名称仅支持 1-48 位字母、数字、下划线和连字符" });
+    return getRobot().stopMapping(parsed.data.map_name);
+  });
   app.post("/api/robots/default/system/restart", async () => restartRobotSystem(getConfig()));
   app.post("/api/robots/default/system/recover-localization", async () => recoverRobotLocalization(getConfig()));
 
@@ -779,7 +810,12 @@ export function buildApp(config: AppConfig, robotClient?: RobotClient): FastifyI
     const statusCode = typeof (error as { statusCode?: unknown }).statusCode === "number"
       ? (error as { statusCode: number }).statusCode
       : 500;
-    const message = error instanceof Error ? error.message : String(error);
+    const upstreamBody = error instanceof UpstreamError && error.upstreamBody && typeof error.upstreamBody === "object"
+      ? error.upstreamBody as Record<string, unknown>
+      : null;
+    const message = [upstreamBody?.message, upstreamBody?.error]
+      .find((value): value is string => typeof value === "string" && value.trim().length > 0)
+      || (error instanceof Error ? error.message : String(error));
     reply.code(statusCode >= 400 && statusCode < 600 ? statusCode : 500).send({
       ok: false,
       message
@@ -787,80 +823,6 @@ export function buildApp(config: AppConfig, robotClient?: RobotClient): FastifyI
   });
 
   return app;
-}
-
-async function getMappingHealth(config: AppConfig) {
-  const lidarTopic = "/aima/hal/sensor/lidar_chest_front/lidar_pointcloud";
-  const imuTopic = "/aima/hal/sensor/lidar_chest_front/imu";
-  const odomTopic = "/slam/lidar_odom";
-  const command = [
-    "set +e",
-    "[ -f /opt/ros/humble/setup.bash ] && source /opt/ros/humble/setup.bash",
-    "[ -f /agibot/software/common/local_setup.bash ] && source /agibot/software/common/local_setup.bash",
-    "[ -f /home/agi/aimdk/install/setup.bash ] && source /home/agi/aimdk/install/setup.bash",
-    "[ -f /agibot/software/entry/cfg/ros_dds_configuration.xml ] && export FASTRTPS_DEFAULT_PROFILES_FILE=/agibot/software/entry/cfg/ros_dds_configuration.xml",
-    "[ -f /agibot/software/nav/bin/librmw_fastrtps.so ] && export RMW_LIBRARY_PATH=/agibot/software/nav/bin/librmw_fastrtps.so",
-    "echo agibot_software=$(systemctl is-active agibot_software.service 2>/dev/null || echo unknown)",
-    "pgrep -f 'aima-hal_sensor-app-main' >/dev/null && echo hal_sensor_running=1 || echo hal_sensor_running=0",
-    "pgrep -f './slam --cfg_file_path' >/dev/null && echo slam_running=1 || echo slam_running=0",
-    ...[["lidar", lidarTopic], ["imu", imuTopic], ["odom", odomTopic]].map(([name, topic]) =>
-      `${name}_info=$(timeout 3 ros2 topic info ${shellQuote(topic)} 2>/dev/null); ${name}_publishers=$(printf '%s\\n' "$${name}_info" | awk '/Publisher count/ {print $3; exit}'); echo ${name}_publishers=$${name}_publishers`
-    ),
-    `if [ "$lidar_publishers" -gt 0 ] 2>/dev/null; then timeout 3 ros2 topic echo --once --qos-reliability best_effort ${shellQuote(lidarTopic)} sensor_msgs/msg/PointCloud2 >/dev/null 2>&1 && echo lidar_data=1 || echo lidar_data=0; else echo lidar_data=0; fi`,
-    `if [ "$imu_publishers" -gt 0 ] 2>/dev/null; then timeout 3 ros2 topic echo --once --qos-reliability best_effort ${shellQuote(imuTopic)} sensor_msgs/msg/Imu >/dev/null 2>&1 && echo imu_data=1 || echo imu_data=0; else echo imu_data=0; fi`,
-    `if [ "$odom_publishers" -gt 0 ] 2>/dev/null; then timeout 3 ros2 topic echo --once --qos-reliability best_effort ${shellQuote(odomTopic)} nav_msgs/msg/Odometry >/dev/null 2>&1 && echo odom_data=1 || echo odom_data=0; else echo odom_data=0; fi`,
-    "timeout 3 ros2 topic list -t 2>/dev/null | grep -Ei 'map|slam|lidar|imu' | head -80 | sed 's/^/topic=/'",
-    "timeout 3 ros2 service list -t 2>/dev/null | grep -Ei 'map|slam|lidar|imu' | head -80 | sed 's/^/service=/'",
-    "timeout 2 ros2 pkg prefix py_examples >/dev/null 2>&1 && echo prerequisite_rectifier=1 || echo prerequisite_rectifier=0",
-    "timeout 2 ros2 pkg prefix spark_fast_lio >/dev/null 2>&1 && echo prerequisite_fast_lio=1 || echo prerequisite_fast_lio=0",
-    "timeout 3 python3 -c 'import open3d' >/dev/null 2>&1 && echo prerequisite_open3d=1 || echo prerequisite_open3d=0",
-    "timeout 2 ros2 pkg prefix octomap_server >/dev/null 2>&1 && echo prerequisite_octomap=1 || echo prerequisite_octomap=0",
-    "timeout 3 sh -c 'ros2 pkg prefix nav2_map_server >/dev/null 2>&1 && ros2 pkg executables nav2_map_server 2>/dev/null | grep -q map_saver_cli' && echo prerequisite_map_saver=1 || echo prerequisite_map_saver=0"
-  ].join("\n");
-  const output = await runRobotSystemSshCommand(`bash -lc ${shellQuote(command)}`, config, 42000);
-  const fields: Record<string, string> = {};
-  for (const line of output.split(/\r?\n/)) {
-    const index = line.indexOf("=");
-    if (index > 0) fields[line.slice(0, index)] = line.slice(index + 1).trim();
-  }
-  const lidar = Number(fields.lidar_publishers) || 0;
-  const imu = Number(fields.imu_publishers) || 0;
-  const odom = Number(fields.odom_publishers) || 0;
-  const lidarData = fields.lidar_data === "1";
-  const imuData = fields.imu_data === "1";
-  const odomData = fields.odom_data === "1";
-  const hal = fields.hal_sensor_running === "1";
-  const slam = fields.slam_running === "1";
-  const software = fields.agibot_software || "unknown";
-  const healthy = software === "active" && hal && lidar > 0 && imu > 0 && lidarData && imuData;
-  return {
-    ok: healthy && slam && odom > 0 && odomData,
-    agibot_software: software,
-    hal_sensor_running: hal,
-    slam_running: slam,
-    lidar_publishers: lidar,
-    imu_publishers: imu,
-    odom_publishers: odom,
-    lidar_data_available: lidarData,
-    imu_data_available: imuData,
-    odom_data_available: odomData,
-    mapping_related_topics: output.split(/\r?\n/).filter((line) => line.startsWith("topic=")).map((line) => line.slice(6)),
-    mapping_related_services: output.split(/\r?\n/).filter((line) => line.startsWith("service=")).map((line) => line.slice(8)),
-    mapping_prerequisites: [
-      ["雷达/IMU 校正包", fields.prerequisite_rectifier],
-      ["Spark FAST-LIO", fields.prerequisite_fast_lio],
-      ["Open3D PCD 合并依赖", fields.prerequisite_open3d],
-      ["OctoMap 投影节点", fields.prerequisite_octomap],
-      ["Nav2 map_saver_cli", fields.prerequisite_map_saver]
-    ].map(([name, available]) => ({ name, available: available === "1" })),
-    mapping_backend_available: false,
-    checked_at: new Date().toISOString(),
-    diagnosis: !healthy
-      ? "请先恢复底层服务并确认雷达点云和 IMU 实时数据。"
-      : !slam || odom === 0 || !odomData
-        ? "传感器输入正常，但未确认 SLAM 定位输出；定位输出也不等于实时建图。"
-        : "传感器和定位数据可读；建图启动/地图导出接口仍未验证，采集与保存保持关闭。"
-  };
 }
 
 function localIpv4Addresses(): string[] {

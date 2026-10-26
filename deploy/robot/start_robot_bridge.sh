@@ -7,13 +7,17 @@ LOG_FILE="$BRIDGE_DIR/bridge.log"
 
 cd "$BRIDGE_DIR"
 source /opt/ros/humble/setup.bash
-if [ -f /home/agi/aimdk/install/setup.bash ]; then
-  source /home/agi/aimdk/install/setup.bash
+if [ -z "${ROBOT_AIMDK_SETUP:-}" ] || [ ! -r "$ROBOT_AIMDK_SETUP" ]; then
+  echo "Error: set ROBOT_AIMDK_SETUP to the AIMDK v1.1.0 install/setup.bash" >&2
+  exit 1
 fi
+source "$ROBOT_AIMDK_SETUP"
+python3 -c 'from aimdk_msgs.msg import PncTaskRequest; from aimdk_msgs.srv import GetStoredMapByName' \
+  || { echo "Error: AIMDK v1.1.0 navigation/mapping interfaces are unavailable" >&2; exit 1; }
 
-export AMENT_PREFIX_PATH="/home/agi/aimdk/install/aimdk_msgs:/home/agi/aimdk/install:/agibot/software/app_proxy/bin/test_proxy:/agibot/software/app_proxy/bin/local_app_proxy:/agibot/software/app_proxy/bin/app_proxy_cpp:/agibot/software/app_proxy/bin/aimdk_msgs:/opt/ros/humble:${AMENT_PREFIX_PATH:-}"
-export PYTHONPATH="/home/agi/aimdk/install/aimdk_msgs/local/lib/python3.10/dist-packages:/home/agi/aimdk/src/aimdk_msgs/prebuilt_aarch64/local/lib/python3.10/dist-packages:/agibot/software/app_proxy/bin/test_proxy/lib/python3.10/site-packages:/agibot/software/app_proxy/bin/local_app_proxy/lib/python3.10/site-packages:/agibot/software/app_proxy/bin/aimdk_msgs/local/lib/python3.10/dist-packages:/opt/ros/humble/lib/python3.10/site-packages:/opt/ros/humble/local/lib/python3.10/dist-packages:${PYTHONPATH:-}"
-export LD_LIBRARY_PATH="/home/agi/aimdk/install/aimdk_msgs/lib:/home/agi/aimdk/src/aimdk_msgs/prebuilt_aarch64/lib:/agibot/software/app_proxy/bin/app_proxy_cpp/lib:/agibot/software/app_proxy/bin/aimdk_msgs/lib:/opt/ros/humble/lib/aarch64-linux-gnu:/opt/ros/humble/lib:${LD_LIBRARY_PATH:-}"
+export AMENT_PREFIX_PATH="/agibot/software/app_proxy/bin/test_proxy:/agibot/software/app_proxy/bin/local_app_proxy:/agibot/software/app_proxy/bin/app_proxy_cpp:/opt/ros/humble:${AMENT_PREFIX_PATH:-}"
+export PYTHONPATH="/agibot/software/app_proxy/bin/test_proxy/lib/python3.10/site-packages:/agibot/software/app_proxy/bin/local_app_proxy/lib/python3.10/site-packages:/opt/ros/humble/lib/python3.10/site-packages:/opt/ros/humble/local/lib/python3.10/dist-packages:${PYTHONPATH:-}"
+export LD_LIBRARY_PATH="/agibot/software/app_proxy/bin/app_proxy_cpp/lib:/opt/ros/humble/lib/aarch64-linux-gnu:/opt/ros/humble/lib:${LD_LIBRARY_PATH:-}"
 export LINGXI_DANCE_RESOURCE_KEY="${LINGXI_DANCE_RESOURCE_KEY:-linkcraft_resource_onnx_01K88DMFAWQCKW5T71XX86F1X8}"
 export LINGXI_DANCE_RESOURCE_VERSION="${LINGXI_DANCE_RESOURCE_VERSION:-0.0.1}"
 

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#ffffff">
     <title>灵犀导航</title>
-    <link rel="stylesheet" href="/console/styles.css?v=20261024-mapping-workspace">
+<link rel="stylesheet" href="/console/styles.css?v=20261026-r18-mapfit13">
   </head>
   <body>
     <header class="topbar">
@@ -83,7 +83,7 @@
           </div>
           <span id="mappingBadge" class="badge bad">尚未检查</span>
         </div>
-        <div class="mapping-safety notice">本页面不会发送底盘速度或导航运动命令。当前机器人版本的建图启动与地图导出接口尚未完成实机验证，采集和保存功能保持关闭，不会触碰现有地图。</div>
+        <div class="mapping-safety notice">网页只调用 AIMDK v1.1.0 SLAM 建图接口，不发送底盘速度或导航运动命令；机器人移动由外置遥控器负责。保存结果须确认地图 Web 服务已发现后才能配置导航点位。</div>
         <div class="mapping-grid">
           <section class="mapping-preview" aria-label="传感器状态">
             <div class="mapping-preview-head"><strong>传感器与 SLAM 状态</strong><button id="refreshMappingBtn" class="secondary" type="button">刷新状态</button></div>
@@ -108,8 +108,15 @@
               <button id="startMappingBtn" class="primary-large" type="button" disabled>采集接口待验证</button>
               <button id="saveMappingBtn" class="warning" type="button" disabled>停止采集并保存地图</button>
             </div>
-            <div id="mappingResult" class="mapping-result" aria-live="polite"></div>
-            <p class="hint">只有经过验证的后端生成 Nav2 地图并通过格式检查后，才会写入 MapManager 下全新的数字 ID 目录。单纯录制传感器数据不能作为可导航地图。</p>
+<div id="mappingResult" class="mapping-result" aria-live="polite"></div>
+<section class="mapping-live" aria-label="实时雷达地图">
+<div class="mapping-preview-head"><strong>实时扫描地图</strong><span id="mappingPreviewState" class="badge">等待开始</span></div>
+<div class="mapping-map-frame"><canvas id="mappingPreviewCanvas" role="img" aria-label="机器人实时雷达地图和移动轨迹" hidden></canvas><div id="mappingPreviewEmpty">开始建图并由遥控器移动机器人后，实时扫描点和轨迹会显示在这里。</div></div>
+<p id="mappingPreviewMeta" class="hint">扫描数据来自机器人雷达与 SLAM 坐标变换。</p>
+</section>
+            <div class="mapping-preview-head"><strong>最近保存的地图</strong><button id="refreshMappingMapsBtn" class="secondary" type="button">刷新列表</button></div>
+            <ul id="mappingSavedMaps" class="mapping-saved-maps"><li>尚未读取地图</li></ul>
+          <p class="hint">建图由 AIMDK v1.1.0 的 SLAM 接口完成，地图须通过 GetStoredMapByName 校验并确认可被导航服务发现后才可使用。遥控移动由外置遥控器负责。</p>
           </section>
         </div>
       </section>
@@ -396,6 +403,6 @@
     </main>
 
     <div id="toast" class="toast"></div>
-    <script type="module" src="/console/app.js?v=20261024-mapping-workspace"></script>
+<script type="module" src="/console/app.js?v=20261026-r18-mapfit16"></script>
   </body>
 </html>
