@@ -155,7 +155,7 @@ function ConnectScreen({ onConnected }: { onConnected: (connection: Connection) 
           <h1>建图与导航<br />工作台</h1>
           <p>机器人本机运行 · 同一局域网连接</p>
         </div>
-          <span className="brand-subtitle">LINGXI NEXT / 0.1.7</span>
+          <span className="brand-subtitle">LINGXI NEXT / 0.1.8</span>
       </section>
       <section className="connect-main">
         <form className="connect-form" onSubmit={connect}>
@@ -315,6 +315,27 @@ function Overview({
                 <button className="btn primary" onClick={() => setView("tours")}><Play size={13} />打开任务</button>
               </div>
             ) : <div className="empty">尚未创建讲解任务</div>}
+          </Section>
+          <Section title="语音链路" icon={Mic2}>
+            <div className="stack">
+              <div className="inline">
+                <strong style={{ fontSize: 20 }}>
+                  {state.voiceDiagnostics?.recognitionToFirstAudioP95Ms === undefined
+                    ? "暂无数据"
+                    : `${state.voiceDiagnostics.recognitionToFirstAudioP95Ms} ms`}
+                </strong>
+                <span className="helper">成功播报样本首音 P95</span>
+              </div>
+              <span className="helper">
+                最近 {state.voiceDiagnostics?.sampleCount ?? 0} 次 · 有首音 {state.voiceDiagnostics?.audibleSampleCount ?? 0} 次
+              </span>
+              <span className="helper">
+                {state.voiceDiagnostics?.latest
+                  ? `最近结果：${state.voiceDiagnostics.latest.category} · ${state.voiceDiagnostics.latest.speechDelivered ? "已播报" : "未播报"}`
+                  : "等待语音事件"}
+              </span>
+              <span className="helper">不含失败样本与 ASR 上游时间，不作为 VAD 结束至首音验收值</span>
+            </div>
           </Section>
           <div className="notice"><CircleHelp size={14} />移动机器人请始终使用外置遥控器。网页和 App 不发送行走命令。</div>
         </div>

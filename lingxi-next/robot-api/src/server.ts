@@ -8,7 +8,7 @@ import path from "node:path";
 import { timingSafeEqual } from "node:crypto";
 import type { TLSSocket } from "node:tls";
 import { z } from "zod";
-import type { MapPoint, RobotMap, RobotState, TourTask, VoiceEvent, VoiceReply } from "../../shared/contracts";
+import type { MapPoint, RobotMap, RobotState, TourTask, VoiceDiagnostics, VoiceEvent, VoiceReply } from "../../shared/contracts";
 import { extractBearer, pairingCodeHash, SessionManager, websocketBearer } from "./auth";
 import { AimdkAdapter } from "./adapters/aimdk";
 import { DemoAdapter } from "./adapters/demo";
@@ -109,6 +109,7 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
   const voiceRouter = new VoiceRouter(Number(process.env.LINGXI_ASR_CONFIDENCE_THRESHOLD ?? "0.78"));
   const events = new Set<{ send(data: string): void; close(): void }>();
   const lidarClients = new Set<{ send(data: string): void; close(): void; bufferedAmount: number }>();
+  const voiceSamples: NonNullable<VoiceDiagnostics["latest"]>[] = [];
   type PendingReply = { cancellation: AbortController; speechId: string; stop?: Promise<void> };
   const agentReplies = new Map<string, PendingReply>();
   const stoppingReplies = new Set<PendingReply>();
@@ -264,7 +265,21 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
       selectedTourId: db.selectedTourId,
       idleReturnSeconds: db.idleReturnSeconds,
       navigation,
+      voiceDiagnostics: summarizeVoiceDiagnostics(),
       updatedAt: new Date().toISOString(),
+    };
+  }
+
+  function summarizeVoiceDiagnostics(): VoiceDiagnostics {
+    const audibleTimes = voiceSamples.flatMap((sample) =>
+      sample.firstAudioMs === undefined ? [] : [sample.firstAudioMs],
+    ).sort((left, right) => left - right);
+    const p95Index = Math.max(0, Math.ceil(audibleTimes.length * 0.95) - 1);
+    return {
+      sampleCount: voiceSamples.length,
+      audibleSampleCount: audibleTimes.length,
+      recognitionToFirstAudioP95Ms: audibleTimes.length ? audibleTimes[p95Index] : undefined,
+      latest: voiceSamples.at(-1),
     };
   }
 
@@ -637,6 +652,15 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
       firstAudioMs,
       deliveryError,
     };
+    voiceSamples.push({
+      at: new Date().toISOString(),
+      category: result.category,
+      accepted: result.accepted,
+      speechDelivered: result.speechDelivered ?? false,
+      latencyMs: result.latencyMs,
+      firstAudioMs: result.firstAudioMs,
+    });
+    if (voiceSamples.length > 100) voiceSamples.splice(0, voiceSamples.length - 100);
     return reply.code(200).send(result);
   });
 

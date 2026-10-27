@@ -230,6 +230,49 @@ describe("paired local console API", () => {
     const state = (await app.inject({ url: "/api/v1/state", headers: headers() })).json();
     expect(state.navigation.pointId).toBe("point-2");
   });
+  it("publishes bounded, transcript-free voice latency diagnostics to paired state", async () => {
+    await app.inject(agentEvent({ kind: "wake", eventId: "wake" }));
+    const transcript = "去灵犀展台";
+    const result = await app.inject(command("diagnostic", transcript));
+    expect(result.statusCode).toBe(200);
+
+    const state = (await app.inject({ url: "/api/v1/state", headers: headers() })).json();
+    expect(state.voiceDiagnostics).toMatchObject({
+      sampleCount: 1,
+      audibleSampleCount: 1,
+      latest: { category: "command", accepted: true, speechDelivered: true },
+    });
+    expect(state.voiceDiagnostics.recognitionToFirstAudioP95Ms).toBeGreaterThanOrEqual(10);
+    expect(JSON.stringify(state.voiceDiagnostics)).not.toContain(transcript);
+    expect(JSON.stringify(state.voiceDiagnostics)).not.toContain("diagnostic");
+    const persistedState = await readFile(path.join(directory, "state.json"), "utf8");
+    expect(persistedState).not.toContain(transcript);
+    expect(persistedState).not.toContain("diagnostic");
+  });
+  it("keeps voice diagnostics bounded to the latest 100 completed replies", async () => {
+    for (let index = 0; index < 101; index += 1) {
+      const sessionId = `diagnostic-session-${index}`;
+      const event = (payload: object) => app.inject({
+        method: "POST",
+        url: "/api/v1/agent/events",
+        headers: { "x-agent-token": "internal-test-token" },
+        payload: { sessionId, occurredAt: Date.now(), ...payload },
+      });
+      await event({ kind: "wake", eventId: `wake-${index}` });
+      const result = await event({
+        kind: "recognition",
+        eventId: `reply-${index}`,
+        transcript: "去不存在地点",
+        confidence: 0.99,
+        isFinal: true,
+      });
+      expect(result.statusCode).toBe(200);
+    }
+
+    const diagnostics = (await app.inject({ url: "/api/v1/state", headers: headers() })).json().voiceDiagnostics;
+    expect(diagnostics.sampleCount).toBe(100);
+    expect(diagnostics.audibleSampleCount).toBe(100);
+  });
   it("does not cancel a current reply when a duplicate wake arrives", async () => {
     const wake = { kind: "wake", eventId: "wake", sessionId: "voice", occurredAt: Date.now() };
     const post = (payload: object) => app.inject({ method: "POST", url: "/api/v1/agent/events",

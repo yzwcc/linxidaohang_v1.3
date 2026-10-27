@@ -111,7 +111,22 @@ export type RobotState = {
   motionPresets: string[];
   expressions: string[];
   linkcraftResources: { id: string; name: string }[];
+  voiceDiagnostics?: VoiceDiagnostics;
   updatedAt: string;
+};
+
+export type VoiceDiagnostics = {
+  sampleCount: number;
+  audibleSampleCount: number;
+  recognitionToFirstAudioP95Ms?: number;
+  latest?: {
+    at: string;
+    category: VoiceReply["category"];
+    accepted: boolean;
+    speechDelivered: boolean;
+    latencyMs: number;
+    firstAudioMs?: number;
+  };
 };
 
 export type VoiceEvent =
