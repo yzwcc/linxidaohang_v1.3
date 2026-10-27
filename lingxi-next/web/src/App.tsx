@@ -1004,11 +1004,11 @@ export default function App() {
   useEffect(() => {
     if (!connection) return;
     void refresh(connection).catch((error) => notify((error as Error).message));
-    const socket = openEvents(connection, setState, () => { void refresh(connection).catch(() => undefined); });
+    const subscription = openEvents(connection, setState, () => { void refresh(connection).catch(() => undefined); });
     const timer = window.setInterval(() => void refresh(connection).catch(() => undefined), 5000);
     return () => {
       window.clearInterval(timer);
-      socket.close();
+      subscription.close();
     };
   }, [connection, refresh]);
 

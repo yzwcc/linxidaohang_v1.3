@@ -23,6 +23,8 @@ export type Connection = {
   demo: boolean;
 };
 
+export type EventSubscription = { close(): void };
+
 function normalizeBaseUrl(value: string): string {
   const trimmed = value.trim();
   const withScheme = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
@@ -74,21 +76,74 @@ export function openEvents(
   connection: Connection,
   onState: (state: RobotState) => void,
   onError: () => void,
-): WebSocket {
+): EventSubscription {
   const target = new URL("/api/v1/events", connection.baseUrl);
   target.protocol = target.protocol === "https:" ? "wss:" : "ws:";
-  const socket = new WebSocket(target, ["lingxi-v1", `bearer.${connection.token}`]);
-  socket.addEventListener("message", (event) => {
+  let socket: WebSocket | undefined;
+  let retryTimer: number | undefined;
+  let stableTimer: number | undefined;
+  let attempt = 0;
+  let closed = false;
+
+  const scheduleReconnect = () => {
+    if (closed || retryTimer !== undefined) return;
+    const delay = Math.min(500 * 2 ** Math.min(attempt, 5), 15_000);
+    attempt += 1;
+    retryTimer = window.setTimeout(() => {
+      retryTimer = undefined;
+      connect();
+    }, delay);
+  };
+
+  const connect = () => {
+    if (closed) return;
+    let current: WebSocket;
     try {
-      const payload = JSON.parse(String(event.data)) as { type?: string; state?: RobotState };
-      if (payload.type === "state" && payload.state) onState(payload.state);
+      current = new WebSocket(target, ["lingxi-v1", `bearer.${connection.token}`]);
     } catch {
-      // Ignore malformed events and recover with the next full snapshot.
+      onError();
+      scheduleReconnect();
+      return;
     }
-  });
-  socket.addEventListener("close", onError);
-  socket.addEventListener("error", onError);
-  return socket;
+    socket = current;
+    let disconnected = false;
+    const disconnect = () => {
+      if (closed || disconnected) return;
+      disconnected = true;
+      if (stableTimer !== undefined) window.clearTimeout(stableTimer);
+      stableTimer = undefined;
+      onError();
+      scheduleReconnect();
+      try { current.close(); } catch { /* The socket may already be closed. */ }
+    };
+    current.addEventListener("open", () => {
+      if (closed || socket !== current) return;
+      stableTimer = window.setTimeout(() => { attempt = 0; stableTimer = undefined; }, 30_000);
+    }, { once: true });
+    current.addEventListener("message", (event) => {
+      if (closed || socket !== current) return;
+      try {
+        const payload = JSON.parse(String(event.data)) as { type?: string; state?: RobotState };
+        if (payload.type === "state" && payload.state) onState(payload.state);
+      } catch {
+        // Ignore malformed events and recover with the next full snapshot.
+      }
+    });
+    current.addEventListener("close", disconnect, { once: true });
+    current.addEventListener("error", disconnect, { once: true });
+  };
+
+  connect();
+  return {
+    close() {
+      closed = true;
+      if (retryTimer !== undefined) window.clearTimeout(retryTimer);
+      if (stableTimer !== undefined) window.clearTimeout(stableTimer);
+      retryTimer = undefined;
+      stableTimer = undefined;
+      socket?.close();
+    },
+  };
 }
 
 export function openLidarEvents(connection: Connection, onEvent: (event: LidarEvent) => void, onError: () => void): WebSocket {
