@@ -360,6 +360,9 @@ if [[ -d "${STAGING}/aimdk-v1.1.0" ]]; then
   find "${STAGING}/aimdk-v1.1.0" -type f -exec chmod 0640 {} +
   chmod 0640 "${STAGING}/aimdk-v1.1.0/setup.bash"
 fi
+if [[ "${TEST_MODE}" != true ]]; then
+  getent group "${RUNTIME_GROUP}" >/dev/null || groupadd --system "${RUNTIME_GROUP}"
+fi
 [[ "${TEST_MODE}" == true ]] || chown -R root:"${RUNTIME_GROUP}" "${STAGING}"
 if [[ -e "${TARGET}" ]]; then
   if [[ "${PREVIOUS}" == "${TARGET}" ]]; then
@@ -369,7 +372,6 @@ fi
 python3 "${PACKAGE_DIR}/scripts/verify_payload.py" --root "${STAGING}" --manifest "${STAGING}/payload-manifest.json"
 
 if [[ "${TEST_MODE}" != true ]]; then
-  getent group "${RUNTIME_GROUP}" >/dev/null || groupadd --system "${RUNTIME_GROUP}"
   usermod -a -G "${RUNTIME_GROUP}" agi
   usermod -a -G "${RUNTIME_GROUP}" run
 fi

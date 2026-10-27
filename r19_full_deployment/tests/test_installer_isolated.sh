@@ -50,6 +50,13 @@ for required in install.sh release-info.json payload-manifest.json payload scrip
   }
 done
 
+group_setup_line="$(grep -nF 'groupadd --system "${RUNTIME_GROUP}"' "${PACKAGE_DIR}/install.sh" | head -n 1 | cut -d: -f1)"
+staging_chown_line="$(grep -nF 'chown -R root:"${RUNTIME_GROUP}" "${STAGING}"' "${PACKAGE_DIR}/install.sh" | head -n 1 | cut -d: -f1)"
+if [[ -z "${group_setup_line}" || -z "${staging_chown_line}" ]] || (( group_setup_line >= staging_chown_line )); then
+  echo "installer must create the runtime group before assigning it to the staged release" >&2
+  exit 1
+fi
+
 cat >"${TEST_ROOT}/secrets.env" <<'EOF'
 LINGXI_APP_ID=test
 LINGXI_APP_KEY=test

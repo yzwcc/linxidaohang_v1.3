@@ -2,9 +2,9 @@
 
 ## 包含内容与适用范围
 
-R19 是一次性部署 V1.3.1 R18 导航、地图标注、实时建图、保存地图、定位诊断、网页、运行时与 Java Agent 的 ARM64 部署包。无需先安装旧版 AIMDK。适用于灵犀 X2 V1.3.1 R18 固件；不适用于其他固件版本。
+R19 是一次性部署 V1.3.1 R18 导航、地图标注、实时建图、保存地图、定位诊断、网页、运行时与 Java Agent 的 ARM64 部署包。这里的“R18”指灵犀导航 V1.3.1 R18 版本基线，不是单独的固件版本。无需先安装旧版 R18 导航部署包或旧版 AIMDK。
 
-包内包含 R18 所需的 `aimdk_msgs` AArch64 预编译消息 overlay，但不包含 ROS 2、厂商底层固件、HAL、SLAM、MapManager 或完整 AIMDK runtime。新机必须已经有厂商 R18 固件及 `/opt/ros/humble`。已有 AIMDK 可选择复用现有 setup。
+包内包含 V1.3.1 R18 导航程序和所需的 `aimdk_msgs` AArch64 预编译消息 overlay，但不包含机器人底层系统、厂商 HAL/传感器驱动、SLAM、MapManager、ROS 2 或完整 AIMDK runtime。目标机器人必须已有兼容的厂商运行环境及 `/opt/ros/humble`；这些底层运行组件不由 R19 替代。已有 AIMDK 可选择复用现有 setup。
 
 自定义机器人轮廓、额外安全距离和自定义路径安全规划已从 R19 网页/API/导航代码中移除。R19 不关闭、不替代、不修改机器人固件自带的安全功能。
 
@@ -25,7 +25,7 @@ sha256sum -c sparkrobot-lingxi-r19-full-1.1.0-20261027-r19-full.tar.gz.sha256
 ```bash
 mkdir -p ~/r19/package
 tar -xzf sparkrobot-lingxi-r19-full-1.1.0-20261027-r19-full.tar.gz -C ~/r19/package
-cd ~/r19/package/sparkrobot-lingxi-r19-full-1.1.0-20261027-r19-full
+cd ~/r19/package/sparkrobot-lingxi-r19-full-1.1.1-20261027-r19-full
 ```
 
 4. 准备首次安装密钥文件。可以交互生成临时文件：
@@ -38,7 +38,7 @@ cd ~/r19/package/sparkrobot-lingxi-r19-full-1.1.0-20261027-r19-full
 
 ## 方式 A：使用包内 AIMDK 消息 overlay
 
-适用于机器人只有 R18 固件和 ROS 2，没有可复用 AIMDK Python 消息包的情况。包内 overlay 只补足本项目所需的 `aimdk_msgs` Python/ROS 接口，不替代完整 AIMDK。
+适用于机器人已有兼容的厂商运行环境和 ROS 2，但没有可复用 AIMDK Python 消息包的情况。包内 overlay 只补足本项目所需的 `aimdk_msgs` Python/ROS 接口，不替代完整 AIMDK，也不需要先安装旧版 R18 导航包。
 
 ```bash
 sudo ./install.sh --secrets ~/r19/secrets.env --aimdk-mode overlay

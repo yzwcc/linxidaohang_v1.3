@@ -26,7 +26,7 @@ R18_SOURCE_PATHS = (
     "deploy/robot/robot_lingxi_bridge.py",
 )
 RUNTIME = HERE / "runtime"
-VERSION = "1.1.0-20261027-r19-full"
+VERSION = "1.1.1-20261027-r19-full"
 PACKAGE_NAME = f"sparkrobot-lingxi-r19-full-{VERSION}"
 AIMDK_PREFIX = "aimdk-aarch64-faf4c945-artifacts/src/aimdk_msgs/prebuilt_aarch64/"
 
@@ -1169,7 +1169,7 @@ def build_payload(stage: Path, aimdk_archive: Path) -> None:
         "product_id": "sparkrobot-lingxi-r19-full",
         "version": VERSION,
         "architecture": "aarch64",
-        "firmware_baseline": "Lingxi X2 V1.3.1 R18",
+        "navigation_baseline": "Lingxi X2 V1.3.1 R18",
         "r18_source_commit": R18_REF,
         "aimdk": "aimdk v1.1.0-gfaf4c94 aimdk_msgs prebuilt_aarch64",
         "mapping": True,
