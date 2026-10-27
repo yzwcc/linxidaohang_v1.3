@@ -264,7 +264,7 @@ function requiresRobotState(question: string): boolean {
 }
 
 function requiresKnowledge(question: string): boolean {
-  return /(展厅|展馆|场馆|展台|园区|公司|企业|展览|展品|开放时间|营业时间|路线|讲解|参观|停车|洗手间|地址|门票|这里|本馆|你们|咱们|我们)/.test(question);
+  return /(展厅|展馆|场馆|展台|园区|公司|企业|展览|展品|开放时间|营业时间|路线|讲解|参观|停车|洗手间|卫生间|厕所|地址|门票|这里|本馆|馆内|园内|这边|附近|周边|周围|餐厅|餐饮|吃饭|饮水|饮用水|买水|喝水|服务台|停车场|入口|出口|你们|咱们|我们)/.test(question);
 }
 
 function requiresLiveKnowledge(question: string): boolean {

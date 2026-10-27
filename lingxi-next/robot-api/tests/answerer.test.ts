@@ -23,6 +23,22 @@ describe("grounded answers and bounded cloud calls", () => {
     expect((await new Answerer(new MemoryStore(), new DemoAdapter(), { fetcher }).answer("展厅开放时间是什么")).source).toBe("refusal");
     expect(fetcher).not.toHaveBeenCalled();
   });
+  it.each([
+    "附近有什么好玩的",
+    "周边有什么可以参观",
+    "馆内卫生间在哪里",
+    "厕所在哪",
+    "哪里可以买水",
+  ])("never sends local venue facts to the general model without retrieval evidence: %s", async (question) => {
+    const store = new MemoryStore();
+    store.credentials.apiKey = "model-test-key";
+    const fetcher = vi.fn(async () => Response.json({
+      choices: [{ message: { content: "模型猜测的地点信息" } }],
+    }));
+    const result = await new Answerer(store, new DemoAdapter(), { fetcher }).answer(question);
+    expect(result.source).toBe("refusal");
+    expect(fetcher).not.toHaveBeenCalled();
+  });
   it.each([0.2, 0.59, NaN])("does not trust retrieval below the score threshold %s", async (score) => {
     const store = new MemoryStore();
     store.credentials = { linksoulAppId: "id", linksoulAppKey: "key", linksoulAppSecret: "secret", agentCode: "agent" };
@@ -44,6 +60,18 @@ describe("grounded answers and bounded cloud calls", () => {
     const result = await new Answerer(store, new DemoAdapter(), { fetcher }).answer("展厅开放时间");
     expect(result).toEqual({ source: "retriever", text: "开放时间为九点至十七点。" });
     expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+  it("answers nearby venue questions only from a scored Retriever result", async () => {
+    const store = new MemoryStore();
+    store.credentials = { linksoulAppId: "id", linksoulAppKey: "key", linksoulAppSecret: "secret", agentCode: "agent" };
+    const fetcher = vi.fn(async (_url: unknown, init?: RequestInit) => {
+      const request = JSON.parse(String(init!.body));
+      expect(request.agent_code).toBe("agent");
+      expect(request.query).toBe("附近有什么好玩的");
+      return Response.json({ success: true, data: [{ score: 0.91, content: "附近有一层机器人互动展区。" }] });
+    });
+    const result = await new Answerer(store, new DemoAdapter(), { fetcher }).answer("附近有什么好玩的");
+    expect(result).toEqual({ source: "retriever", text: "附近有一层机器人互动展区。" });
   });
   it("keeps ordinary knowledge on the configured model and exposes no tools", async () => {
     const store = new MemoryStore();

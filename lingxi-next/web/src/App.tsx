@@ -155,7 +155,7 @@ function ConnectScreen({ onConnected }: { onConnected: (connection: Connection) 
           <h1>建图与导航<br />工作台</h1>
           <p>机器人本机运行 · 同一局域网连接</p>
         </div>
-        <span className="brand-subtitle">LINGXI NEXT / 0.1.5</span>
+          <span className="brand-subtitle">LINGXI NEXT / 0.1.6</span>
       </section>
       <section className="connect-main">
         <form className="connect-form" onSubmit={connect}>
