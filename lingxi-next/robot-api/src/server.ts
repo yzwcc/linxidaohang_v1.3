@@ -63,7 +63,7 @@ class HttpAgentSpeaker implements SpeechOutput {
     const response = await fetch(`${this.endpoint.replace(/\/+$/, "")}/v1/speak`, {
       method: "POST",
       headers: { Authorization: `Bearer ${this.token}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ text, correlationId }),
+      body: JSON.stringify({ text, correlationId, issuedAt: Date.now() }),
       signal: AbortSignal.timeout(125_000),
     });
     if (!response.ok) throw new Error(`灵心语音接口不可用 (${response.status})`);
@@ -118,7 +118,29 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
   const voiceRouter = new VoiceRouter(Number(process.env.LINGXI_ASR_CONFIDENCE_THRESHOLD ?? "0.78"));
   const events = new Set<{ send(data: string): void; close(): void }>();
   const lidarClients = new Set<{ send(data: string): void; close(): void; bufferedAmount: number }>();
-  const agentReplies = new Map<string, { cancellation: AbortController; speechId: string }>();
+  type PendingReply = { cancellation: AbortController; speechId: string; stop?: Promise<void> };
+  const agentReplies = new Map<string, PendingReply>();
+  const stoppingReplies = new Set<PendingReply>();
+  let wakeReady: { sessionId: string; ready: Promise<unknown> } | undefined;
+
+  function cancelReply(pending: PendingReply): Promise<void> {
+    pending.cancellation.abort();
+    stoppingReplies.add(pending);
+    if (!pending.stop) {
+      pending.stop = Promise.resolve().then(() => speaker.cancel?.(pending.speechId)).then(() => {
+        stoppingReplies.delete(pending);
+      }, (error) => {
+        pending.stop = undefined; // A later interaction can retry the unconfirmed stop.
+        throw error;
+      });
+      void pending.stop.catch(() => undefined);
+    }
+    return pending.stop;
+  }
+
+  function awaitStops(): Promise<void[]> {
+    return Promise.all([...stoppingReplies].map(cancelReply));
+  }
   const pairingAttempts = new Map<string, { began: number; count: number }>();
   const secureOptions = options.tlsKey && options.tlsCert
     ? { https: { key: options.tlsKey, cert: options.tlsCert } }
@@ -489,66 +511,84 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
     if (!parsed.success) throw deny(400, "语音事件格式无效");
     const event = parsed.data;
     const requestStartedAt = performance.now();
-    const db = await store.read();
-    const snapshot = await runtimeSnapshot();
-    const routed = voiceRouter.route(event, {
-      points: db.points.filter((point) => point.mapId === db.activeMapId),
-      tours: db.tours,
-      selectedTourId: db.selectedTourId,
-      motions: snapshot.motionPresets,
-    });
-    const cancelReply = async (sessionId: string) => {
-      const pending = agentReplies.get(sessionId);
-      if (!pending) return;
-      pending.cancellation.abort();
-      await speaker.cancel?.(pending.speechId);
-      if (agentReplies.get(sessionId) === pending) agentReplies.delete(sessionId);
-    };
-    if (routed.reply.accepted && event.kind === "wake") {
-      for (const sessionId of agentReplies.keys()) await cancelReply(sessionId);
-      await jobs.interruptTour();
-    } else if (routed.reply.accepted && event.kind === "session-ended") {
-      await cancelReply(event.sessionId);
+    if (!voiceRouter.admit(event)) return reply.code(204).send();
+    if (event.kind === "wake") {
+      for (const pending of agentReplies.values()) void cancelReply(pending);
+      agentReplies.clear();
+      const ready = Promise.all([awaitStops(), jobs.interruptTour()]);
+      wakeReady = { sessionId: event.sessionId, ready };
+      await ready;
+      return reply.code(204).send();
     }
-    if (routed.intent.type === "ignore") return reply.code(204).send();
-    await cancelReply(event.sessionId);
+    if (event.kind === "session-ended") {
+      const pending = agentReplies.get(event.sessionId);
+      if (pending) {
+        const stopped = cancelReply(pending);
+        agentReplies.delete(event.sessionId);
+        await stopped;
+      }
+      return reply.code(204).send();
+    }
+    const previous = agentReplies.get(event.sessionId);
+    if (previous) void cancelReply(previous);
+    const ready = Promise.all([
+      wakeReady?.sessionId === event.sessionId ? wakeReady.ready : undefined,
+      awaitStops(),
+    ]);
+    void ready.catch(() => undefined);
+    const cancellation = new AbortController();
+    const pendingReply: PendingReply = { cancellation, speechId: `reply:${event.sessionId}:${event.eventId}` };
+    // Reserve ownership before the first await so a newer turn can invalidate it.
+    agentReplies.set(event.sessionId, pendingReply);
+    const authorized = () => !cancellation.signal.aborted && voiceRouter.isCurrent(event);
+    const current = () => authorized() && agentReplies.get(event.sessionId) === pendingReply;
     jobs.markInteraction();
     jobs.beginDialogue();
-    let text = routed.reply.text;
-    let category = routed.reply.category;
-    let accepted = routed.reply.accepted;
-    const cancellation = new AbortController();
-    const pendingReply = { cancellation, speechId: `reply:${event.sessionId}:${event.eventId}` };
-    agentReplies.set(event.sessionId, pendingReply);
+    let text = "";
+    let category: VoiceReply["category"] = "rejected";
+    let accepted = false;
     let speechDelivered = false;
     let dispatchCompleted = false;
     let deliveryError: string | undefined;
     let firstAudioMs: number | undefined;
     const speakSegment = async (segment: string) => {
-      if (cancellation.signal.aborted || !voiceRouter.isSessionActive(event.sessionId)) return;
+      if (!current()) return;
+      await ready;
+      if (!current()) return;
       const sentAt = performance.now();
       const spoken = await speaker.speak(segment, pendingReply.speechId);
       if (!speechDelivered) firstAudioMs = Math.round(sentAt - requestStartedAt + spoken.firstAudioMs);
       speechDelivered = true;
     };
     try {
+      await ready;
+      if (!current()) return reply.code(204).send();
+      const db = await store.read();
+      const snapshot = await runtimeSnapshot();
+      if (!current()) return reply.code(204).send();
+      const routed = voiceRouter.resolve(event, {
+        points: db.points.filter((point) => point.mapId === db.activeMapId),
+        tours: db.tours, selectedTourId: db.selectedTourId, motions: snapshot.motionPresets,
+      });
+      if (routed.intent.type === "ignore") return reply.code(204).send();
+      ({ text, category, accepted } = routed.reply);
       switch (routed.intent.type) {
         case "navigate":
-          await jobs.startPoint(routed.intent.point);
+          await jobs.startPoint(routed.intent.point, authorized);
           break;
         case "tour-start":
-          await jobs.startTour(routed.intent.tour);
+          await jobs.startTour(routed.intent.tour, authorized);
           break;
         case "tour-pause":
         case "tour-resume":
         case "tour-stop":
-          await jobs.control(routed.intent.type === "tour-pause" ? "pause" : routed.intent.type === "tour-resume" ? "resume" : "stop");
+          await jobs.control(routed.intent.type === "tour-pause" ? "pause" : routed.intent.type === "tour-resume" ? "resume" : "stop", authorized);
           break;
         case "motion":
           if (["requested", "running", "paused"].includes(snapshot.navigation.status)) {
             throw new Error("任务执行期间不接受预设动作");
           }
-          await jobs.runAllowlistedMotion(routed.intent.name);
+          await jobs.runAllowlistedMotion(routed.intent.name, authorized);
           break;
         case "question": {
           let playback = Promise.resolve();
@@ -558,7 +598,7 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
             void playback.catch(() => { deliveryError = "语音输出失败"; });
           }, cancellation.signal);
           await playback;
-          if (cancellation.signal.aborted || !voiceRouter.isSessionActive(event.sessionId)) return reply.code(204).send();
+          if (!current()) return reply.code(204).send();
           text = answer.text;
           category = answer.source === "refusal" ? "rejected" : "question";
           accepted = answer.source !== "refusal";
@@ -569,8 +609,9 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
       }
       dispatchCompleted = true;
       if (routed.intent.type !== "question") await speakSegment(text);
+      if (!current()) return reply.code(204).send();
     } catch (error) {
-      if (cancellation.signal.aborted) return reply.code(204).send();
+      if (!current()) return reply.code(204).send();
       if (dispatchCompleted || deliveryError) {
         deliveryError = "语音输出失败，请在管理页面核对任务状态";
       } else {
@@ -665,7 +706,8 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
     lidarClients.clear();
     for (const event of events) event.close();
     events.clear();
-    for (const pending of agentReplies.values()) pending.cancellation.abort();
+    for (const pending of agentReplies.values()) void cancelReply(pending);
+    await awaitStops().catch(() => undefined);
     await jobs.dispose().catch(() => undefined);
   });
   return app;

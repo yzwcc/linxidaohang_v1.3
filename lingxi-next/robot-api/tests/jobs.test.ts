@@ -146,6 +146,37 @@ describe("navigation and tour lifecycle", () => {
     await vi.advanceTimersByTimeAsync(60_000);
     expect(adapter.startNavigation).toHaveBeenCalledTimes(1);
   });
+  it("does not send a stop after its voice turn becomes stale while dispatch is pending", async () => {
+    let release!: () => void;
+    let authorized = true;
+    vi.mocked(adapter.startNavigation).mockImplementationOnce(() => new Promise<void>((resolve) => { release = resolve; }));
+    const starting = jobs.startPoint(point);
+    await vi.advanceTimersByTimeAsync(1);
+    const stopping = jobs.control("stop", () => authorized);
+    authorized = false;
+    release();
+    await starting;
+    await expect(stopping).rejects.toThrow("失效");
+    expect(adapter.controlNavigation).not.toHaveBeenCalled();
+    expect(jobs.hasActiveJob()).toBe(true);
+    await jobs.control("stop");
+  });
+  it("does not dispatch a delayed pause after its voice turn becomes stale", async () => {
+    await jobs.startPoint(point);
+    const job = (jobs as unknown as { current: { speechId?: string } }).current;
+    job.speechId = "current-speech";
+    let finishCancel!: () => void;
+    const cancelled = new Promise<void>((resolve) => { finishCancel = resolve; });
+    cancel.mockImplementationOnce(() => cancelled);
+    let authorized = true;
+    const pausing = jobs.control("pause", () => authorized);
+    await vi.advanceTimersByTimeAsync(1);
+    authorized = false;
+    finishCancel();
+    await expect(pausing).rejects.toThrow("失效");
+    expect(adapter.controlNavigation).not.toHaveBeenCalledWith("pause", expect.any(String));
+    expect(jobs.state().status).toBe("running");
+  });
   it("does not claim a confirmed pause after a control timeout", async () => {
     await jobs.startPoint(point);
     vi.mocked(adapter.controlNavigation).mockRejectedValueOnce(new Error("timeout"));

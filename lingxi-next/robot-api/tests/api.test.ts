@@ -219,4 +219,145 @@ describe("paired local console API", () => {
     release({ firstAudioMs: 10 });
     expect((await answering).statusCode).toBe(200);
   });
+  const agentEvent = (payload: object) => ({
+    method: "POST" as const, url: "/api/v1/agent/events",
+    headers: { "x-agent-token": "internal-test-token" },
+    payload: { sessionId: "voice", occurredAt: Date.now(), ...payload },
+  });
+  const command = (eventId: string, transcript = "去灵犀展台", sessionId = "voice") =>
+    agentEvent({ kind: "recognition", eventId, transcript, sessionId, confidence: 0.99, isFinal: true });
+
+  it("processes session loss without waiting for a blocked robot snapshot", async () => {
+    await app.inject(agentEvent({ kind: "wake", eventId: "wake" }));
+    const navigate = vi.spyOn(adapter, "startNavigation");
+    const snapshot = await adapter.getSnapshot();
+    let release!: () => void;
+    const entered = new Promise<void>((resolve) => {
+      vi.spyOn(adapter, "getSnapshot").mockImplementationOnce(() => new Promise((finish) => {
+        release = () => finish(snapshot);
+        resolve();
+      }));
+    });
+    const pending = app.inject(command("late-command"));
+    await entered;
+    // This must finish while the older request's snapshot is still blocked.
+    const ended = await app.inject(agentEvent({ kind: "session-ended", eventId: "end" }));
+    release();
+    expect(ended.statusCode).toBe(204);
+    expect((await pending).statusCode).toBe(204);
+    expect(navigate).not.toHaveBeenCalled();
+    expect(speak).not.toHaveBeenCalled();
+  });
+  it("admits wake and revokes the prior turn before a blocked snapshot", async () => {
+    await app.inject(agentEvent({ kind: "wake", eventId: "wake-one" }));
+    const snapshot = await adapter.getSnapshot();
+    let release!: () => void;
+    const entered = new Promise<void>((resolve) => {
+      vi.spyOn(adapter, "getSnapshot").mockImplementationOnce(() => new Promise((finish) => {
+        release = () => finish(snapshot);
+        resolve();
+      }));
+    });
+    const old = app.inject(command("old"));
+    await entered;
+    expect((await app.inject(agentEvent({ kind: "wake", sessionId: "voice-next", eventId: "wake-two" }))).statusCode).toBe(204);
+    release();
+    expect((await old).statusCode).toBe(204);
+    expect(speak).not.toHaveBeenCalled();
+  });
+  it("rechecks the session inside navigation readiness before native dispatch", async () => {
+    await app.inject(agentEvent({ kind: "wake", eventId: "wake" }));
+    const navigate = vi.spyOn(adapter, "startNavigation");
+    const original = adapter.getSnapshot.bind(adapter);
+    let calls = 0;
+    let release!: () => void;
+    const entered = new Promise<void>((resolve) => {
+      vi.spyOn(adapter, "getSnapshot").mockImplementation(async () => {
+        const snapshot = await original();
+        if (++calls === 2) return new Promise((finish) => {
+          release = () => finish(snapshot);
+          resolve();
+        });
+        return snapshot;
+      });
+    });
+    const pending = app.inject(command("readiness-race"));
+    await entered;
+    await app.inject(agentEvent({ kind: "session-ended", eventId: "end" }));
+    release();
+    expect((await pending).statusCode).toBe(204);
+    expect(navigate).not.toHaveBeenCalled();
+  });
+  it("never dispatches the middle recognition after a slow earlier cancellation", async () => {
+    await app.inject(agentEvent({ kind: "wake", eventId: "wake" }));
+    const navigate = vi.spyOn(adapter, "startNavigation");
+    let finishSpeech!: (value: { firstAudioMs: number }) => void;
+    const speaking = new Promise<void>((resolve) => {
+      speak.mockImplementationOnce(() => new Promise((finish) => { finishSpeech = finish; resolve(); }));
+    });
+    const first = app.inject(command("first", "去不存在地点"));
+    await speaking;
+    let finishCancel!: () => void;
+    const cancelling = new Promise<void>((resolve) => {
+      cancel.mockImplementationOnce(() => new Promise<void>((finish) => { finishCancel = finish; resolve(); }));
+    });
+    const middle = app.inject(command("middle"));
+    await cancelling;
+    const last = app.inject(command("last", "去另一个不存在地点"));
+    finishCancel();
+    finishSpeech({ firstAudioMs: 10 });
+    const results = await Promise.all([first, middle, last]);
+    expect(results.map((result) => result.statusCode)).toEqual([204, 204, 200]);
+    expect(navigate).not.toHaveBeenCalled();
+    expect(speak.mock.calls.map((call) => call[1])).not.toContain("reply:voice:middle");
+  });
+  it("does not dispatch navigation when an earlier playback stop is unconfirmed", async () => {
+    await app.inject(agentEvent({ kind: "wake", eventId: "wake" }));
+    let finishSpeech!: (value: { firstAudioMs: number }) => void;
+    const speaking = new Promise<void>((resolve) => {
+      speak.mockImplementationOnce(() => new Promise((finish) => { finishSpeech = finish; resolve(); }));
+    });
+    const first = app.inject(command("first", "去不存在地点"));
+    await speaking;
+    let finishCancel!: (error?: Error) => void;
+    const cancelling = new Promise<void>((resolve) => {
+      cancel.mockImplementationOnce(() => new Promise<void>((finish, reject) => {
+        finishCancel = (error) => { if (error) reject(error); else finish(); };
+        resolve();
+      }));
+    });
+    const wake = app.inject(agentEvent({ kind: "wake", sessionId: "voice-next", eventId: "wake-next" }));
+    await cancelling;
+    finishCancel(new Error("speaker stop not confirmed"));
+    expect((await wake).statusCode).toBe(500);
+    const navigate = vi.spyOn(adapter, "startNavigation");
+    const next = await app.inject(command("next", "去灵犀展台", "voice-next"));
+    finishSpeech({ firstAudioMs: 10 });
+    await first;
+    expect(next.json()).toMatchObject({ accepted: false, category: "rejected" });
+    expect(navigate).not.toHaveBeenCalled();
+  });
+  it("cancels a model stream on session end without emitting its late output", async () => {
+    const { Answerer } = await import("../src/voice/answerer");
+    let signal!: AbortSignal;
+    let finish!: () => void;
+    const entered = new Promise<void>((resolve) => {
+      vi.spyOn(Answerer.prototype, "streamAnswer").mockImplementationOnce(async (_text, emit, cancellation) => {
+        signal = cancellation!;
+        await new Promise<void>((done) => { finish = done; resolve(); });
+        emit("这是已经取消的旧回答。");
+        return { text: "这是已经取消的旧回答。", source: "model" };
+      });
+    });
+    try {
+      await app.inject(agentEvent({ kind: "wake", eventId: "wake" }));
+      const answering = app.inject(command("question", "什么是激光雷达"));
+      await entered;
+      await app.inject(agentEvent({ kind: "session-ended", eventId: "end" }));
+      expect(signal.aborted).toBe(true);
+      finish();
+      expect((await answering).statusCode).toBe(204);
+      expect(speak).not.toHaveBeenCalled();
+    } finally { vi.restoreAllMocks(); }
+  });
 });

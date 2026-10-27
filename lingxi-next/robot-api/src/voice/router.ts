@@ -24,40 +24,69 @@ const MAX_EVENT_AGE_MS = 30_000;
 
 export class VoiceRouter {
   private readonly seen = new Map<string, number>();
-  private readonly sessions = new Map<string, number>();
+  private readonly wakeIds = new Map<string, number>();
+  private latestWakeAt = -Infinity;
+  private session?: { id: string; beganAt: number; expiresAt: number; turnId?: string; turnAt: number };
 
   constructor(private readonly confidenceThreshold = 0.78) {}
 
   route(event: VoiceEvent, context: VoiceContext): { intent: VoiceIntent; reply: VoiceReply } {
+    if (!this.admit(event)) return this.result({ type: "ignore" }, false, "rejected", "", performance.now());
+    return this.resolve(event, context);
+  }
+
+  // Runs synchronously at ingress, before any state lookup or cancellation I/O.
+  admit(event: VoiceEvent): boolean {
     this.prune();
-    const start = performance.now();
     if (
       !event.eventId ||
       !event.sessionId ||
       !Number.isFinite(event.occurredAt) ||
       Math.abs(Date.now() - event.occurredAt) > MAX_EVENT_AGE_MS
     ) {
-      return this.result({ type: "ignore" }, false, "rejected", "", start);
+      return false;
     }
 
-    const dedupeKey = `${event.sessionId}:${event.eventId}`;
-    if (this.seen.has(dedupeKey)) return this.result({ type: "ignore" }, false, "rejected", "", start);
+    const dedupeKey = JSON.stringify([event.sessionId, event.eventId]);
+    if (this.seen.has(dedupeKey)) return false;
     this.seen.set(dedupeKey, Date.now());
 
     if (event.kind === "wake") {
-      this.sessions.clear();
-      this.sessions.set(event.sessionId, Date.now() + SESSION_TTL_MS);
-      return this.result({ type: "ignore" }, true, "command", "", start);
+      if (event.occurredAt < this.latestWakeAt || this.wakeIds.has(event.sessionId)) return false;
+      this.latestWakeAt = Math.max(this.latestWakeAt, event.occurredAt);
+      this.wakeIds.set(event.sessionId, Date.now());
+      this.session = {
+        id: event.sessionId, beganAt: event.occurredAt,
+        expiresAt: Date.now() + SESSION_TTL_MS, turnAt: event.occurredAt,
+      };
+      return true;
     }
     if (event.kind === "session-ended") {
-      this.sessions.delete(event.sessionId);
-      return this.result({ type: "ignore" }, true, "command", "", start);
+      // Also remember end-before-wake delivery after disconnect/reconnect.
+      this.wakeIds.set(event.sessionId, Date.now());
+      if (this.session?.id !== event.sessionId || event.occurredAt < this.session.beganAt) return false;
+      this.session = undefined;
+      return true;
     }
-    if (!this.isSessionActive(event.sessionId) || !event.isFinal || !event.transcript.trim()) {
-      return this.result({ type: "ignore" }, false, "rejected", "", start);
+    if (!this.isSessionActive(event.sessionId) || !event.isFinal || !event.transcript.trim() ||
+        event.occurredAt < this.session!.turnAt) {
+      return false;
     }
-    this.sessions.set(event.sessionId, Date.now() + SESSION_TTL_MS);
+    this.session!.turnId = event.eventId;
+    this.session!.turnAt = event.occurredAt;
+    this.session!.expiresAt = Date.now() + SESSION_TTL_MS;
+    return true;
+  }
 
+  isCurrent(event: VoiceEvent): boolean {
+    return this.isSessionActive(event.sessionId) &&
+      (event.kind !== "recognition" || this.session?.turnId === event.eventId);
+  }
+
+  resolve(event: VoiceEvent, context: VoiceContext): { intent: VoiceIntent; reply: VoiceReply } {
+    const start = performance.now();
+    if (event.kind !== "recognition") return this.result({ type: "ignore" }, true, "command", "", start);
+    if (!this.isCurrent(event)) return this.result({ type: "ignore" }, false, "rejected", "", start);
     const transcript = normalize(event.transcript);
     if (!transcript || !Number.isFinite(event.confidence) || event.confidence < this.confidenceThreshold) {
       return this.result(
@@ -125,13 +154,8 @@ export class VoiceRouter {
   }
 
   isSessionActive(sessionId: string): boolean {
-    const expiresAt = this.sessions.get(sessionId);
-    if (!expiresAt) return false;
-    if (expiresAt <= Date.now()) {
-      this.sessions.delete(sessionId);
-      return false;
-    }
-    return true;
+    if (this.session && this.session.expiresAt <= Date.now()) this.session = undefined;
+    return this.session?.id === sessionId;
   }
 
   private matchControl(transcript: string, context: VoiceContext): VoiceIntent | null {
@@ -193,10 +217,12 @@ export class VoiceRouter {
     for (const [key, timestamp] of this.seen) {
       if (timestamp < cutoff) this.seen.delete(key);
     }
-    for (const [sessionId, expiresAt] of this.sessions) {
-      if (expiresAt <= Date.now()) this.sessions.delete(sessionId);
+    for (const [sessionId, at] of this.wakeIds) {
+      if (at < cutoff) this.wakeIds.delete(sessionId);
     }
+    if (this.session && this.session.expiresAt <= Date.now()) this.session = undefined;
     while (this.seen.size > 5000) this.seen.delete(this.seen.keys().next().value!);
+    while (this.wakeIds.size > 5000) this.wakeIds.delete(this.wakeIds.keys().next().value!);
   }
 }
 

@@ -24,6 +24,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public final class AgentMain {
     private static final String GATEWAY = "wss://open.agibot.com/api/V1/open-portal/app/wss/agent-sdk";
     private final WakeGate gate = new WakeGate();
+    private final SpeechRequests speechRequests = new SpeechRequests();
     private final String agentId = required("LINKSOUL_AGENT_ID");
     private final String token = required("LINGXI_AGENT_INTERNAL_TOKEN");
     private final URI api = URI.create(System.getenv().getOrDefault("LINGXI_API_URL", "https://127.0.0.1:3000"));
@@ -32,32 +33,59 @@ public final class AgentMain {
     private final Semaphore speakerLock = new Semaphore(1);
     private final ExecutorService workers = new ThreadPoolExecutor(4, 4, 0, TimeUnit.MILLISECONDS,
             new ArrayBlockingQueue<>(8), new ThreadPoolExecutor.AbortPolicy());
+    private final ScheduledExecutorService monitor = Executors.newSingleThreadScheduledExecutor();
     private final HttpClient http;
     private final AgentSdk sdk;
     private volatile boolean online;
     private volatile boolean authenticated;
     private volatile String lastGateReason = "waiting_for_real_wakeup";
-    private volatile CompletableFuture<Void> wakeDelivered = CompletableFuture.completedFuture(null);
+    private WakeSession wakeSession;
 
-    private record ReplyContext(String eventId, Asr2LlmResponse response, AtomicBoolean interrupted) {}
+    private record WakeSession(String id, CompletableFuture<Void> delivered) {}
+    private record ReplyContext(String sessionId, String eventId, Asr2LlmResponse response,
+            AtomicBoolean interrupted, AtomicBoolean closed, AtomicBoolean done) {}
     static final class Playback {
         final String correlation;
         volatile String event;
         final String item;
+        final long createdAt;
         final long began = System.nanoTime();
         final CompletableFuture<Double> complete = new CompletableFuture<>();
         final CompletableFuture<Void> terminated = new CompletableFuture<>();
         volatile Double firstAudio;
         volatile TaskFlowRequest flow;
+        ReplyContext reply;
+        private long latestAt;
+        private final List<JSONObject> earlyStates = new ArrayList<>();
         Playback(String correlation, String event, String item) {
-            this.correlation = correlation; this.event = event; this.item = item;
+            this(correlation, event, item, System.currentTimeMillis());
         }
-        void accept(JSONObject state, long now) {
+        Playback(String correlation, String event, String item, long createdAt) {
+            this.correlation = correlation; this.event = event; this.item = item;
+            this.createdAt = createdAt;
+        }
+        synchronized void bindEvent(String id, long now) {
+            if (id == null || id.isBlank() || (event != null && !event.equals(id))) {
+                complete.completeExceptionally(new IllegalStateException("Unconfirmed flow event"));
+                return;
+            }
+            event = id;
+            var pending = new ArrayList<>(earlyStates);
+            earlyStates.clear();
+            for (JSONObject state : pending) accept(state, now);
+        }
+        synchronized void accept(JSONObject state, long now) {
             long at = state.getLongValue("updated_at_ms");
-            if (at <= 0 || Math.abs(now - at) > 30_000) return;
-            boolean matches = item != null ? item.equals(state.getString("item_id")) :
+            if (at < createdAt - 2000 || at <= 0 || Math.abs(now - at) > 30_000 || terminated.isDone()) return;
+            if (event == null && item == null) {
+                if (earlyStates.size() < 16) earlyStates.add(new JSONObject(state));
+                return;
+            }
+            boolean matches = item != null ? item.equals(state.getString("item_id")) &&
+                    event != null && event.equals(state.getString("event_id")) :
                     event != null && event.equals(state.getString("event_id"));
-            if (!matches) return;
+            if (!matches || at < latestAt) return;
+            latestAt = at;
             String status = state.getString("state");
             if ("playing".equals(status) && firstAudio == null) {
                 firstAudio = (System.nanoTime() - began) / 1_000_000.0;
@@ -108,60 +136,142 @@ public final class AgentMain {
                 try {
                     JSONObject state = JSON.parseObject(value);
                     if ("listening_status".equals(name)) {
-                        String before = gate.current(System.currentTimeMillis());
-                        String session = gate.acceptListening(state, System.currentTimeMillis());
-                        if (session != null) {
-                            lastGateReason = "ready";
-                            wakeDelivered = postEvent(Map.of("kind", "wake", "sessionId", session,
-                                    "eventId", "wake:" + state.getLongValue("updated_at_ms"),
-                                    "occurredAt", state.getLongValue("updated_at_ms"))).thenApply(ignored -> null);
-                        } else if (before != null && gate.current(System.currentTimeMillis()) == null) {
-                            postEvent(Map.of("kind", "session-ended", "sessionId", before,
-                                    "eventId", "end:" + UUID.randomUUID(), "occurredAt", System.currentTimeMillis()));
-                        }
+                        acceptListening(state);
                     } else if ("tts_status".equals(name)) {
                         acceptTts(state);
                     }
                 } catch (RuntimeException ignored) { /* Ignore modules with a different JSON shape. */ }
             }
             @Override public void onRequest(String id, String event, String text, AgentParam param, Asr2LlmResponse response) {
-                if (!agentId.equals(id) || !online || !authenticated || event == null || event.length() > 200) return;
-                String session = gate.current(System.currentTimeMillis());
-                if (session == null) { lastGateReason = "missing_real_wakeup"; return; }
-                // Confidence is not guaranteed by the generic SDK contract. Missing evidence blocks execution.
-                Object confidenceValue = param == null ? null : param.getObject("confidence");
-                if (!(confidenceValue instanceof Number number) || !Double.isFinite(number.doubleValue())) {
-                    lastGateReason = "asr_confidence_unavailable";
-                    return;
-                }
-                double confidence = number.doubleValue();
-                if (confidence < 0 || confidence > 1 || text == null || text.length() > 4000) return;
-                String correlation = "reply:" + session + ":" + event;
-                ReplyContext context = new ReplyContext(event, response, new AtomicBoolean());
-                if (replies.putIfAbsent(correlation, context) != null) return;
-                wakeDelivered.thenCompose(ignored -> {
-                    if (!session.equals(gate.current(System.currentTimeMillis()))) return CompletableFuture.completedFuture(null);
-                    return postEvent(Map.of("kind", "recognition", "sessionId", session, "eventId", event,
-                            "occurredAt", System.currentTimeMillis(), "transcript", text, "confidence", confidence, "isFinal", true));
-                }).whenComplete((ignored, error) -> {
-                    if (replies.remove(correlation, context) && context.interrupted.get()) response.onLlmDone(event);
-                });
+                acceptRecognition(id, event, text, param, response);
             }
         });
         HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 18180), 8);
         server.setExecutor(workers);
         server.createContext("/", this::handle);
         server.start();
+        monitor.scheduleAtFixedRate(() -> {
+            synchronized (speechRequests) {
+                if (wakeSession != null && !wakeSession.id.equals(gate.current(System.currentTimeMillis()))) {
+                    endWake("waiting_for_real_wakeup");
+                }
+            }
+        }, 1, 1, TimeUnit.SECONDS);
         sdk.initialize();
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            clearSession(); server.stop(0); sdk.release(); workers.shutdownNow();
+            clearSession(); server.stop(0); sdk.release(); workers.shutdownNow(); monitor.shutdownNow();
         }));
     }
 
     private void clearSession() {
-        gate.clear();
-        replies.clear();
-        for (Playback playback : playing.values()) playback.complete.completeExceptionally(new IllegalStateException("Session ended"));
+        synchronized (speechRequests) {
+            gate.clear(System.currentTimeMillis());
+            endWake("waiting_for_real_wakeup");
+            for (Playback playback : playing.values()) {
+                playback.complete.completeExceptionally(new IllegalStateException("Agent disconnected"));
+            }
+        }
+    }
+
+    private void acceptListening(JSONObject state) {
+        synchronized (speechRequests) {
+            String session = gate.acceptListening(state, System.currentTimeMillis());
+            if (session != null) {
+                endWake("waiting_for_real_wakeup");
+                lastGateReason = "ready";
+                var delivered = postEvent(Map.of("kind", "wake", "sessionId", session,
+                        "eventId", "wake:" + state.getLongValue("updated_at_ms"),
+                        "occurredAt", state.getLongValue("updated_at_ms"))).thenApply(ignored -> (Void) null);
+                wakeSession = new WakeSession(session, delivered);
+                delivered.whenComplete((ignored, error) -> {
+                    if (error == null) return;
+                    synchronized (speechRequests) {
+                        if (wakeSession != null && wakeSession.id.equals(session)) {
+                            gate.clear(System.currentTimeMillis());
+                            endWake("wake_delivery_failed");
+                        }
+                    }
+                });
+            } else if (wakeSession != null && !wakeSession.id.equals(gate.current(System.currentTimeMillis()))) {
+                endWake("waiting_for_real_wakeup");
+            }
+        }
+    }
+
+    // Called under speechRequests so emission and invalidation cannot cross.
+    private void endWake(String reason) {
+        WakeSession previous = wakeSession;
+        if (previous == null) return;
+        wakeSession = null;
+        lastGateReason = reason;
+        for (var entry : replies.entrySet()) {
+            ReplyContext context = entry.getValue();
+            if (context.sessionId.equals(previous.id) && replies.remove(entry.getKey(), context)) {
+                interruptReply(context);
+                finishReply(context);
+            }
+        }
+        for (Playback playback : playing.values()) {
+            if (playback.reply != null && playback.reply.sessionId.equals(previous.id)) {
+                playback.complete.completeExceptionally(new IllegalStateException("Voice session ended"));
+            }
+        }
+        postEvent(Map.of("kind", "session-ended", "sessionId", previous.id,
+                "eventId", "end:" + UUID.randomUUID(), "occurredAt", System.currentTimeMillis()));
+    }
+
+    private void acceptRecognition(String id, String event, String text, AgentParam param, Asr2LlmResponse response) {
+        synchronized (speechRequests) {
+            if (!agentId.equals(id) || !online || !authenticated ||
+                    event == null || event.isBlank() || event.length() > 180) return;
+            long occurredAt = System.currentTimeMillis();
+            String session = gate.current(occurredAt);
+            WakeSession wake = wakeSession;
+            if (session == null || wake == null || !session.equals(wake.id)) {
+                lastGateReason = "missing_real_wakeup"; return;
+            }
+            // Confidence is not guaranteed by the generic SDK contract. Never synthesize it.
+            Object value = param == null ? null : param.getObject("confidence");
+            if (!(value instanceof Number number) || !Double.isFinite(number.doubleValue())) {
+                lastGateReason = "asr_confidence_unavailable"; return;
+            }
+            double confidence = number.doubleValue();
+            if (confidence < 0 || confidence > 1 || text == null || text.isBlank() || text.length() > 4000) return;
+            gate.renew(session, occurredAt);
+            String correlation = "reply:" + session + ":" + event;
+            ReplyContext context = new ReplyContext(session, event, response,
+                    new AtomicBoolean(), new AtomicBoolean(), new AtomicBoolean());
+            if (replies.putIfAbsent(correlation, context) != null) return;
+            wake.delivered.thenCompose(ignored -> {
+                synchronized (speechRequests) {
+                    if (context.closed.get() || !session.equals(gate.current(System.currentTimeMillis()))) {
+                        return CompletableFuture.completedFuture(null);
+                    }
+                    return postEvent(Map.of("kind", "recognition", "sessionId", session, "eventId", event,
+                            "occurredAt", occurredAt, "transcript", text, "confidence", confidence, "isFinal", true));
+                }
+            }).whenComplete((ignored, error) -> {
+                synchronized (speechRequests) {
+                    replies.remove(correlation, context);
+                    finishReply(context);
+                }
+            });
+        }
+    }
+
+    private void finishReply(ReplyContext context) {
+        context.closed.set(true);
+        if (context.done.compareAndSet(false, true)) {
+            try { context.response.onLlmDone(context.eventId); }
+            catch (RuntimeException ignored) { lastGateReason = "passive_reply_close_failed"; }
+        }
+    }
+
+    private void interruptReply(ReplyContext context) {
+        if (context.interrupted.compareAndSet(false, true)) {
+            try { context.response.onInterrupt(context.eventId, "chat", null); }
+            catch (RuntimeException ignored) { lastGateReason = "passive_reply_interrupt_failed"; }
+        }
     }
 
     private void acceptTts(JSONObject state) {
@@ -195,7 +305,7 @@ public final class AgentMain {
             if ("/v1/speak".equals(route)) {
                 String text = body.getString("text");
                 if (text == null || text.isBlank() || text.length() > 4000) throw new IllegalArgumentException();
-                double firstAudio = speak(text, correlation);
+                double firstAudio = speak(text, correlation, body.getLongValue("issuedAt"));
                 send(exchange, 200, Map.of("completed", true, "firstAudioMs", firstAudio)); return;
             }
             // Effects require a target-verified manifest; no arbitrary SDK skill or motion endpoint.
@@ -207,47 +317,57 @@ public final class AgentMain {
         } finally { exchange.close(); }
     }
 
-    private double speak(String text, String correlation) throws Exception {
+    private double speak(String text, String correlation, long issuedAt) throws Exception {
         if (!online || !authenticated || !speakerLock.tryAcquire()) throw new IllegalStateException("Speaker busy/offline");
-        ReplyContext reply = replies.get(correlation);
-        String item = reply == null ? null : "lingxi_" + UUID.randomUUID();
-        String event = reply == null ? "pending" : reply.eventId;
-        Playback playback = new Playback(correlation, event, item);
-        playing.put(correlation, playback);
+        Playback playback = null;
         String flowId = "lingxi_" + UUID.randomUUID();
         try {
+          synchronized (speechRequests) {
+            ReplyContext reply = replies.get(correlation);
+            boolean live = reply != null && !reply.closed.get() &&
+                    reply.sessionId.equals(gate.current(System.currentTimeMillis()));
+            speechRequests.check(correlation, issuedAt, System.currentTimeMillis(), live);
+            if (!online || !authenticated) throw new IllegalStateException("Agent disconnected");
+            String item = reply == null ? null : "lingxi_" + UUID.randomUUID();
+            Playback active = new Playback(correlation, reply == null ? null : reply.eventId, item);
+            active.reply = reply;
+            playback = active;
+            playing.put(correlation, active);
             if (reply != null) {
                 if (reply.interrupted.compareAndSet(false, true)) reply.response.onInterrupt(reply.eventId, "chat", null);
                 reply.response.onLlmItemDelta(reply.eventId, item, text);
                 reply.response.onLlmItemDone(reply.eventId, item);
             } else {
                 TaskFlowRequest flow = new TaskFlowRequest(sdk, agentId, flowId, FlowMode.SIMPLE);
-                playback.flow = flow;
+                active.flow = flow;
                 sdk.registerTaskFlow(flow);
                 String payload = JSON.toJSONString(List.of(Map.of("type", "action_group", "execution_mode", "sequential",
                         "actions", List.of(Map.of("action_type", "tts", "config", Map.of("tts", text, "interrupt", true))))));
                 String requestEvent = flow.startRequest(payload, new FlowStartCallback() {
                     @Override public void onStartRequestAck(String f, String e, int code, String ignored) {
                         if (code != 0) {
-                            playback.terminated.complete(null);
-                            playback.complete.completeExceptionally(new IllegalStateException("Flow rejected"));
+                            active.complete.completeExceptionally(new IllegalStateException("Flow rejected"));
+                            active.terminated.complete(null);
                         }
                     }
                     @Override public void onStartExecuteAck(String f, String e, int code, String ignored) {
-                        if (code != 0) playback.complete.completeExceptionally(new IllegalStateException("Flow failed"));
+                        if (code != 0) active.complete.completeExceptionally(new IllegalStateException("Flow failed"));
                         // A success ack can mean timeout; only matching tts_status completes playback.
                     }
                 }, 120_000);
                 // Keep returned request event for the documented tts_status correlation.
-                playback.event = requestEvent;
+                active.bindEvent(requestEvent, System.currentTimeMillis());
             }
+          }
             return playback.complete.get(120, TimeUnit.SECONDS);
         } finally {
             // A timeout/offline event cannot prove the physical speaker stopped.
             // Keep the lease until a matching terminal state, including a late one.
-            playback.terminated.whenComplete((ignored, error) -> {
-                if (playing.remove(correlation, playback)) {
-                    try { if (reply == null) sdk.unregisterTaskFlow(flowId); }
+            Playback active = playback;
+            if (active == null) speakerLock.release();
+            else active.terminated.whenComplete((ignored, error) -> {
+                if (playing.remove(correlation, active)) {
+                    try { if (active.reply == null) sdk.unregisterTaskFlow(flowId); }
                     finally { speakerLock.release(); }
                 }
             });
@@ -255,8 +375,17 @@ public final class AgentMain {
     }
 
     private void cancel(String correlation) throws Exception {
-        Playback playback = playing.get(correlation);
-        if (playback == null) return;
+        Playback playback;
+        synchronized (speechRequests) {
+            speechRequests.cancel(correlation, System.currentTimeMillis());
+            playback = playing.get(correlation);
+            ReplyContext context = replies.get(correlation);
+            if (context != null) {
+                interruptReply(context);
+                finishReply(context);
+            }
+            if (playback == null) return;
+        }
         if (playback.flow != null) {
             CompletableFuture<Void> ack = new CompletableFuture<>();
             playback.flow.interruptRequest(new FlowInterruptCallback() {
@@ -266,9 +395,10 @@ public final class AgentMain {
             }, 2000);
             ack.get(2500, TimeUnit.MILLISECONDS);
         } else {
-            ReplyContext reply = replies.get(correlation);
+            ReplyContext reply = playback.reply;
             if (reply == null) throw new IllegalStateException("Reply unavailable");
-            reply.response.onInterrupt(reply.eventId, "chat", null);
+            interruptReply(reply);
+            finishReply(reply);
         }
         playback.terminated.get(2500, TimeUnit.MILLISECONDS);
         playback.complete.completeExceptionally(new IllegalStateException("Cancelled"));
@@ -276,7 +406,8 @@ public final class AgentMain {
 
     private CompletableFuture<HttpResponse<String>> postEvent(Map<String, Object> event) {
         HttpRequest request = HttpRequest.newBuilder(api.resolve("/api/v1/agent/events"))
-                .timeout(Duration.ofSeconds(180)).header("Content-Type", "application/json")
+                .timeout(Duration.ofSeconds("recognition".equals(event.get("kind")) ? 180 : 5))
+                .header("Content-Type", "application/json")
                 .header("X-Agent-Token", token).POST(HttpRequest.BodyPublishers.ofString(JSON.toJSONString(event))).build();
         return http.sendAsync(request, HttpResponse.BodyHandlers.ofString()).thenApply(response -> {
             if (response.statusCode() != 200 && response.statusCode() != 204) throw new CompletionException(new IllegalStateException("Event rejected"));
