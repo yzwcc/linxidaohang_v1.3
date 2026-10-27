@@ -7,7 +7,7 @@
 |---|---|
 | TypeScript 前端/API 类型检查与 Vite 构建 | 通过 |
 | Vitest | 109 项通过，含最近 100 次语音诊断上限/文本不落盘、迁移数字 ID、字符串布尔值、非法/超范围地图 ID、未知活动讲解 ID、目标状态并发变化保护，以及配对、凭据隔离、地图与导航互斥、语音会话/白名单/知识依据、任务生命周期、雷达流和动作资源互锁 |
-| Python AIMDK 桥接测试 | 35 项通过；验证激光扫描/TF 点迹、真实只读 SQLite 登记、不暴露未提交数据、未知结构拒绝、大地图 ID、像素转换、旧定位拒绝、位姿单次发布、未确认状态互斥，以及预设动作状态、表情回执和灵创服务结果语义 |
+| Python AIMDK 桥接测试 | 36 项通过；验证激光扫描/采样时刻 TF（含 50ms 有界等待）、点迹、真实只读 SQLite 登记、不暴露未提交数据、未知结构拒绝、大地图 ID、像素转换、旧定位拒绝、位姿单次发布、未确认状态互斥，以及预设动作状态、表情回执和灵创服务结果语义 |
 | Java JUnit | 17 项通过：唤醒与静默状态次序/断线重放/有效期 8 项、取消先于播报与过期请求拒绝 3 项、TTS 事件绑定/时序/结束确认 6 项 |
 | 官方 AgentSDK 编译 | 通过，固定实际 JAR SHA256；不使用文档中旧版 Maven 示例 |
 | npm audit（生产依赖） | 0 项漏洞；不代表 Java 或厂商系统漏洞审计 |
@@ -18,16 +18,16 @@
 | 雷达断流界面 | 停止模拟 API 后画布清空、显示断流提示；重启后重新配对可恢复新扫描 |
 | axe WCAG 2 A/AA | 讲解页、导航页、桌面与横屏扫图页检查无违规；不代表人工无障碍认证 |
 | 0.1.1 重定位入口 | 浏览器点击所填世界位姿重定位收到模拟 API 200；桌面与 844×390 地图管理截图检查、横向溢出检查和 axe 均通过 |
-| 0.1.8 ARM64 commissioning 包 | `tools/verify-release.py` 审计通过：12,510 个文件、逐文件 SHA256、ELF64 AArch64 运行时、执行权限及固定 AgentSDK JAR 均通过；包标记 `productionAccepted: false` |
-| 0.1.8 Android commissioning APK | `tools/verify-android.py` 审计通过：签名有效、`sensorLandscape`、禁明文流量、禁备份，且 APK 内网页资源与构建产物逐字节一致；未在 Android 真机验收 |
+| 0.1.9 ARM64 commissioning 包 | `tools/verify-release.py` 审计通过：12,510 个文件、逐文件 SHA256、ELF64 AArch64 运行时、执行权限及固定 AgentSDK JAR 均通过；包标记 `productionAccepted: false` |
+| 0.1.9 Android commissioning APK | `tools/verify-android.py` 审计通过：签名有效、`sensorLandscape`、禁明文流量、禁备份，且 APK 内网页资源与构建产物逐字节一致；未在 Android 真机验收 |
 
 包文件的存在、逐文件校验和、ARM64 ELF 与权限，以 `tools/verify-release.py` 对实际
 归档的输出为准。APK 另用 Android Build Tools 检查签名、清单与横屏配置。
 散列记录在交付文件旁的 `.sha256` 和机器人包内 `SHA256SUMS`，不在本文嵌入自引用散列。
-本次 ARM64 文件为 `artifacts/lingxi-next-0.1.8-commissioning-20261028-linux-arm64.tar.gz`，
-其 SHA256 以归档旁的 `.sha256` 为准。Android 文件为 `artifacts/lingxi-next-0.1.8-commissioning.apk`
-（SHA256 `cd29bd70702c05b3c2c87bff7016fb14e2b3d5894e2f9c8948da8dce48ff556f`）。
-哈希同时记录在交付文件旁的 `.sha256` 文件中。
+本次 ARM64 文件为 `artifacts/lingxi-next-0.1.9-commissioning-20261028-linux-arm64.tar.gz`，
+Android 文件为 `artifacts/lingxi-next-0.1.9-commissioning.apk`。各自 SHA256 以交付文件旁的
+`.sha256` 文件为准。APK 当前 SHA256 为
+`22bca5fd91d5d20b3758231bc023696def6125b3869be4deee6abba0a4e58392`。
 
 尚未验证：目标机器人实际话题、保存重载与坐标方向、短距导航/急停、
 ASR 置信度或官方拒识证据、目标设备 TTS 关联语义、预设动作/表情/灵创资源的实机调用与停止确认、云端凭据、

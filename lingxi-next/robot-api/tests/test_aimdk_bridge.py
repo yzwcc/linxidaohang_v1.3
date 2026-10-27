@@ -291,6 +291,29 @@ class BridgeCallbacks(unittest.TestCase):
         self.assertAlmostEqual(math.pi / 2, frame["robotPose"]["yaw"])
         self.assertEqual([("map", "laser", 10), ("map", "base_link", 10)], calls)
 
+    def test_tf_lookup_uses_bounded_wait_for_sensor_timing_jitter(self):
+        calls = []
+        stamp = obj(sec=10, nanosec=25)
+        transform = obj(transform=obj(translation=obj(), rotation=obj()))
+
+        class FakeDuration:
+            def __init__(self, *, seconds):
+                self.seconds = seconds
+
+        class FakeTime:
+            @staticmethod
+            def from_msg(value):
+                return ("ros-time", value)
+
+        self.node.tf_buffer = obj(lookup_transform=lambda *args, **kwargs: (
+            calls.append((args, kwargs)) or transform
+        ))
+        with patch.object(bridge, "Duration", FakeDuration, create=True), \
+                patch.object(bridge, "Time", FakeTime, create=True):
+            self.assertIs(transform.transform, self.node.lidar_transform("map", "laser", stamp))
+        self.assertEqual(0.05, calls[0][1]["timeout"].seconds)
+        self.assertEqual(("map", "laser", ("ros-time", stamp)), calls[0][0])
+
     def test_stale_scans_and_expired_frames_are_unavailable(self):
         scan = self.scan()
         scan.header.stamp.sec = 1

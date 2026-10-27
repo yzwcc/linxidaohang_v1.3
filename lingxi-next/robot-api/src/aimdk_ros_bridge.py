@@ -81,6 +81,7 @@ TASK_MASTER_TOPIC = "/task_master/state"
 MAX_CELLS = 160_000
 MAX_MAPS = 100
 MAX_LIDAR_POINTS = 8000
+LIDAR_TF_TIMEOUT_SECONDS = 0.05
 MAPPING_STATE = 2
 LOCALIZATION_STATE = 3
 MAX_SAFE_MAP_ID = 9_007_199_254_740_991
@@ -482,7 +483,10 @@ class X2Node(Node):
     def lidar_transform(self, target: str, source: str, stamp):
         if not self.tf_buffer:
             raise ValueError("TF unavailable")
-        return self.tf_buffer.lookup_transform(target, source, Time.from_msg(stamp)).transform
+        return self.tf_buffer.lookup_transform(
+            target, source, Time.from_msg(stamp),
+            timeout=Duration(seconds=LIDAR_TF_TIMEOUT_SECONDS),
+        ).transform
 
     def record_lidar(self, message, points, source):
         with self.lock:
