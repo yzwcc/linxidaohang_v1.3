@@ -22,7 +22,7 @@ python r19_full_deployment/build_r19_release.py `
 
 ```bash
 sudo bash r19_full_deployment/tests/test_installer_isolated.sh \
-  r19_full_deployment/dist/sparkrobot-lingxi-r19-full-1.1.0-20261027-r19-full.tar.gz
+  r19_full_deployment/dist/sparkrobot-lingxi-r19-full-1.1.2-20261027-r19-full.tar.gz
 ```
 
 该隔离测试覆盖包内 AIMDK overlay 安装、已有 AIMDK 复用，以及接口预检失败时目标目录不被创建。测试通过后仍须在目标机器人验收真实 ROS/DDS 传感器、SLAM 实时扫描和地图保存。

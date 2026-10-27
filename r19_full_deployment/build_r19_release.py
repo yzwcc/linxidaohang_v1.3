@@ -26,7 +26,7 @@ R18_SOURCE_PATHS = (
     "deploy/robot/robot_lingxi_bridge.py",
 )
 RUNTIME = HERE / "runtime"
-VERSION = "1.1.1-20261027-r19-full"
+VERSION = "1.1.2-20261027-r19-full"
 PACKAGE_NAME = f"sparkrobot-lingxi-r19-full-{VERSION}"
 AIMDK_PREFIX = "aimdk-aarch64-faf4c945-artifacts/src/aimdk_msgs/prebuilt_aarch64/"
 

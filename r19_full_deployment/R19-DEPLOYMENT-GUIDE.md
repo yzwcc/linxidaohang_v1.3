@@ -12,36 +12,45 @@ R19 是一次性部署 V1.3.1 R18 导航、地图标注、实时建图、保存�
 
 ## 安装准备
 
-1. 将归档包和 `.sha256` 文件复制到机器人，例如 `~/r19/`。
-2. 校验 SHA-256：
+1. 将归档包和同名 `.sha256` 文件复制到机器人用户 `run` 的家目录 `/home/run/`。
+2. 从 `/home/run` 校验 SHA-256：
 
 ```bash
-cd ~/r19
-sha256sum -c sparkrobot-lingxi-r19-full-1.1.0-20261027-r19-full.tar.gz.sha256
+cd /home/run
+sha256sum -c sparkrobot-lingxi-r19-full-1.1.2-20261027-r19-full.tar.gz.sha256
 ```
 
 3. 解压：
 
 ```bash
-mkdir -p ~/r19/package
-tar -xzf sparkrobot-lingxi-r19-full-1.1.0-20261027-r19-full.tar.gz -C ~/r19/package
-cd ~/r19/package/sparkrobot-lingxi-r19-full-1.1.1-20261027-r19-full
+mkdir -p /home/run/r19/package
+tar -xzf /home/run/sparkrobot-lingxi-r19-full-1.1.2-20261027-r19-full.tar.gz -C /home/run/r19/package
+cd /home/run/r19/package/sparkrobot-lingxi-r19-full-1.1.2-20261027-r19-full
 ```
 
-4. 准备首次安装密钥文件。可以交互生成临时文件：
+4. 确认底层运行环境，并准备首次安装密钥文件：
 
 ```bash
-./configure.sh ~/r19/secrets.env
+test -r /opt/ros/humble/setup.bash || { echo "缺少 ROS 2 Humble 环境"; exit 1; }
+uname -m
+id agi
+id run
 ```
 
-密钥文件包括 `LINGXI_APP_ID`、`LINGXI_APP_KEY`、`LINGXI_APP_SECRET`、`DOUBAO_API_KEY`，权限应为 `0600`。不要发给同事以外人员或上传 Git。
+`uname -m` 应显示 `aarch64`。若此前没有准备密钥，运行交互向导：
+
+```bash
+./configure.sh /home/run/r19/secrets.env
+```
+
+向导需要灵心 `APP ID`、`AppKey`、`AppSecret` 和豆包 Ark API Key。若已有密钥文件，不要重复生成；安装时填写它的实际绝对路径。密钥文件权限为 `0600`，不要粘贴到聊天、日志或代码仓库。
 
 ## 方式 A：使用包内 AIMDK 消息 overlay
 
 适用于机器人已有兼容的厂商运行环境和 ROS 2，但没有可复用 AIMDK Python 消息包的情况。包内 overlay 只补足本项目所需的 `aimdk_msgs` Python/ROS 接口，不替代完整 AIMDK，也不需要先安装旧版 R18 导航包。
 
 ```bash
-sudo ./install.sh --secrets ~/r19/secrets.env --aimdk-mode overlay
+sudo ./install.sh --secrets /home/run/r19/secrets.env --aimdk-mode overlay
 sudo sparkrobot-lingxi-internal start
 sudo sparkrobot-lingxi-internal doctor
 ```
@@ -50,11 +59,11 @@ sudo sparkrobot-lingxi-internal doctor
 
 ## 方式 B：复用已有 AIMDK
 
-适用于机器人已安装与 R18 兼容的 AIMDK，并且其 setup 导出本项目所需接口的情况。安装器会先验证接口，再写配置或停止现有服务；失败时不会切换版本或覆盖 AIMDK。
+仅当机器人已安装与本项目兼容的 AIMDK，且其 setup 文件确实存在、可读并导出所需接口时才选此方式。若没有 setup 文件，使用方式 A。安装器会先验证接口，再写配置或停止现有服务；失败时不会切换版本或覆盖 AIMDK。
 
 ```bash
 sudo ./install.sh \
-  --secrets ~/r19/secrets.env \
+  --secrets /home/run/r19/secrets.env \
   --aimdk-mode reuse \
   --aimdk-setup /home/agi/aimdk/install/setup.bash
 sudo sparkrobot-lingxi-internal start
@@ -63,7 +72,7 @@ sudo sparkrobot-lingxi-internal doctor
 
 `--aimdk-setup` 必须是机器人上的绝对路径。安装器只读取该 setup 做接口预检，不会覆盖或搬动现有 AIMDK。
 
-升级已有 R18 安装时，如需沿用已保存的灵心/豆包密钥，可省略 `--secrets`；首次安装必须提供 `--secrets`。安装器会保留地图、点位和任务，并在切换前备份现存配置。
+已有 R19 安装升级时，如需沿用已保存的灵心/豆包密钥，可省略 `--secrets`；首次安装必须提供 `--secrets`。安装器会保留地图、点位和任务，并在切换前备份现存配置。
 
 ## 启动网页和开始建图
 
@@ -88,6 +97,10 @@ sudo sparkrobot-lingxi-internal logs all
 sudo sparkrobot-lingxi-internal logs navigation
 sudo sparkrobot-lingxi-internal rollback
 ```
+
+首次安装没有旧版本时不能回滚。升级安装且存在 previous release 时才使用 `rollback`。
+
+若校验提示文件不存在，先运行 `ls -lh /home/run/sparkrobot-lingxi-r19-full-1.1.2-20261027-r19-full.tar.gz*` 确认归档和 `.sha256` 文件都直接放在 `/home/run`。若只看到 `1.1.0` 或 `1.1.1` 文件，请先复制本说明对应的 `1.1.2` 修复包及其校验文件；不要将旧包改名冒充新包。
 
 如果现场需要让网页一键重启 SOC2 底层语音服务，再单独运行 `sudo /opt/sparkrobot/lingxi-nav/current/scripts/setup_soc2_access.sh` 配置受限 SSH 权限；这不是建图所需条件。
 
