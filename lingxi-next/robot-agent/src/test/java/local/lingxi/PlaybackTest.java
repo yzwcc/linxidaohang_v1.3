@@ -15,6 +15,27 @@ class PlaybackTest {
         return value;
     }
 
+    @Test void matchesFreshVadEndOnlyToItsDialogEvent() {
+        long now = System.currentTimeMillis();
+        var ends = new VadEndRegistry();
+        ends.accept(JSONObject.of("state", "eos", "event_id", "dialog-a", "updated_at_ms", now - 200), now);
+        assertNull(ends.consume("dialog-b", now));
+        assertEquals(now - 200, ends.consume("dialog-a", now));
+        assertNull(ends.consume("dialog-a", now));
+    }
+
+    @Test void ignoresNonEosStaleFutureAndReplayedVadStates() {
+        long now = System.currentTimeMillis();
+        var ends = new VadEndRegistry();
+        ends.accept(JSONObject.of("state", "continue", "event_id", "dialog", "updated_at_ms", now), now);
+        ends.accept(JSONObject.of("state", "eos", "event_id", "old", "updated_at_ms", now - 30_001), now);
+        ends.accept(JSONObject.of("state", "eos", "event_id", "future", "updated_at_ms", now + 2_001), now);
+        ends.accept(JSONObject.of("state", "eos", "event_id", "dialog", "updated_at_ms", now - 100), now);
+        assertEquals(now - 100, ends.consume("dialog", now));
+        ends.accept(JSONObject.of("state", "eos", "event_id", "dialog", "updated_at_ms", now - 100), now);
+        assertNull(ends.consume("dialog", now));
+    }
+
     @Test void requiresMatchingPlayingAndFinishedForCompletion() {
         long now = System.currentTimeMillis();
         var playback = new AgentMain.Playback("reply", "event", "item", now - 2000);

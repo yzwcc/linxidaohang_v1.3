@@ -249,6 +249,27 @@ describe("paired local console API", () => {
     expect(persistedState).not.toContain(transcript);
     expect(persistedState).not.toContain("diagnostic");
   });
+  it("measures VAD-end to correlated playback only when a valid EOS timestamp is present", async () => {
+    await app.inject(agentEvent({ kind: "wake", eventId: "wake-vad" }));
+    const request = command("vad-measured");
+    const result = await app.inject({
+      ...request,
+      payload: { ...request.payload as object, vadEndedAt: Date.now() - 500 },
+    });
+    expect(result.statusCode).toBe(200);
+    expect(result.json().vadToFirstAudioMs).toBeGreaterThanOrEqual(500);
+
+    const nextWake = agentEvent({ kind: "wake", sessionId: "voice-without-vad", eventId: "wake-without-vad" });
+    await app.inject(nextWake);
+    const withoutVad = await app.inject(command("no-vad", "去入口", "voice-without-vad"));
+    expect(withoutVad.statusCode).toBe(200);
+    expect(withoutVad.json().vadToFirstAudioMs).toBeUndefined();
+
+    const diagnostics = (await app.inject({ url: "/api/v1/state", headers: headers() })).json().voiceDiagnostics;
+    expect(diagnostics.vadMeasuredSampleCount).toBe(1);
+    expect(diagnostics.vadToFirstAudioP95Ms).toBeGreaterThanOrEqual(500);
+    expect(diagnostics.latest.vadToFirstAudioMs).toBeUndefined();
+  });
   it("keeps voice diagnostics bounded to the latest 100 completed replies", async () => {
     for (let index = 0; index < 101; index += 1) {
       const sessionId = `diagnostic-session-${index}`;

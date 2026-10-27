@@ -31,4 +31,10 @@ SDK 来源：官方页面所链接的 `linksoul-agentsdk-1.5.0-SNAPSHOT.jar`，S
 
 下载文件177834字节，JAR内Maven元数据版本1.5.0-SNAPSHOT。官方快速开始中的 Maven 示例仍写1.4.0；本项目以实际1.5 JAR字节码编译核对，不沿用该示例版本。
 
+语音时延诊断另消费官方状态流中的 `vad_status.state=eos` 与
+`tts_status.state=playing`，仅当两者 `event_id` 对应同一轮对话时计入
+VAD EOS 到 SDK 播放态的 P95。缺少 EOS 状态或事件关联时该轮不计入该指标，
+不以 ASR 回调到达时间回填 VAD 时间。SDK 播放态不是扬声器声压/麦克风回录，
+因此仍需实机声学测量才能验收“首段可听反馈 ≤2 秒”。
+
 旧版只核对地图关联 JSON 数据字段与验收行为。本项目的前端、API、状态机、ROS桥、Java适配、迁移和部署脚本独立编写；没有复制上述 GitHub 仓库或 V1.3.9/R19 的业务源码。

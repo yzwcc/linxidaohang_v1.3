@@ -324,17 +324,25 @@ function Overview({
                     ? "暂无数据"
                     : `${state.voiceDiagnostics.recognitionToFirstAudioP95Ms} ms`}
                 </strong>
-                <span className="helper">成功播报样本首音 P95</span>
+                <span className="helper">API 入站至 SDK 播放态 P95</span>
+              </div>
+              <div className="inline">
+                <strong style={{ fontSize: 20 }}>
+                  {state.voiceDiagnostics?.vadToFirstAudioP95Ms === undefined
+                    ? "暂无数据"
+                    : `${state.voiceDiagnostics.vadToFirstAudioP95Ms} ms`}
+                </strong>
+                <span className="helper">VAD 结束至 SDK 播放态 P95</span>
               </div>
               <span className="helper">
-                最近 {state.voiceDiagnostics?.sampleCount ?? 0} 次 · 有首音 {state.voiceDiagnostics?.audibleSampleCount ?? 0} 次
+                最近 {state.voiceDiagnostics?.sampleCount ?? 0} 次 · 已播放 {state.voiceDiagnostics?.audibleSampleCount ?? 0} 次 · 有 VAD 时间 {state.voiceDiagnostics?.vadMeasuredSampleCount ?? 0} 次
               </span>
               <span className="helper">
                 {state.voiceDiagnostics?.latest
                   ? `最近结果：${state.voiceDiagnostics.latest.category} · ${state.voiceDiagnostics.latest.speechDelivered ? "已播报" : "未播报"}`
                   : "等待语音事件"}
               </span>
-              <span className="helper">不含失败样本与 ASR 上游时间，不作为 VAD 结束至首音验收值</span>
+              <span className="helper">播放态来自 SDK `tts_status.playing`，不是麦克风实测的可听首音</span>
             </div>
           </Section>
           <div className="notice"><CircleHelp size={14} />移动机器人请始终使用外置遥控器。网页和 App 不发送行走命令。</div>

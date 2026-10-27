@@ -119,6 +119,8 @@ export type VoiceDiagnostics = {
   sampleCount: number;
   audibleSampleCount: number;
   recognitionToFirstAudioP95Ms?: number;
+  vadMeasuredSampleCount: number;
+  vadToFirstAudioP95Ms?: number;
   latest?: {
     at: string;
     category: VoiceReply["category"];
@@ -126,6 +128,7 @@ export type VoiceDiagnostics = {
     speechDelivered: boolean;
     latencyMs: number;
     firstAudioMs?: number;
+    vadToFirstAudioMs?: number;
   };
 };
 
@@ -140,6 +143,7 @@ export type VoiceEvent =
       confidence: number;
       isFinal: boolean;
       occurredAt: number;
+      vadEndedAt?: number;
     };
 
 export type VoiceReply = {
@@ -150,6 +154,7 @@ export type VoiceReply = {
   latencyMs: number;
   speechDelivered?: boolean;
   firstAudioMs?: number;
+  vadToFirstAudioMs?: number;
   deliveryError?: string;
 };
 

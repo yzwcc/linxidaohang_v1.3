@@ -24,6 +24,7 @@ import { Answerer } from "./voice/answerer";
 import { VoiceRouter } from "./voice/router";
 import { JsonStateStore } from "./store";
 import { validatedLidarFrame } from "./lidar";
+import { measureVadToFirstAudio, summarizeVoiceSamples } from "./voice/diagnostics";
 
 type ServerOptions = {
   adapter?: RobotAdapter;
@@ -271,16 +272,7 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
   }
 
   function summarizeVoiceDiagnostics(): VoiceDiagnostics {
-    const audibleTimes = voiceSamples.flatMap((sample) =>
-      sample.firstAudioMs === undefined ? [] : [sample.firstAudioMs],
-    ).sort((left, right) => left - right);
-    const p95Index = Math.max(0, Math.ceil(audibleTimes.length * 0.95) - 1);
-    return {
-      sampleCount: voiceSamples.length,
-      audibleSampleCount: audibleTimes.length,
-      recognitionToFirstAudioP95Ms: audibleTimes.length ? audibleTimes[p95Index] : undefined,
-      latest: voiceSamples.at(-1),
-    };
+    return summarizeVoiceSamples(voiceSamples);
   }
 
   function emitState(state: RobotState) {
@@ -522,11 +514,13 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
         transcript: z.string().max(4000),
         confidence: z.number().min(0).max(1),
         isFinal: z.boolean(),
+        vadEndedAt: z.number().int().positive().optional(),
       }),
     ]).safeParse(request.body);
     if (!parsed.success) throw deny(400, "语音事件格式无效");
     const event = parsed.data;
     const requestStartedAt = performance.now();
+    const requestStartedWallAt = Date.now();
     if (!voiceRouter.admit(event)) return reply.code(204).send();
     if (event.kind === "wake") {
       for (const pending of agentReplies.values()) void cancelReply(pending);
@@ -567,13 +561,19 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
     let dispatchCompleted = false;
     let deliveryError: string | undefined;
     let firstAudioMs: number | undefined;
+    let vadToFirstAudioMs: number | undefined;
     const speakSegment = async (segment: string) => {
       if (!current()) return;
       await ready;
       if (!current()) return;
       const sentAt = performance.now();
       const spoken = await speaker.speak(segment, pendingReply.speechId);
-      if (!speechDelivered) firstAudioMs = Math.round(sentAt - requestStartedAt + spoken.firstAudioMs);
+      if (!speechDelivered) {
+        firstAudioMs = Math.round(sentAt - requestStartedAt + spoken.firstAudioMs);
+        if (event.kind === "recognition") {
+          vadToFirstAudioMs = measureVadToFirstAudio(event.vadEndedAt, requestStartedWallAt, firstAudioMs);
+        }
+      }
       speechDelivered = true;
     };
     try {
@@ -650,6 +650,7 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
       latencyMs: Math.round(performance.now() - requestStartedAt),
       speechDelivered,
       firstAudioMs,
+      vadToFirstAudioMs,
       deliveryError,
     };
     voiceSamples.push({
@@ -659,6 +660,7 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
       speechDelivered: result.speechDelivered ?? false,
       latencyMs: result.latencyMs,
       firstAudioMs: result.firstAudioMs,
+      vadToFirstAudioMs: result.vadToFirstAudioMs,
     });
     if (voiceSamples.length > 100) voiceSamples.splice(0, voiceSamples.length - 100);
     return reply.code(200).send(result);

@@ -24,6 +24,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public final class AgentMain {
     private static final String GATEWAY = "wss://open.agibot.com/api/V1/open-portal/app/wss/agent-sdk";
     private final WakeGate gate = new WakeGate();
+    private final VadEndRegistry vadEnds = new VadEndRegistry();
     private final SpeechRequests speechRequests = new SpeechRequests();
     private final String agentId = required("LINKSOUL_AGENT_ID");
     private final String token = required("LINGXI_AGENT_INTERNAL_TOKEN");
@@ -137,6 +138,8 @@ public final class AgentMain {
                     JSONObject state = JSON.parseObject(value);
                     if ("listening_status".equals(name)) {
                         acceptListening(state);
+                    } else if ("vad_status".equals(name)) {
+                        vadEnds.accept(state, System.currentTimeMillis());
                     } else if ("tts_status".equals(name)) {
                         acceptTts(state);
                     }
@@ -242,13 +245,22 @@ public final class AgentMain {
             ReplyContext context = new ReplyContext(session, event, response,
                     new AtomicBoolean(), new AtomicBoolean(), new AtomicBoolean());
             if (replies.putIfAbsent(correlation, context) != null) return;
+            Long vadEndedAt = vadEnds.consume(event, occurredAt);
             wake.delivered.thenCompose(ignored -> {
                 synchronized (speechRequests) {
                     if (context.closed.get() || !session.equals(gate.current(System.currentTimeMillis()))) {
                         return CompletableFuture.completedFuture(null);
                     }
-                    return postEvent(Map.of("kind", "recognition", "sessionId", session, "eventId", event,
-                            "occurredAt", occurredAt, "transcript", text, "confidence", confidence, "isFinal", true));
+                    Map<String, Object> recognition = new HashMap<>();
+                    recognition.put("kind", "recognition");
+                    recognition.put("sessionId", session);
+                    recognition.put("eventId", event);
+                    recognition.put("occurredAt", occurredAt);
+                    recognition.put("transcript", text);
+                    recognition.put("confidence", confidence);
+                    recognition.put("isFinal", true);
+                    if (vadEndedAt != null) recognition.put("vadEndedAt", vadEndedAt);
+                    return postEvent(recognition);
                 }
             }).whenComplete((ignored, error) -> {
                 synchronized (speechRequests) {
