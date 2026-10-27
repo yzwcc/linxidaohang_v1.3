@@ -1,0 +1,22 @@
+[Unit]
+Description=Lingxi Next Local HTTPS Console
+After=network.target lingxi-next-aimdk.service
+
+[Service]
+User=lingxi-next
+Group=lingxi-next
+EnvironmentFile=/etc/lingxi-next/robot.env
+WorkingDirectory=/opt/lingxi-next/current
+ExecStart=/bin/bash /opt/lingxi-next/current/deploy/run.sh api
+Restart=on-failure
+RestartSec=3
+UMask=0077
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/lingxi-next
+TimeoutStopSec=20
+
+[Install]
+WantedBy=multi-user.target

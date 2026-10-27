@@ -1,0 +1,20 @@
+[Unit]
+Description=Lingxi Next LinkSoul AgentSDK Adapter
+After=network.target lingxi-next-api.service
+
+[Service]
+User=lingxi-next
+Group=lingxi-next
+EnvironmentFile=/etc/lingxi-next/robot.env
+ExecStart=/bin/bash /opt/lingxi-next/current/deploy/run.sh agent
+Restart=on-failure
+RestartSec=15
+UMask=0077
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+TimeoutStopSec=10
+
+[Install]
+WantedBy=multi-user.target

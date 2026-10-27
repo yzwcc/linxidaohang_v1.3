@@ -1,0 +1,83 @@
+# Lingxi Next
+
+A clean-room local console and Android companion for AgiBot Lingxi X2. This
+project does not include or modify the V1.3.9/R19 business code.
+
+## Runtime shape
+
+- The robot hosts the HTTPS console and API on port `3000`.
+- A typed ROS 2 adapter runs on the robot and talks only to configured AIMDK
+  interfaces. The browser never receives a general-purpose ROS publish/service
+  endpoint.
+- The console is React/TypeScript. Capacitor packages the same UI as a
+  landscape Android app; only the robot address is retained on the client.
+- The Java LinkSoul adapter and AI orchestration are separate from map/navigation
+  management. Credentials are write-only through the authenticated HTTPS API
+  and live in a robot-local mode-0600 file.
+
+## Local development
+
+```sh
+npm ci
+npm run dev:api
+npm run dev
+```
+
+The development API binds to loopback and uses the explicitly simulated
+adapter. It is not a robot connection. The simulator accepts the pairing code
+`lingxi-dev-only`; production startup refuses to use it.
+
+```sh
+npm test
+npm run build
+```
+
+## Robot runtime
+
+The production API requires a robot TLS key/certificate, a one-time pairing
+code hash, a restricted internal-agent token, and the local ROS 2 bridge. The
+bridge is configured with the topic names found by `ros2 topic list` on the
+target AIMDK image. Defaults are documented in `deploy/robot.env.example`;
+readiness remains false until live sensor, SLAM, localization, and optional
+navigation interfaces are observed.
+
+The X2 mapping interface publishes `start_mapping` and
+`stop_mapping:<map_name>` to `/integrated_command` using reliable,
+transient-local QoS. Saving is not reported as successful until
+`GetStoredMapByName` confirms it. The stop command itself requests save, so
+the UI asks for a map name before stopping. Robot movement during map creation
+is always controlled by an external remote.
+
+The mapping screen renders live LaserScan/PointCloud2 samples as an XY point
+cloud, not an occupancy grid. A separate authenticated WebSocket delivers up to
+five latest frames per second. Timestamp-aligned TF supplies the common frame
+and robot heading; missing TF explicitly falls back to sensor coordinates with
+no accumulated trace. See `docs/LIDAR.md` for target configuration.
+
+Native navigation is disabled unless the AIMDK optional navigation component
+is available and its state topic is fresh. Only point-to-point targets,
+pause/resume, and stop are exposed; no velocity, arbitrary joint, or raw ROS
+controls are implemented here.
+
+## Security and delivery boundaries
+
+- Import the robot's local CA certificate into desktop/mobile trust before
+  pairing. The Android network security configuration trusts user-installed
+  CAs, not arbitrary certificates.
+- Pairing and session tokens are memory-only in the client. The robot address
+  may be remembered. API keys and LinkSoul credentials are never returned,
+  logged, or stored by the browser.
+- Map assets remain in AIMDK's existing map directory. Migration copies
+  configuration backups and references only; it never moves map files.
+- The build output is not an acceptance claim for physical navigation,
+  acoustic wake-up, cloud credentials, or the target robot's optional AIMDK
+  components. See `docs/ACCEPTANCE.md`.
+
+## Useful commands
+
+```sh
+npm run android:add
+npm run android:sync
+npm run android:build
+npm run migrate -- --source-file /path/to/legacy-config.json --destination /var/lib/lingxi-next
+```

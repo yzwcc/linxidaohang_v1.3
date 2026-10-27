@@ -1,0 +1,18 @@
+[Unit]
+Description=Lingxi Next AIMDK Native Interface Adapter
+After=network.target
+
+[Service]
+User=lingxi-next
+Group=lingxi-next
+EnvironmentFile=/etc/lingxi-next/robot.env
+ExecStart=/bin/bash /opt/lingxi-next/current/deploy/run.sh aimdk
+Restart=on-failure
+RestartSec=5
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=false
+TimeoutStopSec=10
+
+[Install]
+WantedBy=multi-user.target

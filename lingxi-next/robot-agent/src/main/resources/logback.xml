@@ -1,0 +1,8 @@
+<configuration>
+  <appender name="STDERR" class="ch.qos.logback.core.ConsoleAppender">
+    <target>System.err</target><encoder><pattern>%date %-5level %logger{24} - %msg%n</pattern></encoder>
+  </appender>
+  <!-- Vendor debug/default callbacks may contain ASR text and credentials. -->
+  <logger name="com.agibot" level="OFF"/>
+  <root level="WARN"><appender-ref ref="STDERR"/></root>
+</configuration>
