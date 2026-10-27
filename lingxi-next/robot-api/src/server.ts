@@ -324,7 +324,11 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
         throw deny(409, "请先停止当前建图或导航任务，再切换地图");
       }
       const parsedPose = z.object({
-        initialPose: z.object({ x: z.number().finite(), y: z.number().finite(), yaw: z.number().finite() }).optional(),
+        initialPose: z.object({
+          x: z.number().finite().min(-1000).max(1000),
+          y: z.number().finite().min(-1000).max(1000),
+          yaw: z.number().finite().min(-Math.PI * 2).max(Math.PI * 2),
+        }).strict().optional(),
       }).strict().safeParse(request.body ?? {});
       if (!parsedPose.success) throw deny(400, "初始位姿参数无效");
       const state = await store.read();
@@ -352,7 +356,7 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
     if (jobs.hasActiveJob() || ["requested", "running", "paused"].includes(state.navigation.status)) {
       throw deny(409, "请先停止导航或讲解任务，再开始建图");
     }
-    const required = new Set(["aimdk", "slam", "lidar", "odom"]);
+    const required = new Set(["aimdk", "slam", "lidar"]);
     const failures = state.checks.filter((item) => required.has(item.id) && !item.ready);
     if (failures.length) throw deny(409, `建图预检未通过：${failures.map((item) => item.label).join("、")}`);
     if (state.mapping) throw deny(409, "建图已在进行");

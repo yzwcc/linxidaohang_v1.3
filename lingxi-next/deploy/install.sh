@@ -18,7 +18,7 @@ while (($#)); do
 done
 [[ $EUID == 0 && $COMMISSIONING == 1 ]] || { echo "Run as root with --commissioning; read docs/ACCEPTANCE.md first" >&2; exit 1; }
 [[ "$(uname -m)" == aarch64 || "$(uname -m)" == arm64 ]] || { echo "This package requires Linux ARM64" >&2; exit 1; }
-for command in systemctl openssl python3 tar sha256sum curl; do command -v "$command" >/dev/null || { echo "Missing dependency: $command" >&2; exit 1; }; done
+for command in systemctl openssl python3 tar sha256sum curl getent groupadd useradd; do command -v "$command" >/dev/null || { echo "Missing dependency: $command" >&2; exit 1; }; done
 python3 -c 'import ipaddress,sys; ipaddress.ip_address(sys.argv[1])' "$ROBOT_IP"
 cd "$PACKAGE"
 sha256sum -c SHA256SUMS >/dev/null
@@ -34,7 +34,8 @@ if [[ -L "$ROOT/current" ]]; then
   PREVIOUS="$(readlink -f "$ROOT/current")"
   [[ "$PREVIOUS" == "$ROOT/releases/"* && -f "$PREVIOUS/VERSION" ]] || { echo "Invalid previous release" >&2; exit 1; }
 fi
-if ! id lingxi-next >/dev/null 2>&1; then useradd --system --home-dir "$DATA" --shell /usr/sbin/nologin lingxi-next; fi
+if ! getent group lingxi-next >/dev/null; then groupadd --system lingxi-next; fi
+if ! id lingxi-next >/dev/null 2>&1; then useradd --system --gid lingxi-next --home-dir "$DATA" --shell /usr/sbin/nologin lingxi-next; fi
 install -d -m 0755 "$ROOT" "$ROOT/releases"
 install -d -m 0750 -o root -g lingxi-next "$CONFIG"
 install -d -m 0700 "$ROOT/backups"
@@ -67,7 +68,11 @@ if [[ ! -e "$CONFIG/tls/robot.crt" ]]; then
   chown root:lingxi-next "$CONFIG/tls/robot.key" "$CONFIG/tls/robot.crt" "$CONFIG/tls/ca.crt"
   chmod 0640 "$CONFIG/tls/robot.key" "$CONFIG/tls/robot.crt" "$CONFIG/tls/ca.crt"
 else
-  openssl x509 -in "$CONFIG/tls/robot.crt" -noout -checkip "$ROBOT_IP"
+  # Some OpenSSL builds print a mismatch but exit successfully for -checkip.
+  CHECK_IP="$(openssl x509 -in "$CONFIG/tls/robot.crt" -noout -checkip "$ROBOT_IP")"
+  [[ "$CHECK_IP" == *"does match certificate"* && "$CHECK_IP" != *"does NOT match"* ]] || {
+    echo "Existing certificate does not cover this robot IP; renew it before upgrading" >&2; exit 1;
+  }
 fi
 install -d -m 0755 "$ROOT/releases/$VERSION"
 cp -a "$PACKAGE/." "$ROOT/releases/$VERSION/"

@@ -155,7 +155,7 @@ function ConnectScreen({ onConnected }: { onConnected: (connection: Connection) 
           <h1>建图与导航<br />工作台</h1>
           <p>机器人本机运行 · 同一局域网连接</p>
         </div>
-        <span className="brand-subtitle">LINGXI NEXT / 0.1.0</span>
+        <span className="brand-subtitle">LINGXI NEXT / 0.1.1</span>
       </section>
       <section className="connect-main">
         <form className="connect-form" onSubmit={connect}>
@@ -336,7 +336,7 @@ function Mapping({
   const [busy, setBusy] = useState(false);
   const activeMap = state.maps.find((map) => map.id === state.activeMapId);
   const canStart = !navigationBusy(state) &&
-    ["aimdk", "slam", "lidar", "odom"].every((id) => state.checks.some((item) => item.id === id && item.ready));
+    ["aimdk", "slam", "lidar"].every((id) => state.checks.some((item) => item.id === id && item.ready));
   const mappingLabel = {
     idle: "未启动",
     requested: "等待 AIMDK 确认",
@@ -469,7 +469,7 @@ function Maps({
                     <td><strong>{map.name}</strong></td>
                     <td className="mono">{map.mapId ?? "未查询"}</td>
                     <td>{map.active ? <span className="tag">当前使用</span> : <span className="muted">可用</span>}</td>
-                    <td><button className="btn small" disabled={map.active || state.mapping || navigationBusy(state)} onClick={() => run(`/api/v1/maps/${encodeURIComponent(map.id)}/activate`, {})}>切换</button></td>
+                    <td><button className="btn small" disabled={state.mapping || navigationBusy(state)} onClick={() => run(`/api/v1/maps/${encodeURIComponent(map.id)}/activate`, {})}>从建图起点定位</button></td>
                   </tr>
                 ))}
                 {!state.maps.length && <tr><td colSpan={4} className="empty">未发现已保存地图</td></tr>}
@@ -501,6 +501,14 @@ function Maps({
               <div className="field"><label htmlFor="new-point-yaw">朝向（弧度）</label><input id="new-point-yaw" type="number" step="0.01" value={coordinates.yaw} onChange={(event) => setCoordinates({ ...coordinates, yaw: event.target.value })} required /></div>
               <div className="field full"><button className="btn primary" type="submit" disabled={!activeMap}><Plus size={13} />添加点位</button></div>
             </form>
+            <div className="inline" style={{ marginTop: 12 }}>
+              <button className="btn" disabled={!activeMap || state.mapping || navigationBusy(state)} onClick={() => {
+                if (activeMap) void run(`/api/v1/maps/${encodeURIComponent(activeMap.id)}/activate`, {
+                  initialPose: { x: Number(coordinates.x), y: Number(coordinates.y), yaw: Number(coordinates.yaw) },
+                });
+              }}><Compass size={13} />按所填位姿重定位</button>
+            </div>
+            <div className="helper" style={{ marginTop: 8 }}>定位前确认机器人实际位置与所填坐标、朝向一致。</div>
           </Section>
         </div>
         <Section title="地图与点位" icon={Compass}>

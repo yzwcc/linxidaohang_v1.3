@@ -174,6 +174,23 @@ describe("paired local console API", () => {
     const state = (await app.inject({ url: "/api/v1/state", headers: headers() })).json();
     expect(state.maps.filter((map: { active: boolean }) => map.active).map((map: { id: string }) => map.id)).toEqual(["demo-lab"]);
   });
+  it("passes explicit initial world pose through and rejects invalid bounds", async () => {
+    const activate = vi.spyOn(adapter, "activateMap");
+    const pose = { x: 1.25, y: -2, yaw: Math.PI / 2 };
+    expect((await app.inject({ method: "POST", url: "/api/v1/maps/demo-hall/activate",
+      headers: headers(), payload: { initialPose: pose } })).statusCode).toBe(200);
+    expect(activate).toHaveBeenCalledWith(expect.objectContaining({ id: "demo-hall" }), pose);
+    expect((await app.inject({ method: "POST", url: "/api/v1/maps/demo-hall/activate",
+      headers: headers(), payload: { initialPose: { ...pose, x: 1001 } } })).statusCode).toBe(400);
+    expect(activate).toHaveBeenCalledTimes(1);
+  });
+  it("does not require localization output to start the first mapping session", async () => {
+    const snapshot = await adapter.getSnapshot();
+    snapshot.checks = snapshot.checks.map((check) => check.id === "odom" ? { ...check, ready: false } : check);
+    snapshot.pose = undefined;
+    vi.spyOn(adapter, "getSnapshot").mockResolvedValue(snapshot);
+    expect((await app.inject({ method: "POST", url: "/api/v1/mapping/start", headers: headers() })).statusCode).toBe(202);
+  });
   it("preserves a dispatched command when its spoken confirmation fails", async () => {
     const event = (payload: object) => app.inject({ method: "POST", url: "/api/v1/agent/events",
       headers: { "x-agent-token": "internal-test-token" }, payload: { sessionId: "voice", occurredAt: Date.now(), ...payload } });

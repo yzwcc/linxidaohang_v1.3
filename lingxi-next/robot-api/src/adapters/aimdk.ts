@@ -45,9 +45,12 @@ export class AimdkAdapter implements RobotAdapter {
     const result = await this.request<{ accepted: boolean; confirmed: boolean; mapId: number }>(
       `/maps/${encodeURIComponent(map.id)}/activate`,
       { method: "POST", body: { initialPose } },
-      30_000,
+      40_000,
     );
-    if (!result.accepted || !result.confirmed) throw new Error("AIMDK 未确认切换到目标地图");
+    if (result.accepted !== true || result.confirmed !== true ||
+        !Number.isSafeInteger(result.mapId) || result.mapId <= 0) {
+      throw new Error("AIMDK 未确认切换到目标地图");
+    }
     map.mapId = result.mapId;
     map.active = true;
   }

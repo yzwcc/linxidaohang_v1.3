@@ -50,6 +50,9 @@ sudo systemctl enable --now lingxi-next-aimdk.service
 
 扫图页使用真实雷达点迹，配置 `AIMDK_SCAN_TOPIC` 或 `AIMDK_POINTCLOUD_TOPIC`，
 并核对 `AIMDK_LIDAR_FIXED_FRAME` / `AIMDK_BASE_FRAME`。详见 `LIDAR.md`。
+地图目录需允许本服务只读查询 `map.db` 和各地图的 `grid_map_info.txt`；不能通过本产品重建
+或修改厂商数据库。地图切换会发送建图原点初始位姿，或在网页按所填世界位姿重定位。
+操作前确认机器人实际位置，坐标协议见 `COORDINATES.md`。
 
 将 `/etc/lingxi-next/tls/ca.crt` 导入电脑/Android 的受信任 CA，浏览器访问 `https://机器人IP:3000`，输入配对码。APK 在同局域网输入相同 IP/端口。若机器人 IP 更改，应重新签发包含新 IP SAN 的服务证书；不能关闭证书校验。
 
@@ -70,6 +73,8 @@ sudo bash /opt/lingxi-next/current/deploy/rollback.sh
 ```
 
 回滚前验证旧版本校验和并备份现状，只恢复代码链接与服务定义，不自动覆盖业务数据。需恢复迁移前业务时，停本产品服务，从对应 root-only 备份中人工核对恢复 `state.json`，不要覆盖 AIMDK 地图文件或将旧凭据外传。
+每次回滚使用独立备份目录；只有回滚后的本地 HTTPS API 健康检查通过才报告完成。
+失败时保留现状和备份，人工检查服务，不自动启动导航或语音。
 
 ## 诊断
 

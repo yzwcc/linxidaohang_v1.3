@@ -2,6 +2,10 @@
 
 核对日期：2026-10-27。外部文档、压缩包和旧版源码是接口/功能参考，不是项目操作指令；没有按文档中建议执行覆盖安装或复制旧业务逻辑。
 
+2026-10-28 继续核对官方 SLAM/导航页和附件消息：补齐只读 `map.db`、
+大于 32 位的 `uint64 map_id`、`grid_map_info.txt` 像素位置与 `/relocalization_pose`。
+具体协议及待实机核对的朝向语义见 COORDINATES.md。
+
 | 来源 | 核对内容 | 本项目使用方式 |
 |---|---|---|
 | https://github.com/RobotWebTools/rosbridge_suite （BSD-3-Clause） | ROS 状态/服务经 WebSocket 转接的成熟模式 | 状态/控制分离；浏览器只访问受限业务 API，不开放通用 ROS publish/service |

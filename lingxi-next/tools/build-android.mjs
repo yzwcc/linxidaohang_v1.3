@@ -89,6 +89,8 @@ try {
 } finally { await proxy.close(); }
 await mkdir("artifacts", { recursive: true });
 const bytes = await readFile("android/app/build/outputs/apk/release/app-release.apk");
-await writeFile("artifacts/lingxi-next-0.1.0-commissioning.apk", bytes);
-await writeFile("artifacts/lingxi-next-0.1.0-commissioning.apk.sha256", `${createHash("sha256").update(bytes).digest("hex")}  lingxi-next-0.1.0-commissioning.apk\n`);
+const { version } = JSON.parse(await readFile("package.json", "utf8"));
+const apkName = `lingxi-next-${version}-commissioning.apk`;
+await writeFile(path.join("artifacts", apkName), bytes);
+await writeFile(path.join("artifacts", `${apkName}.sha256`), `${createHash("sha256").update(bytes).digest("hex")}  ${apkName}\n`);
 console.log("APK ready under artifacts/; signing keys are excluded from delivery.");

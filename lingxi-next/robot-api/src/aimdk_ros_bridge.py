@@ -8,9 +8,11 @@ import hmac
 import math
 import os
 import re
+import sqlite3
 import struct
 import threading
 import time
+from contextlib import closing
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
@@ -18,6 +20,7 @@ from urllib.parse import unquote, urlparse
 
 import rclpy
 from nav_msgs.msg import OccupancyGrid, Odometry
+from geometry_msgs.msg import Pose
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
 from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
@@ -60,6 +63,77 @@ MAX_MAPS = 100
 MAX_LIDAR_POINTS = 8000
 MAPPING_STATE = 2
 LOCALIZATION_STATE = 3
+MAX_SAFE_MAP_ID = 9_007_199_254_740_991
+RELOCALIZATION_TIMEOUT = 30.0
+RELOCALIZATION_POSE_DELAY = 1.0
+
+
+def valid_map_name(value: Any) -> bool:
+    return isinstance(value, str) and re.fullmatch(
+        r"[\w\u4e00-\u9fff][\w\u4e00-\u9fff .-]{0,99}", value, re.UNICODE
+    ) is not None
+
+
+def read_map_catalog(directory: Path) -> list[dict[str, Any]]:
+    """Read the vendor catalog without creating or modifying a database."""
+    database = directory / "map.db"
+    if not database.exists():
+        return [{"id": file.stem, "name": file.stem}
+                for file in sorted(directory.glob("*.yaml"))[:MAX_MAPS] if valid_map_name(file.stem)]
+    try:
+        with closing(sqlite3.connect(database.resolve().as_uri() + "?mode=ro", uri=True, timeout=1.0)) as connection:
+            connection.execute("PRAGMA query_only=ON")
+            rows = connection.execute("SELECT map_id, map_name FROM map ORDER BY map_id DESC LIMIT ?",
+                                      (MAX_MAPS,)).fetchall()
+    except sqlite3.Error as error:
+        raise AdapterError("无法只读查询 AIMDK map.db，请检查权限和 map 表结构") from error
+    result = []
+    names = set()
+    for map_id, name in rows:
+        if (isinstance(map_id, bool) or not isinstance(map_id, int)
+                or not 0 < map_id <= MAX_SAFE_MAP_ID or not valid_map_name(name) or name in names):
+            raise AdapterError("AIMDK 地图登记含无效 ID、名称或重名，未展示不确定地图")
+        names.add(name)
+        result.append({"id": name, "name": name, "mapId": map_id})
+    return result
+
+
+def relocalization_pixels(directory: Path, map_id: int, pose: Any) -> tuple[float, float, float]:
+    """X2 uses image pixels for position and a ROS quaternion for orientation."""
+    if isinstance(map_id, bool) or not isinstance(map_id, int) or not 0 < map_id <= MAX_SAFE_MAP_ID:
+        raise AdapterError("地图 ID 无效", 400)
+    target = (directory / str(map_id) / "grid_map_info.txt").resolve()
+    if not target.is_relative_to(directory.resolve()):
+        raise AdapterError("地图信息路径越界", 400)
+    try:
+        if target.stat().st_size > 4096:
+            raise ValueError("Oversized grid metadata")
+        lines = target.read_text(encoding="utf-8").strip().splitlines()
+        # Accept the vendor's three numeric lines, including optional field labels.
+        values = [re.findall(r"[-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?", line) for line in lines]
+        if len(values) != 3 or [len(line) for line in values] != [1, 2, 2]:
+            raise ValueError("Unsupported grid metadata")
+        scale, origin_u, origin_v, width, height = [float(value) for line in values for value in line]
+        if (not all(math.isfinite(value) for value in (scale, origin_u, origin_v, width, height))
+                or not 0 < scale <= 10_000 or not 1 <= width <= 100_000 or not 1 <= height <= 100_000
+                or not width.is_integer() or not height.is_integer()
+                or not 0 <= origin_u < width or not 0 <= origin_v < height):
+            raise ValueError("Invalid grid metadata")
+    except (OSError, ValueError) as error:
+        raise AdapterError("无法读取三行 grid_map_info.txt，请核对地图 ID、权限和格式") from error
+    if pose is None:
+        return origin_u, origin_v, 0.0
+    if not isinstance(pose, dict) or set(pose) != {"x", "y", "yaw"}:
+        raise AdapterError("初始位姿格式无效", 400)
+    if any(isinstance(pose[key], bool) or not isinstance(pose[key], (int, float))
+           or not math.isfinite(pose[key]) for key in pose):
+        raise AdapterError("初始位姿必须为有限数值", 400)
+    if abs(pose["yaw"]) > 2 * math.pi or any(abs(pose[key]) > 1000 for key in ("x", "y")):
+        raise AdapterError("初始位姿超出支持范围", 400)
+    u, v = origin_u + pose["x"] * scale, origin_v - pose["y"] * scale
+    if not 0 <= u < width or not 0 <= v < height:
+        raise AdapterError("初始位姿位于地图范围之外", 400)
+    return u, v, float(pose["yaw"])
 
 
 class AdapterError(Exception):
@@ -150,12 +224,15 @@ class X2Node(Node):
         self.tf_listener = TransformListener(self.tf_buffer, self) if self.tf_buffer else None
         self.last_odom: dict[str, float] | None = None
         self.last_odom_at = 0.0
+        self.last_odom_stamp_ns = 0
         self.last_task_state: dict[str, Any] | None = None
         self.last_task_state_at = 0.0
         self.last_navigation: dict[str, Any] = {"status": "idle"}
         self.mapping_status = "idle"
         self.relocalization_pending = False
+        self.relocalization_seen = False
         self.publisher = self.create_publisher(String, INTEGRATED_COMMAND_TOPIC, reliable_transient)
+        self.relocalization_publisher = self.create_publisher(Pose, "/relocalization_pose", best_effort_volatile)
         self.map_client = self.create_client(GetStoredMapByName, MAP_SERVICE)
         self.grid_subscription = (
             self.create_subscription(OccupancyGrid, MAP_TOPIC, self.on_grid, best_effort_volatile)
@@ -297,15 +374,25 @@ class X2Node(Node):
             return self.last_lidar
 
     def on_odom(self, message: Odometry) -> None:
+        stamp_ns = int(message.header.stamp.sec) * 1_000_000_000 + int(message.header.stamp.nanosec)
+        if (message.header.frame_id != "map" or stamp_ns <= 0
+                or abs(self.get_clock().now().nanoseconds - stamp_ns) > 2_000_000_000):
+            return
         pose = message.pose.pose
         orientation = pose.orientation
-        yaw = math.atan2(
-            2.0 * (orientation.w * orientation.z + orientation.x * orientation.y),
-            1.0 - 2.0 * (orientation.y * orientation.y + orientation.z * orientation.z),
-        )
+        if not all(math.isfinite(value) for value in
+                   (pose.position.x, pose.position.y, orientation.x, orientation.y, orientation.z, orientation.w)):
+            return
+        norm = sum(value * value for value in (orientation.x, orientation.y, orientation.z, orientation.w))
+        if abs(norm - 1.0) > 0.01:
+            return
+        yaw = self.quaternion_yaw(orientation)
         with self.lock:
+            if stamp_ns <= self.last_odom_stamp_ns:
+                return
             self.last_odom = {"x": float(pose.position.x), "y": float(pose.position.y), "yaw": yaw}
             self.last_odom_at = time.time()
+            self.last_odom_stamp_ns = stamp_ns
 
     def on_task_state(self, message: TaskMasterState) -> None:
         with self.lock:
@@ -318,6 +405,8 @@ class X2Node(Node):
                 "mapName": str(message.loc_map_name),
             }
             self.last_task_state_at = time.time()
+            if self.relocalization_pending and slam_state == 1:
+                self.relocalization_seen = True
             if self.mapping_status == "requested" and slam_state == MAPPING_STATE:
                 self.mapping_status = "running"
 
@@ -356,8 +445,8 @@ class X2Node(Node):
             {
                 "id": "slam",
                 "label": "SLAM",
-                "ready": integrated_ready and odom_fresh,
-                "detail": "SLAM 与命令链路在线" if integrated_ready and odom_fresh else "需确认 /integrated_command 与定位数据",
+                "ready": integrated_ready and (task_state_fresh or odom_fresh),
+                "detail": "SLAM 与命令链路在线" if integrated_ready and (task_state_fresh or odom_fresh) else "需确认 /integrated_command 与 SLAM 状态",
             },
             {"id": "lidar", "label": "激光雷达", "ready": scan_fresh, "detail": "实时扫描" if scan_fresh else f"{POINTCLOUD_TOPIC or SCAN_TOPIC or '雷达话题未配置'} 无新数据"},
             {"id": "odom", "label": "里程计", "ready": odom_fresh, "detail": "实时定位" if odom_fresh else "等待 /slam/lidar_odom"},
@@ -397,6 +486,7 @@ class X2Node(Node):
             raise AdapterError("AIMDK 地图查询服务不可用")
         request = GetStoredMapByName.Request()
         request.header = Header()
+        request.header.stamp = self.get_clock().now().to_msg()
         request.map_name = name
         done = threading.Event()
         result: dict[str, Any] = {}
@@ -418,7 +508,7 @@ class X2Node(Node):
         if int(response.code) != 0:
             raise AdapterError(f"AIMDK 未确认地图可用: {name}", 404)
         info = response.map_info
-        if int(response.map_id) <= 0 or not math.isfinite(info.resolution) or info.resolution <= 0:
+        if not 0 < int(response.map_id) <= MAX_SAFE_MAP_ID or not math.isfinite(info.resolution) or info.resolution <= 0:
             raise AdapterError("AIMDK 返回的地图 ID 或分辨率无效")
         metadata = {
             "id": name,
@@ -464,7 +554,7 @@ class X2Node(Node):
             raise AdapterError("X2 原生导航请求接口没有接收者")
         state = self.snapshot().get("taskMasterState")
         if action == 1:
-            if map_id <= 0 or map_id > 4_294_967_295:
+            if isinstance(map_id, bool) or not isinstance(map_id, int) or not 0 < map_id <= MAX_SAFE_MAP_ID:
                 raise AdapterError("地图 ID 无效", 400)
             if any(not math.isfinite(target.get(key, math.nan)) for key in ("x", "y", "yaw")):
                 raise AdapterError("导航坐标必须为有限数值", 400)
@@ -482,6 +572,8 @@ class X2Node(Node):
                 map_id = int(current["mapId"])
         request = PncTaskRequest()
         request.header.stamp = self.get_clock().now().to_msg()
+        request.header.meas_stamp = request.header.stamp
+        request.header.frame_id = "map"
         request.header.sequence = task_id % (2**32)
         request.task_type = 2
         request.task_request = action
@@ -513,21 +605,66 @@ class X2Node(Node):
     def list_maps(self) -> list[dict[str, Any]]:
         if not MAP_DIR.is_dir():
             return []
-        files = sorted(MAP_DIR.glob("*.yaml"))[:MAX_MAPS]
         state = self.snapshot().get("taskMasterState") or {}
         active_name = str(state.get("mapName", ""))
         active_id = state.get("mapId")
         result = []
-        for file in files:
-            name = file.stem
-            result.append({
-                "id": name,
-                "name": name,
-                "mapId": int(active_id) if name == active_name and active_id is not None else None,
-                "active": name == active_name,
-                "createdAt": "",
-            })
+        for item in read_map_catalog(MAP_DIR):
+            active = (state.get("slamState") == LOCALIZATION_STATE and item["name"] == active_name
+                      and (item.get("mapId") is None or item["mapId"] == active_id))
+            result.append({**item, "mapId": item.get("mapId", int(active_id) if active else None),
+                           "active": active, "createdAt": ""})
         return result
+
+    def activate_map(self, name: str, initial: Any = None) -> dict[str, Any]:
+        if not valid_map_name(name):
+            raise AdapterError("无效地图名称", 400)
+        info = self.query_map(name)
+        u, v, yaw = relocalization_pixels(MAP_DIR, int(info["mapId"]), initial)
+        if (self.publisher.get_subscription_count() < 1
+                or self.relocalization_publisher.get_subscription_count() < 1):
+            raise AdapterError("AIMDK 重定位指令或初始位姿接口没有接收者")
+        with self.lock:
+            if self.relocalization_pending:
+                raise AdapterError("地图切换待确认，请现场检查后重启本项目桥接服务", 409)
+            if self.mapping_status != "idle" or self.last_navigation.get("status") in ("requested", "running", "paused"):
+                raise AdapterError("请先停止建图或导航", 409)
+            self.relocalization_pending = True
+            self.relocalization_seen = False
+            self.lidar_epoch = str(time.time_ns())
+            self.last_lidar = None
+            self.last_scan_at = 0
+            self.last_map = None
+            self.last_odom = None
+            self.last_odom_at = 0
+            self.publish_command(f"start_relocalization:{int(info['mapId'])}")
+        time.sleep(RELOCALIZATION_POSE_DELAY)
+        # No retry: an uncertain publish can already have reached the robot.
+        if self.relocalization_publisher.get_subscription_count() < 1:
+            raise AdapterError("初始位姿接收者已离线，地图切换待确认")
+        pose = Pose()
+        pose.position.x, pose.position.y, pose.position.z = float(u), float(v), 0.0
+        pose.orientation.z = math.sin(yaw / 2)
+        pose.orientation.w = math.cos(yaw / 2)
+        requested_at = time.time()
+        stamp_ns = self.get_clock().now().nanoseconds
+        self.relocalization_publisher.publish(pose)
+        deadline = time.monotonic() + RELOCALIZATION_TIMEOUT
+        while time.monotonic() < deadline:
+            with self.lock:
+                state = self.last_task_state
+                confirmed = bool(
+                    self.relocalization_seen and state and self.last_task_state_at >= requested_at
+                    and state["slamState"] == LOCALIZATION_STATE
+                    and int(state["mapId"]) == int(info["mapId"])
+                    and self.last_odom_at >= requested_at and self.last_odom_stamp_ns >= stamp_ns
+                    and time.time() - self.last_odom_at <= 2.0
+                )
+                if confirmed:
+                    self.relocalization_pending = False
+                    return {"accepted": True, "confirmed": True, "mapId": info["mapId"]}
+            time.sleep(0.05)
+        raise AdapterError("AIMDK 未确认目标地图和初始位姿下发后的新定位数据", 504)
 
 
 class BridgeHandler(BaseHTTPRequestHandler):
@@ -566,7 +703,7 @@ class BridgeHandler(BaseHTTPRequestHandler):
             path = urlparse(self.path).path
             if path == "/v1/mapping/start":
                 state = self.node.snapshot()
-                required = ("aimdk", "slam", "lidar", "odom")
+                required = ("aimdk", "slam", "lidar")
                 not_ready = [item["label"] for item in state["checks"] if item["id"] in required and not item["ready"]]
                 if not_ready:
                     raise AdapterError("建图预检未通过: " + "、".join(not_ready), 409)
@@ -586,7 +723,7 @@ class BridgeHandler(BaseHTTPRequestHandler):
                 name = str(body.get("name", "")).strip()
                 if not re.fullmatch(r"[\w\u4e00-\u9fff][\w\u4e00-\u9fff .-]{0,63}", name, re.UNICODE):
                     raise AdapterError("地图名称格式无效", 400)
-                if (MAP_DIR / f"{name}.yaml").exists():
+                if any(item["name"] == name for item in read_map_catalog(MAP_DIR)):
                     raise AdapterError("同名地图已存在，请使用新地图名称", 409)
                 with self.node.lock:
                     if self.node.mapping_status not in ("requested", "running", "failed"):
@@ -609,42 +746,7 @@ class BridgeHandler(BaseHTTPRequestHandler):
                 raise AdapterError(f"AIMDK 未在 120 秒内确认地图保存: {last_error}", 504)
             if path.startswith("/v1/maps/") and path.endswith("/activate"):
                 map_key = unquote(path[len("/v1/maps/") : -len("/activate")]).strip("/")
-                if not re.fullmatch(r"[\w\u4e00-\u9fff][\w\u4e00-\u9fff .-]{0,99}", map_key, re.UNICODE):
-                    raise AdapterError("无效地图名称", 400)
-                info = self.node.query_map(map_key)
-                initial = body.get("initialPose")
-                if initial is not None:
-                    raise AdapterError("初始位姿坐标换算尚未在目标 AIMDK 上验证，未发送位姿", 501)
-                requested_at = time.time()
-                with self.node.lock:
-                    if self.node.relocalization_pending:
-                        raise AdapterError("地图切换待确认，请现场检查后重启本项目桥接服务", 409)
-                    if self.node.mapping_status != "idle" or self.node.last_navigation.get("status") in ("requested", "running", "paused"):
-                        raise AdapterError("请先停止建图或导航", 409)
-                    self.node.relocalization_pending = True
-                    self.node.lidar_epoch = str(time.time_ns())
-                    self.node.last_lidar = None
-                    self.node.publish_command(f"start_relocalization:{int(info['mapId'])}")
-                deadline = time.monotonic() + 25
-                while time.monotonic() < deadline:
-                    with self.node.lock:
-                        task_state = self.node.last_task_state
-                        state_fresh = self.node.last_task_state_at >= requested_at
-                        odom_fresh = self.node.last_odom_at >= requested_at
-                        localized = bool(
-                            state_fresh
-                            and odom_fresh
-                            and task_state
-                            and task_state["slamState"] == LOCALIZATION_STATE
-                            and int(task_state["mapId"]) == int(info["mapId"])
-                            and time.time() - self.node.last_odom_at <= 2.0
-                        )
-                    if localized:
-                        with self.node.lock:
-                            self.node.relocalization_pending = False
-                        return self.send_json(200, {"accepted": True, "confirmed": True, "mapId": info["mapId"]})
-                    time.sleep(0.2)
-                raise AdapterError("AIMDK 未确认切换到目标地图并收到新定位数据", 504)
+                return self.send_json(200, self.node.activate_map(map_key, body.get("initialPose")))
             if path == "/v1/navigation/start":
                 task_id = self.parse_task_id(body.get("taskId"))
                 target = body.get("target")

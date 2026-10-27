@@ -6,7 +6,8 @@ import path from "node:path";
 import { downloadVerified } from "./download.mjs";
 
 if (!process.argv.includes("--commissioning")) throw new Error("Target acceptance is pending; only --commissioning packages are currently permitted.");
-const version = "0.1.0-commissioning-20261028";
+const pkg = JSON.parse(await readFile("package.json", "utf8"));
+const version = `${pkg.version}-commissioning-20261028`;
 const stage = path.resolve("artifacts", `lingxi-next-${version}-linux-arm64`);
 if (existsSync(stage)) throw new Error("Release stage already exists; archive it before rebuilding with this version.");
 const run = (command, args, options = {}) => new Promise((resolve, reject) => {
@@ -21,6 +22,7 @@ async function fetchArchive(url, name, sha256) {
 await run(process.execPath, ["node_modules/typescript/bin/tsc", "--noEmit"]);
 await run(process.execPath, ["node_modules/typescript/bin/tsc", "-p", "tsconfig.api.json", "--noEmit"]);
 await run(process.execPath, ["node_modules/vitest/vitest.mjs", "run"]);
+await run("python", ["-m", "unittest", "discover", "-s", "robot-api/tests", "-p", "test_*.py", "-q"]);
 await run(process.execPath, ["node_modules/vite/bin/vite.js", "build"]);
 const { build } = await import("esbuild");
 await build({ entryPoints: ["robot-api/src/index.ts"], bundle: true, platform: "node", target: "node22",
@@ -48,7 +50,6 @@ await Promise.all([
   cp("docs", path.join(stage, "docs"), { recursive: true }),
   cp("README.md", path.join(stage, "README.md")),
 ]);
-const pkg = JSON.parse(await readFile("package.json", "utf8"));
 await writeFile(path.join(stage, "package.json"), JSON.stringify({ name: pkg.name, version: pkg.version, private: true,
   type: "module", dependencies: pkg.dependencies }, null, 2));
 await cp("package-lock.json", path.join(stage, "package-lock.json"));
@@ -60,7 +61,8 @@ await writeFile(path.join(stage, "release-status.json"), JSON.stringify({
   version, target: "linux-arm64", classification: "commissioning", productionAccepted: false,
   sdk: { version: "1.5.0-SNAPSHOT", sha256: "810c5e7a7d40191097dc5c4c37e3133407e63307fcb204d35caacb7768912c25" },
   pending: ["physical mapping/navigation/estop", "ASR confidence field on target", "TTS item/event correlation on target",
-    "preset motion/expression/LinkCraft manifest", "cloud credentials/voice rejection", "acoustic and P95 acceptance", "installer/rollback on target"],
+    "map catalog schema and relocalization pixels/orientation on target",
+    "preset motion/expression/LinkCraft manifest", "cloud credentials/voice rejection", "acoustic and P95 acceptance", "installer/rollback on ARM64 target"],
 }, null, 2));
 const archive = `${stage}.tar.gz`;
 await run("python", ["tools/archive-release.py", stage, archive, nodeArchive, javaArchive]);

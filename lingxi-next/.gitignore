@@ -21,6 +21,7 @@ android/**/build/
 robot-agent/lib/
 robot-agent/build/
 artifacts/
+.learnings/
 .local/
 *.keystore
 android/app/src/main/assets/public/
