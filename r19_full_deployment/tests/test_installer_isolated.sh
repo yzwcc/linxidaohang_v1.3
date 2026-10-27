@@ -57,6 +57,22 @@ if [[ -z "${group_setup_line}" || -z "${staging_chown_line}" ]] || (( group_setu
   exit 1
 fi
 
+nav_config_mv_line="$(grep -nF 'mv -f "${NAV_CONFIG_NEW}" "${STATE_DIR}/unified_nav_config.json"' "${PACKAGE_DIR}/install.sh" | head -n 1 | cut -d: -f1)"
+nav_config_chown_line="$(grep -nF 'chown agi:"${RUNTIME_GROUP}" "${STATE_DIR}/unified_nav_config.json"' "${PACKAGE_DIR}/install.sh" | head -n 1 | cut -d: -f1)"
+if [[ -z "${nav_config_mv_line}" || -z "${nav_config_chown_line}" ]] || (( nav_config_mv_line >= nav_config_chown_line )); then
+  echo "installer must install the generated navigation config before changing its owner" >&2
+  exit 1
+fi
+for config in PROPERTIES RUNTIME_ENV; do
+  install_line="$(grep -nF "install -m 0640 \"\${${config}_TMP}\" \"\${${config}_NEW}\"" "${PACKAGE_DIR}/install.sh" | tail -n 1 | cut -d: -f1)"
+  owner_line="$(grep -nF "chown root:\"\${RUNTIME_GROUP}\" \"\${${config}_NEW}\"" "${PACKAGE_DIR}/install.sh" | tail -n 1 | cut -d: -f1)"
+  switch_line="$(grep -nF "mv -f \"\${${config}_NEW}\"" "${PACKAGE_DIR}/install.sh" | tail -n 1 | cut -d: -f1)"
+  if [[ -z "${install_line}" || -z "${owner_line}" || -z "${switch_line}" ]] || (( install_line >= owner_line || owner_line >= switch_line )); then
+    echo "installer must assign the runtime group to the installed ${config} file before switching" >&2
+    exit 1
+  fi
+done
+
 cat >"${TEST_ROOT}/secrets.env" <<'EOF'
 LINGXI_APP_ID=test
 LINGXI_APP_KEY=test
@@ -66,6 +82,7 @@ EOF
 mkdir -p "${TEST_ROOT}/bin"
 cat >"${TEST_ROOT}/bin/python3" <<'EOF'
 #!/usr/bin/env bash
+if [[ "${1:-}" == "-B" ]]; then shift; fi
 if [[ "${1:-}" == "-c" && "${2:-}" == *"import rclpy"* ]]; then
   [[ "${R19_TEST_IMPORT_FAIL:-0}" != 1 ]] || exit 99
   exit 0
@@ -105,4 +122,22 @@ if run_install "${failed_root}" 1 --aimdk-mode reuse --aimdk-setup /etc/os-relea
 fi
 [[ ! -e "${failed_root}" ]]
 
-echo "PASS: overlay install, existing-AIMDK reuse, precheck failure leaves target untouched"
+rollback_root="${TEST_ROOT}/pre-switch-rollback"
+mkdir -p "${rollback_root}/etc/sparkrobot/lingxi-nav" "${rollback_root}/var/lib/sparkrobot/lingxi-nav"
+printf 'preserved-private-key\n' >"${rollback_root}/etc/sparkrobot/lingxi-nav/console-ed25519"
+printf 'preserved-public-key\n' >"${rollback_root}/etc/sparkrobot/lingxi-nav/console-ed25519.pub"
+printf '{"navigation":{"points":[]}}\n' >"${rollback_root}/var/lib/sparkrobot/lingxi-nav/unified_nav_config.json"
+if env \
+  R19_TEST_IMPORT_FAIL=0 \
+  SPARKROBOT_INSTALL_TEST_FAIL_AFTER_KEY_PREP=true \
+  SPARKROBOT_INSTALL_ROOT="${rollback_root}" \
+  "${PACKAGE_DIR}/install.sh" --secrets "${TEST_ROOT}/secrets.env" --aimdk-mode overlay; then
+  echo "injected pre-switch failure was unexpectedly accepted" >&2
+  exit 1
+fi
+[[ "$(<"${rollback_root}/etc/sparkrobot/lingxi-nav/console-ed25519")" == "preserved-private-key" ]]
+[[ "$(<"${rollback_root}/etc/sparkrobot/lingxi-nav/console-ed25519.pub")" == "preserved-public-key" ]]
+[[ "$(<"${rollback_root}/var/lib/sparkrobot/lingxi-nav/unified_nav_config.json")" == '{"navigation":{"points":[]}}' ]]
+[[ ! -e "${rollback_root}/opt/sparkrobot/lingxi-nav/current" ]]
+
+echo "PASS: overlay/reuse install, precheck guard, config ownership order, pre-switch rollback"

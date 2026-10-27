@@ -26,7 +26,7 @@ R18_SOURCE_PATHS = (
     "deploy/robot/robot_lingxi_bridge.py",
 )
 RUNTIME = HERE / "runtime"
-VERSION = "1.1.2-20261027-r19-full"
+VERSION = "1.1.6-20261027-r19-full"
 PACKAGE_NAME = f"sparkrobot-lingxi-r19-full-{VERSION}"
 AIMDK_PREFIX = "aimdk-aarch64-faf4c945-artifacts/src/aimdk_msgs/prebuilt_aarch64/"
 
@@ -230,6 +230,15 @@ def strip_navigation_path_safety(navigation: Path) -> None:
     bridge = package / "lingxi_nav_bridge.py"
     source = bridge.read_text(encoding="utf-8")
     source = replace_once(source, "from robot_local_navigation_v3.models import PathSafetyConfig\n", "", "bridge path safety import")
+    source = replace_once(
+        source,
+        '            map_root=os.environ.get(\n'
+        '                "ROBOT_LOCAL_NAV_MAP_ROOT",\n'
+        '                "/agibot/data/var/MapManagerModule/",\n'
+        "            ),\n",
+        "",
+        "bridge navigation client map_root argument",
+    )
     source = replace_once(source, '            "path_safety": self.navigation_client.defaults.path_safety.__dict__,\n', "", "bridge path safety status")
     source = replace_python_method(source, "LingxiNavBridge", "set_nav_mode", "\n".join([
         "    def set_nav_mode(self, payload: dict[str, Any]) -> dict[str, Any]:",
@@ -307,6 +316,57 @@ def strip_navigation_path_safety(navigation: Path) -> None:
     label.write_text(source, encoding="utf-8", newline="\n")
 
 
+def configure_voice_bridge(bridge: Path) -> None:
+    source = bridge.read_text(encoding="utf-8")
+    source = replace_once(
+        source,
+        "from aimdk_msgs.srv import ExecuteActionResource, PlayAudioFile, PlayMediaFile, PlayTts, SetMcAction, SetMcPresetMotion\n",
+        "from aimdk_msgs.srv import ExecuteActionResource, PlayAudioFile, PlayTts, SetMcAction, SetMcPresetMotion\n"
+        "try:\n"
+        "    from aimdk_msgs.srv import PlayMediaFile\n"
+        "except ImportError:\n"
+        "    PlayMediaFile = None\n",
+        "optional AIMDK media service import",
+    )
+    source = replace_once(
+        source,
+        "        self.media_client = self.create_client(\n"
+        "            PlayMediaFile,\n"
+        "            os.environ.get(\"LINGXI_MEDIA_SERVICE\", DEFAULT_MEDIA_SERVICE),\n"
+        "        )\n",
+        "        self.media_client = (\n"
+        "            self.create_client(PlayMediaFile, os.environ.get(\"LINGXI_MEDIA_SERVICE\", DEFAULT_MEDIA_SERVICE))\n"
+        "            if PlayMediaFile is not None else None\n"
+        "        )\n",
+        "optional AIMDK media client",
+    )
+    source = replace_once(
+        source,
+        '                "media_service": self.media_client.srv_name,\n'
+        '                "media_ready": self.media_client.service_is_ready()\n'
+        "                or self.media_client.wait_for_service(timeout_sec=0.05),\n",
+        '                "media_service": self.media_client.srv_name if self.media_client is not None else "",\n'
+        '                "media_supported": self.media_client is not None,\n'
+        '                "media_ready": self.media_client is not None and (\n'
+        "                    self.media_client.service_is_ready()\n"
+        "                    or self.media_client.wait_for_service(timeout_sec=0.05)\n"
+        "                ),\n",
+        "optional AIMDK media status",
+    )
+    source = replace_once(
+        source,
+        "    def _sing_media_file(self, event_id: str) -> dict[str, Any]:\n",
+        "    def _sing_media_file(self, event_id: str) -> dict[str, Any]:\n"
+        "        if self.media_client is None:\n"
+        "            return {\n"
+        '                "ok": False, "accepted": False, "status": "media_service_unsupported",\n'
+        '                "message": "The selected AIMDK does not export PlayMediaFile; use PlayAudioFile or TTS.",\n'
+        "            }\n",
+        "unsupported media action guard",
+    )
+    bridge.write_text(source, encoding="utf-8", newline="\n")
+
+
 def remove_python_function(source: str, name: str) -> str:
     import ast
 
@@ -328,7 +388,29 @@ def remove_python_class(source: str, name: str) -> str:
         raise RuntimeError(f"expected one top-level class {name}")
     node = matches[0]
     lines = source.splitlines(keepends=True)
-    return "".join(lines[: node.lineno - 1] + lines[node.end_lineno :])
+    start_line = min([node.lineno, *(decorator.lineno for decorator in node.decorator_list)])
+    return "".join(lines[: start_line - 1] + lines[node.end_lineno :])
+
+
+def validate_navigation_models(navigation: Path) -> None:
+    subprocess.run(
+        [
+            os.sys.executable,
+            "-B",
+            "-c",
+            "from robot_local_navigation_v3.models import NavigationDefaults, UnifiedNavConfig; "
+            "first = NavigationDefaults(); second = NavigationDefaults(); "
+            "assert first.arrival_policy is not second.arrival_policy; "
+            "assert first.stop_policy is not second.stop_policy; "
+            "assert not hasattr(first, 'path_safety'); "
+            "config = UnifiedNavConfig(); "
+            "assert UnifiedNavConfig.from_dict(config.to_dict()).to_dict() == config.to_dict(); "
+            "print('PASS: final navigation models import, default factories, config roundtrip')",
+        ],
+        cwd=navigation,
+        env={**os.environ, "PYTHONPATH": str(navigation), "PYTHONDONTWRITEBYTECODE": "1"},
+        check=True,
+    )
 
 
 def replace_python_method(source: str, class_name: str, name: str, replacement: str) -> str:
@@ -359,7 +441,52 @@ def remove_python_method(source: str, class_name: str, name: str) -> str:
         raise RuntimeError(f"expected one method {class_name}.{name}")
     node = matches[0]
     lines = source.splitlines(keepends=True)
-    return "".join(lines[: node.lineno - 1] + lines[node.end_lineno :])
+    start_line = min([node.lineno, *(decorator.lineno for decorator in node.decorator_list)])
+    return "".join(lines[: start_line - 1] + lines[node.end_lineno :])
+
+
+def validate_navigation_contracts(navigation: Path) -> None:
+    import ast
+    import inspect
+
+    package = navigation / "robot_local_navigation_v3"
+    client = ast.parse((package / "navigation_client.py").read_text(encoding="utf-8"))
+    signatures = {}
+    for name in ("NavigationClient", "NavigationSession"):
+        cls = next(node for node in client.body if isinstance(node, ast.ClassDef) and node.name == name)
+        init = next(node for node in cls.body if isinstance(node, ast.FunctionDef) and node.name == "__init__")
+        positional = init.args.posonlyargs + init.args.args
+        default_offset = len(positional) - len(init.args.defaults)
+        parameters = [
+            inspect.Parameter(
+                arg.arg,
+                inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                default=inspect.Parameter.empty if index < default_offset else None,
+            )
+            for index, arg in enumerate(positional) if arg.arg != "self"
+        ]
+        parameters.extend(
+            inspect.Parameter(
+                arg.arg, inspect.Parameter.KEYWORD_ONLY,
+                default=inspect.Parameter.empty if default is None else None,
+            )
+            for arg, default in zip(init.args.kwonlyargs, init.args.kw_defaults)
+        )
+        signatures[name] = inspect.Signature(parameters)
+    for filename in ("navigation_client.py", "lingxi_nav_bridge.py"):
+        tree = ast.parse((package / filename).read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id in signatures:
+                if any(isinstance(arg, ast.Starred) for arg in node.args) or any(kw.arg is None for kw in node.keywords):
+                    raise RuntimeError(f"cannot statically validate {node.func.id} call in {filename}")
+                signatures[node.func.id].bind(
+                    *[None for arg in node.args], **{kw.arg: None for kw in node.keywords},
+                )
+    cls = next(node for node in client.body if isinstance(node, ast.ClassDef) and node.name == "NavigationClient")
+    cancel = next(node for node in cls.body if isinstance(node, ast.FunctionDef) and node.name == "cancel")
+    if cancel.decorator_list:
+        raise RuntimeError("navigation cancel method inherited a removed method's decorator")
+    print("PASS: final navigation constructor contracts and cancel method binding")
 
 
 def strip_typescript_path_safety(server: Path) -> None:
@@ -1129,6 +1256,9 @@ def build_payload(stage: Path, aimdk_archive: Path) -> None:
         strip_navigation_path_safety(navigation)
         bridge = r18 / "deploy/robot/robot_lingxi_bridge.py"
         shutil.copy2(bridge, navigation / "robot_local_navigation_v3/robot_lingxi_bridge.py")
+        configure_voice_bridge(navigation / "robot_local_navigation_v3/robot_lingxi_bridge.py")
+        validate_navigation_models(navigation)
+        validate_navigation_contracts(navigation)
 
         jar = ROOT / "internal_deployment/build/robot-local-navigation-java-all.jar"
         sdk = ROOT / "productization/build/linksoul-agentsdk-1.4.0.jar"

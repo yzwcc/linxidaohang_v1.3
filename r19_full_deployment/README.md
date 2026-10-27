@@ -18,14 +18,14 @@ python r19_full_deployment/build_r19_release.py `
 
 ## 发布前验证
 
-构建器会从固定 R18 提交快照构建网页、运行服务端测试与 TypeScript 构建，并检查 AIMDK 接口、建图入口、移除的自定义安全逻辑和 ARM64 Node 架构。构建结束后，在 Ubuntu/WSL 中以 root 将最终归档直接交给隔离测试：
+构建器会从固定 R18 提交快照构建网页、运行服务端测试与 TypeScript 构建，并检查 AIMDK 接口、建图入口、移除的自定义安全逻辑和 ARM64 Node 架构。对最终生成的导航代码还会实际导入模型、检查默认工厂隔离和配置序列化往返，避免只通过语法检查却无法启动。安装前会用机器人环境导入导航、地图、语音网关模块。构建结束后，在 Ubuntu/WSL 中以 root 将最终归档直接交给隔离测试：
 
 ```bash
 sudo bash r19_full_deployment/tests/test_installer_isolated.sh \
-  r19_full_deployment/dist/sparkrobot-lingxi-r19-full-1.1.2-20261027-r19-full.tar.gz
+  r19_full_deployment/dist/sparkrobot-lingxi-r19-full-1.1.6-20261027-r19-full.tar.gz
 ```
 
-该隔离测试覆盖包内 AIMDK overlay 安装、已有 AIMDK 复用，以及接口预检失败时目标目录不被创建。测试通过后仍须在目标机器人验收真实 ROS/DDS 传感器、SLAM 实时扫描和地图保存。
+该隔离测试覆盖包内 AIMDK overlay 安装、已有 AIMDK 复用、接口预检失败保护、配置属主顺序和切换前失败恢复。测试通过后仍须在目标机器人验收真实 ROS/DDS 传感器、SLAM 实时扫描和地图保存。
 
 ## 验收边界
 

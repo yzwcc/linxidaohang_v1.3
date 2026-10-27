@@ -205,6 +205,9 @@ restore_previous_release() {
 on_exit() {
   local status=$?
   trap - EXIT
+  if [[ "${status}" -ne 0 && "${SNAPSHOT_READY}" == true && "${SWITCH_STARTED}" != true && "${INSTALL_COMMITTED}" != true ]]; then
+    restore_managed_files || echo "pre-switch rollback failed; snapshot preserved at ${ROLLBACK_DIR}" >&2
+  fi
   if [[ "${SWITCH_STARTED}" == true && "${INSTALL_COMMITTED}" != true ]]; then
     restore_previous_release || echo "警告：安装回滚期间出现错误；回滚快照保留在 ${ROLLBACK_DIR}" >&2
   fi
@@ -252,6 +255,7 @@ CONSOLE_ENV_TMP=""
 PROPERTIES_TMP=""
 RUNTIME_ENV_TMP=""
 SWITCH_STARTED=false
+SNAPSHOT_READY=false
 INSTALL_COMMITTED=false
 trap on_exit EXIT
 
@@ -285,11 +289,11 @@ else
 fi
 [[ -r "${PRECHECK_SETUP}" ]] || { echo "AIMDK setup 不可读：${PRECHECK_SETUP}" >&2; exit 1; }
 if [[ "${TEST_MODE}" == true ]]; then
-  /bin/bash -c 'set -e; source "$1"; python3 -c '\''import rclpy; from aimdk_msgs.msg import PncTaskRequest; from aimdk_msgs.srv import ExecuteActionResource, GetStoredMapByName, PlayAudioFile, PlayTts, SetMcAction, SetMcPresetMotion; from sensor_msgs_py import point_cloud2; from tf2_ros import Buffer, TransformListener'\''' _ "${PRECHECK_SETUP}" || {
+  /bin/bash -c 'set -e; source "$1"; export PYTHONPATH="$2${PYTHONPATH:+:${PYTHONPATH}}"; python3 -B -c '\''import rclpy; from aimdk_msgs.msg import PncTaskRequest; from aimdk_msgs.srv import ExecuteActionResource, GetStoredMapByName, PlayAudioFile, PlayTts, SetMcAction, SetMcPresetMotion; from sensor_msgs_py import point_cloud2; from tf2_ros import Buffer, TransformListener; from robot_local_navigation_v3 import lingxi_nav_bridge, map_label_server_v3, voice_nav_gateway, robot_lingxi_bridge'\''' _ "${PRECHECK_SETUP}" "${PACKAGE_DIR}/payload/navigation" || {
     echo "AIMDK/ROS 运行接口预检失败；尚未写入或停止任何服务" >&2; exit 1;
   }
 else
-  runuser -u agi -- /bin/bash -c 'set -e; source "$1"; python3 -c '\''import rclpy; from aimdk_msgs.msg import PncTaskRequest; from aimdk_msgs.srv import ExecuteActionResource, GetStoredMapByName, PlayAudioFile, PlayTts, SetMcAction, SetMcPresetMotion; from sensor_msgs_py import point_cloud2; from tf2_ros import Buffer, TransformListener'\''' _ "${PRECHECK_SETUP}" || {
+  runuser -u agi -- /bin/bash -c 'set -e; source "$1"; export PYTHONPATH="$2${PYTHONPATH:+:${PYTHONPATH}}"; python3 -B -c '\''import rclpy; from aimdk_msgs.msg import PncTaskRequest; from aimdk_msgs.srv import ExecuteActionResource, GetStoredMapByName, PlayAudioFile, PlayTts, SetMcAction, SetMcPresetMotion; from sensor_msgs_py import point_cloud2; from tf2_ros import Buffer, TransformListener; from robot_local_navigation_v3 import lingxi_nav_bridge, map_label_server_v3, voice_nav_gateway, robot_lingxi_bridge'\''' _ "${PRECHECK_SETUP}" "${PACKAGE_DIR}/payload/navigation" || {
     echo "AIMDK/ROS v1.1.0 消息与实时建图接口预检失败；尚未写入或停止任何服务" >&2; exit 1;
   }
 fi
@@ -395,6 +399,7 @@ done
 
 TIMESTAMP="$(date -u +%Y%m%dT%H%M%SZ)-$$"
 snapshot_managed_files
+SNAPSHOT_READY=true
 for file in console.env lingxi-nav.properties runtime.env; do
   [[ -f "${CONFIG_DIR}/${file}" ]] && cp -a "${CONFIG_DIR}/${file}" "${BACKUP_DIR}/${file}.${TIMESTAMP}"
 done
@@ -539,6 +544,11 @@ else
 fi
 chmod 0600 "${CONSOLE_KEY}"; chmod 0644 "${CONSOLE_KEY}.pub"
 
+if [[ "${TEST_MODE}" == true && "${SPARKROBOT_INSTALL_TEST_FAIL_AFTER_KEY_PREP:-false}" == true ]]; then
+  echo "injected pre-switch failure after managed key preparation" >&2
+  exit 86
+fi
+
 CONSOLE_ENV_TMP="$(mktemp "${CONFIG_DIR}/.console.env.XXXXXX")"
 cat >"${CONSOLE_ENV_TMP}" <<EOF
 DEPLOYMENT_MODE=robot
@@ -570,7 +580,6 @@ chmod 0600 "${CONSOLE_ENV_TMP}"
 if [[ "${TEST_MODE}" != true ]]; then
   [[ -z "${PROPERTIES_TMP:-}" ]] || chown root:"${RUNTIME_GROUP}" "${PROPERTIES_TMP}"
   [[ -z "${RUNTIME_ENV_TMP:-}" ]] || chown root:"${RUNTIME_GROUP}" "${RUNTIME_ENV_TMP}"
-  chown agi:"${RUNTIME_GROUP}" "${STATE_DIR}/unified_nav_config.json"
   chown -R agi:"${RUNTIME_GROUP}" "${STATE_DIR}" "${LOG_DIR}"
 fi
 find "${STATE_DIR}" -type d -exec chmod 0770 {} +
@@ -615,6 +624,10 @@ install -m 0660 "${NAV_CONFIG_TMP}" "${NAV_CONFIG_NEW}"
 [[ -z "${RUNTIME_ENV_TMP:-}" ]] || install -m 0640 "${RUNTIME_ENV_TMP}" "${RUNTIME_ENV_NEW}"
 [[ ! -f "${PROPERTIES_NEW}" ]] || chmod 0640 "${PROPERTIES_NEW}"
 [[ ! -f "${RUNTIME_ENV_NEW}" ]] || chmod 0640 "${RUNTIME_ENV_NEW}"
+if [[ "${TEST_MODE}" != true ]]; then
+  [[ ! -f "${PROPERTIES_NEW}" ]] || chown root:"${RUNTIME_GROUP}" "${PROPERTIES_NEW}"
+  [[ ! -f "${RUNTIME_ENV_NEW}" ]] || chown root:"${RUNTIME_GROUP}" "${RUNTIME_ENV_NEW}"
+fi
 
 # Keep the running release intact until the new staged payload and all inputs
 # have passed their checks. Stop robot services only at the final switch point.
@@ -640,6 +653,9 @@ ln -s "${TARGET}" "${CURRENT_NEW}"
 mv -Tf "${CURRENT_NEW}" "${PRODUCT_BASE}/current"
 mv -f "${CONSOLE_ENV_NEW}" "${CONFIG_DIR}/console.env"
 mv -f "${NAV_CONFIG_NEW}" "${STATE_DIR}/unified_nav_config.json"
+if [[ "${TEST_MODE}" != true ]]; then
+  chown agi:"${RUNTIME_GROUP}" "${STATE_DIR}/unified_nav_config.json"
+fi
 [[ ! -f "${PROPERTIES_NEW}" ]] || mv -f "${PROPERTIES_NEW}" "${CONFIG_DIR}/lingxi-nav.properties"
 [[ ! -f "${RUNTIME_ENV_NEW}" ]] || mv -f "${RUNTIME_ENV_NEW}" "${CONFIG_DIR}/runtime.env"
 mv -f "${SYSTEMD_CONSOLE_NEW}" "${SYSTEMD_CONSOLE_PATH}"

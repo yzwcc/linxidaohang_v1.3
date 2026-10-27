@@ -10,6 +10,22 @@ R19 是一次性部署 V1.3.1 R18 导航、地图标注、实时建图、保存�
 
 建图工作流是：进入网页“实时建图”页面并检查传感器接口 -> 在机器人周边由人员使用外置遥控器控制机器人移动 -> 网页实时显示扫描地图 -> 网页停止并调用 AIMDK 保存地图。网页不发送移动控制命令。
 
+## 1.1.6 启动与安装修正
+
+1.1.6 修正移除安全规划后桥接端仍传入 `map_root` 的构造参数不匹配，并同步清理被删除方法的装饰器，防止遗留的 `@staticmethod` 错误作用于停止导航方法。构建会验证最终导航构造参数与停止方法绑定。
+
+同时修正 Java 配置文件的最终属组：`install` 生成的新文件必须重新设为 `root:sparkrobot-nav`，只设置上游临时文件属组并不足够。Java Agent 以 `run` 用户和附加运行组读取配置；权限保持 `0640`，不放宽为全员可读。
+
+1.1.3 实机启动发现打包器删除旧安全配置类时遗留了 `@dataclass`，导致后续导航配置类重复装饰并导入失败。1.1.4 同时删除类与其装饰器，构建时验证最终导航模型导入及配置往返，并在安装写入前预检完整导航、地图和语音模块。
+
+完整模块预检还发现 R18 语音桥强制导入新 SDK 不提供的 `PlayMediaFile`。1.1.4 将其作为可选能力：缺少时在状态中明确标为不支持，相关请求返回明确错误，不影响新 AIMDK 的 TTS、音频、动作、导航和建图接口，也不加载旧 AIMDK。
+
+1.1.2 的安装器在生成配置文件的临时文件后，提前对尚未创建的最终路径执行 `chown`，因此会报 `unified_nav_config.json: No such file or directory`；这不是 AIMDK 编译或接口预检失败。1.1.3 已将属主设置移到配置文件原子替换之后，并让切换前发生错误时恢复受管文件快照，增加了对应回归检查。
+
+本次检查的机器人上，`/home/agi/aimdk` 只有源码，`/home/agi/aimdk/install/setup.bash` 不存在。因此不要把这个不存在的路径传给 `--aimdk-mode reuse`。默认 `overlay` 使用包内预编译的 AArch64 `aimdk_msgs` 消息接口，并叠加机器人已有 ROS/厂商运行环境；安装器已通过该 overlay 的接口预检。它不要求先在机器人上编译 `/home/agi/aimdk`，也不替代厂商完整 AIMDK runtime。
+
+1.1.2 失败尝试已在机器人创建 root-only 控制台 key，并写入仅允许本机来源的受限 SSH 授权项。1.1.3 会复用现有 key 完成安装，不要在重试前手动删除。
+
 ## 安装准备
 
 1. 将归档包和同名 `.sha256` 文件复制到机器人用户 `run` 的家目录 `/home/run/`。
@@ -17,15 +33,15 @@ R19 是一次性部署 V1.3.1 R18 导航、地图标注、实时建图、保存�
 
 ```bash
 cd /home/run
-sha256sum -c sparkrobot-lingxi-r19-full-1.1.2-20261027-r19-full.tar.gz.sha256
+sha256sum -c sparkrobot-lingxi-r19-full-1.1.6-20261027-r19-full.tar.gz.sha256
 ```
 
 3. 解压：
 
 ```bash
 mkdir -p /home/run/r19/package
-tar -xzf /home/run/sparkrobot-lingxi-r19-full-1.1.2-20261027-r19-full.tar.gz -C /home/run/r19/package
-cd /home/run/r19/package/sparkrobot-lingxi-r19-full-1.1.2-20261027-r19-full
+tar -xzf /home/run/sparkrobot-lingxi-r19-full-1.1.6-20261027-r19-full.tar.gz -C /home/run/r19/package
+cd /home/run/r19/package/sparkrobot-lingxi-r19-full-1.1.6-20261027-r19-full
 ```
 
 4. 确认底层运行环境，并准备首次安装密钥文件：
@@ -62,15 +78,16 @@ sudo sparkrobot-lingxi-internal doctor
 仅当机器人已安装与本项目兼容的 AIMDK，且其 setup 文件确实存在、可读并导出所需接口时才选此方式。若没有 setup 文件，使用方式 A。安装器会先验证接口，再写配置或停止现有服务；失败时不会切换版本或覆盖 AIMDK。
 
 ```bash
+AIMDK_SETUP=/actual/verified/aimdk/setup.bash
 sudo ./install.sh \
   --secrets /home/run/r19/secrets.env \
   --aimdk-mode reuse \
-  --aimdk-setup /home/agi/aimdk/install/setup.bash
+  --aimdk-setup "$AIMDK_SETUP"
 sudo sparkrobot-lingxi-internal start
 sudo sparkrobot-lingxi-internal doctor
 ```
 
-`--aimdk-setup` 必须是机器人上的绝对路径。安装器只读取该 setup 做接口预检，不会覆盖或搬动现有 AIMDK。
+将 `AIMDK_SETUP` 替换为机器人上确实存在、可读且已验证导出所需接口的 setup 绝对路径；不要原样运行占位值。安装器只读取该 setup 做接口预检，不会覆盖或搬动现有 AIMDK。
 
 已有 R19 安装升级时，如需沿用已保存的灵心/豆包密钥，可省略 `--secrets`；首次安装必须提供 `--secrets`。安装器会保留地图、点位和任务，并在切换前备份现存配置。
 
@@ -100,7 +117,7 @@ sudo sparkrobot-lingxi-internal rollback
 
 首次安装没有旧版本时不能回滚。升级安装且存在 previous release 时才使用 `rollback`。
 
-若校验提示文件不存在，先运行 `ls -lh /home/run/sparkrobot-lingxi-r19-full-1.1.2-20261027-r19-full.tar.gz*` 确认归档和 `.sha256` 文件都直接放在 `/home/run`。若只看到 `1.1.0` 或 `1.1.1` 文件，请先复制本说明对应的 `1.1.2` 修复包及其校验文件；不要将旧包改名冒充新包。
+若校验提示文件不存在，先运行 `ls -lh /home/run/sparkrobot-lingxi-r19-full-1.1.6-20261027-r19-full.tar.gz*` 确认归档和 `.sha256` 文件都直接放在 `/home/run`。请使用本说明对应的 `1.1.6` 修复包及其校验文件；不要将旧包改名冒充新包。
 
 如果现场需要让网页一键重启 SOC2 底层语音服务，再单独运行 `sudo /opt/sparkrobot/lingxi-nav/current/scripts/setup_soc2_access.sh` 配置受限 SSH 权限；这不是建图所需条件。
 
