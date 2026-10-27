@@ -86,7 +86,11 @@ export interface RobotAdapter {
   activateMap(map: RobotMap, initialPose?: { x: number; y: number; yaw: number }): Promise<void>;
   startNavigation(point: MapPoint, map: RobotMap, taskId: string): Promise<void>;
   controlNavigation(action: "pause" | "resume" | "stop", taskId?: string): Promise<void>;
-  runPresetMotion(name: string): Promise<void>;
+  startPresetMotion(name: string, monitorCompletion?: boolean): Promise<string>;
+  waitPresetMotion(taskId: string): Promise<void>;
+  playExpression(name: string): Promise<void>;
+  executeLinkcraftResource(id: string): Promise<void>;
+  confirmActionsIdle(): Promise<void>;
 }
 
 export type RobotSnapshot = Pick<
@@ -95,6 +99,8 @@ export type RobotSnapshot = Pick<
   | "checks"
   | "mapping"
   | "mappingStatus"
+  | "actionBusy"
+  | "actionStatus"
   | "pose"
   | "navigation"
   | "mapGrid"

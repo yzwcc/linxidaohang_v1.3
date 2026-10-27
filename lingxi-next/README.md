@@ -59,6 +59,14 @@ is available and its state topic is fresh. Only point-to-point targets,
 pause/resume, and stop are exposed; no velocity, arbitrary joint, or raw ROS
 controls are implemented here.
 
+AIMDK preset actions and expressions use fixed X2 enum allowlists. LinkCraft
+resources are loaded from the robot's live resource service and execution
+accepts only a short-lived opaque ID from that list. Preset motions require a
+matching terminal state before a tour advances. AIMDK's LinkCraft response has
+no playback-completion field, so the console records service acceptance only
+and permits such a resource only at the last step of a single-pass tour. See
+`docs/AIMDK_ACTIONS.md`.
+
 ## Security and delivery boundaries
 
 - Import the robot's local CA certificate into desktop/mobile trust before

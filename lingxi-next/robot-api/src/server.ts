@@ -48,6 +48,7 @@ const emptySnapshot: RobotSnapshot = {
     { id: "linksoul", label: "灵心", ready: false, detail: "未连接" },
   ],
   mapping: false,
+  actionBusy: false,
   navigation: { status: "idle", detail: "机器人接口未连接" },
   motionPresets: [],
   expressions: [],
@@ -76,14 +77,6 @@ class HttpAgentSpeaker implements SpeechOutput {
     await this.control("/v1/speech/cancel", { correlationId });
   }
 
-  async expression(name: string, correlationId: string) {
-    await this.control("/v1/expression", { name, correlationId });
-  }
-
-  async resource(id: string, correlationId: string) {
-    await this.control("/v1/resource", { id, correlationId });
-  }
-
   private async control(route: string, body: unknown) {
     const response = await fetch(`${this.endpoint.replace(/\/+$/, "")}${route}`, {
       method: "POST",
@@ -109,8 +102,6 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
     ? {
         speak: async () => ({ firstAudioMs: 80 }),
         cancel: async () => undefined,
-        expression: async () => undefined,
-        resource: async () => undefined,
       }
     : new HttpAgentSpeaker(process.env.LINGXI_AGENT_URL ?? "http://127.0.0.1:18180", agentToken));
   const jobs = new JobManager(adapter, store, speaker);
@@ -342,6 +333,7 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
     "/api/v1/maps/:id/activate",
     async (request) => {
       const snapshot = await runtimeSnapshot();
+      if (snapshot.actionBusy) throw deny(409, "机器人动作状态未解除，请先检查动作服务状态");
       if (jobs.hasActiveJob() || snapshot.mapping || ["requested", "running", "paused"].includes(snapshot.navigation.status)) {
         throw deny(409, "请先停止当前建图或导航任务，再切换地图");
       }
@@ -375,6 +367,7 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
   });
   app.post("/api/v1/mapping/start", async (_request, reply) => {
     const state = await stateResponse();
+    if (state.actionBusy) throw deny(409, "机器人动作状态未解除，请先检查动作服务状态");
     if (jobs.hasActiveJob() || ["requested", "running", "paused"].includes(state.navigation.status)) {
       throw deny(409, "请先停止导航或讲解任务，再开始建图");
     }
@@ -465,6 +458,7 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
 
   app.post<{ Body: { pointId: string } }>("/api/v1/navigation/point", async (request, reply) => {
     const state = await stateResponse();
+    if (state.actionBusy) throw deny(409, "机器人动作状态未解除，请先检查动作服务状态");
     const point = state.points.find((item) => item.id === request.body?.pointId);
     if (!point) throw deny(404, "点位不存在");
     if (state.activeMapId !== point.mapId) throw deny(409, "点位不属于当前活动地图");
@@ -473,6 +467,13 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
     await jobs.startPoint(point);
     emitState(await stateResponse());
     return reply.code(202).send({ accepted: true });
+  });
+  app.post("/api/v1/actions/confirm-idle", async (request, reply) => {
+    const body = z.object({ confirmed: z.literal(true) }).strict().safeParse(request.body);
+    if (!body.success) throw deny(400, "必须明确确认机器人动作已停止");
+    await adapter.confirmActionsIdle();
+    emitState(await stateResponse());
+    return reply.send({ confirmed: true, actionBusy: false });
   });
   app.post<{ Body: { action: "pause" | "resume" | "stop" } }>("/api/v1/navigation/control", async (request) => {
     const action = request.body?.action;
@@ -572,6 +573,9 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
       });
       if (routed.intent.type === "ignore") return reply.code(204).send();
       ({ text, category, accepted } = routed.reply);
+      if (snapshot.actionBusy && ["navigate", "tour-start", "motion"].includes(routed.intent.type)) {
+        throw new Error("机器人动作状态未解除，请先检查动作服务状态");
+      }
       switch (routed.intent.type) {
         case "navigate":
           await jobs.startPoint(routed.intent.point, authorized);
@@ -585,7 +589,7 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
           await jobs.control(routed.intent.type === "tour-pause" ? "pause" : routed.intent.type === "tour-resume" ? "resume" : "stop", authorized);
           break;
         case "motion":
-          if (["requested", "running", "paused"].includes(snapshot.navigation.status)) {
+          if (snapshot.actionBusy || ["requested", "running", "paused"].includes(snapshot.navigation.status)) {
             throw new Error("任务执行期间不接受预设动作");
           }
           await jobs.runAllowlistedMotion(routed.intent.name, authorized);

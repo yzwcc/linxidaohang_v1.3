@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import hmac
 import math
 import os
@@ -27,6 +28,25 @@ from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
 from sensor_msgs.msg import LaserScan, PointCloud2
 from std_msgs.msg import Header, String
 from aimdk_msgs.srv import GetStoredMapByName
+try:
+    from aimdk_msgs.srv import (
+        ExecuteActionResource,
+        GetMcPresetMotionState,
+        GetRobotResources,
+        PlayEmoji,
+        SetMcInputSource,
+        SetMcPresetMotion,
+    )
+
+    ACTION_SERVICES_AVAILABLE = True
+except ImportError:
+    ExecuteActionResource = None
+    GetMcPresetMotionState = None
+    GetRobotResources = None
+    PlayEmoji = None
+    SetMcInputSource = None
+    SetMcPresetMotion = None
+    ACTION_SERVICES_AVAILABLE = False
 try:
     from rclpy.duration import Duration
     from rclpy.time import Time
@@ -66,6 +86,38 @@ LOCALIZATION_STATE = 3
 MAX_SAFE_MAP_ID = 9_007_199_254_740_991
 RELOCALIZATION_TIMEOUT = 30.0
 RELOCALIZATION_POSE_DELAY = 1.0
+SERVICE_TIMEOUT_SECONDS = 3.0
+MOTION_STATE_TIMEOUT_SECONDS = 60.0
+MOTION_STATE_POLL_SECONDS = 0.2
+RESOURCE_REFRESH_SECONDS = 15.0
+RESOURCE_STALE_SECONDS = 60.0
+ACTION_INTERLOCK_FILE = Path(os.getenv(
+    "LINGXI_ACTION_INTERLOCK_FILE",
+    str(Path(os.getenv("LINGXI_DATA_DIR", "/var/lib/lingxi-next")) / "action-interlock.json"),
+))
+MOTION_INPUT_SOURCE = "node.preset_motion"
+MOTION_INPUT_PRIORITY = 40
+MOTION_INPUT_TIMEOUT_MS = 1000
+PRESET_MOTIONS = {
+    "举手": (1001, 2),
+    "挥手": (1002, 2),
+    "握手": (1003, 2),
+    "飞吻": (1004, 2),
+    "点头": (4001, 4),
+    "摇头": (4002, 4),
+}
+EXPRESSIONS = {
+    "眨眼": 1,
+    "平静": 10,
+    "卖萌": 30,
+    "开心": 90,
+    "悲伤": 110,
+    "同情": 120,
+    "疑惑": 130,
+    "震惊": 140,
+    "严肃": 160,
+    "思考": 170,
+}
 
 
 def valid_map_name(value: Any) -> bool:
@@ -137,9 +189,10 @@ def relocalization_pixels(directory: Path, map_id: int, pose: Any) -> tuple[floa
 
 
 class AdapterError(Exception):
-    def __init__(self, message: str, status: int = 503):
+    def __init__(self, message: str, status: int = 503, uncertain: bool = False):
         super().__init__(message)
         self.status = status
+        self.uncertain = uncertain
 
 
 def scan_xyz(message: LaserScan) -> list[tuple[float, float, float]]:
@@ -231,9 +284,46 @@ class X2Node(Node):
         self.mapping_status = "idle"
         self.relocalization_pending = False
         self.relocalization_seen = False
+        self.motion_action_lock = threading.Lock()
+        self.motion_source_ready = False
+        self.active_motion_task_id: int | None = None
+        self.motion_dispatch_uncertain = False
+        self.linkcraft_pending_confirmation = False
+        self._load_action_interlock()
+        self.linkcraft_resource_records: dict[str, dict[str, str]] = {}
+        self.linkcraft_resource_cache_at = 0.0
+        self.linkcraft_resource_refresh_at = 0.0
+        self.linkcraft_resource_refresh_pending = False
         self.publisher = self.create_publisher(String, INTEGRATED_COMMAND_TOPIC, reliable_transient)
         self.relocalization_publisher = self.create_publisher(Pose, "/relocalization_pose", best_effort_volatile)
         self.map_client = self.create_client(GetStoredMapByName, MAP_SERVICE)
+        self.motion_input_source_client = None
+        self.preset_motion_client = None
+        self.preset_motion_state_client = None
+        self.expression_client = None
+        self.linkcraft_resource_client = None
+        self.linkcraft_execute_client = None
+        if ACTION_SERVICES_AVAILABLE:
+            self.motion_input_source_client = self._optional_client(
+                SetMcInputSource, "/aimdk_5Fmsgs/srv/SetMcInputSource"
+            )
+            self.preset_motion_client = self._optional_client(
+                SetMcPresetMotion, "/aimdk_5Fmsgs/srv/SetMcPresetMotion"
+            )
+            self.preset_motion_state_client = self._optional_client(
+                GetMcPresetMotionState, "/aimdk_5Fmsgs/srv/GetMcPresetMotionState"
+            )
+            self.expression_client = self._optional_client(
+                PlayEmoji, "/aimdk_5Fmsgs/srv/PlayEmoji"
+            )
+            self.linkcraft_resource_client = self._optional_client(
+                GetRobotResources, "/aimdk_5Fmsgs/srv/GetRobotResources"
+            )
+            self.linkcraft_execute_client = self._optional_client(
+                ExecuteActionResource, "/aimdk_5Fmsgs/srv/ExecuteActionResource"
+            )
+        else:
+            self.get_logger().warning("Optional AIMDK action services are unavailable")
         self.grid_subscription = (
             self.create_subscription(OccupancyGrid, MAP_TOPIC, self.on_grid, best_effort_volatile)
             if MAP_TOPIC
@@ -266,6 +356,93 @@ class X2Node(Node):
         else:
             self.nav_publisher = None
             self.get_logger().warning("Optional AIMDK navigation messages are unavailable; map services remain available")
+
+    def _optional_client(self, service_type, service_name: str):
+        try:
+            return self.create_client(service_type, service_name)
+        except Exception as error:
+            self.get_logger().warning(f"Optional AIMDK service unavailable ({service_name}): {error}")
+            return None
+
+    def _load_action_interlock(self) -> None:
+        try:
+            if not ACTION_INTERLOCK_FILE.exists():
+                return
+            if ACTION_INTERLOCK_FILE.stat().st_size > 4096:
+                raise ValueError("Oversized interlock record")
+            record = json.loads(ACTION_INTERLOCK_FILE.read_text(encoding="utf-8"))
+            if not isinstance(record, dict) or record.get("version") != 1:
+                raise ValueError("Unsupported interlock record")
+            status = record.get("status")
+            if status == "idle":
+                return
+            if status == "preset-motion":
+                task_id = record.get("taskId")
+                if isinstance(task_id, int) and not isinstance(task_id, bool) and task_id > 0:
+                    self.active_motion_task_id = task_id
+                    return
+            if status == "linkcraft-awaiting-operator":
+                self.linkcraft_pending_confirmation = True
+                return
+            if status in ("dispatching", "uncertain"):
+                self.motion_dispatch_uncertain = True
+                return
+            raise ValueError("Invalid interlock state")
+        except Exception as error:
+            self.motion_dispatch_uncertain = True
+            self.get_logger().error(f"Action interlock record is unreadable; actions remain locked: {error}")
+
+    def _write_action_interlock(self, status: str, task_id: int | None = None) -> None:
+        if status not in ("idle", "dispatching", "preset-motion", "linkcraft-awaiting-operator", "uncertain"):
+            raise ValueError("Invalid action interlock state")
+        if status == "preset-motion" and (
+            isinstance(task_id, bool) or not isinstance(task_id, int) or task_id <= 0
+        ):
+            raise ValueError("Preset motion interlock requires a task ID")
+        payload = json.dumps(
+            {"version": 1, "status": status, "taskId": task_id if status == "preset-motion" else None},
+            separators=(",", ":"),
+        )
+        temporary = ACTION_INTERLOCK_FILE.with_name(
+            f".{ACTION_INTERLOCK_FILE.name}.{os.getpid()}.{threading.get_ident()}.tmp"
+        )
+        try:
+            ACTION_INTERLOCK_FILE.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+            descriptor = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+            with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
+                stream.write(payload)
+                stream.flush()
+                os.fsync(stream.fileno())
+            os.replace(temporary, ACTION_INTERLOCK_FILE)
+            try:
+                os.chmod(ACTION_INTERLOCK_FILE, 0o600)
+            except OSError:
+                pass
+        except Exception:
+            try:
+                temporary.unlink(missing_ok=True)
+            except OSError:
+                pass
+            raise
+
+    def _set_action_interlock(self, status: str, task_id: int | None = None) -> None:
+        with self.lock:
+            try:
+                self._write_action_interlock(status, task_id)
+            except Exception as error:
+                self.motion_dispatch_uncertain = True
+                self.linkcraft_pending_confirmation = False
+                self.get_logger().error(f"Unable to persist action interlock; actions remain locked: {error}")
+                raise AdapterError("无法持久化动作互锁，机器人动作已锁定", 503, uncertain=True) from error
+            self.active_motion_task_id = task_id if status == "preset-motion" else None
+            self.linkcraft_pending_confirmation = status == "linkcraft-awaiting-operator"
+            self.motion_dispatch_uncertain = status in ("dispatching", "uncertain")
+
+    def resume_action_interlock(self) -> None:
+        with self.lock:
+            task_id = self.active_motion_task_id
+        if task_id is not None:
+            threading.Thread(target=self._monitor_preset_motion, args=(task_id,), daemon=True).start()
 
     @staticmethod
     def quaternion_yaw(orientation: Any) -> float:
@@ -427,6 +604,7 @@ class X2Node(Node):
 
     def snapshot(self) -> dict[str, Any]:
         now = time.time()
+        self.refresh_linkcraft_resources(now)
         with self.lock:
             grid = self.last_map
             odom = self.last_odom
@@ -437,9 +615,25 @@ class X2Node(Node):
             nav = dict(self.last_navigation)
             mapping_status = self.mapping_status
             relocalization_pending = self.relocalization_pending
+            action_uncertain = self.motion_dispatch_uncertain
+            linkcraft_pending = self.linkcraft_pending_confirmation
+            active_motion = self.active_motion_task_id is not None
+            dispatching = self.motion_action_lock.locked()
+            action_busy = action_uncertain or linkcraft_pending or active_motion or dispatching
             map_fresh = bool(grid and now - float(grid["stamp"]) <= 2.0)
+            resources_fresh = now - self.linkcraft_resource_cache_at <= RESOURCE_STALE_SECONDS
+            resources = [
+                {"id": item["id"], "name": item["name"]}
+                for item in self.linkcraft_resource_records.values()
+            ] if resources_fresh else []
         integrated_ready = self.publisher.get_subscription_count() > 0
         map_service_ready = self.map_client.service_is_ready()
+        preset_ready = not action_uncertain and all(self._client_ready(client) for client in (
+            self.motion_input_source_client, self.preset_motion_client, self.preset_motion_state_client
+        ))
+        expression_ready = not action_uncertain and self._client_ready(self.expression_client)
+        resource_ready = not action_uncertain and self._client_ready(self.linkcraft_resource_client) and resources_fresh
+        execute_resource_ready = not action_uncertain and self._client_ready(self.linkcraft_execute_client)
         checks = [
             {"id": "aimdk", "label": "AIMDK", "ready": map_service_ready, "detail": "地图服务在线" if map_service_ready else "GetStoredMapByName 不可用"},
             {
@@ -456,6 +650,19 @@ class X2Node(Node):
                 "ready": self.navigation_ready and task_state_fresh and not relocalization_pending,
                 "detail": "地图切换待确认" if relocalization_pending else "X2 PNC 状态在线" if self.navigation_ready and task_state_fresh else "可选导航接口/状态不可用",
             },
+            {
+                "id": "actions",
+                "label": "动作服务",
+                "ready": preset_ready or expression_ready or (resource_ready and execute_resource_ready),
+                "detail": "可用：" + "、".join(
+                    label for ready, label in (
+                        (preset_ready, "预设动作"),
+                        (expression_ready, "表情"),
+                        (resource_ready and execute_resource_ready, "灵创资源"),
+                    ) if ready
+                ) if preset_ready or expression_ready or (resource_ready and execute_resource_ready)
+                else "等待 AIMDK 动作服务或灵创资源清单",
+            },
             {"id": "linksoul", "label": "灵心", "ready": False, "detail": "AgentSDK v1.5 适配器未安装"},
         ]
         pose = odom if odom_fresh else None
@@ -466,13 +673,427 @@ class X2Node(Node):
             "mappingStatus": mapping_status,
             "pose": pose,
             "navigation": nav,
+            "actionBusy": action_busy,
+            "actionStatus": "uncertain" if action_uncertain else
+                "linkcraft-awaiting-operator" if linkcraft_pending else
+                "preset-motion" if active_motion else
+                "dispatching" if dispatching else None,
             "mapGrid": grid if map_fresh else None,
-            "motionPresets": [],
-            "expressions": [],
-            "linkcraftResources": [],
+            "motionPresets": list(PRESET_MOTIONS) if preset_ready else [],
+            "expressions": list(EXPRESSIONS) if expression_ready else [],
+            "linkcraftResources": resources if resource_ready and execute_resource_ready else [],
             "updatedAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(now)),
             "taskMasterState": task_state if task_state_fresh else None,
         }
+
+    @staticmethod
+    def _client_ready(client: Any) -> bool:
+        try:
+            return client is not None and bool(client.service_is_ready())
+        except Exception:
+            return False
+
+    def start_mapping(self) -> None:
+        if not self.motion_action_lock.acquire(blocking=False):
+            raise AdapterError("已有动作服务请求正在处理", 409)
+        try:
+            self._require_action_window()
+            self.ensure_no_active_preset_motion()
+            state = self.snapshot()
+            required = ("aimdk", "slam", "lidar")
+            not_ready = [item["label"] for item in state["checks"]
+                         if item["id"] in required and not item["ready"]]
+            if not_ready:
+                raise AdapterError("建图预检未通过: " + "、".join(not_ready), 409)
+            with self.lock:
+                if self.mapping_status != "idle":
+                    raise AdapterError("已有建图请求尚未完成", 409)
+                if self.relocalization_pending:
+                    raise AdapterError("地图切换尚未完成确认", 409)
+                if self.last_navigation.get("status") in ("requested", "running", "paused"):
+                    raise AdapterError("请先停止导航", 409)
+                self.publish_command("start_mapping")
+                self.mapping_status = "requested"
+                self.lidar_epoch = str(time.time_ns())
+                self.last_lidar = None
+        finally:
+            self.motion_action_lock.release()
+
+    def _call_service(self, client: Any, request: Any, label: str, *, uncertain: bool = False,
+                      timeout: float | None = None) -> Any:
+        if timeout is None:
+            timeout = SERVICE_TIMEOUT_SECONDS
+        if client is None or not client.wait_for_service(timeout_sec=min(timeout, 0.5)):
+            raise AdapterError(f"AIMDK {label} 服务不可用")
+        completed = threading.Event()
+        result: dict[str, Any] = {}
+
+        def on_complete(future: Any) -> None:
+            try:
+                result["response"] = future.result()
+            except Exception:
+                result["error"] = True
+            finally:
+                completed.set()
+
+        try:
+            future = client.call_async(request)
+            future.add_done_callback(on_complete)
+        except Exception as error:
+            raise AdapterError(f"AIMDK {label} 请求未发送", 503) from error
+        if not completed.wait(timeout):
+            raise AdapterError(f"AIMDK {label} 响应超时，未自动重试", 504, uncertain=uncertain)
+        if "error" in result or result.get("response") is None:
+            raise AdapterError(f"AIMDK {label} 请求失败", 502, uncertain=uncertain)
+        return result["response"]
+
+    @staticmethod
+    def _resource_id(resource_key: str, version: str) -> str:
+        digest = hashlib.sha256(f"{resource_key}\0{version}".encode("utf-8")).hexdigest()
+        return digest[:32]
+
+    def _parse_linkcraft_resources(self, response: Any) -> dict[str, dict[str, str]]:
+        try:
+            header = response.header
+            code = int(header.header.code)
+            state = int(header.status.value)
+            resources = response.robot_resources
+        except (AttributeError, TypeError, ValueError) as error:
+            raise AdapterError("AIMDK 灵创资源清单格式无效") from error
+        if code != 0 or state != 1 or len(resources) > 500:
+            raise AdapterError("AIMDK 未确认灵创资源清单")
+
+        parsed: dict[str, dict[str, str]] = {}
+        for item in resources:
+            try:
+                key = item.resource_key
+                current = item.current_version
+                version = current.version
+                raw_name = current.name
+                files = current.files
+            except AttributeError:
+                continue
+            if (not isinstance(key, str) or not key or len(key) > 1024
+                    or not isinstance(version, str) or not version or len(version) > 256
+                    or any(ord(character) < 32 for character in key + version)):
+                continue
+            identifier = self._resource_id(key, version)
+            name = raw_name.strip() if isinstance(raw_name, str) else ""
+            if (not name or len(name) > 160 or any(ord(character) < 32 for character in name)):
+                name = f"灵创资源 {identifier[:8]}"
+            # The vendor sample uses the resource key to distinguish ONNX body actions.
+            body_action = "onnx" in key.lower()
+            meta = {"resource_type": "BODY_MONTION" if body_action else "ARM_MONTION"}
+            parsed[identifier] = {
+                "id": identifier,
+                "name": name,
+                "resourceKey": key,
+                "version": version,
+                "meta": json.dumps(meta, separators=(",", ":")),
+            }
+        return parsed
+
+    def refresh_linkcraft_resources(self, now: float | None = None) -> None:
+        client = self.linkcraft_resource_client
+        if client is None:
+            return
+        now = time.time() if now is None else now
+        with self.lock:
+            if (self.linkcraft_resource_refresh_pending
+                    or now - self.linkcraft_resource_refresh_at < RESOURCE_REFRESH_SECONDS):
+                return
+            self.linkcraft_resource_refresh_at = now
+            self.linkcraft_resource_refresh_pending = True
+        if not self._client_ready(client):
+            with self.lock:
+                self.linkcraft_resource_refresh_pending = False
+            return
+        try:
+            request = GetRobotResources.Request()
+            request.header.header.stamp = self.get_clock().now().to_msg()
+            future = client.call_async(request)
+        except Exception:
+            with self.lock:
+                self.linkcraft_resource_refresh_pending = False
+            return
+
+        def on_complete(done: Any) -> None:
+            try:
+                records = self._parse_linkcraft_resources(done.result())
+            except Exception:
+                records = None
+            with self.lock:
+                self.linkcraft_resource_refresh_pending = False
+                if records is not None:
+                    self.linkcraft_resource_records = records
+                    self.linkcraft_resource_cache_at = time.time()
+
+        future.add_done_callback(on_complete)
+
+    def _require_action_window(self) -> None:
+        with self.lock:
+            if self.motion_dispatch_uncertain:
+                raise AdapterError("动作请求结果不确定，请现场检查机器人后重启桥接服务", 409, uncertain=True)
+            if self.linkcraft_pending_confirmation:
+                raise AdapterError("灵创动作播放结束状态不可见，请现场确认动作已停止", 409, uncertain=True)
+            if self.mapping_status != "idle" or self.relocalization_pending:
+                raise AdapterError("建图或地图切换期间不接受动作请求", 409)
+            if self.last_navigation.get("status") in ("requested", "running", "paused"):
+                raise AdapterError("导航期间不接受动作请求", 409)
+
+    def ensure_no_active_preset_motion(self) -> None:
+        with self.lock:
+            if self.motion_dispatch_uncertain:
+                raise AdapterError("预设动作状态不确定，请现场检查机器人后重启桥接服务", 409, uncertain=True)
+            task_id = self.active_motion_task_id
+        if task_id is None:
+            return
+        try:
+            status = self.preset_motion_status(task_id)["status"]
+        except AdapterError as error:
+            self._set_action_interlock("uncertain")
+            raise AdapterError("预设动作结束状态无法确认，已阻止后续机器人动作", 409, uncertain=True) from error
+        if status in ("running", "pending"):
+            raise AdapterError("机器人仍在执行预设动作", 409)
+        if status != "finished":
+            self._set_action_interlock("uncertain")
+            raise AdapterError("预设动作结束状态无法确认，已阻止后续机器人动作", 409, uncertain=True)
+
+    def _ensure_motion_input_source(self) -> None:
+        with self.lock:
+            if self.motion_source_ready:
+                return
+        client = self.motion_input_source_client
+        if client is None:
+            raise AdapterError("预设动作输入源服务不可用")
+        for action in (1001, 2001):  # AIMDK ADD, then ENABLE for an existing registration.
+            request = SetMcInputSource.Request()
+            request.request.header.stamp = self.get_clock().now().to_msg()
+            request.action.value = action
+            request.input_source.name = MOTION_INPUT_SOURCE
+            request.input_source.priority = MOTION_INPUT_PRIORITY
+            request.input_source.timeout = MOTION_INPUT_TIMEOUT_MS
+            try:
+                response = self._call_service(
+                    client, request, "SetMcInputSource"
+                )
+            except AdapterError:
+                raise
+            if int(response.response.header.code) == 0:
+                with self.lock:
+                    self.motion_source_ready = True
+                return
+        raise AdapterError("AIMDK 未确认预设动作输入源", 409)
+
+    def start_preset_motion(self, name: Any, *, monitor_completion: bool = True) -> dict[str, Any]:
+        if not isinstance(name, str) or name not in PRESET_MOTIONS:
+            raise AdapterError("预设动作不在 X2 白名单中", 400)
+        if not self.motion_action_lock.acquire(blocking=False):
+            raise AdapterError("已有动作服务请求正在处理", 409)
+        try:
+            self._require_action_window()
+            self.ensure_no_active_preset_motion()
+            client = self.preset_motion_client
+            if client is None or self.preset_motion_state_client is None:
+                raise AdapterError("预设动作或状态查询服务不可用")
+            self._ensure_motion_input_source()
+            motion_id, area_id = PRESET_MOTIONS[name]
+            request = SetMcPresetMotion.Request()
+            request.header.stamp = self.get_clock().now().to_msg()
+            request.input_source.name = MOTION_INPUT_SOURCE
+            request.input_source.priority = MOTION_INPUT_PRIORITY
+            request.input_source.timeout = MOTION_INPUT_TIMEOUT_MS
+            request.motion.value = motion_id
+            request.area.value = area_id
+            request.interrupt = False
+            request.ani_path = ""
+            request.play_timestamp = 0
+            self._set_action_interlock("dispatching")
+            try:
+                response = self._call_service(
+                    client, request, "SetMcPresetMotion", uncertain=True
+                )
+            except AdapterError as error:
+                if error.uncertain:
+                    self._set_action_interlock("uncertain")
+                else:
+                    self._set_action_interlock("idle")
+                raise
+            result = response.response
+            task_id = int(result.task_id)
+            state = int(result.state.value)
+            if task_id <= 0:
+                self._set_action_interlock("uncertain")
+                raise AdapterError("AIMDK 已响应预设动作请求，但未返回可查询任务 ID", 502, uncertain=True)
+            if int(result.header.code) != 0 and state != 400:
+                self._set_action_interlock("idle")
+                raise AdapterError("AIMDK 未确认预设动作请求", 502)
+            self._set_action_interlock("preset-motion", task_id)
+            if state not in (1, 200, 300, 400):
+                self._set_action_interlock("uncertain")
+                raise AdapterError("AIMDK 已响应预设动作请求，但状态无法确认", 409, uncertain=True)
+            if monitor_completion:
+                threading.Thread(
+                    target=self._monitor_preset_motion, args=(task_id,), daemon=True
+                ).start()
+            status = "pending" if state in (1, 200, 300) else "running"
+            return {"accepted": True, "taskId": str(task_id), "status": status}
+        finally:
+            self.motion_action_lock.release()
+
+    def preset_motion_status(self, task_id: int) -> dict[str, Any]:
+        client = self.preset_motion_state_client
+        if client is None:
+            raise AdapterError("预设动作状态查询服务不可用")
+        request = GetMcPresetMotionState.Request()
+        request.request.header.stamp = self.get_clock().now().to_msg()
+        request.request.task_id = task_id
+        response = self._call_service(client, request, "GetMcPresetMotionState")
+        result = response.response
+        if int(result.header.code) != 0 or int(result.task_id) != task_id:
+            raise AdapterError("AIMDK 未返回匹配的预设动作状态")
+        state = int(result.state.value)
+        status = "running" if state == 400 else "finished" if state == 1 else "pending" if state in (200, 300) else "unknown"
+        if status == "finished":
+            with self.lock:
+                if self.active_motion_task_id == task_id:
+                    self._set_action_interlock("idle")
+        elif status == "unknown":
+            with self.lock:
+                if self.active_motion_task_id == task_id:
+                    self._set_action_interlock("uncertain")
+        return {"taskId": str(task_id), "status": status}
+
+    def wait_preset_motion(self, task_id: int) -> dict[str, Any]:
+        deadline = time.monotonic() + MOTION_STATE_TIMEOUT_SECONDS
+        while time.monotonic() < deadline:
+            try:
+                status = self.preset_motion_status(task_id)
+            except AdapterError as error:
+                with self.lock:
+                    if self.active_motion_task_id == task_id:
+                        self._set_action_interlock("uncertain")
+                raise AdapterError("预设动作结束状态无法确认，已阻止后续机器人动作", 502, uncertain=True) from error
+            if status["status"] == "finished":
+                return {"confirmed": True, **status}
+            if status["status"] not in ("running", "pending"):
+                self._set_action_interlock("uncertain")
+                raise AdapterError("AIMDK 未确认预设动作结束状态", 502, uncertain=True)
+            time.sleep(MOTION_STATE_POLL_SECONDS)
+        self._set_action_interlock("uncertain")
+        raise AdapterError("预设动作在期限内未确认结束，已阻止后续机器人动作", 504, uncertain=True)
+
+    def _monitor_preset_motion(self, task_id: int) -> None:
+        try:
+            self.wait_preset_motion(task_id)
+        except AdapterError:
+            return
+
+    def play_expression(self, name: Any) -> dict[str, Any]:
+        if not isinstance(name, str) or name not in EXPRESSIONS:
+            raise AdapterError("表情不在 X2 白名单中", 400)
+        if not self.motion_action_lock.acquire(blocking=False):
+            raise AdapterError("已有动作服务请求正在处理", 409)
+        try:
+            self._require_action_window()
+            self.ensure_no_active_preset_motion()
+            client = self.expression_client
+            if client is None:
+                raise AdapterError("AIMDK 表情服务不可用")
+            request = PlayEmoji.Request()
+            request.header.header.stamp = self.get_clock().now().to_msg()
+            request.emotion_id = EXPRESSIONS[name]
+            request.mode = 1
+            request.priority = 10
+            self._set_action_interlock("dispatching")
+            try:
+                response = self._call_service(client, request, "PlayEmoji", uncertain=True)
+            except AdapterError as error:
+                if error.uncertain:
+                    self._set_action_interlock("uncertain")
+                else:
+                    self._set_action_interlock("idle")
+                raise
+            if response.success is not True:
+                self._set_action_interlock("idle")
+                raise AdapterError("AIMDK 未确认表情请求", 502)
+            self._set_action_interlock("idle")
+            return {"accepted": True, "completed": False}
+        finally:
+            self.motion_action_lock.release()
+
+    def execute_linkcraft_resource(self, identifier: Any) -> dict[str, Any]:
+        if not isinstance(identifier, str) or re.fullmatch(r"[0-9a-f]{32}", identifier) is None:
+            raise AdapterError("灵创资源 ID 无效", 400)
+        if not self.motion_action_lock.acquire(blocking=False):
+            raise AdapterError("已有动作服务请求正在处理", 409)
+        try:
+            self._require_action_window()
+            self.ensure_no_active_preset_motion()
+            with self.lock:
+                record = self.linkcraft_resource_records.get(identifier)
+                fresh = time.time() - self.linkcraft_resource_cache_at <= RESOURCE_STALE_SECONDS
+            if not fresh or record is None:
+                raise AdapterError("灵创资源未在近期 AIMDK 清单中确认", 409)
+            client = self.linkcraft_execute_client
+            if client is None:
+                raise AdapterError("AIMDK 灵创资源执行服务不可用")
+            request = ExecuteActionResource.Request()
+            request.header.header.stamp = self.get_clock().now().to_msg()
+            request.resource_key = record["resourceKey"]
+            request.resource_version = record["version"]
+            request.slaves = []
+            request.meta = record["meta"]
+            self._set_action_interlock("dispatching")
+            try:
+                response = self._call_service(
+                    client, request, "ExecuteActionResource", uncertain=True
+                )
+            except AdapterError as error:
+                if error.uncertain:
+                    self._set_action_interlock("uncertain")
+                else:
+                    self._set_action_interlock("idle")
+                raise
+            result = response.header
+            message = str(result.message).strip()
+            if int(result.header.code) != 0 or message != "Play success":
+                known_rejections = {
+                    "The robot is playing": "机器人正在播放其他动作，未接受灵创资源",
+                    "No valid resource files found": "灵创资源没有可播放文件",
+                    "The robot is in a faulty state": "机器人状态异常，未接受灵创资源",
+                    "The robot is not in ready posture": "机器人姿态未就绪，未接受灵创资源",
+                    "MC ROS service not ready": "机器人运控服务未就绪",
+                }
+                if message in known_rejections:
+                    self._set_action_interlock(
+                        "linkcraft-awaiting-operator"
+                        if message == "The robot is playing" else "idle"
+                    )
+                else:
+                    self._set_action_interlock("uncertain")
+                user_message = known_rejections.get(message, "AIMDK 未确认灵创资源执行请求")
+                raise AdapterError(user_message, 409 if message else 502)
+            self._set_action_interlock("linkcraft-awaiting-operator")
+            return {"accepted": True, "completed": False, "message": "Play success"}
+        finally:
+            self.motion_action_lock.release()
+
+    def confirm_actions_idle(self, confirmed: Any) -> dict[str, Any]:
+        if confirmed is not True:
+            raise AdapterError("请先现场确认灵创动作已停止", 400)
+        if not self.motion_action_lock.acquire(blocking=False):
+            raise AdapterError("动作服务请求正在处理，请稍后重试", 409)
+        try:
+            with self.lock:
+                if self.active_motion_task_id is not None:
+                    raise AdapterError("预设动作仍需等待 AIMDK 状态查询", 409)
+                if not self.linkcraft_pending_confirmation and not self.motion_dispatch_uncertain:
+                    raise AdapterError("没有等待现场确认的灵创动作", 409)
+            self._set_action_interlock("idle")
+            return {"confirmed": True, "actionBusy": False}
+        finally:
+            self.motion_action_lock.release()
 
     def publish_command(self, value: str) -> None:
         if self.publisher.get_subscription_count() < 1:
@@ -548,6 +1169,16 @@ class X2Node(Node):
         }
 
     def send_navigation(self, *, task_id: int, map_id: int, target: dict[str, float], action: int) -> None:
+        if action != 1:
+            return self._send_navigation(task_id=task_id, map_id=map_id, target=target, action=action)
+        if not self.motion_action_lock.acquire(blocking=False):
+            raise AdapterError("已有动作服务请求正在处理", 409)
+        try:
+            return self._send_navigation(task_id=task_id, map_id=map_id, target=target, action=action)
+        finally:
+            self.motion_action_lock.release()
+
+    def _send_navigation(self, *, task_id: int, map_id: int, target: dict[str, float], action: int) -> None:
         if not self.navigation_ready or self.nav_publisher is None:
             raise AdapterError("X2 原生导航组件未启用")
         if self.nav_publisher.get_subscription_count() < 1:
@@ -564,6 +1195,8 @@ class X2Node(Node):
                 raise AdapterError("当前定位地图与目标地图不一致，请先在地图管理中完成重定位", 409)
             if not self.snapshot()["pose"]:
                 raise AdapterError("定位里程计已过期，导航请求已拒绝", 409)
+            self._require_action_window()
+            self.ensure_no_active_preset_motion()
         else:
             with self.lock:
                 current = self.last_navigation
@@ -617,6 +1250,16 @@ class X2Node(Node):
         return result
 
     def activate_map(self, name: str, initial: Any = None) -> dict[str, Any]:
+        if not self.motion_action_lock.acquire(blocking=False):
+            raise AdapterError("已有动作服务请求正在处理", 409)
+        try:
+            self._require_action_window()
+            self.ensure_no_active_preset_motion()
+            return self._activate_map(name, initial)
+        finally:
+            self.motion_action_lock.release()
+
+    def _activate_map(self, name: str, initial: Any = None) -> dict[str, Any]:
         if not valid_map_name(name):
             raise AdapterError("无效地图名称", 400)
         info = self.query_map(name)
@@ -685,6 +1328,10 @@ class BridgeHandler(BaseHTTPRequestHandler):
                 return self.send_json(200, self.node.lidar_frame())
             if path == "/v1/maps":
                 return self.send_json(200, {"maps": self.node.list_maps()})
+            motion_status_match = re.fullmatch(r"/v1/motions/preset/(\d+)", path)
+            if motion_status_match:
+                task_id = self.parse_task_id(motion_status_match.group(1))
+                return self.send_json(200, self.node.preset_motion_status(task_id))
             if path.startswith("/v1/maps/") and path.endswith("/grid"):
                 map_key = unquote(path[len("/v1/maps/") : -len("/grid")]).strip("/")
                 if not re.fullmatch(r"[\w\u4e00-\u9fff][\w\u4e00-\u9fff .-]{0,99}", map_key, re.UNICODE):
@@ -692,7 +1339,7 @@ class BridgeHandler(BaseHTTPRequestHandler):
                 return self.send_json(200, self.node.stored_grid(map_key))
             raise AdapterError("接口不存在", 404)
         except AdapterError as error:
-            return self.send_json(error.status, {"message": str(error)})
+            return self.send_json(error.status, {"message": str(error), "uncertain": error.uncertain})
         except Exception:
             return self.send_json(500, {"message": "AIMDK 桥接内部错误"})
 
@@ -702,22 +1349,7 @@ class BridgeHandler(BaseHTTPRequestHandler):
             body = self.read_json()
             path = urlparse(self.path).path
             if path == "/v1/mapping/start":
-                state = self.node.snapshot()
-                required = ("aimdk", "slam", "lidar")
-                not_ready = [item["label"] for item in state["checks"] if item["id"] in required and not item["ready"]]
-                if not_ready:
-                    raise AdapterError("建图预检未通过: " + "、".join(not_ready), 409)
-                with self.node.lock:
-                    if self.node.mapping_status != "idle":
-                        raise AdapterError("已有建图请求尚未完成", 409)
-                    if self.node.relocalization_pending:
-                        raise AdapterError("地图切换尚未完成确认", 409)
-                    if self.node.last_navigation.get("status") in ("requested", "running", "paused"):
-                        raise AdapterError("请先停止导航", 409)
-                    self.node.publish_command("start_mapping")
-                    self.node.mapping_status = "requested"
-                    self.node.lidar_epoch = str(time.time_ns())
-                    self.node.last_lidar = None
+                self.node.start_mapping()
                 return self.send_json(202, {"accepted": True, "status": "requested"})
             if path == "/v1/mapping/stop-save":
                 name = str(body.get("name", "")).strip()
@@ -781,10 +1413,23 @@ class BridgeHandler(BaseHTTPRequestHandler):
                     time.sleep(0.05)
                 raise AdapterError("PNC 未确认控制请求，请检查机器人状态", 504)
             if path == "/v1/motions/preset":
-                raise AdapterError("AIMDK 预设动作资源尚未完成目标机器人白名单验证", 501)
+                name = body.get("name")
+                monitor = body.get("monitorCompletion", True)
+                if not isinstance(monitor, bool):
+                    raise AdapterError("动作状态监控参数无效", 400)
+                return self.send_json(202, self.node.start_preset_motion(name, monitor_completion=monitor))
+            if path == "/v1/expression":
+                result = self.node.play_expression(body.get("name"))
+                return self.send_json(202, result)
+            if path == "/v1/linkcraft/resource":
+                result = self.node.execute_linkcraft_resource(body.get("id"))
+                return self.send_json(202, result)
+            if path == "/v1/actions/confirm-idle":
+                result = self.node.confirm_actions_idle(body.get("confirmed"))
+                return self.send_json(200, result)
             raise AdapterError("接口不存在", 404)
         except AdapterError as error:
-            return self.send_json(error.status, {"message": str(error)})
+            return self.send_json(error.status, {"message": str(error), "uncertain": error.uncertain})
         except (KeyError, TypeError, ValueError):
             return self.send_json(400, {"message": "请求格式无效"})
         except Exception:
@@ -838,6 +1483,7 @@ def main() -> None:
     executor.add_node(node)
     thread = threading.Thread(target=executor.spin, daemon=True)
     thread.start()
+    node.resume_action_interlock()
     BridgeHandler.node = node
     server = ThreadingHTTPServer(("127.0.0.1", PORT), BridgeHandler)
     try:

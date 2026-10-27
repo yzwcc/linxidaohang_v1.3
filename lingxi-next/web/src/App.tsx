@@ -155,7 +155,7 @@ function ConnectScreen({ onConnected }: { onConnected: (connection: Connection) 
           <h1>建图与导航<br />工作台</h1>
           <p>机器人本机运行 · 同一局域网连接</p>
         </div>
-        <span className="brand-subtitle">LINGXI NEXT / 0.1.3</span>
+        <span className="brand-subtitle">LINGXI NEXT / 0.1.5</span>
       </section>
       <section className="connect-main">
         <form className="connect-form" onSubmit={connect}>
@@ -336,6 +336,7 @@ function Mapping({
   const [busy, setBusy] = useState(false);
   const activeMap = state.maps.find((map) => map.id === state.activeMapId);
   const canStart = !navigationBusy(state) &&
+    !state.actionBusy &&
     ["aimdk", "slam", "lidar"].every((id) => state.checks.some((item) => item.id === id && item.ready));
   const mappingLabel = {
     idle: "未启动",
@@ -365,6 +366,26 @@ function Mapping({
         <AlertTriangle size={15} />
         <span>移动机器人始终使用外置遥控器。停止建图时 AIMDK 会按地图名保存，并等待地图服务确认结果。</span>
       </div>
+      {state.actionStatus === "linkcraft-awaiting-operator" && (
+        <div className="notice warn" style={{ marginBottom: 14 }}>
+          <AlertTriangle size={15} />
+          <span>灵创动作服务已接受请求，但 SDK 不提供播放完成状态。请现场确认动作已停止后解除互锁。</span>
+          <button className="btn small" disabled={busy} onClick={() =>
+            window.confirm("请确认已在机器人旁观察到动作停止。继续解除动作互锁？") &&
+            void run("/api/v1/actions/confirm-idle", { confirmed: true })
+          }><Check size={12} />确认动作已停止</button>
+        </div>
+      )}
+      {state.actionStatus === "uncertain" && (
+        <div className="notice error" style={{ marginBottom: 14 }}>
+          <AlertTriangle size={15} />
+          <span>动作状态未确认，建图与导航已互锁。请现场检查并确认动作已停止后解除互锁。</span>
+          <button className="btn small" disabled={busy} onClick={() =>
+            window.confirm("请确认已在机器人旁检查，机器人动作已完全停止。继续解除动作互锁？") &&
+            void run("/api/v1/actions/confirm-idle", { confirmed: true })
+          }><Check size={12} />现场确认动作已停止</button>
+        </div>
+      )}
       <div className="content-grid two">
         <Section
           title="激光雷达实时扫描"
@@ -581,6 +602,17 @@ function NavigationPage({
   return (
     <div className="page">
       <PageHeading title="导航管理" description="基于 X2 原生点到点导航与安全链路" />
+      {state.actionBusy && (
+        <div className={state.actionStatus === "uncertain" ? "notice error" : "notice warn"} style={{ marginBottom: 14 }}>
+          <AlertTriangle size={14} />
+          <span>{state.actionStatus === "linkcraft-awaiting-operator"
+            ? "灵创动作等待现场确认，导航已互锁。请在实时建图页确认动作停止后解除。"
+            : state.actionStatus === "uncertain"
+              ? "动作状态未确认，导航已互锁。请现场检查机器人并在实时建图页解除互锁。"
+              : "AIMDK 预设动作仍在执行或等待状态确认。"}
+          </span>
+        </div>
+      )}
       <div className="content-grid two">
         <div className="stack">
           <Section title="当前导航" icon={Navigation}>
@@ -601,7 +633,7 @@ function NavigationPage({
                     <td><strong>{point.name}</strong>{point.isStart && <span className="tag" style={{ marginLeft: 6 }}>起点</span>}</td>
                     <td>{state.maps.find((map) => map.id === point.mapId)?.name}</td>
                     <td className="mono">{point.x.toFixed(2)}, {point.y.toFixed(2)}</td>
-                    <td><button className="btn small primary" disabled={!ready || !state.activeMapId || state.mapping || navigationBusy(state)} onClick={() => run("/api/v1/navigation/point", { pointId: point.id })}><Navigation size={12} />前往</button></td>
+                    <td><button className="btn small primary" disabled={!ready || !state.activeMapId || state.mapping || state.actionBusy || navigationBusy(state)} onClick={() => run("/api/v1/navigation/point", { pointId: point.id })}><Navigation size={12} />前往</button></td>
                   </tr>
                 ))}
               </tbody>
@@ -722,6 +754,15 @@ function Tours({
                 <div className="field"><label htmlFor="tour-repeat">循环轮数（1–20）</label><input id="tour-repeat" type="number" min={1} max={20} value={draft.repeatCount} onChange={(event) => setDraft({ ...draft, repeatCount: Number(event.target.value) })} /></div>
                 <div className="notice">讲解任务结束后原地待命。普通导航返航时间在导航管理中设置。</div>
               </div>
+              {draft.steps.some((step) => step.linkcraftResourceId) && (
+                <div className="notice warn" style={{ marginTop: 10 }}>
+                  {draft.steps.filter((step) => step.linkcraftResourceId).length !== 1 ||
+                    draft.repeatCount !== 1 ||
+                    !draft.steps[draft.steps.length - 1]?.linkcraftResourceId
+                    ? "灵创资源只能设置一次，并放在单轮讲解的最后一步；AIMDK 不提供播放完成回执。"
+                    : "AIMDK 仅确认灵创请求已接受，不提供播放完成状态；该资源将在最后一步讲解后触发。"}
+                </div>
+              )}
               <hr className="divider" />
               <div className="task-steps">
                 {draft.steps.map((step, index) => (
@@ -1062,8 +1103,8 @@ function JobControls({ state, run }: {
   }
   if (!navigationBusy(state)) return null;
   return <div className="task-controls">
-    {["requested", "running"].includes(state.navigation.status) && <button className="btn small" disabled={busy} onClick={() => void control("pause")}><Pause size={12} />暂停</button>}
-    {state.navigation.status === "paused" && <button className="btn small primary" disabled={busy} onClick={() => void control("resume")}><Play size={12} />继续</button>}
+    {["requested", "running"].includes(state.navigation.status) && <button className="btn small" disabled={busy || state.actionBusy} onClick={() => void control("pause")}><Pause size={12} />暂停</button>}
+    {state.navigation.status === "paused" && <button className="btn small primary" disabled={busy || state.actionBusy} onClick={() => void control("resume")}><Play size={12} />继续</button>}
     <button className="btn small danger" disabled={busy} onClick={() => void control("stop")}><Square size={12} />停止</button>
   </div>;
 }

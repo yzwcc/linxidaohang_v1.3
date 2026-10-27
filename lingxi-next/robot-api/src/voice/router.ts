@@ -187,7 +187,7 @@ export class VoiceRouter {
       "tour-pause": "讲解已暂停。",
       "tour-resume": "继续讲解。",
       "tour-stop": "讲解已停止。",
-      motion: intent.type === "motion" ? `收到，执行${intent.name}。` : "",
+      motion: intent.type === "motion" ? `收到，已提交${intent.name}动作请求。` : "",
       clarify: intent.type === "clarify" ? intent.text : "",
     };
     return this.result(

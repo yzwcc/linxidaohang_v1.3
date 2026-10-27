@@ -54,6 +54,10 @@ sudo systemctl enable --now lingxi-next-aimdk.service
 或修改厂商数据库。地图切换会发送建图原点初始位姿，或在网页按所填世界位姿重定位。
 操作前确认机器人实际位置，坐标协议见 `COORDINATES.md`。
 
+动作与资源服务限制见 `AIMDK_ACTIONS.md`。首次使用前现场检查预设动作服务、
+动作输入源注册和机器人姿态；灵创资源只接受来自 AIMDK 当前资源清单的 ID。
+当前 SDK 不提供灵创动作完成状态，含灵创资源的讲解必须为单轮且将资源设在最后一步。
+
 将 `/etc/lingxi-next/tls/ca.crt` 导入电脑/Android 的受信任 CA，浏览器访问 `https://机器人IP:3000`，输入配对码。APK 在同局域网输入相同 IP/端口。若机器人 IP 更改，应重新签发包含新 IP SAN 的服务证书；不能关闭证书校验。
 
 设置页写入灵心三项应用凭据、Agent Code、模型凭据；在环境文件设置绑定的 `LINKSOUL_AGENT_ID` 后：

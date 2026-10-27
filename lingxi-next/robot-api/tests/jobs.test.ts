@@ -132,6 +132,61 @@ describe("navigation and tour lifecycle", () => {
     await expect(jobs.startTour(tour)).rejects.toThrow("尚未就绪");
     expect(adapter.startNavigation).not.toHaveBeenCalled();
   });
+  it("dispatches an allowlisted voice motion without waiting for its playback state", async () => {
+    const start = vi.spyOn(adapter, "startPresetMotion").mockResolvedValue("motion-9");
+    const wait = vi.spyOn(adapter, "waitPresetMotion");
+    await jobs.runAllowlistedMotion("挥手");
+    expect(start).toHaveBeenCalledWith("挥手");
+    expect(wait).not.toHaveBeenCalled();
+  });
+  it("rejects navigation before creating a job while a preset action is busy", async () => {
+    snapshot.actionBusy = true;
+    await expect(jobs.startPoint(point)).rejects.toThrow("仍在执行");
+    await expect(jobs.startTour(tour)).rejects.toThrow("仍在执行");
+    expect(adapter.startNavigation).not.toHaveBeenCalled();
+  });
+  it("waits for preset motion completion before speaking a tour step", async () => {
+    let finishMotion!: () => void;
+    vi.spyOn(adapter, "startPresetMotion").mockResolvedValue("motion-10");
+    const wait = vi.spyOn(adapter, "waitPresetMotion").mockImplementation(
+      () => new Promise<void>((resolve) => { finishMotion = resolve; }),
+    );
+    await jobs.startTour({
+      ...tour,
+      steps: [{ ...tour.steps[0], presetMotion: "挥手" }],
+    });
+    await vi.advanceTimersByTimeAsync(10);
+    nav = { status: "finished", taskId: nav.taskId };
+    await vi.advanceTimersByTimeAsync(20);
+    expect(wait).toHaveBeenCalledWith("motion-10");
+    expect(speak).not.toHaveBeenCalled();
+    finishMotion();
+    await vi.advanceTimersByTimeAsync(20);
+    expect(speak).toHaveBeenCalledTimes(1);
+  });
+  it("limits LinkCraft resources to the last step of a single-pass tour", async () => {
+    snapshot.linkcraftResources = [{ id: "resource-1", name: "展厅动作" }];
+    await expect(jobs.startTour({
+      ...tour,
+      repeatCount: 2,
+      steps: [{ ...tour.steps[0], linkcraftResourceId: "resource-1" }],
+    })).rejects.toThrow("单轮讲解的最后一步");
+    expect(adapter.startNavigation).not.toHaveBeenCalled();
+  });
+  it("ends after LinkCraft service acceptance and does not report playback completion", async () => {
+    snapshot.linkcraftResources = [{ id: "resource-1", name: "展厅动作" }];
+    const execute = vi.spyOn(adapter, "executeLinkcraftResource");
+    await jobs.startTour({
+      ...tour,
+      steps: [{ ...tour.steps[0], linkcraftResourceId: "resource-1" }],
+    });
+    await vi.advanceTimersByTimeAsync(20);
+    nav = { status: "finished", taskId: nav.taskId };
+    await vi.advanceTimersByTimeAsync(100);
+    expect(execute).toHaveBeenCalledWith("resource-1");
+    expect(jobs.state().detail).toContain("播放完成状态不可见");
+    expect(adapter.startNavigation).toHaveBeenCalledTimes(1);
+  });
   it("waits for an in-flight dispatch before issuing stop and ignores its late resolution", async () => {
     let release!: () => void;
     vi.mocked(adapter.startNavigation).mockImplementationOnce(() => new Promise<void>((resolve) => { release = resolve; }));

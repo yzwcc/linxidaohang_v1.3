@@ -80,6 +80,8 @@ export class DemoAdapter implements RobotAdapter {
       ],
       mapping: this.mapping,
       mappingStatus: this.mapping ? "running" : "idle",
+      actionBusy: false,
+      actionStatus: undefined,
       pose: { x: 3.1, y: 2.4, yaw: 0.3 },
       navigation: this.navigation,
       mapGrid: demoGrid(),
@@ -142,8 +144,29 @@ export class DemoAdapter implements RobotAdapter {
     }
   }
 
-  async runPresetMotion(name: string): Promise<void> {
+  async startPresetMotion(name: string, _monitorCompletion = true): Promise<string> {
     const snapshot = await this.getSnapshot();
     if (!snapshot.motionPresets.includes(name)) throw new Error("该预设动作未配置");
+    return randomUUID();
+  }
+
+  async waitPresetMotion(_taskId: string): Promise<void> {
+    return undefined;
+  }
+
+  async playExpression(name: string): Promise<void> {
+    const snapshot = await this.getSnapshot();
+    if (!snapshot.expressions.includes(name)) throw new Error("该表情未配置");
+  }
+
+  async executeLinkcraftResource(id: string): Promise<void> {
+    const snapshot = await this.getSnapshot();
+    if (!snapshot.linkcraftResources.some((resource) => resource.id === id)) {
+      throw new Error("该灵创资源未配置");
+    }
+  }
+
+  async confirmActionsIdle(): Promise<void> {
+    return undefined;
   }
 }

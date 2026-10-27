@@ -62,7 +62,8 @@ await writeFile(path.join(stage, "release-status.json"), JSON.stringify({
   sdk: { version: "1.5.0-SNAPSHOT", sha256: "810c5e7a7d40191097dc5c4c37e3133407e63307fcb204d35caacb7768912c25" },
   pending: ["physical mapping/navigation/estop", "ASR confidence field on target", "TTS item/event correlation on target",
     "map catalog schema and relocalization pixels/orientation on target",
-    "preset motion/expression/LinkCraft manifest", "cloud credentials/voice rejection", "acoustic and P95 acceptance", "installer/rollback on ARM64 target"],
+    "physical preset-motion/expression/LinkCraft action acceptance", "cloud credentials/voice rejection",
+    "acoustic and P95 acceptance", "installer/rollback on ARM64 target"],
 }, null, 2));
 const archive = `${stage}.tar.gz`;
 await run("python", ["tools/archive-release.py", stage, archive, nodeArchive, javaArchive]);

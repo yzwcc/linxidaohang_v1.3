@@ -70,8 +70,58 @@ export class AimdkAdapter implements RobotAdapter {
     if (!result.confirmed) throw new Error("PNC 未确认导航控制请求");
   }
 
-  async runPresetMotion(name: string): Promise<void> {
-    await this.request("/motions/preset", { method: "POST", body: { name } });
+  async startPresetMotion(name: string, monitorCompletion = true): Promise<string> {
+    const result = await this.request<{ accepted: boolean; taskId: string; status: string }>(
+      "/motions/preset", { method: "POST", body: { name, monitorCompletion } },
+    );
+    if (result.accepted !== true || !/^\d+$/.test(result.taskId) ||
+        !["pending", "running"].includes(result.status)) {
+      throw new Error("AIMDK 未确认预设动作请求");
+    }
+    return result.taskId;
+  }
+
+  async waitPresetMotion(taskId: string): Promise<void> {
+    const deadline = Date.now() + 65_000;
+    while (Date.now() < deadline) {
+      const result = await this.request<{ taskId: string; status: string }>(
+        `/motions/preset/${encodeURIComponent(taskId)}`, {}, 3500,
+      );
+      if (result.taskId !== taskId) throw new Error("AIMDK 返回了不匹配的预设动作状态");
+      if (result.status === "finished") return;
+      if (!["pending", "running"].includes(result.status)) {
+        throw new Error("AIMDK 未确认预设动作完成状态");
+      }
+      await new Promise((resolve) => setTimeout(resolve, 200));
+    }
+    throw new Error("预设动作在期限内未确认结束");
+  }
+
+  async playExpression(name: string): Promise<void> {
+    const result = await this.request<{ accepted: boolean; completed: boolean }>(
+      "/expression", { method: "POST", body: { name } },
+    );
+    if (result.accepted !== true || result.completed !== false) {
+      throw new Error("AIMDK 未确认表情请求已接受");
+    }
+  }
+
+  async executeLinkcraftResource(id: string): Promise<void> {
+    const result = await this.request<{ accepted: boolean; completed: boolean; message: string }>(
+      "/linkcraft/resource", { method: "POST", body: { id } },
+    );
+    if (result.accepted !== true || result.completed !== false || result.message !== "Play success") {
+      throw new Error("AIMDK 未确认灵创资源请求已接受");
+    }
+  }
+
+  async confirmActionsIdle(): Promise<void> {
+    const result = await this.request<{ confirmed: boolean; actionBusy: boolean }>(
+      "/actions/confirm-idle", { method: "POST", body: { confirmed: true } },
+    );
+    if (result.confirmed !== true || result.actionBusy !== false) {
+      throw new Error("AIMDK 动作互锁未能解除");
+    }
   }
 
   private async request<T = void>(

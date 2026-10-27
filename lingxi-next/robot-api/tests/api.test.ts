@@ -168,6 +168,34 @@ describe("paired local console API", () => {
     expect((await app.inject({ method: "POST", url: "/api/v1/maps/demo-lab/activate",
       headers: headers(), payload: {} })).statusCode).toBe(409);
   });
+  it("requires an explicit operator confirmation before clearing action interlock", async () => {
+    const rejected = await app.inject({
+      method: "POST", url: "/api/v1/actions/confirm-idle", headers: headers(),
+      payload: { confirmed: false },
+    });
+    expect(rejected.statusCode).toBe(400);
+    const confirmed = await app.inject({
+      method: "POST", url: "/api/v1/actions/confirm-idle", headers: headers(),
+      payload: { confirmed: true },
+    });
+    expect(confirmed.statusCode).toBe(200);
+    expect(confirmed.json()).toEqual({ confirmed: true, actionBusy: false });
+  });
+  it("blocks point navigation and mapping while the adapter reports an uncertain action", async () => {
+    const original = adapter.getSnapshot.bind(adapter);
+    const navigate = vi.spyOn(adapter, "startNavigation");
+    vi.spyOn(adapter, "getSnapshot").mockImplementation(async () => ({
+      ...await original(), actionBusy: true, actionStatus: "uncertain",
+    }));
+    expect((await app.inject({
+      method: "POST", url: "/api/v1/navigation/point", headers: headers(),
+      payload: { pointId: "point-2" },
+    })).statusCode).toBe(409);
+    expect((await app.inject({
+      method: "POST", url: "/api/v1/mapping/start", headers: headers(),
+    })).statusCode).toBe(409);
+    expect(navigate).not.toHaveBeenCalled();
+  });
   it("keeps exactly one active map after switching", async () => {
     expect((await app.inject({ method: "POST", url: "/api/v1/maps/demo-lab/activate",
       headers: headers(), payload: {} })).statusCode).toBe(200);

@@ -7,8 +7,6 @@ export interface SpeechOutput {
   // Resolves when playback ends; firstAudioMs is measured by the output adapter.
   speak(text: string, correlationId: string): Promise<{ firstAudioMs: number }>;
   cancel?(correlationId: string): Promise<void>;
-  expression?(name: string, correlationId: string): Promise<void>;
-  resource?(id: string, correlationId: string): Promise<void>;
 }
 
 type Phase = "navigating" | "narrating" | "waiting" | "idle-return" | "halted";
@@ -103,13 +101,21 @@ export class JobManager {
       throw new Error("讲解任务包含无效或跨地图点位");
     }
     const resources = await this.adapter.getSnapshot();
+    const resourceSteps = tour.steps.filter((step) => step.linkcraftResourceId);
+    if (resourceSteps.length && (
+      resourceSteps.length !== 1 ||
+      tour.repeatCount !== 1 ||
+      tour.steps.at(-1)?.linkcraftResourceId !== resourceSteps[0].linkcraftResourceId
+    )) {
+      throw new Error("AIMDK 未提供灵创播放完成状态；灵创资源只能配置在单轮讲解的最后一步");
+    }
     for (const step of tour.steps) {
       if (step.presetMotion && !resources.motionPresets.includes(step.presetMotion)) throw new Error("任务包含未配置预设动作");
-      if (step.expression && (!resources.expressions.includes(step.expression) || !this.speaker.expression)) {
+      if (step.expression && !resources.expressions.includes(step.expression)) {
         throw new Error("任务包含未适配表情");
       }
       if (step.linkcraftResourceId &&
-          (!resources.linkcraftResources.some((resource) => resource.id === step.linkcraftResourceId) || !this.speaker.resource)) {
+          !resources.linkcraftResources.some((resource) => resource.id === step.linkcraftResourceId)) {
         throw new Error("任务包含未适配灵创资源");
       }
     }
@@ -212,12 +218,13 @@ export class JobManager {
 
   async runAllowlistedMotion(name: string, authorize: () => boolean = () => true): Promise<void> {
     const snapshot = await this.adapter.getSnapshot();
-    if (this.current || ["requested", "running", "paused"].includes(snapshot.navigation.status)) {
+    if (this.current || snapshot.actionBusy ||
+        ["requested", "running", "paused"].includes(snapshot.navigation.status)) {
       throw new Error("任务执行期间不接受独立预设动作");
     }
     if (!snapshot.motionPresets.includes(name)) throw new Error("该预设动作未配置");
     this.assertAuthorized(authorize);
-    await this.adapter.runPresetMotion(name);
+    await this.adapter.startPresetMotion(name);
   }
 
   private assertAuthorized(authorize: () => boolean) {
@@ -231,6 +238,7 @@ export class JobManager {
     if (!snapshot.connected || !snapshot.checks.find((check) => check.id === "navigation")?.ready) {
       throw new Error("X2 原生导航接口尚未就绪");
     }
+    if (snapshot.actionBusy) throw new Error("机器人仍在执行或等待确认一个动作");
     if (snapshot.mapping) throw new Error("建图期间不能开始导航");
     if (["requested", "running", "paused"].includes(snapshot.navigation.status)) {
       throw new Error("机器人已有导航任务");
@@ -310,15 +318,23 @@ export class JobManager {
         try {
           await this.waitReady(job);
           if (!this.isCurrent(job)) return;
-          if (step.presetMotion) await this.adapter.runPresetMotion(step.presetMotion);
+          if (step.presetMotion) {
+            const motionTaskId = await this.adapter.startPresetMotion(step.presetMotion, false);
+            await this.adapter.waitPresetMotion(motionTaskId);
+          }
           await this.waitReady(job);
           if (!this.isCurrent(job)) return;
-          if (step.expression) await this.speaker.expression!(step.expression, job.runId);
-          await this.waitReady(job);
+          if (step.expression) await this.adapter.playExpression(step.expression);
+        } catch {
           if (!this.isCurrent(job)) return;
-          if (step.linkcraftResourceId) await this.speaker.resource!(step.linkcraftResourceId, job.runId);
-          if (step.narration.trim()) {
-            let delivered = false;
+          hadErrors = true;
+          this.record(tour.id, point.id, "动作请求或结束状态未确认，已停止后续任务");
+          this.halt(job, "动作请求或结束状态未确认，请检查机器人后手动停止任务");
+          return;
+        }
+        if (step.narration.trim()) {
+          let delivered = false;
+          try {
             while (!delivered && this.isCurrent(job)) {
               await this.waitReady(job);
               if (!this.isCurrent(job)) return;
@@ -334,11 +350,26 @@ export class JobManager {
                 if (job.speechId === speechId) job.speechId = undefined;
               }
             }
+          } catch {
+            if (!this.isCurrent(job)) return;
+            hadErrors = true;
+            this.record(tour.id, point.id, "点位语音未完成");
           }
-        } catch {
-          if (!this.isCurrent(job)) return;
-          hadErrors = true;
-          this.record(tour.id, point.id, "点位讲解或效果接口失败");
+        }
+        if (step.linkcraftResourceId) {
+          try {
+            await this.waitReady(job);
+            if (!this.isCurrent(job)) return;
+            await this.adapter.executeLinkcraftResource(step.linkcraftResourceId);
+          } catch {
+            if (!this.isCurrent(job)) return;
+            this.record(tour.id, point.id, "灵创资源请求未获服务确认，已停止后续任务");
+            this.halt(job, "灵创资源请求未获确认，请检查机器人后手动停止任务");
+            return;
+          }
+          this.record(tour.id, point.id, "灵创服务已接受资源请求；SDK 未提供播放完成状态");
+          this.end(job, "讲解结束；灵创资源请求已接受，但播放完成状态不可见");
+          return;
         }
         if (!this.isCurrent(job)) return;
         job.phase = "waiting";

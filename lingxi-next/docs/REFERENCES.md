@@ -6,6 +6,12 @@
 大于 32 位的 `uint64 map_id`、`grid_map_info.txt` 像素位置与 `/relocalization_pose`。
 具体协议及待实机核对的朝向语义见 COORDINATES.md。
 
+2026-10-28 对用户提供的 AIMDK v1.1.0 ARM64 压缩包只读核对
+`SetMcPresetMotion`、`GetMcPresetMotionState`、`SetMcInputSource`、
+`PlayEmoji`、`GetRobotResources`、`ExecuteActionResource` 的定义、
+服务名、示例和状态字段。按官方 LinkCraft 文档使用 `header.message == "Play success"`
+判定服务结果；不把 `header.status.value` 当作成功依据，也不把响应当作播放完成状态。
+
 | 来源 | 核对内容 | 本项目使用方式 |
 |---|---|---|
 | https://github.com/RobotWebTools/rosbridge_suite （BSD-3-Clause） | ROS 状态/服务经 WebSocket 转接的成熟模式 | 状态/控制分离；浏览器只访问受限业务 API，不开放通用 ROS publish/service |

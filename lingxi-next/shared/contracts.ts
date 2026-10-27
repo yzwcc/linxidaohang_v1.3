@@ -97,6 +97,8 @@ export type RobotState = {
   checks: HealthCheck[];
   mapping: boolean;
   mappingStatus?: "idle" | "requested" | "running" | "saving" | "failed";
+  actionBusy?: boolean;
+  actionStatus?: "dispatching" | "preset-motion" | "linkcraft-awaiting-operator" | "uncertain";
   activeMapId?: string;
   pose?: RobotPose;
   navigation: NavigationState;
