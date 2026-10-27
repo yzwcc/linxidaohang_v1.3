@@ -28,6 +28,8 @@ sudo bash deploy/install.sh --commissioning --robot-ip 192.168.1.20 --legacy-dir
 
 `--legacy-dir` 可选。迁移先 dry-run，全部源文件转换成功后才应用；有未知结构、重复地图、缺坐标或无效限制时拒绝导入，保留原文件。迁移的动作/资源任务需要网页核对后保存。知识库不迁移。迁移时只读旧配置，不读取密钥或搬动 AIMDK 地图。
 
+若手动单独执行迁移工具，先 dry-run 并核对报告，再停止本产品全部服务后执行 `--apply`；确认 `state.json` 后再启动服务。不要在 API 或 AIMDK/Agent 服务运行时直接写入业务状态。安装器会在 dry-run 后停止本产品服务，再备份并应用迁移。
+
 独立目录：
 
 | 路径 | 用途 |

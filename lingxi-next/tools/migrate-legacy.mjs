@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import { mkdir, open, readFile, readdir, rename, stat } from "node:fs/promises";
+import { mkdir, open, readFile, readdir, rename, stat, unlink } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -9,9 +9,27 @@ const number = (value, fallback = 0) => value === undefined ? fallback : Number(
 const digest = (bytes) => createHash("sha256").update(bytes).digest("hex");
 const key = (map, id) => `${map}:${String(id)}`;
 
+function identifier(value, fallback, label) {
+  if (value === undefined || value === null || value === "") {
+    if (fallback !== undefined) return fallback;
+    throw new Error(`Missing ${label}`);
+  }
+  if (typeof value === "string" && value.trim()) return value.trim();
+  if (typeof value === "number" && Number.isSafeInteger(value) && value >= 0) return String(value);
+  throw new Error(`Invalid ${label}`);
+}
+
 function finite(value, label) {
   if (!Number.isFinite(value) || Math.abs(value) > 1000) throw new Error(`Invalid coordinate: ${label}`);
   return value;
+}
+
+function startFlag(value, pointId) {
+  if (value === undefined || value === null) return false;
+  if (typeof value === "boolean") return value;
+  if (value === 1 || value === "1" || (typeof value === "string" && ["true", "yes", "on"].includes(value.trim().toLowerCase()))) return true;
+  if (value === 0 || value === "0" || (typeof value === "string" && ["false", "no", "off"].includes(value.trim().toLowerCase()))) return false;
+  throw new Error(`Invalid start-point flag: ${pointId}`);
 }
 
 function yawOf(pose) {
@@ -32,15 +50,25 @@ export function convertLegacy(payload, sourceName) {
   }
   const mapName = text(payload.map_name, text(payload.mapName, path.parse(sourceName).name));
   if (!mapName || mapName.length > 64 || /[/\\\0]/.test(mapName)) throw new Error("Invalid map name");
-  const rawMapId = number(payload.map_id ?? payload.mapId);
-  const map = { id: mapName, name: mapName, mapId: rawMapId > 0 ? rawMapId : undefined, active: false };
+  const rawMapId = payload.map_id ?? payload.mapId;
+  const mapId = rawMapId === undefined || rawMapId === null || rawMapId === ""
+    ? undefined
+    : typeof rawMapId === "number" && Number.isSafeInteger(rawMapId)
+      ? rawMapId
+      : typeof rawMapId === "string" && /^\d+$/.test(rawMapId.trim())
+        ? Number(rawMapId.trim())
+        : Number.NaN;
+  if (mapId !== undefined && (!Number.isSafeInteger(mapId) || mapId <= 0)) {
+    throw new Error("Invalid legacy map ID");
+  }
+  const map = { id: mapName, name: mapName, mapId, active: false };
   const warnings = [];
   const rawById = new Map();
   const points = payload.points.map((raw, index) => {
     const item = object(raw);
     const name = text(item.name);
     if (!name || name.length > 80) throw new Error(`Point name missing or too long at index ${index}`);
-    const oldId = text(item.id, name);
+    const oldId = identifier(item.id, name, `point ID at index ${index}`);
     if (rawById.has(oldId)) throw new Error(`Duplicate point ID: ${oldId}`);
     rawById.set(oldId, item);
     const pose = object(item.pose ?? item);
@@ -52,7 +80,7 @@ export function convertLegacy(payload, sourceName) {
     return {
       id: key(mapName, oldId), name, mapId: mapName,
       x: finite(number(position.x), "x"), y: finite(number(position.y), "y"),
-      yaw, isStart: Boolean(item.is_start ?? item.isStart ?? item.is_home),
+      yaw, isStart: startFlag(item.is_start ?? item.isStart ?? item.is_home, oldId),
     };
   });
   if (points.filter((point) => point.isStart).length > 1) throw new Error(`Multiple start points in ${mapName}; resolve before migration`);
@@ -61,7 +89,7 @@ export function convertLegacy(payload, sourceName) {
   const taskIds = new Set();
   const tours = rawTasks.map((raw, taskIndex) => {
     const task = object(raw);
-    const oldId = text(task.id, `task-${taskIndex + 1}`);
+    const oldId = identifier(task.id, `task-${taskIndex + 1}`, `tour ID at index ${taskIndex}`);
     const id = key(mapName, oldId);
     if (id.length > 94) throw new Error("Tour ID too long");
     if (taskIds.has(id)) throw new Error("Duplicate tour ID");
@@ -71,7 +99,7 @@ export function convertLegacy(payload, sourceName) {
     let requiresReview = task.enabled === false;
     const steps = (Array.isArray(task.steps) ? task.steps : []).filter((step) => object(step).enabled !== false).map((rawStep, stepIndex) => {
       const step = typeof rawStep === "string" ? { point_id: rawStep } : object(rawStep);
-      const oldPointId = text(step.point_id ?? step.pointId ?? step.id);
+      const oldPointId = identifier(step.point_id ?? step.pointId ?? step.id, undefined, "tour point reference");
       const originalPoint = rawById.get(oldPointId);
       if (!originalPoint) throw new Error(`Unknown tour point reference: ${oldPointId}`);
       const actions = object(originalPoint.business).actions;
@@ -109,7 +137,13 @@ export function convertLegacy(payload, sourceName) {
       idleReturnSeconds: 30, updatedAt: new Date().toISOString(), requiresReview,
     };
   });
-  return { map, points, tours, warnings, selectedTourId: payload.active_tour_task_id ? key(mapName, payload.active_tour_task_id) : undefined };
+  const activeTaskId = payload.active_tour_task_id;
+  const selectedTourId = activeTaskId === undefined || activeTaskId === null || activeTaskId === "" || activeTaskId === 0
+    ? undefined : key(mapName, identifier(activeTaskId, undefined, "active tour ID"));
+  if (selectedTourId && !tours.some((tour) => tour.id === selectedTourId)) {
+    throw new Error("Active tour ID does not match a migrated task");
+  }
+  return { map, points, tours, warnings, selectedTourId };
 }
 
 async function restrictedWrite(filePath, value) {
@@ -117,7 +151,7 @@ async function restrictedWrite(filePath, value) {
   try { await handle.writeFile(value); await handle.sync(); } finally { await handle.close(); }
 }
 
-export async function migrateLegacy({ source, destination, apply = false }) {
+export async function migrateLegacy({ source, destination, apply = false, beforeCommit }) {
   const sourcePath = path.resolve(source);
   const target = path.resolve(destination);
   const metadata = await stat(sourcePath);
@@ -150,13 +184,18 @@ export async function migrateLegacy({ source, destination, apply = false }) {
   await mkdir(target, { recursive: true, mode: 0o700 });
   let current;
   const statePath = path.join(target, "state.json");
-  try { current = JSON.parse(await readFile(statePath, "utf8")); }
+  let initialStateBytes;
+  try {
+    initialStateBytes = await readFile(statePath);
+    current = JSON.parse(initialStateBytes.toString("utf8"));
+  }
   catch (error) {
     if (error.code !== "ENOENT") throw error;
     current = {
       schemaVersion: 1, robotName: "Lingxi X2", maps: [], points: [], tours: [],
       idleReturnSeconds: 30, jobRecords: [], ai: { provider: "ark", model: "configure-model-id" },
     };
+    initialStateBytes = undefined;
   }
   for (const entry of entries) {
     if (current.maps.some((map) => map.id === entry.map.id) ||
@@ -175,13 +214,26 @@ export async function migrateLegacy({ source, destination, apply = false }) {
     current.tours.push(...entry.tours);
     if (entry.selectedTourId) current.selectedTourId = entry.selectedTourId;
   }
-  const oldState = await readFile(statePath).catch((error) => { if (error.code !== "ENOENT") throw error; return undefined; });
-  if (oldState) await restrictedWrite(path.join(backup, "previous-state.json"), oldState);
+  if (initialStateBytes) await restrictedWrite(path.join(backup, "previous-state.json"), initialStateBytes);
   report.backupDirectory = backup;
   await restrictedWrite(path.join(backup, "receipt.json"), JSON.stringify(report, null, 2));
   const temporary = path.join(target, `state.${randomUUID()}.tmp`);
-  await restrictedWrite(temporary, JSON.stringify(current, null, 2));
-  await rename(temporary, statePath);
+  try {
+    await restrictedWrite(temporary, JSON.stringify(current, null, 2));
+    if (beforeCommit) await beforeCommit();
+    const stateBeforeCommit = await readFile(statePath).catch((error) => {
+      if (error.code !== "ENOENT") throw error;
+      return undefined;
+    });
+    if ((initialStateBytes === undefined) !== (stateBeforeCommit === undefined) ||
+        (initialStateBytes && digest(initialStateBytes) !== digest(stateBeforeCommit))) {
+      throw new Error("Destination state changed during migration; no concurrent data was overwritten");
+    }
+    await rename(temporary, statePath);
+  } catch (error) {
+    await unlink(temporary).catch(() => undefined);
+    throw error;
+  }
   return report;
 }
 
