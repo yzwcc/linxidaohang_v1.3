@@ -158,6 +158,13 @@ class DeploymentLifecycle(unittest.TestCase):
             self.assertEqual("vendor-unchanged", Path("/agibot/vendor-marker").read_text())
             lines = Path("/test-state/systemctl.log").read_text().splitlines()
             self.assertTrue(all("lingxi-next-" in line or line == "daemon-reload" for line in lines))
+        with self.subTest("diagnostics honor configured port without exposing pairing credentials"):
+            config_path = Path("/etc/lingxi-next/robot.env")
+            config_path.write_text(config_path.read_text().replace("LINGXI_PORT=3000", "LINGXI_PORT=3443"))
+            diagnostic = run("bash", "/package-test-1/deploy/diagnose.sh").stdout
+            health_requests = Path("/test-state/health.log").read_text()
+            self.assertIn("https://127.0.0.1:3443/health", health_requests)
+            self.assertNotIn(Path("/etc/lingxi-next/pairing-code.txt").read_text().strip(), diagnostic)
 
 
 def main():
