@@ -7,8 +7,9 @@ npm ci
 npm test
 npm run build:agent
 npm run release:commissioning
-python tools/verify-release.py artifacts/lingxi-next-0.1.10-commissioning-20261028-linux-arm64.tar.gz
-python tools/verify-android.py artifacts/lingxi-next-0.1.10-commissioning.apk
+VERSION=$(node -p "require('./package.json').version")
+python tools/verify-release.py "artifacts/lingxi-next-${VERSION}-commissioning-20261028-linux-arm64.tar.gz"
+python tools/verify-android.py "artifacts/lingxi-next-${VERSION}-commissioning.apk"
 ```
 
 Windows 上执行 `npm run android:build`。工具链安装在忽略目录 `.local/`，

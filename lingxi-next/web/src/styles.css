@@ -189,4 +189,18 @@ button:disabled { cursor: not-allowed; opacity: .48; }
   .modal { max-height: 92dvh; overflow-y: auto; }
   .connect-brand { padding: 24px; }
   .connect-form { padding: 18px; }
+  .topbar { min-height: 46px; padding: 0 12px; }
+  .demo-banner { padding: 4px 10px; font-size: 9px; }
+  .mapping-page { padding: 6px 10px 12px; }
+  .mapping-page > .page-heading { display: none; }
+  .mapping-page > .notice.warn { margin-bottom: 6px !important; padding: 5px 8px; font-size: 9px; line-height: 1.25; }
+  .content-grid.two.mapping-layout { grid-template-columns: minmax(0, 1.5fr) minmax(210px, .9fr); gap: 8px; align-items: start; }
+  .mapping-page .section-head { min-height: 36px; padding: 8px 10px; }
+  .mapping-page .section-body { padding: 8px; }
+  .mapping-page .lidar-canvas-wrap { height: calc(100dvh - 205px); min-height: 150px; max-height: none; }
+  .mapping-page .lidar-footer { gap: 5px; padding-top: 7px; font-size: 10px; }
+  .mapping-page .mapping-summary { display: none; }
+  .mapping-page .stack { gap: 8px; }
+  .mapping-page .check-row { padding: 7px 0; }
+  .mapping-page .check-detail { max-width: 42%; }
 }

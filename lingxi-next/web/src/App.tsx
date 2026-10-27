@@ -155,7 +155,7 @@ function ConnectScreen({ onConnected }: { onConnected: (connection: Connection) 
           <h1>建图与导航<br />工作台</h1>
           <p>机器人本机运行 · 同一局域网连接</p>
         </div>
-          <span className="brand-subtitle">LINGXI NEXT / 0.1.8</span>
+          <span className="brand-subtitle">LINGXI NEXT / {__APP_VERSION__}</span>
       </section>
       <section className="connect-main">
         <form className="connect-form" onSubmit={connect}>
@@ -381,7 +381,7 @@ function Mapping({
   }
 
   return (
-    <div className="page">
+    <div className="page mapping-page">
       <PageHeading title="实时建图" description="激光雷达实时扫描与 SLAM 建图" />
       <div className="notice warn" style={{ marginBottom: 14 }}>
         <AlertTriangle size={15} />
@@ -407,7 +407,7 @@ function Mapping({
           }><Check size={12} />现场确认动作已停止</button>
         </div>
       )}
-      <div className="content-grid two">
+      <div className="content-grid two mapping-layout">
         <Section
           title="激光雷达实时扫描"
           icon={Radio}
@@ -416,7 +416,7 @@ function Mapping({
             : <span className="tag"><StatusDot ready={state.checks.some((check) => check.id === "lidar" && check.ready)} />雷达点迹</span>}
         >
           <LidarCanvas connection={connection} />
-          <div className="inline" style={{ marginTop: 12 }}>
+          <div className="inline mapping-summary" style={{ marginTop: 12 }}>
             <span className="tag">当前地图 {activeMap?.name ?? "未选择"}</span>
             {state.pose && <span className="tag mono">x {state.pose.x.toFixed(2)} · y {state.pose.y.toFixed(2)}</span>}
           </div>
