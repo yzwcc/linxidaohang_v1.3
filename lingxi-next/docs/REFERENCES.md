@@ -31,10 +31,23 @@ SDK 来源：官方页面所链接的 `linksoul-agentsdk-1.5.0-SNAPSHOT.jar`，S
 
 下载文件177834字节，JAR内Maven元数据版本1.5.0-SNAPSHOT。官方快速开始中的 Maven 示例仍写1.4.0；本项目以实际1.5 JAR字节码编译核对，不沿用该示例版本。
 
+官方 `Asr2LlmCallback.onRequest` 为 `(agentId, eventId, text, param, response)`。
+`onState` 的第三参数 `name` 选择状态模块；VAD/TTS 关联使用状态 JSON 负载里的 `event_id`，
+不以回调外层参数替代。AgentSDK 机器人状态参考把 `vad_status.event_id` 定义为可选的
+关联对话 ID，把 `updated_at_ms` 定义为可选时间戳；语音时延样本因此要求两字段真实有效。
+`AgentParam` 是扩展参数容器，通用回调契约未保证其包含 `confidence`。
+因此本项目只接受实际扩展参数里原始数值型且位于 0–1 的置信度，不解析字符串，
+也不以默认值代替缺失字段。已用固定 SDK JAR 的 `AgentParam` 对该边界做单测；
+实际 X2 回调是否提供该字段仍待目标设备确认。
+
 语音时延诊断另消费官方状态流中的 `vad_status.state=eos` 与
 `tts_status.state=playing`，仅当两者 `event_id` 对应同一轮对话时计入
 VAD EOS 到 SDK 播放态的 P95。缺少 EOS 状态或事件关联时该轮不计入该指标，
 不以 ASR 回调到达时间回填 VAD 时间。SDK 播放态不是扬声器声压/麦克风回录，
 因此仍需实机声学测量才能验收“首段可听反馈 ≤2 秒”。
+
+官方文档：
+- https://open.agibot.com/docs/linksoul/agentsdk_docs/java/v150/zh/api/passive_callbacks
+- https://open.agibot.com/docs/linksoul/agentsdk_docs/python/v150/zh/guide/robot_states
 
 旧版只核对地图关联 JSON 数据字段与验收行为。本项目的前端、API、状态机、ROS桥、Java适配、迁移和部署脚本独立编写；没有复制上述 GitHub 仓库或 V1.3.9/R19 的业务源码。

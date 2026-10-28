@@ -210,8 +210,10 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
       snapshot.checks = snapshot.checks.map((check) => check.id === "linksoul" ? {
         ...check, ready: agent?.online === true && agent.voiceGate === "ready",
         detail: !agent?.online ? "AgentSDK 未连接" : agent.voiceGate === "asr_confidence_unavailable"
-          ? "ASR 置信度字段缺失，语音路由已拒绝" : agent.voiceGate === "tts_completion_unconfirmed"
-            ? "语音结束未确认，后续播放已阻塞" : agent.voiceGate === "ready" ? "真实会话已验证" : "等待真实唤醒状态",
+          ? "ASR 未提供置信度，语音路由已拒绝" : agent.voiceGate === "asr_confidence_invalid"
+            ? "ASR 置信度格式或范围无效，语音路由已拒绝" : agent.voiceGate === "asr_payload_invalid"
+              ? "ASR 内容格式无效，语音路由已拒绝" : agent.voiceGate === "tts_completion_unconfirmed"
+                ? "语音结束未确认，后续播放已阻塞" : agent.voiceGate === "ready" ? "真实会话已验证" : "等待真实唤醒状态",
       } : check);
       return snapshot;
     } catch (error) {

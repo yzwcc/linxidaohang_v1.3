@@ -233,13 +233,14 @@ public final class AgentMain {
             if (session == null || wake == null || !session.equals(wake.id)) {
                 lastGateReason = "missing_real_wakeup"; return;
             }
-            // Confidence is not guaranteed by the generic SDK contract. Never synthesize it.
-            Object value = param == null ? null : param.getObject("confidence");
-            if (!(value instanceof Number number) || !Double.isFinite(number.doubleValue())) {
-                lastGateReason = "asr_confidence_unavailable"; return;
+            // Confidence is not guaranteed by the generic SDK contract. Never coerce or synthesize it.
+            AsrConfidence.Result evidence = AsrConfidence.read(param);
+            if (!evidence.accepted()) { lastGateReason = evidence.rejection(); return; }
+            double confidence = evidence.value();
+            if (text == null || text.isBlank() || text.length() > 4000) {
+                lastGateReason = "asr_payload_invalid"; return;
             }
-            double confidence = number.doubleValue();
-            if (confidence < 0 || confidence > 1 || text == null || text.isBlank() || text.length() > 4000) return;
+            lastGateReason = "ready";
             gate.renew(session, occurredAt);
             String correlation = "reply:" + session + ":" + event;
             ReplyContext context = new ReplyContext(session, event, response,
