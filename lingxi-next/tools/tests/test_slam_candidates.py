@@ -35,8 +35,11 @@ class CandidateBaselines(unittest.TestCase):
         self.assertFalse(self.manifest["dependenciesPinned"])
         self.assertEqual("provisional_glim_supported_pending_timing_mapping_and_target_validation",
                          self.manifest["selectionStatus"])
-        for key in ("mapPersistenceAndRelocalization", "navigationAndEmergencyStop"):
-            self.assertEqual("not_run", self.manifest["targetValidation"][key])
+        self.assertEqual("not_run", self.manifest["targetValidation"]["navigationAndEmergencyStop"])
+        self.assertEqual("host_persistence_only_passed_relocalization_not_run",
+                         self.manifest["targetValidation"]["mapPersistenceAndRelocalization"])
+        self.assertEqual("passed_four_real_data_save_and_fresh_process_cpu_reload_diagnostics",
+                         self.manifest["targetValidation"]["hostMapPersistence"])
         self.assertEqual("not_accepted_common_window_and_mapping_comparison_pending",
                          self.manifest["targetValidation"]["fullSameDataComparison"])
         self.assertEqual("kiss_and_glim_odometry_diagnostics_completed_not_navigation_acceptance",

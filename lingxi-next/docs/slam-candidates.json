@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "reviewDate": "2026-10-28",
-  "reviewScope": "pinned_sources_passive_capture_core_build_and_kiss_glim_real_odometry_diagnostics",
+  "reviewScope": "pinned_sources_capture_core_build_real_odometry_and_glim_map_persistence_diagnostics",
   "selectionStatus": "provisional_glim_supported_pending_timing_mapping_and_target_validation",
   "deploymentApproved": false,
   "repositories": [
@@ -123,7 +123,10 @@
     "targetDependencyLoading": "not_run",
     "rosWrapperBuild": "not_run",
     "dynamicReplay": "kiss_and_glim_odometry_diagnostics_completed_not_navigation_acceptance",
-    "mapPersistenceAndRelocalization": "not_run",
+    "hostMapPersistence": "passed_four_real_data_save_and_fresh_process_cpu_reload_diagnostics",
+    "hostMapPersistenceEvidence": "slam-glim-mapping-evidence.json",
+    "mapGeometryAndLoopClosure": "not_accepted_timing_semantics_and_geometric_validation_pending",
+    "mapPersistenceAndRelocalization": "host_persistence_only_passed_relocalization_not_run",
     "navigationAndEmergencyStop": "not_run"
   }
 }

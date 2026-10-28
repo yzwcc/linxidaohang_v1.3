@@ -1,0 +1,393 @@
+{
+  "schemaVersion": 1,
+  "observedDate": "2026-10-28",
+  "purpose": "offline_map_persistence_aggregate_not_geometry_relocalization_or_navigation_acceptance",
+  "adapterBuild": {
+    "purpose": "ros_free_glim_mapping_extension_build",
+    "sourceCommits": {
+      "gtsam": "3ad4b4c3cb28394c9597f48fa02dad361c8450e3",
+      "gtsam_points": "9d32e7dbecf6015560d84b4901d6b0a6f483ec46",
+      "glim": "1a197c999e4865f5cab7c9cd25474128413ebbca"
+    },
+    "coreBuildReportSha256": "7c0bd55fa3207c68a93969c84b00f08adf65be57105036585a7cc5c534442cd4",
+    "sources": {
+      "mapping.cpp": "0769e7bdd399a1c9addfde89655bd0596baf922cc0b4a1618147b91ad51fda9c",
+      "CMakeLists.txt": "5d60565098aa8dc97a9144b160ed5019dad2fb408b0cae9627271ecc4378ac3e"
+    },
+    "coreLibrariesSha256": {
+      "libglim.so": "6c554c6a48119eb9d2ce9d595076c64de581070f50c60438e85108bc9ebedb47",
+      "libsub_mapping_passthrough.so": "61ade9a5508a508bc4531093c1a0cfd3aa8ec0f4f0547df9df3a8553c9ac5de3",
+      "libglobal_mapping_pose_graph.so": "5de2540d5aee60a5d5a90fb0ee778ec4935675311bdc9391d4355c37079a2193",
+      "libglobal_mapping.so": "9f9fd342fb7887d3b1ff3de2b095d3ce1f7260f0be967524e0025f84a68cf045",
+      "libgtsam_points.so": "b3ad18f233148fb0a4d0ff84f25199138da247357b878684619bdf214bb7e695",
+      "libgtsam.so": "a04a785a5dae6737bed3246d6fa3d380824a36979311c97e2698bc460a420ddf",
+      "libgtsam_unstable.so": "7e533077076d4f0be9c572f5278f999a24da511f4cfc19caa9b4e14ec11cfedf"
+    },
+    "stages": [
+      {
+        "name": "configure",
+        "exitCode": 0
+      },
+      {
+        "name": "build",
+        "exitCode": 0
+      }
+    ],
+    "navigationValidated": false,
+    "librarySha256": "b4c2885ef76f7975f91387dcaed05d25468e52bb2f782650d03dec2ce881d20a",
+    "result": "extension_built_not_mapping_acceptance"
+  },
+  "runs": {
+    "staticStart": {
+      "dataset": "static",
+      "timingHypothesis": "header_is_scan_start",
+      "result": "nonempty_map_saved_and_fresh_process_reloaded_not_quality_acceptance",
+      "mappingBuildReportSha256": "8e122defca56825bda63f126aaaf89fd46e8b092801afe31660319bcb42907eb",
+      "baseReplayReportSha256": "19ba60f898e389afd1470977d3de41f1f1a977794c3240cf3e73c3c3b387bac9",
+      "reloadReportSha256": "add433df9000c7c4fe4bc0eae807be01f88c5287806d5da26d9c6ad2cbe70d78",
+      "privateSavedPointsSha256": "2578572d5433da57c453d5fdc10efef1334dd997a4c78ad57977707c98386861",
+      "privateReloadedPointsSha256": "09764558eac3cba51ae5a74a791c888ad246552a49ab8cc7d50dc8553b46e7d4",
+      "privateReloadLogSha256": "68eff4597ea38fd6511fe73b7ed01a2a1b7f62d84852cf351a6ff2215c0f1e0b",
+      "totalWallSecondsIncludingReload": 12.227017391999993,
+      "mapping": {
+        "finalizedFramesFedOnce": 313,
+        "submaps": 1,
+        "points": 2351,
+        "savedFrames": 313,
+        "minimumLoopTravel": 50.0,
+        "submapTravel": 0.0
+      },
+      "mapInventory": {
+        "num_submaps": 1,
+        "num_all_frames": 313,
+        "num_matching_cost_factors": 0,
+        "fileCount": 12,
+        "totalBytes": 923222,
+        "artifactInventorySha256": "ebb10eaeaa59fa5d36180ffd3e13d76e2241ab6ec15873adaaad6ddcad0c4d18"
+      },
+      "roundTrip": {
+        "pointCount": 2351,
+        "maximumPointDisplacementRawUnits": 1.0633597083949437e-06,
+        "rmsPointDisplacementRawUnits": 2.3410918772930838e-07,
+        "predeclaredToleranceRawUnits": 0.0001,
+        "samePointOrderCompared": true,
+        "geometricAccuracyValidated": false
+      },
+      "replayHost": {
+        "system": "Linux",
+        "machine": "x86_64",
+        "python": "3.12.3"
+      },
+      "sourceCommits": {
+        "glim": "1a197c999e4865f5cab7c9cd25474128413ebbca",
+        "gtsam": "3ad4b4c3cb28394c9597f48fa02dad361c8450e3",
+        "gtsam_points": "9d32e7dbecf6015560d84b4901d6b0a6f483ec46"
+      },
+      "checks": {
+        "globalMappingExecuted": true,
+        "nonemptyMapSaved": true,
+        "allFinalizedFramesFedExactlyOnce": true,
+        "freshProcessReloadPassed": true,
+        "finiteSameCountPointRoundTripPassed": true,
+        "mapUnchangedDuringReload": true
+      },
+      "boundaries": {
+        "geometricAccuracyValidated": false,
+        "robotCalibrationValidated": false,
+        "timingHypothesisValidated": false,
+        "loopClosureValidated": false,
+        "relocalizationValidated": false,
+        "targetArm64RuntimeValidated": false,
+        "navigationValidated": false,
+        "deploymentApproved": false,
+        "rawDataPublished": false
+      },
+      "sourceSha256": {
+        "run_glim_mapping_trial.py": "80c3c04178a6e9d1cc2bdc6fb467c746bc14245d69c0a6d7c04b4e22b5e2fa6a",
+        "run_glim_offline_trial.py": "aa04dce703a0f121138318b6ee52ba999e47593d6ed2ccac7bd2c524c1cff683",
+        "run_kiss_offline_trial.py": "ebe6d933005fa0821b50c0f91477e7a80a32ac1d174bf1040ec90d91e382a8aa",
+        "diagnose_slam_sensors.py": "0c9808ca472b6d7be7b3b118c05d83b13f5b975e76da1c732e08adf071e1b824",
+        "glim_trial_config.py": "761e93e856d57a80e96204c8b58a60e4ac067adc26611c4dc858196d6bc95833",
+        "verify_slam_capture.py": "073c280e1791636e6ccd41c016ca50d56fa3a71078eb5ab1a4bfcc77e0259bad",
+        "slam_bag_audit.py": "529f6eb0b6a5050e74d0c65c566d53893f5e989e0a1a6d889ba0d27bf7a7620b",
+        "build_slam_cpu_trial.py": "ce855ca6b45385d2b2eecf1462c04a55abd0e0c1e36a7955f5376b6d1351a7a9"
+      },
+      "reloadLogCheckedForErrorsAndRecovery": true,
+      "replayLogCheckedForErrorsAndRecovery": true,
+      "localMappingReportSha256": "e2a6aaf75e0c53e2b3da875af29bb629e6517abdb3be4a9dac3a3dcaade987d6",
+      "scanAccounting": {
+        "recordedScans": 353,
+        "processedScans": 343,
+        "skippedUnbracketedScans": 10,
+        "initializationScans": 30,
+        "estimatedPoses": 313
+      }
+    },
+    "staticEnd": {
+      "dataset": "static",
+      "timingHypothesis": "header_is_scan_end",
+      "result": "nonempty_map_saved_and_fresh_process_reloaded_not_quality_acceptance",
+      "mappingBuildReportSha256": "8e122defca56825bda63f126aaaf89fd46e8b092801afe31660319bcb42907eb",
+      "baseReplayReportSha256": "8147443aadf74f105c064e5ca1c8b2481845487bf1c9266f2c9402a01ecf16a9",
+      "reloadReportSha256": "13aae77ba4b231fce6ccab898cb664d6ebca90d343071037b5163472ac113529",
+      "privateSavedPointsSha256": "af5f1b43a8cf6f3be11fccf97c3962824bd1189e9ea01a66ce21629af3b70e90",
+      "privateReloadedPointsSha256": "4d67d0bb84149c0b586029158f493e512f29a7fb026e4a28fb4d07c40afde7dc",
+      "privateReloadLogSha256": "97a7f45914f3e7e0b8cd4aabf90a317585b0fe1154909a0d58db864ac00689c7",
+      "totalWallSecondsIncludingReload": 11.163018597000018,
+      "mapping": {
+        "finalizedFramesFedOnce": 311,
+        "submaps": 1,
+        "points": 2344,
+        "savedFrames": 311,
+        "minimumLoopTravel": 50.0,
+        "submapTravel": 0.0
+      },
+      "mapInventory": {
+        "num_submaps": 1,
+        "num_all_frames": 311,
+        "num_matching_cost_factors": 0,
+        "fileCount": 12,
+        "totalBytes": 913103,
+        "artifactInventorySha256": "9fa5581586d22ebf5b28b5a141484ff2af360f9c0deddeb3129497897e2c5228"
+      },
+      "roundTrip": {
+        "pointCount": 2344,
+        "maximumPointDisplacementRawUnits": 1.0245454857895004e-06,
+        "rmsPointDisplacementRawUnits": 2.317272433764899e-07,
+        "predeclaredToleranceRawUnits": 0.0001,
+        "samePointOrderCompared": true,
+        "geometricAccuracyValidated": false
+      },
+      "replayHost": {
+        "system": "Linux",
+        "machine": "x86_64",
+        "python": "3.12.3"
+      },
+      "sourceCommits": {
+        "glim": "1a197c999e4865f5cab7c9cd25474128413ebbca",
+        "gtsam": "3ad4b4c3cb28394c9597f48fa02dad361c8450e3",
+        "gtsam_points": "9d32e7dbecf6015560d84b4901d6b0a6f483ec46"
+      },
+      "checks": {
+        "globalMappingExecuted": true,
+        "nonemptyMapSaved": true,
+        "allFinalizedFramesFedExactlyOnce": true,
+        "freshProcessReloadPassed": true,
+        "finiteSameCountPointRoundTripPassed": true,
+        "mapUnchangedDuringReload": true
+      },
+      "boundaries": {
+        "geometricAccuracyValidated": false,
+        "robotCalibrationValidated": false,
+        "timingHypothesisValidated": false,
+        "loopClosureValidated": false,
+        "relocalizationValidated": false,
+        "targetArm64RuntimeValidated": false,
+        "navigationValidated": false,
+        "deploymentApproved": false,
+        "rawDataPublished": false
+      },
+      "sourceSha256": {
+        "run_glim_mapping_trial.py": "80c3c04178a6e9d1cc2bdc6fb467c746bc14245d69c0a6d7c04b4e22b5e2fa6a",
+        "run_glim_offline_trial.py": "aa04dce703a0f121138318b6ee52ba999e47593d6ed2ccac7bd2c524c1cff683",
+        "run_kiss_offline_trial.py": "ebe6d933005fa0821b50c0f91477e7a80a32ac1d174bf1040ec90d91e382a8aa",
+        "diagnose_slam_sensors.py": "0c9808ca472b6d7be7b3b118c05d83b13f5b975e76da1c732e08adf071e1b824",
+        "glim_trial_config.py": "761e93e856d57a80e96204c8b58a60e4ac067adc26611c4dc858196d6bc95833",
+        "verify_slam_capture.py": "073c280e1791636e6ccd41c016ca50d56fa3a71078eb5ab1a4bfcc77e0259bad",
+        "slam_bag_audit.py": "529f6eb0b6a5050e74d0c65c566d53893f5e989e0a1a6d889ba0d27bf7a7620b",
+        "build_slam_cpu_trial.py": "ce855ca6b45385d2b2eecf1462c04a55abd0e0c1e36a7955f5376b6d1351a7a9"
+      },
+      "reloadLogCheckedForErrorsAndRecovery": true,
+      "replayLogCheckedForErrorsAndRecovery": true,
+      "localMappingReportSha256": "dfdc38fa3106e07ee2b3ba0bc694b8d3d4a59f145aa16037c26b08f4e163210b",
+      "scanAccounting": {
+        "recordedScans": 353,
+        "processedScans": 342,
+        "skippedUnbracketedScans": 11,
+        "initializationScans": 31,
+        "estimatedPoses": 311
+      }
+    },
+    "dynamicStart": {
+      "dataset": "dynamic",
+      "timingHypothesis": "header_is_scan_start",
+      "result": "nonempty_map_saved_and_fresh_process_reloaded_not_quality_acceptance",
+      "mappingBuildReportSha256": "8e122defca56825bda63f126aaaf89fd46e8b092801afe31660319bcb42907eb",
+      "baseReplayReportSha256": "bb530417f8756730169d9c602ff62c9d4aab0cefe972e3f0dd3e4e0424f87b27",
+      "reloadReportSha256": "8e1ae74e5cb770b90e1fa8f0cbaa1ecaba986afad976d343ef7ee66cb1b13e6f",
+      "privateSavedPointsSha256": "d13f0564356b5d30216ce7d5e7d4d0860367b05cae9743bce7168412d14a3594",
+      "privateReloadedPointsSha256": "b9ee646875991a51825ec9af2fc91cbce0bb14fdc1a6569431543829430225ab",
+      "privateReloadLogSha256": "6b5795f7f55fe0fc2b8f15edae3773f8b50a3230e9188e7acdb5ecfd2adca5e1",
+      "totalWallSecondsIncludingReload": 33.91870849200001,
+      "mapping": {
+        "finalizedFramesFedOnce": 1190,
+        "submaps": 7,
+        "points": 89714,
+        "savedFrames": 1190,
+        "minimumLoopTravel": 50.0,
+        "submapTravel": 2.650507803182528
+      },
+      "mapInventory": {
+        "num_submaps": 7,
+        "num_all_frames": 1190,
+        "num_matching_cost_factors": 0,
+        "fileCount": 42,
+        "totalBytes": 7350474,
+        "artifactInventorySha256": "b677e0bab7d650ada9bff12f0e1d31c6394ebe2127492524a364b9379532241b"
+      },
+      "roundTrip": {
+        "pointCount": 89714,
+        "maximumPointDisplacementRawUnits": 1.3592462365906755e-06,
+        "rmsPointDisplacementRawUnits": 2.5376683705181607e-07,
+        "predeclaredToleranceRawUnits": 0.0001,
+        "samePointOrderCompared": true,
+        "geometricAccuracyValidated": false
+      },
+      "replayHost": {
+        "system": "Linux",
+        "machine": "x86_64",
+        "python": "3.12.3"
+      },
+      "sourceCommits": {
+        "glim": "1a197c999e4865f5cab7c9cd25474128413ebbca",
+        "gtsam": "3ad4b4c3cb28394c9597f48fa02dad361c8450e3",
+        "gtsam_points": "9d32e7dbecf6015560d84b4901d6b0a6f483ec46"
+      },
+      "checks": {
+        "globalMappingExecuted": true,
+        "nonemptyMapSaved": true,
+        "allFinalizedFramesFedExactlyOnce": true,
+        "freshProcessReloadPassed": true,
+        "finiteSameCountPointRoundTripPassed": true,
+        "mapUnchangedDuringReload": true
+      },
+      "boundaries": {
+        "geometricAccuracyValidated": false,
+        "robotCalibrationValidated": false,
+        "timingHypothesisValidated": false,
+        "loopClosureValidated": false,
+        "relocalizationValidated": false,
+        "targetArm64RuntimeValidated": false,
+        "navigationValidated": false,
+        "deploymentApproved": false,
+        "rawDataPublished": false
+      },
+      "sourceSha256": {
+        "run_glim_mapping_trial.py": "80c3c04178a6e9d1cc2bdc6fb467c746bc14245d69c0a6d7c04b4e22b5e2fa6a",
+        "run_glim_offline_trial.py": "aa04dce703a0f121138318b6ee52ba999e47593d6ed2ccac7bd2c524c1cff683",
+        "run_kiss_offline_trial.py": "ebe6d933005fa0821b50c0f91477e7a80a32ac1d174bf1040ec90d91e382a8aa",
+        "diagnose_slam_sensors.py": "0c9808ca472b6d7be7b3b118c05d83b13f5b975e76da1c732e08adf071e1b824",
+        "glim_trial_config.py": "761e93e856d57a80e96204c8b58a60e4ac067adc26611c4dc858196d6bc95833",
+        "verify_slam_capture.py": "073c280e1791636e6ccd41c016ca50d56fa3a71078eb5ab1a4bfcc77e0259bad",
+        "slam_bag_audit.py": "529f6eb0b6a5050e74d0c65c566d53893f5e989e0a1a6d889ba0d27bf7a7620b",
+        "build_slam_cpu_trial.py": "ce855ca6b45385d2b2eecf1462c04a55abd0e0c1e36a7955f5376b6d1351a7a9"
+      },
+      "reloadLogCheckedForErrorsAndRecovery": true,
+      "replayLogCheckedForErrorsAndRecovery": true,
+      "localMappingReportSha256": "fa072d7b1cf888b119ee21ab01c00af2daf353c9766d8373a7e072195d3259e7",
+      "scanAccounting": {
+        "recordedScans": 1232,
+        "processedScans": 1221,
+        "skippedUnbracketedScans": 11,
+        "initializationScans": 31,
+        "estimatedPoses": 1190
+      }
+    },
+    "dynamicEnd": {
+      "dataset": "dynamic",
+      "timingHypothesis": "header_is_scan_end",
+      "result": "nonempty_map_saved_and_fresh_process_reloaded_not_quality_acceptance",
+      "mappingBuildReportSha256": "8e122defca56825bda63f126aaaf89fd46e8b092801afe31660319bcb42907eb",
+      "baseReplayReportSha256": "e55958b10421a349db822c33a2da2bbad08dd67d68813fc72b74dd18eda44d10",
+      "reloadReportSha256": "6c6ee8f7263d1dc2fd26bfbbe69bd7c2c534e784776d8b82dc0da0470076005d",
+      "privateSavedPointsSha256": "a5fad0733427b0cba68df18ce17614762494c8d058d55161227ce1318297359e",
+      "privateReloadedPointsSha256": "dca34ced76b72b33af8488204a70b37664afe805518e80a3e943c0009588d1e8",
+      "privateReloadLogSha256": "f52fc737574ccb6a1cf3be0fe890390eb3c9284feb9068423a33b822ae18f661",
+      "totalWallSecondsIncludingReload": 36.940885345,
+      "mapping": {
+        "finalizedFramesFedOnce": 1189,
+        "submaps": 9,
+        "points": 202088,
+        "savedFrames": 1189,
+        "minimumLoopTravel": 50.0,
+        "submapTravel": 4.292671387793983
+      },
+      "mapInventory": {
+        "num_submaps": 9,
+        "num_all_frames": 1189,
+        "num_matching_cost_factors": 0,
+        "fileCount": 52,
+        "totalBytes": 12742002,
+        "artifactInventorySha256": "c7a5c8226502a754a73140faced49006e31164c63b75eee34e58a60184437de3"
+      },
+      "roundTrip": {
+        "pointCount": 202088,
+        "maximumPointDisplacementRawUnits": 1.3442517845523606e-06,
+        "rmsPointDisplacementRawUnits": 2.6463084585149427e-07,
+        "predeclaredToleranceRawUnits": 0.0001,
+        "samePointOrderCompared": true,
+        "geometricAccuracyValidated": false
+      },
+      "replayHost": {
+        "system": "Linux",
+        "machine": "x86_64",
+        "python": "3.12.3"
+      },
+      "sourceCommits": {
+        "glim": "1a197c999e4865f5cab7c9cd25474128413ebbca",
+        "gtsam": "3ad4b4c3cb28394c9597f48fa02dad361c8450e3",
+        "gtsam_points": "9d32e7dbecf6015560d84b4901d6b0a6f483ec46"
+      },
+      "checks": {
+        "globalMappingExecuted": true,
+        "nonemptyMapSaved": true,
+        "allFinalizedFramesFedExactlyOnce": true,
+        "freshProcessReloadPassed": true,
+        "finiteSameCountPointRoundTripPassed": true,
+        "mapUnchangedDuringReload": true
+      },
+      "boundaries": {
+        "geometricAccuracyValidated": false,
+        "robotCalibrationValidated": false,
+        "timingHypothesisValidated": false,
+        "loopClosureValidated": false,
+        "relocalizationValidated": false,
+        "targetArm64RuntimeValidated": false,
+        "navigationValidated": false,
+        "deploymentApproved": false,
+        "rawDataPublished": false
+      },
+      "sourceSha256": {
+        "run_glim_mapping_trial.py": "80c3c04178a6e9d1cc2bdc6fb467c746bc14245d69c0a6d7c04b4e22b5e2fa6a",
+        "run_glim_offline_trial.py": "aa04dce703a0f121138318b6ee52ba999e47593d6ed2ccac7bd2c524c1cff683",
+        "run_kiss_offline_trial.py": "ebe6d933005fa0821b50c0f91477e7a80a32ac1d174bf1040ec90d91e382a8aa",
+        "diagnose_slam_sensors.py": "0c9808ca472b6d7be7b3b118c05d83b13f5b975e76da1c732e08adf071e1b824",
+        "glim_trial_config.py": "761e93e856d57a80e96204c8b58a60e4ac067adc26611c4dc858196d6bc95833",
+        "verify_slam_capture.py": "073c280e1791636e6ccd41c016ca50d56fa3a71078eb5ab1a4bfcc77e0259bad",
+        "slam_bag_audit.py": "529f6eb0b6a5050e74d0c65c566d53893f5e989e0a1a6d889ba0d27bf7a7620b",
+        "build_slam_cpu_trial.py": "ce855ca6b45385d2b2eecf1462c04a55abd0e0c1e36a7955f5376b6d1351a7a9"
+      },
+      "reloadLogCheckedForErrorsAndRecovery": true,
+      "replayLogCheckedForErrorsAndRecovery": true,
+      "localMappingReportSha256": "dc6f882953897e4a7d7482c1441f2fa23e0e570089ff999e26e686b40d909383",
+      "scanAccounting": {
+        "recordedScans": 1232,
+        "processedScans": 1220,
+        "skippedUnbracketedScans": 12,
+        "initializationScans": 31,
+        "estimatedPoses": 1189
+      }
+    }
+  },
+  "boundaries": {
+    "geometricAccuracyValidated": false,
+    "robotCalibrationValidated": false,
+    "timingHypothesisValidated": false,
+    "loopClosureValidated": false,
+    "relocalizationValidated": false,
+    "targetArm64RuntimeValidated": false,
+    "navigationValidated": false,
+    "deploymentApproved": false,
+    "rawDataPublished": false
+  }
+}

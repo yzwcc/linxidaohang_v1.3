@@ -9,6 +9,8 @@ import zipfile
 
 
 ROOT = Path(__file__).resolve().parents[1]
+# Historical reports are checked against their immutable source snapshots.
+HISTORICAL_FINAL_RUNNER = "612d4a4818fd9a5dff288a5652bcfdc5b639262aa0e56c496c461a893d21ac9f"
 RUNS = {
     "initialStaticStart": ("static", "header_is_scan_start", "glim-static-start-20261028-a"),
     "staticStart": ("static", "header_is_scan_start", "glim-static-start-20261028-b"),
@@ -152,7 +154,7 @@ def export(cache, sdk_archive):
                 or report["privateTrajectorySha256"] != sha256(path.parent / "private-trajectory.npz")
                 or report["privateNativeLogSha256"] != sha256(path.parent / "private-native.log")):
             raise ValueError("private_run_provenance_mismatch")
-        if label != "initialStaticStart" and report["runnerSha256"] != sha256(ROOT / "tools/run_glim_offline_trial.py"):
+        if label != "initialStaticStart" and report["runnerSha256"] != HISTORICAL_FINAL_RUNNER:
             raise ValueError("final_runner_provenance_mismatch")
         run = {name: report[name] for name in FIELDS}
         run["estimatedMotionNotGroundTruth"] = {

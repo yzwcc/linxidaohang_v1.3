@@ -9,9 +9,11 @@ On 2026-10-28 the user confirmed this X2 does not include optional native SLAM.
 An independent open-source mapping/navigation path is now being evaluated.
 See [the comparison and read-only target results](docs/OPEN_SOURCE_NAV_EVALUATION.md).
 Sensor capture, isolated CPU builds and real KISS/GLIM odometry diagnostics
-have been completed. GLIM supports further validation, but timing calibration,
-full mapping, relocalization, target runtime and physical navigation are not
-accepted. See [the GLIM evidence and limits](docs/SLAM_GLIM_OFFLINE.md).
+have been completed. Real GLIM point-cloud maps have also been saved and
+reloaded in fresh CPU processes. Timing calibration, map geometry, loop closure,
+relocalization, target runtime and physical navigation are not accepted.
+See [the odometry limits](docs/SLAM_GLIM_OFFLINE.md) and
+[the map persistence evidence](docs/SLAM_GLIM_MAPPING.md).
 The current 0.1.19
 runtime described below still uses native AIMDK interfaces and has not been
 silently switched to an open-source backend. Existing release archives and APKs

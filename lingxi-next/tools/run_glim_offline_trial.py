@@ -133,7 +133,7 @@ class Native:
         return self.check(self.library.lingxi_close())
 
 
-def run(args):
+def run(args, native_factory=Native, on_native_closed=None):
     if (platform.system() != "Linux" or platform.machine() != "x86_64"
             or os.geteuid() == 0 or os.sys.prefix == os.sys.base_prefix):
         raise ValueError("ordinary_user_isolated_linux_x86_environment_required")
@@ -209,7 +209,7 @@ def run(args):
         with (output / "private-native.log").open("x") as log:
             os.dup2(log.fileno(), 1)
             os.dup2(log.fileno(), 2)
-            native = Native(library, output / "config", args.work / "prefix/lib/libodometry_estimation_cpu.so")
+            native = native_factory(library, output / "config", args.work / "prefix/lib/libodometry_estimation_cpu.so")
             expected = manifest["datasets"][args.dataset]
             bag = data_root / expected["directoryName"]
             imu_stamps, accelerations, angular = [], [], []
@@ -269,6 +269,8 @@ def run(args):
             report["processingWallSeconds"] = time.monotonic() - started
             report["processCpuSeconds"] = time.process_time() - cpu_started
             report["remainingFixedLagFramesAtEnd"] = native.close()
+            if on_native_closed is not None:
+                on_native_closed(native, report)
             native = None
         if seen != expected["topicCounts"]["cloud"] or len(poses) < 2:
             raise ValueError("complete_capture_and_initialized_trajectory_required")
