@@ -146,18 +146,92 @@ export function openEvents(
   };
 }
 
-export function openLidarEvents(connection: Connection, onEvent: (event: LidarEvent) => void, onError: () => void): WebSocket {
+export function openLidarEvents(
+  connection: Connection,
+  onEvent: (event: LidarEvent) => void,
+  onError: () => void,
+): EventSubscription {
   const target = new URL("/api/v1/lidar/events", connection.baseUrl);
   target.protocol = target.protocol === "https:" ? "wss:" : "ws:";
-  const socket = new WebSocket(target, ["lingxi-v1", `bearer.${connection.token}`]);
-  socket.addEventListener("message", (event) => {
+  let socket: WebSocket | undefined;
+  let retryTimer: number | undefined;
+  let stableTimer: number | undefined;
+  let livenessTimer: number | undefined;
+  let attempt = 0;
+  let closed = false;
+
+  const clearLivenessTimer = () => {
+    if (livenessTimer !== undefined) window.clearTimeout(livenessTimer);
+    livenessTimer = undefined;
+  };
+
+  const scheduleReconnect = () => {
+    if (closed || retryTimer !== undefined) return;
+    retryTimer = window.setTimeout(() => {
+      retryTimer = undefined;
+      connect();
+    }, Math.min(500 * 2 ** Math.min(attempt++, 5), 15_000));
+  };
+
+  const connect = () => {
+    if (closed) return;
+    let current: WebSocket;
     try {
-      const payload = JSON.parse(String(event.data)) as LidarEvent;
-      if (payload.type === "lidar" || payload.type === "lidar-unavailable") onEvent(payload);
-    } catch { onError(); }
-  });
-  socket.addEventListener("close", onError);
-  return socket;
+      current = new WebSocket(target, ["lingxi-v1", `bearer.${connection.token}`]);
+    } catch {
+      onError();
+      scheduleReconnect();
+      return;
+    }
+    socket = current;
+    let disconnected = false;
+    const scheduleLivenessCheck = () => {
+      clearLivenessTimer();
+      livenessTimer = window.setTimeout(disconnect, 2500);
+    };
+    const disconnect = () => {
+      if (closed || disconnected || socket !== current) return;
+      disconnected = true;
+      if (stableTimer !== undefined) window.clearTimeout(stableTimer);
+      stableTimer = undefined;
+      clearLivenessTimer();
+      onError();
+      scheduleReconnect();
+      try { current.close(); } catch { /* The socket may already be closed. */ }
+    };
+    current.addEventListener("open", () => {
+      if (closed || socket !== current) return;
+      scheduleLivenessCheck();
+      stableTimer = window.setTimeout(() => {
+        attempt = 0;
+        stableTimer = undefined;
+      }, 30_000);
+    }, { once: true });
+    current.addEventListener("message", (event) => {
+      if (closed || disconnected || socket !== current) return;
+      try {
+        const payload = JSON.parse(String(event.data)) as LidarEvent;
+        if (payload.type !== "lidar" && payload.type !== "lidar-unavailable") return;
+        scheduleLivenessCheck();
+        onEvent(payload);
+      } catch { disconnect(); }
+    });
+    current.addEventListener("close", disconnect, { once: true });
+    current.addEventListener("error", disconnect, { once: true });
+  };
+
+  connect();
+  return {
+    close() {
+      closed = true;
+      if (retryTimer !== undefined) window.clearTimeout(retryTimer);
+      if (stableTimer !== undefined) window.clearTimeout(stableTimer);
+      clearLivenessTimer();
+      retryTimer = undefined;
+      stableTimer = undefined;
+      socket?.close();
+    },
+  };
 }
 
 export const jsonBody = (value: unknown) => JSON.stringify(value);

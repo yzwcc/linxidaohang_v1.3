@@ -18,29 +18,20 @@ export default function LidarCanvas({ connection }: { connection: Connection }) 
   const contextKey = useRef("");
 
   useEffect(() => {
-    let closed = false, socket: WebSocket | undefined, retry: number | undefined;
     let previous: LidarFrame | undefined, lastReceived = 0;
     const unavailable = (message: string) => { setFrame(undefined); setNotice(message); };
-    const connect = () => {
-      socket = openLidarEvents(connection, (event) => {
-        if (closed) return;
-        if (event.type === "lidar-unavailable") { unavailable(event.message); return; }
-        if (previous?.epoch === event.frame.epoch &&
-            (event.frame.sequence <= previous.sequence || event.frame.stampMs < previous.stampMs)) return;
-        previous = event.frame; lastReceived = performance.now();
-        setFrame(event.frame);
-        setNotice("");
-      }, () => {
-        if (closed) return;
-        unavailable("扫描连接中断，正在重连");
-        retry = window.setTimeout(connect, 1500);
-      });
-    };
-    connect();
+    const subscription = openLidarEvents(connection, (event) => {
+      if (event.type === "lidar-unavailable") { unavailable(event.message); return; }
+      if (previous?.epoch === event.frame.epoch &&
+          (event.frame.sequence <= previous.sequence || event.frame.stampMs < previous.stampMs)) return;
+      previous = event.frame; lastReceived = performance.now();
+      setFrame(event.frame);
+      setNotice("");
+    }, () => unavailable("扫描连接中断，正在重连"));
     const freshness = window.setInterval(() => {
       if (lastReceived && performance.now() - lastReceived > 2000) unavailable("扫描数据已中断");
     }, 250);
-    return () => { closed = true; socket?.close(); clearTimeout(retry); clearInterval(freshness); };
+    return () => { subscription.close(); clearInterval(freshness); };
   }, [connection]);
 
   useEffect(() => {

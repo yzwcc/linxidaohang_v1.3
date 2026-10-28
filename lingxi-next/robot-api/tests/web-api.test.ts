@@ -21,6 +21,10 @@ class FakeWebSocket {
     for (const listener of this.listeners.get(type) ?? []) listener(event);
   }
 
+  send(type: string, data: unknown) {
+    this.emit(type, { data: JSON.stringify(data) });
+  }
+
   close() {
     this.readyState = 3;
     this.emit("close");
@@ -101,6 +105,107 @@ describe("state WebSocket subscription", () => {
     expect(onError).toHaveBeenCalledTimes(1);
     await vi.advanceTimersByTimeAsync(500);
     expect(instances).toHaveLength(1);
+    subscription.close();
+  });
+});
+
+describe("LiDAR WebSocket subscription", () => {
+  it("reconnects once when error and close report the same disconnect", async () => {
+    useFakeBrowserTimers();
+    vi.stubGlobal("WebSocket", FakeWebSocket as unknown as typeof WebSocket);
+    const { openLidarEvents } = await import("../../web/src/api");
+    const onEvent = vi.fn();
+    const onError = vi.fn();
+    const subscription = openLidarEvents(connection, onEvent, onError);
+    const first = FakeWebSocket.instances[0];
+
+    first.emit("open");
+    first.emit("error");
+    first.emit("close");
+    expect(onError).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(500);
+    expect(FakeWebSocket.instances).toHaveLength(2);
+
+    const frame = { type: "lidar", frame: { sequence: 1 } };
+    first.send("message", frame);
+    FakeWebSocket.instances[1].emit("open");
+    FakeWebSocket.instances[1].send("message", frame);
+    expect(onEvent).toHaveBeenCalledTimes(1);
+    expect(onEvent).toHaveBeenCalledWith(frame);
+    subscription.close();
+    FakeWebSocket.instances[1].send("message", frame);
+    expect(onEvent).toHaveBeenCalledTimes(1);
+    expect(onError).toHaveBeenCalledTimes(1);
+  });
+
+  it("uses bounded backoff and cancels pending retries when closed", async () => {
+    useFakeBrowserTimers();
+    vi.stubGlobal("WebSocket", FakeWebSocket as unknown as typeof WebSocket);
+    const { openLidarEvents } = await import("../../web/src/api");
+    const subscription = openLidarEvents(connection, vi.fn(), vi.fn());
+    for (let attempt = 0; attempt < 7; attempt += 1) {
+      FakeWebSocket.instances.at(-1)!.emit("open");
+      FakeWebSocket.instances.at(-1)!.emit("error");
+      await vi.advanceTimersByTimeAsync(Math.min(500 * 2 ** attempt, 15_000));
+    }
+    expect(FakeWebSocket.instances).toHaveLength(8);
+    FakeWebSocket.instances.at(-1)!.emit("open");
+    FakeWebSocket.instances.at(-1)!.emit("error");
+    subscription.close();
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(FakeWebSocket.instances).toHaveLength(8);
+  });
+
+  it("retries when socket construction fails and resets backoff after a stable connection", async () => {
+    useFakeBrowserTimers();
+    const instances: FakeWebSocket[] = [];
+    let failed = false;
+    class FailingOnceSocket extends FakeWebSocket {
+      constructor(url: URL, protocols: string[]) {
+        if (!failed) { failed = true; throw new Error("offline"); }
+        super(url, protocols);
+        instances.push(this);
+      }
+    }
+    vi.stubGlobal("WebSocket", FailingOnceSocket as unknown as typeof WebSocket);
+    const { openLidarEvents } = await import("../../web/src/api");
+    const onError = vi.fn();
+    const subscription = openLidarEvents(connection, vi.fn(), onError);
+    expect(onError).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(500);
+    expect(instances).toHaveLength(1);
+
+    instances[0].emit("open");
+    for (let heartbeat = 0; heartbeat < 15; heartbeat += 1) {
+      await vi.advanceTimersByTimeAsync(2000);
+      instances[0].send("message", { type: "lidar-unavailable", message: "暂无新数据" });
+    }
+    instances[0].emit("close");
+    await vi.advanceTimersByTimeAsync(500);
+    expect(instances).toHaveLength(2);
+    subscription.close();
+  });
+
+  it("reconnects a silent open socket but keeps alive on unavailable-data events", async () => {
+    useFakeBrowserTimers();
+    vi.stubGlobal("WebSocket", FakeWebSocket as unknown as typeof WebSocket);
+    const { openLidarEvents } = await import("../../web/src/api");
+    const onError = vi.fn();
+    const onEvent = vi.fn();
+    const subscription = openLidarEvents(connection, onEvent, onError);
+    const first = FakeWebSocket.instances[0];
+    first.emit("open");
+
+    await vi.advanceTimersByTimeAsync(2000);
+    first.send("message", { type: "lidar-unavailable", message: "暂无新数据" });
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(FakeWebSocket.instances).toHaveLength(1);
+    expect(onError).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(500);
+    expect(onError).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(500);
+    expect(FakeWebSocket.instances).toHaveLength(2);
     subscription.close();
   });
 });
