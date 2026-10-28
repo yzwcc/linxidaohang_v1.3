@@ -95,6 +95,15 @@ progress deadlines and owned-process-group cleanup. Local synthetic child
 checks include the unchanged input worker; real GLIM/ARM64 integration and
 parent-service failure recovery remain pending.
 See [the process supervision boundary](docs/SLAM_PROCESS_SUPERVISION.md).
+A separate offline composition now connects that supervisor to the unchanged
+native GLIM wrapper and input worker. It uses one preserved complete callback
+journal, byte-verified private Linux staging, health-only stdout, and explicit
+EOF/stop accounting. This does not switch the product backend or validate
+mapping, geometry, ARM64 supervision, or navigation.
+See [the native composition record](docs/SLAM_SUPERVISED_NATIVE_REPLAY.md).
+The native composition is not accepted: the one-times trials failed closed
+on startup/queue deadlines, and a subsequent attempt could not start WSL.
+No successful full-journal supervision result or production integration is claimed.
 An independent full-recording range audit records returns beyond 5 raw-coordinate
 units. The roughly 5 m travel estimate is not calibration truth; travel,
 scan coverage and map accuracy are different quantities.
