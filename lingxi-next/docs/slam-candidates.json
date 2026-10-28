@@ -1,0 +1,81 @@
+{
+  "schemaVersion": 1,
+  "reviewDate": "2026-10-28",
+  "reviewScope": "upstream_documentation_and_read_only_target_input_observation",
+  "selectionStatus": "provisional_no_algorithm_benchmarks",
+  "deploymentApproved": false,
+  "repositories": [
+    {
+      "repository": "koide3/glim",
+      "reviewedRef": "HEAD",
+      "commit": "1a197c999e4865f5cab7c9cd25474128413ebbca",
+      "commitDate": "2026-10-08T00:28:49Z",
+      "role": "primary_3d_mapping_candidate",
+      "rootLicense": "MIT",
+      "robotBuildVerified": false
+    },
+    {
+      "repository": "koide3/glim_ros2",
+      "reviewedRef": "HEAD",
+      "commit": "4d4ec524ccf1b02aa09b0af2af767ecc54343798",
+      "commitDate": "2026-08-14T00:43:55Z",
+      "role": "official_ros2_wrapper_candidate",
+      "rootLicense": "not_separately_verified",
+      "robotBuildVerified": false
+    },
+    {
+      "repository": "hku-mars/FAST_LIO",
+      "reviewedRef": "HEAD",
+      "commit": "7cc4175de6f8ba2edf34bab02a42195b141027e9",
+      "commitDate": "2024-07-23T11:22:17Z",
+      "role": "lio_algorithm_comparison_ros1_upstream",
+      "rootLicense": "GPL-2.0",
+      "robotBuildVerified": false
+    },
+    {
+      "repository": "TixiaoShan/LIO-SAM",
+      "reviewedRef": "ros2",
+      "commit": "08af3f32f01725372d4269838dc44c19c6d9e76b",
+      "commitDate": "2025-02-14T10:05:51Z",
+      "role": "conditional_3d_mapping_candidate",
+      "rootLicense": "BSD-3-Clause",
+      "robotBuildVerified": false
+    },
+    {
+      "repository": "PRBonn/kiss-icp",
+      "reviewedRef": "HEAD",
+      "commit": "1ffa7d7512f10bfc8b1185095011fa31184019e3",
+      "commitDate": "2026-05-04T10:33:52Z",
+      "role": "lidar_odometry_comparison_not_complete_navigation",
+      "rootLicense": "MIT",
+      "robotBuildVerified": false
+    },
+    {
+      "repository": "stevemacenski/slam_toolbox",
+      "reviewedRef": "humble",
+      "commit": "dccc5d1fd2b5007098f4050e681d20da37ef183f",
+      "commitDate": "2026-10-05T20:50:08Z",
+      "role": "conditional_planar_slam_candidate",
+      "rootLicense": "LGPL-2.1",
+      "robotBuildVerified": false
+    },
+    {
+      "repository": "ros-navigation/navigation2",
+      "reviewedRef": "humble",
+      "commit": "3c3db59d6969d8ecee8e68468693d006397f4a0c",
+      "commitDate": "2026-06-03T13:53:10Z",
+      "role": "downstream_navigation_not_lio",
+      "rootLicense": "multiple_see_package_xml",
+      "robotBuildVerified": false
+    }
+  ],
+  "dependenciesPinned": false,
+  "targetValidation": {
+    "sensorObservability": "short_window_observed",
+    "pointTimeUnits": "unverified",
+    "imuCalibration": "unverified",
+    "dynamicReplay": "not_run",
+    "mapPersistenceAndRelocalization": "not_run",
+    "navigationAndEmergencyStop": "not_run"
+  }
+}

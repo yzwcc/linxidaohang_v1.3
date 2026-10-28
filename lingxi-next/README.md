@@ -3,6 +3,17 @@
 A clean-room local console and Android companion for AgiBot Lingxi X2. This
 project does not include or modify the V1.3.9/R19 business code.
 
+## Independent navigation evaluation
+
+On 2026-10-28 the user confirmed this X2 does not include optional native SLAM.
+An independent open-source mapping/navigation path is now being evaluated.
+See [the comparison and read-only target results](docs/OPEN_SOURCE_NAV_EVALUATION.md).
+Only input observation has been verified; no SLAM algorithm, relocalization,
+motion adapter or physical navigation is accepted yet. The current 0.1.19
+runtime described below still uses native AIMDK interfaces and has not been
+silently switched to an open-source backend. Existing release archives and APKs
+were not rebuilt.
+
 ## Runtime shape
 
 - The robot hosts the HTTPS console and API on port `3000`.
