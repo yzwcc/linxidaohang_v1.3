@@ -12,11 +12,14 @@ Sensor capture, isolated CPU builds and real KISS/GLIM odometry diagnostics
 have been completed. Real GLIM point-cloud maps have also been saved and
 reloaded in fresh CPU processes. Four CPU modules also loaded successfully on
 the real ARM64 robot, where a synthetic timing executable passed.
+Four actual ARM64 replays of the static/dynamic recordings have now completed,
+using the installed Humble bag reader without ROS nodes or live inputs.
 Timing calibration, map geometry, loop closure, relocalization, real-sensor
-target runtime and physical navigation are not accepted.
+realtime operation and physical navigation are not accepted.
 See [the odometry limits](docs/SLAM_GLIM_OFFLINE.md) and
 [the map persistence evidence](docs/SLAM_GLIM_MAPPING.md), and
-[the isolated ARM64 target check](docs/SLAM_ARM64_TARGET.md).
+[the isolated ARM64 target check](docs/SLAM_ARM64_TARGET.md), plus
+[the actual-target recorded replays](docs/SLAM_ARM64_RECORDED.md).
 The current 0.1.19
 runtime described below still uses native AIMDK interfaces and has not been
 silently switched to an open-source backend. Existing release archives and APKs

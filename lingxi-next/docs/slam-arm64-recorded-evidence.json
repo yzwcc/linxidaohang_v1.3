@@ -1,0 +1,224 @@
+{
+  "schemaVersion": 1,
+  "observedDate": "2026-10-28",
+  "purpose": "actual_arm64_recorded_glim_odometry_not_quality_or_realtime_acceptance",
+  "result": "four_actual_arm64_recorded_trials_completed_not_quality_acceptance",
+  "sourceCommits": {
+    "gtsam": "3ad4b4c3cb28394c9597f48fa02dad361c8450e3",
+    "gtsam_points": "9d32e7dbecf6015560d84b4901d6b0a6f483ec46",
+    "glim": "1a197c999e4865f5cab7c9cd25474128413ebbca"
+  },
+  "captureManifestSha256": "dff6ef252728ac0a26989b880d1d3a11769922467c8f5d7747c1b04a5c2c1e28",
+  "replayManifestSha256": "5100c4da0bd7f8d9139ed6498f6366f4a2b9ef56f890b49dba6658e10e3256e0",
+  "privateCollectionReportSha256": "354dc8918df42cab3ca37fb2ff743e42f97ee78fe3a1f33883e2a0918d980fda",
+  "adapterBuildReportSha256": "69cca354db3f87884cc4d3c001cb35c02f454286c75e842e0908ebb596981b9e",
+  "adapterSha256": "3b814b90d62162461b00e98f98ba29a46827d3b9fbb398b597c29ae5ac633b5e",
+  "replaySourceSha256": "05f0ac5301c4e3685c9d9fa74988f8b38ca3548ee5b24dadb106ab502469497e",
+  "toolSourcesAtExport": {
+    "build_glim_target_replay.py": "8711adc5adb8fa60a6508652164b6168b296e7ce9027cb64a5dca0dee88d371c",
+    "run_glim_target_replays.py": "6099fa358f8af550f561a84974d669c191f92f88feabbc1088712ce9602379c6",
+    "export_glim_target_replay_evidence.py": "818d3c6cefd94bd35864a507875d228e664dba48ef60861c710072b620756ca3"
+  },
+  "runs": {
+    "staticStart": {
+      "dataset": "static",
+      "timingHypothesis": "header_is_scan_start",
+      "privateReportSha256": "a23aef10ad1fa977f033648ac02d8a0fdc9366bd43c9a8062145aed8da88a869",
+      "privateTrajectorySha256": "25528106458cf280bf92745d8391c817aa8a38cb42a1ed855ed110550f249e77",
+      "privateNativeLogSha256": "e1ba33a8eb304b35876e72195eb4973920a49659fa5053a7a161e48c437d7a00",
+      "target": {
+        "machine": "aarch64",
+        "python": "3.10.12",
+        "numpy": "1.26.1"
+      },
+      "counts": {
+        "recordedScans": 353,
+        "processedScans": 343,
+        "skippedUnbracketedScans": 10,
+        "initializationScans": 30,
+        "estimatedPoses": 313,
+        "imuSamplesInserted": 6864
+      },
+      "timingsNotRealtimeAcceptance": {
+        "preprocessMillisecondsP50P95P99": [
+          6.921705,
+          8.353670999999999,
+          9.704325779999996
+        ],
+        "odometryMillisecondsP50P95P99": [
+          15.99436,
+          38.18824069999997,
+          43.97029491999997
+        ],
+        "combinedMillisecondsMaximum": 69.135772,
+        "combinedMillisecondsP50P95P99": [
+          23.309299000000003,
+          44.86107729999998,
+          51.40211175999996
+        ],
+        "processingWallSeconds": 10.588705344001937,
+        "processCpuSeconds": 16.903103520000002,
+        "peakResidentMiB": 196.29296875
+      },
+      "estimatedMotionNotGroundTruth": {
+        "accumulatedPositionStepsRawUnits": 0.13364197279048734,
+        "endToStartDistanceRawUnits": 0.022728025045185056,
+        "maximumConsecutivePositionStepRawUnits": 0.004192482631387685
+      }
+    },
+    "staticEnd": {
+      "dataset": "static",
+      "timingHypothesis": "header_is_scan_end",
+      "privateReportSha256": "628170350428712f00efae5fd5b507deeb1faefde027d5f6af1587f2b36b9bcc",
+      "privateTrajectorySha256": "435b04709c2d9e08ecf85d3eb645af5407199b44570e4661981eece5e18f24e5",
+      "privateNativeLogSha256": "352c3eb30621d81b50da6afb4a38f8f077e58a4f1ac8ebf4a9cd0f77717426fe",
+      "target": {
+        "machine": "aarch64",
+        "python": "3.10.12",
+        "numpy": "1.26.1"
+      },
+      "counts": {
+        "recordedScans": 353,
+        "processedScans": 342,
+        "skippedUnbracketedScans": 11,
+        "initializationScans": 31,
+        "estimatedPoses": 311,
+        "imuSamplesInserted": 6845
+      },
+      "timingsNotRealtimeAcceptance": {
+        "preprocessMillisecondsP50P95P99": [
+          6.899350999999999,
+          8.28126635,
+          10.965756969999994
+        ],
+        "odometryMillisecondsP50P95P99": [
+          15.82827,
+          34.345614149999996,
+          44.156051259999906
+        ],
+        "combinedMillisecondsMaximum": 68.865199,
+        "combinedMillisecondsP50P95P99": [
+          23.059383,
+          41.184079,
+          51.230766819999886
+        ],
+        "processingWallSeconds": 10.467857174000528,
+        "processCpuSeconds": 16.707610432,
+        "peakResidentMiB": 188.13671875
+      },
+      "estimatedMotionNotGroundTruth": {
+        "accumulatedPositionStepsRawUnits": 0.13903587240070803,
+        "endToStartDistanceRawUnits": 0.022102287309967255,
+        "maximumConsecutivePositionStepRawUnits": 0.005765795854443788
+      }
+    },
+    "dynamicStart": {
+      "dataset": "dynamic",
+      "timingHypothesis": "header_is_scan_start",
+      "privateReportSha256": "d004c2c884d85345eea1982881e6c8fc2a82c24f0385518daf13dbef131793ac",
+      "privateTrajectorySha256": "04b6ad5e91235cd6aeb9e1f329bc629b165d23eeb4741e1e438f025d05bcbcd4",
+      "privateNativeLogSha256": "62f7010bb6e262be951eca7ba4b103caf931c433e591ed6e91fc823d57e7ceac",
+      "target": {
+        "machine": "aarch64",
+        "python": "3.10.12",
+        "numpy": "1.26.1"
+      },
+      "counts": {
+        "recordedScans": 1232,
+        "processedScans": 1221,
+        "skippedUnbracketedScans": 11,
+        "initializationScans": 31,
+        "estimatedPoses": 1190,
+        "imuSamplesInserted": 24434
+      },
+      "timingsNotRealtimeAcceptance": {
+        "preprocessMillisecondsP50P95P99": [
+          6.900884,
+          8.595536,
+          10.533124799999998
+        ],
+        "odometryMillisecondsP50P95P99": [
+          20.401601,
+          36.34322,
+          45.71764599999992
+        ],
+        "combinedMillisecondsMaximum": 71.677702,
+        "combinedMillisecondsP50P95P99": [
+          27.629407,
+          43.236022,
+          52.90482739999998
+        ],
+        "processingWallSeconds": 42.29051925800013,
+        "processCpuSeconds": 68.50382656000001,
+        "peakResidentMiB": 244.6875
+      },
+      "estimatedMotionNotGroundTruth": {
+        "accumulatedPositionStepsRawUnits": 8.141323487450226,
+        "endToStartDistanceRawUnits": 0.679018312484738,
+        "maximumConsecutivePositionStepRawUnits": 0.09171412713832963
+      }
+    },
+    "dynamicEnd": {
+      "dataset": "dynamic",
+      "timingHypothesis": "header_is_scan_end",
+      "privateReportSha256": "ff6f2b797544fe8bfd45cd758f912d0c1d6b40cc47a287ea681049b2fa9761b0",
+      "privateTrajectorySha256": "34590c47a4116ea8adf31797a97cb9d7aff32ffa669d0b14944de6c249a73656",
+      "privateNativeLogSha256": "abdfbed9ec430a3a831e9626c999e9bfad12333695b74692008b19c03d4a412f",
+      "target": {
+        "machine": "aarch64",
+        "python": "3.10.12",
+        "numpy": "1.26.1"
+      },
+      "counts": {
+        "recordedScans": 1232,
+        "processedScans": 1220,
+        "skippedUnbracketedScans": 12,
+        "initializationScans": 31,
+        "estimatedPoses": 1189,
+        "imuSamplesInserted": 24415
+      },
+      "timingsNotRealtimeAcceptance": {
+        "preprocessMillisecondsP50P95P99": [
+          6.8853305,
+          8.280790749999998,
+          10.049133629999993
+        ],
+        "odometryMillisecondsP50P95P99": [
+          22.502145,
+          39.239344349999996,
+          43.75886825999999
+        ],
+        "combinedMillisecondsMaximum": 70.860222,
+        "combinedMillisecondsP50P95P99": [
+          29.6077485,
+          46.72179695,
+          52.597546469999976
+        ],
+        "processingWallSeconds": 45.166239031997975,
+        "processCpuSeconds": 74.06269276799999,
+        "peakResidentMiB": 250.41796875
+      },
+      "estimatedMotionNotGroundTruth": {
+        "accumulatedPositionStepsRawUnits": 9.848696705125466,
+        "endToStartDistanceRawUnits": 0.7235785914994188,
+        "maximumConsecutivePositionStepRawUnits": 0.10788851178578356
+      }
+    }
+  },
+  "originalCapturesUnchangedAtExport": true,
+  "boundaries": {
+    "rosNodeStarted": false,
+    "liveSensorsSubscribed": false,
+    "motionCommandsSent": false,
+    "timingHypothesisValidated": false,
+    "robotCalibrationValidated": false,
+    "globalMappingExecuted": false,
+    "mapPersistenceValidatedOnTarget": false,
+    "relocalizationValidated": false,
+    "navigationValidated": false,
+    "targetRealtimePerformanceValidated": false,
+    "voiceConcurrencyValidated": false,
+    "deploymentApproved": false,
+    "rawDataPublished": false
+  }
+}
