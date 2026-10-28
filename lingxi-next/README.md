@@ -84,6 +84,12 @@ CDR and replays the completed FIFO prefix in a fresh ARM64 process without ROS
 initialization. The frame domain and algorithm times match, with the same two
 IMU prediction warnings; this narrows the diagnosis but does not validate
 calibration or physical accuracy. See [the matched-input check](docs/SLAM_MATCHED_INPUT.md).
+An offline audit of that same preserved input now also checks all callback
+timestamps, both scan-coverage hypotheses and the ROBUST initialization prefix.
+The first pose falls on the first frame reaching the configured three-second
+window; input variation is low but physical stationarity is not established.
+No bias or time correction is applied.
+See [the initialization and timing limits](docs/SLAM_INITIALIZATION_AUDIT.md).
 An independent full-recording range audit records returns beyond 5 raw-coordinate
 units. The roughly 5 m travel estimate is not calibration truth; travel,
 scan coverage and map accuracy are different quantities.

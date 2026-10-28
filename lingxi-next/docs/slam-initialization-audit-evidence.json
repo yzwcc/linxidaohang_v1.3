@@ -1,0 +1,177 @@
+{
+  "schemaVersion": 1,
+  "purpose": "preserved_callback_initialization_and_time_audit",
+  "result": "offline_inputs_audited_not_calibration_or_product_acceptance",
+  "auditorSha256": "484f9faf35f65afb1c1af97a953eaaa6e05e272fb056dfe84c451b8fce92a001",
+  "matchedEvidenceCanonicalSha256": "bf2e546d80ca77f587b379b1eced289d32e1b674952cee6d240f459126e1f793",
+  "callbackJournalSha256": "492a5b33f04edfc85b5e5c18fbf5e9e0e5005b68480c6e3cfd191927d7d98bf8",
+  "sourceCommits": {
+    "gtsam": "3ad4b4c3cb28394c9597f48fa02dad361c8450e3",
+    "gtsam_points": "9d32e7dbecf6015560d84b4901d6b0a6f483ec46",
+    "glim": "1a197c999e4865f5cab7c9cd25474128413ebbca"
+  },
+  "reviewedUpstreamSourceSha256": {
+    "src/glim/odometry/robust_initial_state_estimation.cpp": "6cda405ccf62dce5a46f0a703a0b47ed11d4a3b8ce24e40a5cd22f01af021f35",
+    "src/glim/odometry/robust_initial_state_estimation_estimate.cpp": "6f1d574f3da0d445b057301b4f7c8816203184c4841277d86dc1a40621f35304",
+    "src/glim/common/imu_integration.cpp": "e99413ff27e18eb074be3d44d835ce762e182a216a18f8b3bdf58127a57799b8",
+    "src/glim/odometry/odometry_estimation_imu.cpp": "d025eac2dddb5d67a00272435ee4504dd7dfe02b9704aa65173ed457ff4100c5"
+  },
+  "callbackClock": {
+    "cloud": {
+      "samples": 197,
+      "headerGapMillisecondsMinP50P95Max": [
+        55.569,
+        99.9925,
+        101.411,
+        103.215
+      ],
+      "relativeArrivalMinusHeaderMillisecondsMinP50P95Max": [
+        0.0,
+        45.552914,
+        46.7947752,
+        51.756824
+      ],
+      "endRelativeArrivalMinusHeaderMilliseconds": 44.337009,
+      "absoluteTransportLatencyNotMeasured": true,
+      "noClockOffsetOrDriftCorrectionApplied": true
+    },
+    "imu": {
+      "samples": 3947,
+      "headerGapMillisecondsMinP50P95Max": [
+        0.045566,
+        4.9898834999999995,
+        6.3668605,
+        18.277177
+      ],
+      "relativeArrivalMinusHeaderMillisecondsMinP50P95Max": [
+        -24.29248,
+        -23.771028,
+        -21.2830092,
+        13.553446
+      ],
+      "endRelativeArrivalMinusHeaderMilliseconds": -24.155268,
+      "absoluteTransportLatencyNotMeasured": true,
+      "noClockOffsetOrDriftCorrectionApplied": true
+    }
+  },
+  "scanCoverage": {
+    "header_is_scan_start": {
+      "scans": 197,
+      "bracketed": 196,
+      "beginningBeforeImu": 1,
+      "endingAfterImu": 0
+    },
+    "header_is_scan_end": {
+      "scans": 197,
+      "bracketed": 195,
+      "beginningBeforeImu": 2,
+      "endingAfterImu": 0
+    },
+    "pointOffsetSpanMillisecondsMinP50P95Max": [
+      94.836,
+      94.843,
+      94.849,
+      94.849
+    ],
+    "neitherHypothesisSelectedOrApproved": true
+  },
+  "initialization": {
+    "mode": "ROBUST",
+    "configuredWindowSeconds": 3.0,
+    "noPoseScansBeforeFirstPose": 31,
+    "firstPoseSpanFromFirstProcessedScanSeconds": 3.09868,
+    "previousScanSpanSeconds": 2.995972,
+    "firstPoseAtFirstFrameReachingConfiguredWindow": true,
+    "algorithmTimesMatchIntegerOriginScanStartFormula": true,
+    "imuInsertedThroughFirstPoseScanIncludingBracketingSample": 651,
+    "initialImuHeaderSpanSeconds": 3.248955778,
+    "initialImuPrefixReconstructedFromFrozenDrainRuleNotInstrumentedCount": true,
+    "windowCrossingUsesActualAlgorithmDoubleSubtraction": true,
+    "initialInput": {
+      "samples": 651,
+      "accelerationNormRawUnitsMinP50P95Max": [
+        9.712022314092653,
+        9.721922061775249,
+        9.728267736785986,
+        9.732567877760605
+      ],
+      "angularNormRawUnitsMinP50P95Max": [
+        0.06960279306453218,
+        0.07096359470737303,
+        0.0717572139254557,
+        0.07227769371783188
+      ],
+      "accelerationCenteredVectorRmsRawUnits": 0.005960538069309167,
+      "angularCenteredVectorRmsRawUnits": 0.0007350419218438508,
+      "angularMeanNormRawUnits": 0.07094529895351326,
+      "lowVariationDoesNotProvePhysicalStationarity": true
+    },
+    "completeInput": {
+      "samples": 3947,
+      "accelerationNormRawUnitsMinP50P95Max": [
+        9.707719567444498,
+        9.721919132121855,
+        9.727706699042546,
+        9.734483645920715
+      ],
+      "angularNormRawUnitsMinP50P95Max": [
+        0.0688822069214308,
+        0.07083204819880477,
+        0.07174782358918491,
+        0.07251379270040322
+      ],
+      "accelerationCenteredVectorRmsRawUnits": 0.0059586042362195476,
+      "angularCenteredVectorRmsRawUnits": 0.0008028563415195037,
+      "angularMeanNormRawUnits": 0.07084310975870618,
+      "lowVariationDoesNotProvePhysicalStationarity": true
+    },
+    "loggedInitialAngularBiasNormRawUnits": 0.07096090532116962,
+    "initialMeanAngularMinusLoggedBiasNormRawUnits": 0.00013336986969071304,
+    "loggedInitialAccelerationBiasNormRawUnits": 2e-06,
+    "loggedInitialVelocityNormRawUnits": 0.1369576916642508,
+    "firstPoseVersusRoundedLoggedImuMatrixMaximumDifference": 6.953637651796463e-07,
+    "loggedEstimatesNotIndependentCalibrationOrTruth": true,
+    "stateVectorsAndAbsoluteTimesNotPublished": true
+  },
+  "nativeWarnings": {
+    "predictionWarningCount": 2,
+    "loggedCumulativeWindows": [
+      {
+        "cumulativeValidations": 64,
+        "roundedBetterRatiosRotationTranslationVelocity": [
+          0.78,
+          0.0,
+          0.02
+        ]
+      },
+      {
+        "cumulativeValidations": 128,
+        "roundedBetterRatiosRotationTranslationVelocity": [
+          0.8,
+          0.0,
+          0.01
+        ]
+      }
+    ],
+    "biasMagnitudeWarningCount": 0,
+    "roundedRatiosAreNotExactThresholdOrCalibrationTests": true
+  },
+  "noNewSensorCaptureOrNativeReplay": true,
+  "boundaries": {
+    "robotContacted": false,
+    "nativeEngineExecuted": false,
+    "rosNodeStarted": false,
+    "motionCommandsSent": false,
+    "configurationChanged": false,
+    "biasCorrectionApplied": false,
+    "timingOffsetFitted": false,
+    "physicalStationarityConfirmed": false,
+    "initializationRootCauseEstablished": false,
+    "sensorSynchronizationValidated": false,
+    "robotCalibrationValidated": false,
+    "geometryValidated": false,
+    "navigationValidated": false,
+    "deploymentApproved": false,
+    "rawDataPublished": false
+  }
+}
