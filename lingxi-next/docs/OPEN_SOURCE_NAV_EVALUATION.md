@@ -1,6 +1,7 @@
 # 独立开源建图与导航适配评估
 
-日期：2026-10-28。状态：**第一轮只读输入预检已完成；算法、重定位及自主行走尚未验证。**
+日期：2026-10-28。状态：**只读输入预检、逐点时间复核与离线配置合成检查已完成；
+动态标定、算法构建/执行、重定位及自主行走尚未验证。**
 
 ## 本轮范围与架构变更
 
@@ -9,7 +10,8 @@
 旧 V1.3.9/R19 只作行为验收和经验参考，不复制其业务实现。
 
 现有 0.1.19 产品代码仍连接厂商原生建图/导航接口，**尚不能使用下述开源后端**。
-本轮仅增加评估资料、只读采样工具和测试；没有替换运行时、安装算法或重打交付包。
+本轮仅增加评估资料、只读采样工具、离线配置生成器和测试；
+没有替换运行时、安装算法或重打交付包。
 已交付的 0.1.18/0.1.19 归档和 APK 均未修改。
 
 独立路线使用公开传感器与受支持的运动接口，自行承担地图、定位、路径规划和障碍处理；
@@ -36,14 +38,17 @@
 本轮核对到 GLIM、KISS-ICP 为 MIT，FAST_LIO 为 GPL-2.0，
 LIO-SAM 的 ros2 基线为 BSD-3-Clause，SLAM Toolbox 为 LGPL-2.1。
 Nav2 根 LICENSE 列出多种许可证，须逐包查看 `package.xml`，
-不能把整个组合统一写成 Apache-2.0。GLIM 的 ROS 包及全部传递依赖也需单独核对。
+不能把整个组合统一写成 Apache-2.0。
+在固定的 glim_ros2 提交中，`package.xml` 声明 MIT，根目录没有独立 LICENSE 文件；
+此处记录包声明，不将其写成已核验的根许可证正文。全部传递依赖仍需单独核对。
 
 这是依赖筛选记录，不是法律结论。最终交付前建立逐包版本、许可证、
 修改记录和 NOTICE 清单，并履行实际分发要求；不默认“开源”等于无条件闭源交付。
 
 ## 只读实机输入验证
 
-使用 `tools/slam_preflight.py` 在独立进程中运行两次，每次约 8 秒。
+使用 `tools/slam_preflight.py` 在独立进程中运行三次，每次约 8 秒；
+前两次分别观察原始/下采样点云，第三次复核原始点云时间字段。
 仅订阅标准消息并输出聚合统计，不发布 TF、速度或动作，不注册输入源、
 调用服务或保存环境点坐标。独立检查了 ROS 接口图和系统资源。
 SSH 主机密钥与此前同一机器人记录匹配，全部检查会话已关闭。
@@ -56,6 +61,11 @@ SSH 主机密钥与此前同一机器人记录匹配，全部检查会话已关�
   这些是文件/平台检查，不等于 GLIM GPU 编译或推理已成功。
 - 当次 1 秒 CPU 忙碌比例约 35.3%；另一个时刻负载均值接近 8。
   短快照不是剩余算力保证，须与现有语音等服务并发测量。
+- 有 CMake、g++、colcon 和 rosbag2。Docker CLI 存在，但本次无法连接 daemon，
+  非交互 sudo 查询也未成功；没有为此启动 daemon 或修改用户组/服务。
+  本机 WSL Ubuntu 24.04 为 x86_64，检查时缺少 Docker、CMake、ROS 和 GTSAM。
+  因而本轮还没有匹配目标环境的可用隔离构建结果；
+  这些限制不意味着 GLIM 必须依赖 Docker，也不构成编译失败的算法结论。
 
 ### 数据观测
 
@@ -64,7 +74,7 @@ SSH 主机密钥与此前同一机器人记录匹配，全部检查会话已关�
 | 原始 `/aima/hal/sensor/lidar_chest_front/lidar_pointcloud` | 58 帧，首末帧到达间约 10.00 Hz；每帧 25,249–25,328 点；采样 XYZ 均有限 | 采样窗口包含发现/预热，不能按 80−58 断言稳态丢失 22 帧；正式验证要单独计发现/预热和稳态窗口 |
 | 下采样同名 `_down_sampling` 话题 | 17 帧，首末帧到达间约 2.01 Hz | 原始流更适合优先做里程计；前端可以独立限流，不能拿 2 Hz 显示流代替高频算法输入 |
 | 点布局 | 小端，point_step=32；x/y/z FLOAT32，intensity FLOAT32，ring UINT16，timestamp FLOAT64 | 布局可解析不代表算法已兼容 |
-| 逐点 timestamp | 每帧采样值有变化；原始值跨度约 9.47×10^7 | 按纳秒解释约 0.095 秒，与 10 Hz 扫描量级一致，但这只是单位假设，不能据此自动配置；还须确认绝对/相对时间及扫描首/末点约定 |
+| 逐点 timestamp | 前两轮观察到跨度约 9.47×10^7；第三轮 81 帧的全部采样均只匹配 `relative_nanoseconds` 假设 | 支持帧相对纳秒解释，而非绝对纳秒；仍不等于动态对齐/标定通过，不自动批准配置 |
 | `/aima/hal/sensor/lidar_chest_front/imu` | 两轮约 196.97/196.79 Hz；无非递增 header；加速度模长约 9.84–9.86；角速度字段模长约 0.068–0.073 | 仍需核实角速度单位、偏置、时钟和运动响应；不能凭字段命名就认为厂商数据符合全部 SI 约定 |
 | IMU 姿态 | 四元数模长为 1，未标记 covariance[0]=-1 | 这不证明有真实九轴姿态，也不排除占位四元数；LIO-SAM 条件未通过 |
 | `/aima/mc/leg_odometry` | 两轮约 160.77/166.39 Hz，frame=`leg_odom`，child=`lidar_imu_chest_front` | 第一轮最大 header 间隔约 0.334 秒；它不是已有的地图定位，也不能直接改名成 base_link 里程计 |
@@ -74,6 +84,39 @@ SSH 主机密钥与此前同一机器人记录匹配，全部检查会话已关�
 IMU 约 0.0003–0.0077 秒。**这不等于已测得两传感器时钟偏移**：
 扫描打包时间、header 参考时刻和传输排队都可能贡献此差值，不能直接硬减 0.1 秒。
 本轮未要求操作员移动机器人，也未下发运动命令；不是经安排的动态标定或步行测试。
+
+### 逐点时间复核与 GLIM 配置
+
+第三轮原始点云 81 帧，首末帧到达间约 10.07 Hz，IMU 约 197.59 Hz。
+按帧相对纳秒解释，采样时间的最小偏移为 0.000332–0.000498 秒，
+最大偏移为 0.095163–0.095181 秒，帧内采样跨度为 0.094665–0.094849 秒。
+这里的最小/最大值是每帧最多 256 个分散采样点的结果，不是完整扫描端点证明。
+工具同时比较秒/毫秒/微秒/纳秒及绝对/相对解释；
+保留候选与计数，不把候选自动升级成传感器标定结果。
+
+固定版本 GLIM 的 `time_keeper.cpp` 自动配置逻辑会将大于 1 的逐点值认作绝对时间；
+只有最小值大于 `1e16` 时才在该分支推测纳秒缩放。
+本机这种“小数值的 FLOAT64 相对纳秒”不能直接套用其自动识别。
+离线试验候选必须明确设置：
+
+```json
+{
+  "autoconf_perpoint_times": false,
+  "autoconf_prefer_frame_time": true,
+  "perpoint_relative_time": true,
+  "perpoint_time_scale": 1e-9
+}
+```
+
+`ros_cloud_converter.hpp` 支持本机的 `timestamp`/FLOAT64 字段，
+会原样取出 FLOAT64 数值，再交给时间转换层。
+其 UINT32 时间分支另有预缩放，不能不看字段类型就重复乘 `1e-9`。
+GLIM 在缺少逐点时间时还可能估计伪时间；此回退不能作为 X2 时间适配通过的证据。
+上述判断来自固定提交源码核对，**没有编译或执行其转换/建图代码**。
+
+IMU 角速度单位、偏置、动态时间对齐、雷达型号和外参精度仍待核实。
+不能将约 0.1 秒的点云接收延迟直接填为 IMU 时间偏置，
+也不能以 TF 中有一条静态边就批准外参。
 
 ### 公开运动接口
 
@@ -118,8 +161,8 @@ LIO-SAM/二维 SLAM 按输入条件保留，不为凑组合而全部引入。
 | 阶段 | 完成条件 | 当前状态 |
 |---|---|---|
 | G0a 输入可观测性 | 真实点云/IMU/里程计到达，布局可解析，静态传感器 TF 可见 | 已完成本轮短窗口检查 |
-| G0b 输入语义与动态一致性 | 核实雷达型号、逐点时间单位/起点、IMU 单位/姿态语义、标定精度、动态时间对齐和按时刻 TF | 未完成 |
-| G1 隔离构建与离线对照 | 固定源码和全部依赖；在匹配 ARM64 环境构建；同一段受控采集的闭环数据比较 GLIM 与对照算法，无运动接口连接 | 未执行 |
+| G0b 输入语义与动态一致性 | 核实雷达型号、逐点时间单位/起点、IMU 单位/姿态语义、标定精度、动态时间对齐和按时刻 TF | 时间解释已有短窗口证据，其余未完成 |
+| G1 隔离构建与离线对照 | 固定源码和全部依赖；在匹配 ARM64 环境构建；同一段受控采集的闭环数据比较 GLIM 与对照算法，无运动接口连接 | 配置合成检查通过；构建与算法对照未执行 |
 | G2 地图保存与定位 | 验证保存、重启重载、已知初始位姿和失定位恢复，质量差时拒绝发布可导航状态 | 未执行 |
 | G3 控制与安全接入 | 现场确认模式/控制权、遥控抢占、硬件急停、命令超时、进程退出、传感器/定位断流时的停车及恢复语义 | 未执行 |
 | G4 受控短距导航 | 安全场地、现场操作员和遥控器在手，再验证小范围目标、障碍、暂停/继续/停止、任务关联和定位丢失 | 未执行 |
@@ -136,6 +179,48 @@ CPU/GPU/内存、闭环一致性、地图重载和重定位结果。
 环境点云/轨迹不进入 Git、APK、通用交付包或外部云服务。
 当前只有聚合元数据，没有可用于算法对照的动态 rosbag，因此没有启动算法或伪造跑分。
 
+## 离线配置生成器
+
+`tools/glim_trial_config.py` 只生成文件，不连接机器人、不启动 ROS/容器，
+也不包含运动适配器。它核对 GLIM 的完整 SHA 和 `config/`、LICENSE 的 Git 清洁状态，
+保留所复制上游配置和许可证的校验和，拒绝覆盖既有输出目录。
+不检查或声称上游整个工作树及全部依赖已构建验证。
+
+`docs/glim-sensor-profile.example.json` 是**未完成、不可运行的模板**：
+外参、加速度/角速度缩放、点云/IMU 时间偏置和证据均需逐项审核，
+不能把 `null` 机械改为 0 或单位变换以绕过检查。
+`T_lidar_imu` 使用 `[x,y,z,qx,qy,qz,qw]`，方向为 IMU 坐标到 LiDAR 坐标。
+生成器将真实传感器配置和隔离合成测试标记分开，
+并始终保留 `robotCalibrationValidated=false`、`navigationValidated=false`。
+
+首次候选配置选择 CPU 里程计、passthrough 子图、pose-graph 全局建图，
+不启用可视化扩展，使用试验专用 map/odom 帧名且不发布 IMU→LiDAR 静态 TF。
+复制的预处理/建图参数和库内 IMU 噪声默认值**没有针对本机调优或标定**；
+例如上游 pose-graph 配置的回环最小行程是 50 米，
+不能直接拿该配置在短环路中的回环结果判定算法优劣。
+配置生成不是 G1 的算法验收，也不是生产配置交付。
+
+本轮将 GLIM 和官方 ROS 2 包检出到忽略目录 `.local/slam-sources/` 的固定提交，
+未修改或执行其源码。针对真实上游文件运行了**明确标记为合成的传感器配置**检查，
+确认文件复制、输出参数、校验和及不修改源配置；合成位姿/单位不作为真机数据。
+默认测试会在该本地 GLIM 检出存在时执行这项检查，
+也可通过 `LINGXI_GLIM_UPSTREAM_ROOT` 指定已准备好的固定提交；
+不存在时仅跳过这项可选检查，不自动下载或构建依赖。
+
+完成真实传感器资料审核后，生成配置的入口为：
+
+```sh
+python tools/glim_trial_config.py \
+  --upstream-root /path/to/reviewed-pinned-glim \
+  --sensor-profile /path/to/reviewed-sensor-profile.json \
+  --output /path/to/new-isolated-trial-config
+```
+
+核对的官方离线程序为 `glim_rosbag`，支持 `config_path`、`auto_quit` 和 `dump_path`；
+此程序虽然直接读取 rosbag，仍会创建 ROS 节点、订阅和发布。
+后续必须在与机器人 DDS、共享内存及控制网络隔离的环境中运行，
+不能仅换一个 map 帧名就当作已隔离。本轮没有启动该程序。
+
 ## 复现与本轮检查
 
 在机器人已加载正确 ROS 环境的独立进程中运行：
@@ -148,7 +233,8 @@ python3 /path/to/slam_preflight.py --seconds 8 \
 
 源码可通过 SSH 标准输入执行，不必安装为服务或复制进厂商目录。
 检查要求严格验证 SSH 主机密钥；凭据只在内存中输入，不写进命令、工具源文件或报告。
-本机脱敏完整聚合 JSON 在忽略的 `.local/slam-preflight-{raw,downsampled}.json`，
+本机脱敏完整聚合 JSON 在忽略的 `.local/slam-preflight-{raw,downsampled}.json`
+及 `.local/slam-preflight-raw-time-evidence.json`，
 不包含点坐标、原始 IMU 数据、地图名称、设备序列号或凭据。
 
 ```sh
@@ -159,14 +245,23 @@ npm test
 
 采样器测试覆盖大小端、组织点云行填充、FLOAT64/整数时间字段、非法布局、
 无穷/NaN、缺失时间、时钟异常、TF 图路径及无发布/服务调用边界。
-本轮 24 项评估工具测试、39 项既有桥接 Python 测试及 127 项 Vitest 测试通过。
+新增时间解释测试覆盖相对/绝对时间、单位歧义、缺失时间和不自动批准标定。
+配置测试覆盖未审核模板、缺失参数、不可用缩放/四元数、错误 SHA、
+脏源配置、覆盖保护、合成数据标记和真实固定上游文件检查。
+本轮 50 项评估工具测试（含真实上游配置检查，无跳过）、
+39 项既有桥接 Python 测试及 127 项 Vitest 测试通过。
 合成测试不等于真实建图或急停验收；本轮没有重跑未修改的 Java 和 Android 构建。
 
 ## 一手资料
 
 - GLIM 安装：<https://github.com/koide3/glim/blob/1a197c999e4865f5cab7c9cd25474128413ebbca/docs/installation.md>
 - GLIM 参数：<https://github.com/koide3/glim/blob/1a197c999e4865f5cab7c9cd25474128413ebbca/config/config_ros.json>
+- GLIM 时间处理：<https://github.com/koide3/glim/blob/1a197c999e4865f5cab7c9cd25474128413ebbca/src/glim/util/time_keeper.cpp>
+- GLIM 点云解析：<https://github.com/koide3/glim/blob/1a197c999e4865f5cab7c9cd25474128413ebbca/include/glim/util/ros_cloud_converter.hpp>
+- GLIM 传感器参数：<https://github.com/koide3/glim/blob/1a197c999e4865f5cab7c9cd25474128413ebbca/config/config_sensors.json>
 - GLIM ROS 2：<https://github.com/koide3/glim_ros2/tree/4d4ec524ccf1b02aa09b0af2af767ecc54343798>
+- GLIM ROS 2 包声明：<https://github.com/koide3/glim_ros2/blob/4d4ec524ccf1b02aa09b0af2af767ecc54343798/package.xml>
+- GLIM ROS 2 离线入口：<https://github.com/koide3/glim_ros2/blob/4d4ec524ccf1b02aa09b0af2af767ecc54343798/src/glim_rosbag.cpp>
 - FAST_LIO：<https://github.com/hku-mars/FAST_LIO/tree/7cc4175de6f8ba2edf34bab02a42195b141027e9>
 - LIO-SAM ROS 2：<https://github.com/TixiaoShan/LIO-SAM/tree/08af3f32f01725372d4269838dc44c19c6d9e76b>
 - KISS-ICP：<https://github.com/PRBonn/kiss-icp/tree/1ffa7d7512f10bfc8b1185095011fa31184019e3>

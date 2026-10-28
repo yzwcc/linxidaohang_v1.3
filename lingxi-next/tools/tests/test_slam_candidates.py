@@ -48,6 +48,25 @@ class CandidateBaselines(unittest.TestCase):
         self.assertEqual("downstream_navigation_not_lio", roles["ros-navigation/navigation2"])
         self.assertEqual("lio_algorithm_comparison_ros1_upstream", roles["hku-mars/FAST_LIO"])
 
+    def test_point_time_observation_is_not_recorded_as_calibration_or_replay(self):
+        target = self.manifest["targetValidation"]
+        self.assertIn("hypothesis", target["pointTimeUnits"])
+        evidence = target["pointTimeEvidence"]
+        self.assertEqual(evidence["sampledCloudFrames"], evidence["matchingFrames"])
+        self.assertFalse(evidence["calibrationValidated"])
+        self.assertEqual("unverified", target["dynamicTimeAlignment"])
+        self.assertEqual("not_run", target["dynamicReplay"])
+        self.assertIn("synthetic_profile_only", target["offlineConfigGeneration"])
+
+    def test_wrapper_package_declaration_is_not_a_verified_root_license_file(self):
+        wrapper = next(
+            item for item in self.manifest["repositories"]
+            if item["repository"] == "koide3/glim_ros2"
+        )
+        self.assertEqual("not_present_at_reviewed_commit", wrapper["rootLicense"])
+        self.assertEqual("MIT", wrapper["packageLicense"])
+        self.assertEqual("package.xml_declaration_only", wrapper["licenseEvidence"])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "reviewDate": "2026-10-28",
-  "reviewScope": "upstream_documentation_and_read_only_target_input_observation",
+  "reviewScope": "pinned_upstream_source_read_only_target_observation_and_synthetic_config_generation",
   "selectionStatus": "provisional_no_algorithm_benchmarks",
   "deploymentApproved": false,
   "repositories": [
@@ -20,7 +20,9 @@
       "commit": "4d4ec524ccf1b02aa09b0af2af767ecc54343798",
       "commitDate": "2026-08-14T00:43:55Z",
       "role": "official_ros2_wrapper_candidate",
-      "rootLicense": "not_separately_verified",
+      "rootLicense": "not_present_at_reviewed_commit",
+      "packageLicense": "MIT",
+      "licenseEvidence": "package.xml_declaration_only",
       "robotBuildVerified": false
     },
     {
@@ -72,8 +74,21 @@
   "dependenciesPinned": false,
   "targetValidation": {
     "sensorObservability": "short_window_observed",
-    "pointTimeUnits": "unverified",
+    "pointTimeUnits": "relative_nanoseconds_short_window_hypothesis",
+    "pointTimeEvidence": {
+      "sampledCloudFrames": 81,
+      "cloudArrivalHz": 10.073089782927857,
+      "imuArrivalHz": 197.5858585651362,
+      "matchingHypothesis": "relative_nanoseconds",
+      "matchingFrames": 81,
+      "sampledMinimumOffsetSeconds": [0.000332, 0.000498],
+      "sampledMaximumOffsetSeconds": [0.095163, 0.095181],
+      "sampledSpanSeconds": [0.094665, 0.094849],
+      "calibrationValidated": false
+    },
     "imuCalibration": "unverified",
+    "dynamicTimeAlignment": "unverified",
+    "offlineConfigGeneration": "passed_with_pinned_sources_and_synthetic_profile_only",
     "dynamicReplay": "not_run",
     "mapPersistenceAndRelocalization": "not_run",
     "navigationAndEmergencyStop": "not_run"

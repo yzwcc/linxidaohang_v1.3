@@ -17,13 +17,52 @@ ODOM_TOPIC = "/aima/mc/leg_odometry"
 FIELD_FORMATS = {
     1: "b", 2: "B", 3: "h", 4: "H", 5: "i", 6: "I", 7: "f", 8: "d",
 }
-TIME_FIELDS = ("timestamp", "time", "t", "offset_time")
+TIME_FIELDS = ("timestamp", "time_stamp", "time", "t", "offset_time")
+TIME_SCALES = {
+    "seconds": 1.0, "milliseconds": 1e-3,
+    "microseconds": 1e-6, "nanoseconds": 1e-9,
+}
 
 
 def finite_norm(values):
     if not all(math.isfinite(value) for value in values):
         return None
     return math.hypot(*values)
+
+
+def time_hypotheses(values, header_seconds, expected_count):
+    """Report plausible interpretations, not an automatically selected unit.
+
+    Only small relative offsets are emitted. Wrong epoch/unit combinations are
+    omitted instead of exposing raw absolute point timestamps in the report.
+    These broad bounds cannot replace driver documentation or dynamic checks.
+    """
+    if len(values) != expected_count or len(set(values)) < 2:
+        return {}
+    if not math.isfinite(header_seconds) or header_seconds <= 0:
+        return {}
+    earliest, latest = min(values), max(values)
+    matches = {}
+    for unit, scale in TIME_SCALES.items():
+        span = (latest - earliest) * scale
+        if not math.isfinite(span) or not 0.001 <= span <= 1.0:
+            continue
+        relative_first, relative_last = earliest * scale, latest * scale
+        if -0.25 <= relative_first <= 0.25 and relative_last <= 1.0:
+            matches["relative_" + unit] = {
+                "spanSeconds": span,
+                "firstMinusHeaderSeconds": relative_first,
+                "lastMinusHeaderSeconds": relative_last,
+            }
+        absolute_first = earliest * scale - header_seconds
+        absolute_last = latest * scale - header_seconds
+        if -0.25 <= absolute_first <= 0.25 and -0.25 <= absolute_last <= 1.0:
+            matches["absolute_" + unit] = {
+                "spanSeconds": span,
+                "firstMinusHeaderSeconds": absolute_first,
+                "lastMinusHeaderSeconds": absolute_last,
+            }
+    return matches
 
 
 class Range:
@@ -142,12 +181,14 @@ def sample_cloud(message, budget=256):
             if math.isfinite(value):
                 values.append(value)
     times = {}
+    stamp = message.header.stamp.sec + message.header.stamp.nanosec / 1e9
     for name, values in time_values.items():
         times[name] = {
             "finiteSamples": len(values),
             "distinctSamples": len(set(values)),
             "spanRawUnits": max(values) - min(values) if values else None,
             "units": "unverified",
+            "hypotheses": time_hypotheses(values, stamp, count),
         }
     return {
         "points": total, "bytes": len(message.data), "pointStep": step,
@@ -185,6 +226,7 @@ class Audit:
         self.finite_xyz_ratios = Range()
         self.point_time_spans = {}
         self.varying_time_frames = {}
+        self.point_time_hypotheses = {}
         self.imu_acceleration_norm = Range()
         self.imu_angular_velocity_norm = Range()
         self.imu_orientation_norm = Range()
@@ -212,6 +254,12 @@ class Audit:
             self.point_time_spans.setdefault(name, Range()).add(value["spanRawUnits"])
             if value["distinctSamples"] > 1:
                 self.varying_time_frames[name] = self.varying_time_frames.get(name, 0) + 1
+            for interpretation, evidence in value["hypotheses"].items():
+                aggregate = self.point_time_hypotheses.setdefault(name, {}).setdefault(
+                    interpretation, {key: Range() for key in evidence}
+                )
+                for key, measurement in evidence.items():
+                    aggregate[key].add(measurement)
 
     def imu(self, message):
         self.streams["imu"].observe(message.header)
@@ -274,6 +322,13 @@ class Audit:
                 },
                 "framesWithVaryingSampledPointTime": self.varying_time_frames,
                 "pointTimeUnits": "unverified",
+                "pointTimeInterpretationEvidence": {
+                    name: {
+                        interpretation: {key: value.report() for key, value in evidence.items()}
+                        for interpretation, evidence in interpretations.items()
+                    } for name, interpretations in self.point_time_hypotheses.items()
+                },
+                "timeInterpretationsAreHypothesesNotCalibration": True,
             },
             "imu": {
                 "accelerationNorm": self.imu_acceleration_norm.report(),

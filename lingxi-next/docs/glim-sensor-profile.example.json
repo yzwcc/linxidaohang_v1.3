@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "purpose": "offline_glim_trial",
+  "inputClassification": "target_sensor_profile",
+  "reviewedForOfflineTrial": false,
+  "lidarFrame": "lidar_chest_front",
+  "imuFrame": "lidar_imu_chest_front",
+  "pointTime": {
+    "field": "timestamp",
+    "datatype": "FLOAT64",
+    "unit": "nanoseconds",
+    "reference": "frame_relative"
+  },
+  "timeEvidence": "Short-window observation supports frame-relative nanosecond offsets; dynamic alignment remains unverified.",
+  "imuUnitEvidence": "",
+  "extrinsicEvidence": "",
+  "T_lidar_imu": null,
+  "accelerationScale": null,
+  "angularVelocityScale": null,
+  "imuTimeOffsetSeconds": null,
+  "cloudTimeOffsetSeconds": null
+}

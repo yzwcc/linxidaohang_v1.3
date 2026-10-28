@@ -186,5 +186,60 @@ class Metadata(unittest.TestCase):
                 self.assertNotIn(name, forbidden)
 
 
+class TimeInterpretations(unittest.TestCase):
+    def test_absolute_nanoseconds_match_the_header_without_exposing_epoch(self):
+        epoch = 1700000000
+        values = [epoch * 10**9, epoch * 10**9 + 95000000]
+        result = probe.time_hypotheses(values, epoch, 2)
+        self.assertEqual({"absolute_nanoseconds"}, set(result))
+        self.assertAlmostEqual(0.095, result["absolute_nanoseconds"]["spanSeconds"])
+        self.assertAlmostEqual(0, result["absolute_nanoseconds"]["firstMinusHeaderSeconds"])
+        self.assertTrue(all(abs(value) <= 1 for value in result["absolute_nanoseconds"].values()))
+
+    def test_absolute_seconds_and_relative_seconds_are_distinct(self):
+        self.assertEqual(
+            {"absolute_seconds"}, set(probe.time_hypotheses([100, 100.1], 100, 2))
+        )
+        self.assertEqual(
+            {"relative_seconds"}, set(probe.time_hypotheses([0, 0.1], 100, 2))
+        )
+
+    def test_relative_nanoseconds(self):
+        result = probe.time_hypotheses([0, 95000000], 1700000000, 2)
+        self.assertEqual({"relative_nanoseconds"}, set(result))
+
+    def test_missing_nonvarying_or_incomplete_point_times_do_not_match(self):
+        for values, count in (([], 2), ([0, 0], 2), ([0, 0.1], 3)):
+            self.assertEqual({}, probe.time_hypotheses(values, 100, count))
+
+    def test_invalid_header_does_not_offer_time_configuration(self):
+        for stamp in (0, -1, math.nan, math.inf):
+            self.assertEqual({}, probe.time_hypotheses([0, 0.1], stamp, 2))
+
+    def test_frame_end_reference_is_visible_but_not_rewritten(self):
+        result = probe.time_hypotheses([99.9, 100], 100, 2)
+        self.assertAlmostEqual(-0.1, result["absolute_seconds"]["firstMinusHeaderSeconds"])
+        self.assertAlmostEqual(0, result["absolute_seconds"]["lastMinusHeaderSeconds"])
+
+    def test_ambiguous_units_are_reported_not_chosen(self):
+        result = probe.time_hypotheses([0, 1], 100, 2)
+        self.assertIn("relative_seconds", result)
+        self.assertIn("relative_milliseconds", result)
+
+    def test_source_field_alias_is_supported(self):
+        message = cloud()
+        message.fields[-1].name = "time_stamp"
+        result = probe.sample_cloud(message)
+        self.assertIn("time_stamp", result["pointTimes"])
+
+    def test_aggregated_evidence_keeps_calibration_unverified(self):
+        audit = probe.Audit()
+        audit.cloud(cloud())
+        result = audit.report()
+        self.assertIn("relative_seconds", result["cloud"]["pointTimeInterpretationEvidence"]["time"])
+        self.assertEqual("unverified", result["cloud"]["pointTimeUnits"])
+        self.assertFalse(result["validation"]["mappingValidated"])
+
+
 if __name__ == "__main__":
     unittest.main()
