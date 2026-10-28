@@ -79,6 +79,11 @@ factory file does not contain the LiDAR IMU extrinsic, and that the
 base-to-LiDAR chain crosses dynamic waist joints. Timestamped interpolation
 is checked without extrapolation; no calibration or fixed transform is
 silently applied. See [the frame and warning audit](docs/SLAM_CALIBRATION_AUDIT.md).
+One subsequent current-input capture records every actual callback as private
+CDR and replays the completed FIFO prefix in a fresh ARM64 process without ROS
+initialization. The frame domain and algorithm times match, with the same two
+IMU prediction warnings; this narrows the diagnosis but does not validate
+calibration or physical accuracy. See [the matched-input check](docs/SLAM_MATCHED_INPUT.md).
 An independent full-recording range audit records returns beyond 5 raw-coordinate
 units. The roughly 5 m travel estimate is not calibration truth; travel,
 scan coverage and map accuracy are different quantities.

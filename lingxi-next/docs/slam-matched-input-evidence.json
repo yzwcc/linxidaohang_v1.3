@@ -1,0 +1,239 @@
+{
+  "schemaVersion": 1,
+  "purpose": "arm64_identical_callback_input_glim_diagnostic",
+  "result": "same_current_callback_input_replayed_on_arm64_not_quality_acceptance",
+  "bundleManifestSha256": "0bc10c50ecfe126e690bcee723af49d51223f6e1969bc80d4dc5f4ac2068cb2a",
+  "parentLiveManifestSha256": "20b8c6c42d1f2398102e47a9e83a5033c1bce21dbec3431367c5d51a4c03c493",
+  "coreBundleManifestSha256": "a4a0cea60ace957864f48b2b8bf726ee9f6e0594be8238cac36dbd11d024b733",
+  "sourceCommits": {
+    "gtsam": "3ad4b4c3cb28394c9597f48fa02dad361c8450e3",
+    "gtsam_points": "9d32e7dbecf6015560d84b4901d6b0a6f483ec46",
+    "glim": "1a197c999e4865f5cab7c9cd25474128413ebbca"
+  },
+  "coordinatorSha256": "46c4aeba46f4e796d9ca59b48eb7d004a0d459426afd701022295caf033dbd57",
+  "exporterSha256": "64483fd57ac410f438dd1adbf915dca1874bf44d136e302a9a1b4f65303a6942",
+  "sourceSha256": {
+    "tools/glim_matched_session.py": "20245c70053635ccf804a67122f31d1af33edc6a99b8b221a2009a7e9409aa02",
+    "tools/slam_callback_journal.py": "3c9242f163b0c9265358085c6c59407973fa862592f2daea8151576ba7a9fe8b"
+  },
+  "reportsSha256": {
+    "live": "6921e314cbe0510799697c701c80b04906e015c17017cb1eb8ef465ac198c5e2",
+    "replay": "c380de2f3213261e9f88c04da6aa653425b4a8d93ed8df388f0c0e291b2dd937"
+  },
+  "distinctActualArm64ProcessIdsVerifiedNotPublished": true,
+  "actualLoadedLibrariesSha256": {
+    "libodometry_estimation_cpu.so": "5f9507bf8c075b89f5c072d0d9d3e0f535de259c884d955f5ad9230bbd632c0d",
+    "libcephes-gtsam.so.1": "7e18a24d0795a956df312b33c0f2f437c7130e0cdeb5b596a50ed30b4d356e24",
+    "libmetis-gtsam.so": "844a86b408f2ed51445162f6aeb7979212e8aaae064ad59e0d3862ec6b96e400",
+    "libgtsam.so.4": "fee5315024f5eaf4b7b432bc8ff2c9715c098fe6a3693d8177a39bc9a538620f",
+    "libglim.so": "3c70a22f4151c0c600f394bc65c1dff5c6d133566cb110866b869caeb9ae7f81",
+    "libgtsam_points.so.1": "1b279b1d3ad4e252499167a6f9d16f17eec8e7ca634d7157fbd594692e2a54fb",
+    "liblingxi_glim_offline.so": "3b814b90d62162461b00e98f98ba29a46827d3b9fbb398b597c29ae5ac633b5e"
+  },
+  "callbackJournalSha256": "492a5b33f04edfc85b5e5c18fbf5e9e0e5005b68480c6e3cfd191927d7d98bf8",
+  "callbackAudit": {
+    "counts": {
+      "cloud": 197,
+      "imu": 3947
+    },
+    "records": 4144,
+    "payloadBytes": 157495805,
+    "allCallbackHeadersIndependentlyDeserializedAndMatched": true
+  },
+  "journalBytes": 157715530,
+  "replayedCompletedPrefixMessages": 4144,
+  "excludedExplicitStopTailMessages": 0,
+  "liveObservations": {
+    "cloud": {
+      "callbacks": 197,
+      "callbackSpanSeconds": 19.595583176997025,
+      "callbackArrivalHz": 10.002253989056147,
+      "maximumHeaderGapMilliseconds": 103.215,
+      "callbackSnapshotMillisecondsP50P95P99": [
+        3.0153369953040965,
+        3.6865613990812536,
+        4.740897404553834
+      ]
+    },
+    "imu": {
+      "callbacks": 3947,
+      "callbackSpanSeconds": 19.704856454001856,
+      "callbackArrivalHz": 200.2552015139703,
+      "maximumHeaderGapMilliseconds": 18.277177,
+      "callbackSnapshotMillisecondsP50P95P99": [
+        0.25192600151058286,
+        0.41652730433270324,
+        1.052828223182586
+      ]
+    },
+    "processedScans": 196,
+    "initializationScans": 31,
+    "estimatedPoses": 165,
+    "activeConsumerFrameResults": 196,
+    "retiredAtStopFrameResults": 0,
+    "firstPoseCloudCallbackBeginAfterObservationStartSeconds": 3.619628168999043,
+    "firstPoseResultAfterObservationStartSeconds": 3.7287841989964363,
+    "frameResultAfterCallbackBeginMillisecondsP50P95P99": [
+      47.65121200034628,
+      73.64685124412063,
+      99.63719869847415
+    ],
+    "frameResultAfterCallbackBeginMillisecondsMaximum": 109.15602999739349,
+    "nativePreprocessAndOdometryMillisecondsP50P95P99": [
+      39.057696,
+      64.364285,
+      88.52035725000003
+    ]
+  },
+  "liveWorker": {
+    "counts": {
+      "acceptedImu": 3947,
+      "acceptedClouds": 197,
+      "completedMessages": 4144,
+      "discardedMessages": 0,
+      "rejectedMessages": 0,
+      "maximumQueuedMessages": 43,
+      "maximumQueuedClouds": 2,
+      "maximumQueuedPayloadBytes": 1586648
+    },
+    "limits": {
+      "maximum_messages": 4096,
+      "maximum_clouds": 16,
+      "maximum_payload_bytes": 67108864,
+      "maximum_cloud_payload_bytes": 8388608,
+      "maximum_queue_age_seconds": 0.5,
+      "maximum_processing_seconds": 0.75,
+      "tick_seconds": 0.05,
+      "shutdown_seconds": 3.0
+    },
+    "maximumObservedQueueAgeSeconds": 0.18265446700388566,
+    "threadJoinedAndQueuesReleased": true,
+    "discardedMessagesAreExplicitSessionStopNotUnreportedLoss": 0,
+    "stream": {
+      "counts": {
+        "receivedImu": 3947,
+        "receivedClouds": 197,
+        "insertedImu": 3930,
+        "processedScans": 196,
+        "initializationScans": 31,
+        "estimatedPoses": 165,
+        "skippedBeforeImu": 1,
+        "skippedAfterImuAtEndOfInput": 0,
+        "discardedOnFailure": 0,
+        "maximumPendingImu": 31,
+        "maximumPendingClouds": 1,
+        "maximumPendingBytes": 793728
+      },
+      "limits": {
+        "maximum_pending_imu": 4096,
+        "maximum_pending_clouds": 32,
+        "maximum_pending_bytes": 67108864,
+        "maximum_points_per_cloud": 2000000,
+        "maximum_imu_gap_ns": 50000000,
+        "maximum_cloud_gap_ns": 500000000,
+        "initial_wait_seconds": 2.0,
+        "maximum_wait_seconds": 0.75,
+        "maximum_sensor_silence_seconds": 0.75
+      },
+      "allBuffersReleasedAtExplicitEndOfInput": true,
+      "maximumActualCallbackScanWaitSeconds": 0.0018345839998801239
+    }
+  },
+  "captureSerializationAndAppendMillisecondsP50P95P99Max": [
+    0.15353,
+    1.521677499999987,
+    2.8700946399999996,
+    7.85329
+  ],
+  "captureCostIsInstrumentedSummaryNotIndependentlyRecomputedSamples": true,
+  "sameInputComparison": {
+    "exactFrameDomainAndAlgorithmTimes": true,
+    "exactPreprocessedPointAndMarginalizedCounts": true,
+    "processedScans": 196,
+    "estimatedPoses": 165,
+    "maximumPoseMatrixElementDifference": 1.6664204738336963e-12,
+    "positionDifferenceRawUnitsP50P95Max": [
+      4.368117589373454e-13,
+      1.560264622650048e-12,
+      1.7005405352265777e-12
+    ],
+    "posesComparedWithoutAlignmentOrScaleFitting": true,
+    "physicalAccuracyValidated": false
+  },
+  "nativeWarnings": {
+    "live": {
+      "predictionWarningCount": 2,
+      "loggedCumulativeWindows": [
+        {
+          "cumulativeValidations": 64,
+          "roundedBetterRatiosRotationTranslationVelocity": [
+            0.78,
+            0.0,
+            0.02
+          ]
+        },
+        {
+          "cumulativeValidations": 128,
+          "roundedBetterRatiosRotationTranslationVelocity": [
+            0.8,
+            0.0,
+            0.01
+          ]
+        }
+      ],
+      "biasMagnitudeWarningCount": 0,
+      "roundedRatiosAreNotExactThresholdOrCalibrationTests": true
+    },
+    "replay": {
+      "predictionWarningCount": 2,
+      "loggedCumulativeWindows": [
+        {
+          "cumulativeValidations": 64,
+          "roundedBetterRatiosRotationTranslationVelocity": [
+            0.78,
+            0.0,
+            0.02
+          ]
+        },
+        {
+          "cumulativeValidations": 128,
+          "roundedBetterRatiosRotationTranslationVelocity": [
+            0.8,
+            0.0,
+            0.01
+          ]
+        }
+      ],
+      "biasMagnitudeWarningCount": 0,
+      "roundedRatiosAreNotExactThresholdOrCalibrationTests": true
+    }
+  },
+  "warningSummariesIdentical": true,
+  "replayIsLogicalArrivalOrderNotRealtimeMeasurement": true,
+  "liveRequestedSeconds": 20.0,
+  "ddsProfileSha256": "6bd06d226e4c7a5e72caf9cc44613ab26a469940f286dd887d5a2b1d81af2a0b",
+  "peakResidentMiB": {
+    "live": 254.90234375,
+    "replay": 191.03125
+  },
+  "boundaries": {
+    "motionCommandsSent": false,
+    "applicationPublishersCreated": false,
+    "tfPublished": false,
+    "mapPublished": false,
+    "globalMappingExecuted": false,
+    "mapSaved": false,
+    "mapActivated": false,
+    "modeOrInputSourceChanged": false,
+    "deployedServicesChanged": false,
+    "sensorToDdsLatencyValidated": false,
+    "timingHypothesisValidated": false,
+    "robotCalibrationValidated": false,
+    "geometryValidated": false,
+    "relocalizationValidated": false,
+    "voiceConcurrencyValidated": false,
+    "navigationValidated": false,
+    "deploymentApproved": false,
+    "rawDataPublished": false
+  }
+}
