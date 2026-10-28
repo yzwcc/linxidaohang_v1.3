@@ -625,6 +625,16 @@ bag 时间轴回放未模拟 CPU 积压，不能当在线延迟或语音并发�
 下一步应在明确静止条件下取得对照数据，而不是继续重复历史矩阵。
 详见 `SLAM_INITIALIZATION_AUDIT.md` 与 `slam-initialization-audit-evidence.json`。
 
+### 独立进程生命周期边界
+
+新增 Linux 单次会话进程监督器和健康 IPC。只有实际消息处理进度才能
+刷新进度时限，心跳不能替代；启动/关闭超时、异常退出和协议问题均保留故障。
+本地合成子进程验证了 TERM/KILL、自有进程组清理、派生进程占用管道、
+环境隔离，以及原有 SensorWorker 配合合成引擎阻塞后的回收。
+没有连接机器人或加载真实原生库，尚未接入 GLIM/ARM64 实机或管理 API，
+也未将进程健康当成地图/定位/导航 readiness。
+详见 `SLAM_PROCESS_SUPERVISION.md`，不替代现场标定和几何验收。
+
 在机器人已加载正确 ROS 环境的独立进程中运行：
 
 ```sh

@@ -90,6 +90,11 @@ The first pose falls on the first frame reaching the configured three-second
 window; input variation is low but physical stationarity is not established.
 No bias or time correction is applied.
 See [the initialization and timing limits](docs/SLAM_INITIALIZATION_AUDIT.md).
+A Linux single-use process supervisor now adds bounded health IPC, actual-work
+progress deadlines and owned-process-group cleanup. Local synthetic child
+checks include the unchanged input worker; real GLIM/ARM64 integration and
+parent-service failure recovery remain pending.
+See [the process supervision boundary](docs/SLAM_PROCESS_SUPERVISION.md).
 An independent full-recording range audit records returns beyond 5 raw-coordinate
 units. The roughly 5 m travel estimate is not calibration truth; travel,
 scan coverage and map accuracy are different quantities.
