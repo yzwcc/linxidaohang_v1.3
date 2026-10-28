@@ -19,21 +19,9 @@ spec.loader.exec_module(config)
 
 
 def synthetic_profile():
-    return {
-        "schemaVersion": 1, "purpose": "offline_glim_trial", "reviewedForOfflineTrial": True,
-        "inputClassification": "synthetic_fixture",
-        "timeEvidence": "isolated synthetic fixture, not target acceptance",
-        "imuUnitEvidence": "isolated synthetic fixture SI values",
-        "extrinsicEvidence": "isolated synthetic fixture transform",
-        "pointTime": {
-            "field": "timestamp", "datatype": "FLOAT64",
-            "unit": "nanoseconds", "reference": "frame_relative",
-        },
-        "lidarFrame": "lidar_chest_front", "imuFrame": "lidar_imu_chest_front",
-        "T_lidar_imu": [0, 0, 0, 0, 0, 0, 1],
-        "accelerationScale": 1.0, "angularVelocityScale": 1.0,
-        "imuTimeOffsetSeconds": 0.0, "cloudTimeOffsetSeconds": 0.0,
-    }
+    return json.loads(
+        (ROOT / "tools" / "glim-smoke" / "synthetic-profile.json").read_text(encoding="utf-8")
+    )
 
 
 class GlimTrialConfiguration(unittest.TestCase):

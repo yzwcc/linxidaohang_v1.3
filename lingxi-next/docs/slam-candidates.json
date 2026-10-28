@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "reviewDate": "2026-10-28",
-  "reviewScope": "pinned_upstream_source_read_only_target_observation_and_synthetic_config_generation",
+  "reviewScope": "pinned_sources_passive_target_observation_host_cpu_build_and_synthetic_native_smoke",
   "selectionStatus": "provisional_no_algorithm_benchmarks",
   "deploymentApproved": false,
   "repositories": [
@@ -71,6 +71,22 @@
       "robotBuildVerified": false
     }
   ],
+  "coreBuildDependencies": [
+    {
+      "repository": "borglab/gtsam",
+      "reviewedRef": "4.3a0",
+      "commit": "3ad4b4c3cb28394c9597f48fa02dad361c8450e3",
+      "rootLicense": "BSD-3-Clause_see_LICENSE.BSD_and_bundled_dependency_notices",
+      "robotBuildVerified": false
+    },
+    {
+      "repository": "koide3/gtsam_points",
+      "reviewedRef": "v1.2.2",
+      "commit": "9d32e7dbecf6015560d84b4901d6b0a6f483ec46",
+      "rootLicense": "MIT",
+      "robotBuildVerified": false
+    }
+  ],
   "dependenciesPinned": false,
   "targetValidation": {
     "sensorObservability": "short_window_observed",
@@ -89,6 +105,9 @@
     "imuCalibration": "unverified",
     "dynamicTimeAlignment": "unverified",
     "offlineConfigGeneration": "passed_with_pinned_sources_and_synthetic_profile_only",
+    "hostCpuCoreBuild": "passed_x86_64_ubuntu_24_04_not_target_arm64",
+    "nativeTimeConversion": "passed_synthetic_fixture_only",
+    "hostBuildEvidence": "slam-cpu-build-evidence.json",
     "dynamicReplay": "not_run",
     "mapPersistenceAndRelocalization": "not_run",
     "navigationAndEmergencyStop": "not_run"

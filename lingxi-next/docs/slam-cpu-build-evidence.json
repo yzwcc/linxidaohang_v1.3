@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 1,
+  "observedDate": "2026-10-28",
+  "purpose": "host_cpu_build_and_synthetic_native_smoke",
+  "host": {
+    "os": "Ubuntu 24.04.4 LTS under WSL2",
+    "machine": "x86_64",
+    "compiler": "GCC 13.3.0",
+    "cmake": "3.28.3",
+    "eigen": "3.4.0",
+    "boost": "1.83.0",
+    "cppOptimization": "O1",
+    "parallelJobs": 2
+  },
+  "sourceCommits": {
+    "gtsam": "3ad4b4c3cb28394c9597f48fa02dad361c8450e3",
+    "gtsam_points": "9d32e7dbecf6015560d84b4901d6b0a6f483ec46",
+    "glim": "1a197c999e4865f5cab7c9cd25474128413ebbca"
+  },
+  "coreStages": [
+    {"name": "gtsam_configure", "exitCode": 0},
+    {"name": "gtsam_build", "exitCode": 0},
+    {"name": "gtsam_install", "exitCode": 0},
+    {"name": "gtsam_points_configure", "exitCode": 0},
+    {"name": "gtsam_points_build", "exitCode": 0},
+    {"name": "gtsam_points_install", "exitCode": 0},
+    {"name": "glim_configure", "exitCode": 0},
+    {"name": "glim_build", "exitCode": 0},
+    {"name": "glim_install", "exitCode": 0}
+  ],
+  "downloadedAndExtractedDebianPackages": 55,
+  "systemPackagesInstalled": false,
+  "syntheticNativeSmoke": {
+    "configureExitCode": 0,
+    "buildExitCode": 0,
+    "ctestExitCode": 0,
+    "testsPassed": 1,
+    "inputClassification": "synthetic_fixture",
+    "nativeModulesLoaded": 3,
+    "frameSeconds": 1000,
+    "firstSeconds": 0.000332,
+    "lastSeconds": 0.095181
+  },
+  "sha256": {
+    "libglim.so": "6c554c6a48119eb9d2ce9d595076c64de581070f50c60438e85108bc9ebedb47",
+    "libodometry_estimation_cpu.so": "dc5ed040f36e8a83fd0207e5307894d95b1062f659e182db0e03cac8d02316ca",
+    "libsub_mapping_passthrough.so": "61ade9a5508a508bc4531093c1a0cfd3aa8ec0f4f0547df9df3a8553c9ac5de3",
+    "libglobal_mapping_pose_graph.so": "5de2540d5aee60a5d5a90fb0ee778ec4935675311bdc9391d4355c37079a2193",
+    "lingxi_glim_time_smoke": "c9d8551c6a70012e0d2d2ae16e37b50b5a89ad8513ee2fd52091639a6b57d582",
+    "local-build-report.json": "7c0bd55fa3207c68a93969c84b00f08adf65be57105036585a7cc5c534442cd4",
+    "local-smoke-report.json": "1aca6816c9f7c8160713c220ec3874f59105585626bc77b12b4bc7ab4399abf9",
+    "ctest.log": "07243bd2f2e76ad420924c9e88410e05437f124dd733398653706836accba453"
+  },
+  "boundaries": {
+    "deploymentApproved": false,
+    "targetArm64Validated": false,
+    "rosWrapperValidated": false,
+    "robotCalibrationValidated": false,
+    "realSlamTrajectoryExecuted": false,
+    "navigationValidated": false,
+    "allTransitiveDependenciesPinned": false,
+    "motionCommandsSent": 0
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "purpose": "offline_glim_trial",
+  "inputClassification": "synthetic_fixture",
+  "reviewedForOfflineTrial": true,
+  "timeEvidence": "Isolated synthetic fixture, not target acceptance.",
+  "imuUnitEvidence": "Isolated synthetic SI values, not measured robot units.",
+  "extrinsicEvidence": "Isolated synthetic identity transform, not robot calibration.",
+  "pointTime": {
+    "field": "timestamp",
+    "datatype": "FLOAT64",
+    "unit": "nanoseconds",
+    "reference": "frame_relative"
+  },
+  "lidarFrame": "lidar_chest_front",
+  "imuFrame": "lidar_imu_chest_front",
+  "T_lidar_imu": [0, 0, 0, 0, 0, 0, 1],
+  "accelerationScale": 1.0,
+  "angularVelocityScale": 1.0,
+  "imuTimeOffsetSeconds": 0.0,
+  "cloudTimeOffsetSeconds": 0.0
+}
