@@ -1,0 +1,654 @@
+{
+  "schemaVersion": 1,
+  "observedDate": "2026-10-28",
+  "purpose": "x86_native_preprocessing_repeatability_not_slam_or_cross_architecture_acceptance",
+  "sourceCommits": {
+    "gtsam": "3ad4b4c3cb28394c9597f48fa02dad361c8450e3",
+    "gtsam_points": "9d32e7dbecf6015560d84b4901d6b0a6f483ec46",
+    "glim": "1a197c999e4865f5cab7c9cd25474128413ebbca"
+  },
+  "sourcePinsSha256": {
+    "glim/src/glim/preprocess/cloud_preprocessor.cpp": "7cd07271d1e500abbbc868168678f7addcffc057485b3c0f9fa0c7be8ccbb5b2",
+    "glim/include/glim/preprocess/cloud_preprocessor.hpp": "148f746058e8b1cc6018f110fb1ceeda3c68598a5818d0acdf14beaaf8a9c67f",
+    "gtsam_points/src/gtsam_points/types/point_cloud_cpu_funcs.cpp": "b4d9966781698ff682b1eae29b9c67709c14d2729aa7771303d5ab85a4a2389c",
+    "gtsam_points/include/gtsam_points/util/sort_omp.hpp": "16eb260e9f1711d2138091c9d0ecff5eeee6acab8e8f866037aa541dd8209db0"
+  },
+  "captureManifestSha256": "dff6ef252728ac0a26989b880d1d3a11769922467c8f5d7747c1b04a5c2c1e28",
+  "adapterBuildReportSha256": "9d0faa1f819a3bc32619137f543a296bc3eab97d7ebde9436786f787c752b51e",
+  "nativeAdapterSha256": "48aea2595272b462e0eae7e223731c703fc9f94dc65970d2cdf1223ea6a22f73",
+  "adapterSourcesSha256": {
+    "preprocess.cpp": "0606b3cf9bdebd9f7f9fe1f38a5cdd3e7426a08e625c4d4f98724d2f2667accf",
+    "CMakeLists.txt": "8953d8a65b2abf4bd937fa62195354fb55e5fb3828d920ec86bea791342e8700"
+  },
+  "collectionReportSha256": "a19d25f3e152dc5ccd3f67b83f46bef046afcec1e317ce171ada61fe79d4fc41",
+  "runnerSourceSha256": "4423fd4ea576a383e52201866a4d5030bb4110f81fc63ff06e36543ca0513393",
+  "unchangedConfigurationManifestSha256": "0c399c4be893a56283f15a69ebf78ce576200424d3f1be7e4ae078049c56b53a",
+  "exporterSourceSha256": "e6523c0c3fe54eaa4e99c5e1f55248a0bd9af02944351fa82829b97a0ba5984d",
+  "freshProcessCount": 12,
+  "baselineThreads": 2,
+  "diagnosticControlThreads": 1,
+  "repeatsPerCondition": 3,
+  "controlIsNotProductionConfiguration": true,
+  "runs": {
+    "static-threads2-repeat1": {
+      "dataset": "static",
+      "diagnosticThreads": 2,
+      "recordedScans": 353,
+      "processedScans": 342,
+      "skippedUnbracketedScans": 11,
+      "totalPreparedPoints": 2205054,
+      "rawPointCountMinMax": [
+        25458,
+        25530
+      ],
+      "preparedPointCountMinMax": [
+        6262,
+        7254
+      ],
+      "sourceDerivedSamplingActiveFrames": 342,
+      "filesSha256": {
+        "private-index.npz": "1d108588df2d7a7e3adda780b6f723297dc09ed3600c22d921f04c7130d6f094",
+        "private-prepared-xyzt.f64": "4ec4fee640a9d0deceedc484280200d3aeb826721f444588268bb983cb94b48a",
+        "private-neighbors.i32": "47424efb21a3313db1ef79bf59f4e356aa6cb5d8de83ad04032f4e243f3d2655",
+        "private-native.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "reportSha256": "40b2632909ca5bf5b93334a7f528cf8e38cafe586dc24425a33b117a122d2b15"
+    },
+    "static-threads2-repeat2": {
+      "dataset": "static",
+      "diagnosticThreads": 2,
+      "recordedScans": 353,
+      "processedScans": 342,
+      "skippedUnbracketedScans": 11,
+      "totalPreparedPoints": 2205054,
+      "rawPointCountMinMax": [
+        25458,
+        25530
+      ],
+      "preparedPointCountMinMax": [
+        6262,
+        7254
+      ],
+      "sourceDerivedSamplingActiveFrames": 342,
+      "filesSha256": {
+        "private-index.npz": "1d108588df2d7a7e3adda780b6f723297dc09ed3600c22d921f04c7130d6f094",
+        "private-prepared-xyzt.f64": "9b354507083db5a9e87630cf155c554875b52681ad5df781d0e4fff619655841",
+        "private-neighbors.i32": "c85cafdaa70cc6d5acfdc620dec8743b8f8bf60a8c5b816718ca834ef0d7b29a",
+        "private-native.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "reportSha256": "f8dee4c4c692ee603df7165dbbba99804b28adf7f6625c537fd08f90296b8d46"
+    },
+    "static-threads2-repeat3": {
+      "dataset": "static",
+      "diagnosticThreads": 2,
+      "recordedScans": 353,
+      "processedScans": 342,
+      "skippedUnbracketedScans": 11,
+      "totalPreparedPoints": 2205054,
+      "rawPointCountMinMax": [
+        25458,
+        25530
+      ],
+      "preparedPointCountMinMax": [
+        6262,
+        7254
+      ],
+      "sourceDerivedSamplingActiveFrames": 342,
+      "filesSha256": {
+        "private-index.npz": "1d108588df2d7a7e3adda780b6f723297dc09ed3600c22d921f04c7130d6f094",
+        "private-prepared-xyzt.f64": "2436ed9fd8e88dfe00bec753f7d46e7844e5f143a7ef7fb1435596bd43852cbd",
+        "private-neighbors.i32": "b2e4d91a17514946aeebf6a30349497c41a349a03ff7a3e83f1b0ae9b86bdcb1",
+        "private-native.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "reportSha256": "b9522755f36187cabb74d1ae5646d8773ce8f0a56960ef599db7507789f10f8d"
+    },
+    "static-threads1-repeat1": {
+      "dataset": "static",
+      "diagnosticThreads": 1,
+      "recordedScans": 353,
+      "processedScans": 342,
+      "skippedUnbracketedScans": 11,
+      "totalPreparedPoints": 2205054,
+      "rawPointCountMinMax": [
+        25458,
+        25530
+      ],
+      "preparedPointCountMinMax": [
+        6262,
+        7254
+      ],
+      "sourceDerivedSamplingActiveFrames": 342,
+      "filesSha256": {
+        "private-index.npz": "1d108588df2d7a7e3adda780b6f723297dc09ed3600c22d921f04c7130d6f094",
+        "private-prepared-xyzt.f64": "ff4873a605af550ec01e0d21453cffb7c537770d7962907f49548c66a2d21eff",
+        "private-neighbors.i32": "3e32e59f108d5fc3d367766b1baadd2f528ce537e670d122afc0a6c4148bb6eb",
+        "private-native.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "reportSha256": "4bb259e67067923fe9f020a04634770b1cb5d9cf68792f2bf4a730ba10aadcd0"
+    },
+    "static-threads1-repeat2": {
+      "dataset": "static",
+      "diagnosticThreads": 1,
+      "recordedScans": 353,
+      "processedScans": 342,
+      "skippedUnbracketedScans": 11,
+      "totalPreparedPoints": 2205054,
+      "rawPointCountMinMax": [
+        25458,
+        25530
+      ],
+      "preparedPointCountMinMax": [
+        6262,
+        7254
+      ],
+      "sourceDerivedSamplingActiveFrames": 342,
+      "filesSha256": {
+        "private-index.npz": "1d108588df2d7a7e3adda780b6f723297dc09ed3600c22d921f04c7130d6f094",
+        "private-prepared-xyzt.f64": "ff4873a605af550ec01e0d21453cffb7c537770d7962907f49548c66a2d21eff",
+        "private-neighbors.i32": "3e32e59f108d5fc3d367766b1baadd2f528ce537e670d122afc0a6c4148bb6eb",
+        "private-native.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "reportSha256": "de7b8dcd8d3b39976dc5fd1c709ead99c8c00021cc7ccd85be0073aee6c717b8"
+    },
+    "static-threads1-repeat3": {
+      "dataset": "static",
+      "diagnosticThreads": 1,
+      "recordedScans": 353,
+      "processedScans": 342,
+      "skippedUnbracketedScans": 11,
+      "totalPreparedPoints": 2205054,
+      "rawPointCountMinMax": [
+        25458,
+        25530
+      ],
+      "preparedPointCountMinMax": [
+        6262,
+        7254
+      ],
+      "sourceDerivedSamplingActiveFrames": 342,
+      "filesSha256": {
+        "private-index.npz": "1d108588df2d7a7e3adda780b6f723297dc09ed3600c22d921f04c7130d6f094",
+        "private-prepared-xyzt.f64": "ff4873a605af550ec01e0d21453cffb7c537770d7962907f49548c66a2d21eff",
+        "private-neighbors.i32": "3e32e59f108d5fc3d367766b1baadd2f528ce537e670d122afc0a6c4148bb6eb",
+        "private-native.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "reportSha256": "785c0e0b80bac2c7f0029991358d7c6df64a91dc7b144547172f8beeab363f9d"
+    },
+    "dynamic-threads2-repeat1": {
+      "dataset": "dynamic",
+      "diagnosticThreads": 2,
+      "recordedScans": 1232,
+      "processedScans": 1220,
+      "skippedUnbracketedScans": 12,
+      "totalPreparedPoints": 7901755,
+      "rawPointCountMinMax": [
+        24477,
+        25875
+      ],
+      "preparedPointCountMinMax": [
+        5661,
+        9459
+      ],
+      "sourceDerivedSamplingActiveFrames": 1220,
+      "filesSha256": {
+        "private-index.npz": "bf7dd13284241c935427e9f5b7d1af82f8e66f4610cad49d99bd72ceaf0a89cf",
+        "private-prepared-xyzt.f64": "a80c9e4b1cd8b457db55c5aa497f4554c55094671eca81f6a185b46f5a916407",
+        "private-neighbors.i32": "682c970f8d7f0fd69b184467693705d5f4442196273c2bad686e24740e863d97",
+        "private-native.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "reportSha256": "b7ec95f4f053540c0ee9cd8d0d47ec28283b7777ed86c7f3a57af37c5dee4d59"
+    },
+    "dynamic-threads2-repeat2": {
+      "dataset": "dynamic",
+      "diagnosticThreads": 2,
+      "recordedScans": 1232,
+      "processedScans": 1220,
+      "skippedUnbracketedScans": 12,
+      "totalPreparedPoints": 7901760,
+      "rawPointCountMinMax": [
+        24477,
+        25875
+      ],
+      "preparedPointCountMinMax": [
+        5661,
+        9459
+      ],
+      "sourceDerivedSamplingActiveFrames": 1220,
+      "filesSha256": {
+        "private-index.npz": "ee4aacd1f1ba95925ef2b6b50541532ec7f6e2b1cd038f80d105b93006b022c6",
+        "private-prepared-xyzt.f64": "539be4ce2b447025c766ae96d64ca74a1f871f0c9b2e15ab7304aabc155795f8",
+        "private-neighbors.i32": "212558b51ca760a3581e80791ec8c812b612b49b11dc59fe81ef7f989e9b0ba6",
+        "private-native.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "reportSha256": "00a951f017d43cc2b483e8a2a92306063208f1f4e2d750d8fc86a0a30366c6f4"
+    },
+    "dynamic-threads2-repeat3": {
+      "dataset": "dynamic",
+      "diagnosticThreads": 2,
+      "recordedScans": 1232,
+      "processedScans": 1220,
+      "skippedUnbracketedScans": 12,
+      "totalPreparedPoints": 7901790,
+      "rawPointCountMinMax": [
+        24477,
+        25875
+      ],
+      "preparedPointCountMinMax": [
+        5661,
+        9459
+      ],
+      "sourceDerivedSamplingActiveFrames": 1220,
+      "filesSha256": {
+        "private-index.npz": "7f43efbe862038405c09f98c13a82d766f68a3a4fbcbbf032c091809adee7607",
+        "private-prepared-xyzt.f64": "1d55f197a397544338bdcf27c98f7c56b30e91fa9fa9dc519013dc860b9a196d",
+        "private-neighbors.i32": "95ed4c3490cc25e9ffacb650fcf364d541dca19a874a0ae67e9c136addebe692",
+        "private-native.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "reportSha256": "033939e919b7e6ba3713c7b17769ced5912fd9ff29aceca080ba7e4d6becc7bf"
+    },
+    "dynamic-threads1-repeat1": {
+      "dataset": "dynamic",
+      "diagnosticThreads": 1,
+      "recordedScans": 1232,
+      "processedScans": 1220,
+      "skippedUnbracketedScans": 12,
+      "totalPreparedPoints": 7901775,
+      "rawPointCountMinMax": [
+        24477,
+        25875
+      ],
+      "preparedPointCountMinMax": [
+        5661,
+        9459
+      ],
+      "sourceDerivedSamplingActiveFrames": 1220,
+      "filesSha256": {
+        "private-index.npz": "a713cac536b9af1338b63cd35a26e62fa86f8cbe19ff9912e7250d3a8ee8b681",
+        "private-prepared-xyzt.f64": "62c16646271f3692af55843573046001c876dffbb90cc79244bd83205eaf6397",
+        "private-neighbors.i32": "b10416b95a0084855a62b8c2087badf886265e55a8d8ae1cd5d61dbffe6d9263",
+        "private-native.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "reportSha256": "3933f6e67210b28970bb3820f63213528d3814e124a3f1cd240c7590b25ba543"
+    },
+    "dynamic-threads1-repeat2": {
+      "dataset": "dynamic",
+      "diagnosticThreads": 1,
+      "recordedScans": 1232,
+      "processedScans": 1220,
+      "skippedUnbracketedScans": 12,
+      "totalPreparedPoints": 7901775,
+      "rawPointCountMinMax": [
+        24477,
+        25875
+      ],
+      "preparedPointCountMinMax": [
+        5661,
+        9459
+      ],
+      "sourceDerivedSamplingActiveFrames": 1220,
+      "filesSha256": {
+        "private-index.npz": "a713cac536b9af1338b63cd35a26e62fa86f8cbe19ff9912e7250d3a8ee8b681",
+        "private-prepared-xyzt.f64": "62c16646271f3692af55843573046001c876dffbb90cc79244bd83205eaf6397",
+        "private-neighbors.i32": "b10416b95a0084855a62b8c2087badf886265e55a8d8ae1cd5d61dbffe6d9263",
+        "private-native.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "reportSha256": "c375513b6ea53e78467a7c3cd0b14458bb71a62d0443a7aa076a0a6fad14826b"
+    },
+    "dynamic-threads1-repeat3": {
+      "dataset": "dynamic",
+      "diagnosticThreads": 1,
+      "recordedScans": 1232,
+      "processedScans": 1220,
+      "skippedUnbracketedScans": 12,
+      "totalPreparedPoints": 7901775,
+      "rawPointCountMinMax": [
+        24477,
+        25875
+      ],
+      "preparedPointCountMinMax": [
+        5661,
+        9459
+      ],
+      "sourceDerivedSamplingActiveFrames": 1220,
+      "filesSha256": {
+        "private-index.npz": "a713cac536b9af1338b63cd35a26e62fa86f8cbe19ff9912e7250d3a8ee8b681",
+        "private-prepared-xyzt.f64": "62c16646271f3692af55843573046001c876dffbb90cc79244bd83205eaf6397",
+        "private-neighbors.i32": "b10416b95a0084855a62b8c2087badf886265e55a8d8ae1cd5d61dbffe6d9263",
+        "private-native.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "reportSha256": "9fbcdc4ac1baadec0ca4ede13dcd79c61f7ce45364e6c6c071ad97f77b5f0ce0"
+    }
+  },
+  "withinConditionPairs": {
+    "static-threads2-repeat1_vs_static-threads2-repeat2": {
+      "processedFrames": 342,
+      "sourceDerivedSamplingActiveFrames": 342,
+      "preparedPointCountDifferentFrames": 0,
+      "orderedXyztBitSequenceDifferentFrames": 198,
+      "sameExactXyztMultisetButDifferentOrderFrames": 0,
+      "exactXyztMultisetDifferentFrames": 198,
+      "samplingInactiveButOrderedOutputDifferentFrames": 0,
+      "neighborIndexSequenceDifferentFramesAmongIdenticalOrderedXyzt": 0,
+      "allRawInputContentAndTimesIdentical": true,
+      "sameExactBitPatternsComparedNotGeometricTolerance": true
+    },
+    "static-threads2-repeat1_vs_static-threads2-repeat3": {
+      "processedFrames": 342,
+      "sourceDerivedSamplingActiveFrames": 342,
+      "preparedPointCountDifferentFrames": 0,
+      "orderedXyztBitSequenceDifferentFrames": 218,
+      "sameExactXyztMultisetButDifferentOrderFrames": 0,
+      "exactXyztMultisetDifferentFrames": 218,
+      "samplingInactiveButOrderedOutputDifferentFrames": 0,
+      "neighborIndexSequenceDifferentFramesAmongIdenticalOrderedXyzt": 0,
+      "allRawInputContentAndTimesIdentical": true,
+      "sameExactBitPatternsComparedNotGeometricTolerance": true
+    },
+    "static-threads2-repeat2_vs_static-threads2-repeat3": {
+      "processedFrames": 342,
+      "sourceDerivedSamplingActiveFrames": 342,
+      "preparedPointCountDifferentFrames": 0,
+      "orderedXyztBitSequenceDifferentFrames": 213,
+      "sameExactXyztMultisetButDifferentOrderFrames": 0,
+      "exactXyztMultisetDifferentFrames": 213,
+      "samplingInactiveButOrderedOutputDifferentFrames": 0,
+      "neighborIndexSequenceDifferentFramesAmongIdenticalOrderedXyzt": 0,
+      "allRawInputContentAndTimesIdentical": true,
+      "sameExactBitPatternsComparedNotGeometricTolerance": true
+    },
+    "static-threads1-repeat1_vs_static-threads1-repeat2": {
+      "processedFrames": 342,
+      "sourceDerivedSamplingActiveFrames": 342,
+      "preparedPointCountDifferentFrames": 0,
+      "orderedXyztBitSequenceDifferentFrames": 0,
+      "sameExactXyztMultisetButDifferentOrderFrames": 0,
+      "exactXyztMultisetDifferentFrames": 0,
+      "samplingInactiveButOrderedOutputDifferentFrames": 0,
+      "neighborIndexSequenceDifferentFramesAmongIdenticalOrderedXyzt": 0,
+      "allRawInputContentAndTimesIdentical": true,
+      "sameExactBitPatternsComparedNotGeometricTolerance": true
+    },
+    "static-threads1-repeat1_vs_static-threads1-repeat3": {
+      "processedFrames": 342,
+      "sourceDerivedSamplingActiveFrames": 342,
+      "preparedPointCountDifferentFrames": 0,
+      "orderedXyztBitSequenceDifferentFrames": 0,
+      "sameExactXyztMultisetButDifferentOrderFrames": 0,
+      "exactXyztMultisetDifferentFrames": 0,
+      "samplingInactiveButOrderedOutputDifferentFrames": 0,
+      "neighborIndexSequenceDifferentFramesAmongIdenticalOrderedXyzt": 0,
+      "allRawInputContentAndTimesIdentical": true,
+      "sameExactBitPatternsComparedNotGeometricTolerance": true
+    },
+    "static-threads1-repeat2_vs_static-threads1-repeat3": {
+      "processedFrames": 342,
+      "sourceDerivedSamplingActiveFrames": 342,
+      "preparedPointCountDifferentFrames": 0,
+      "orderedXyztBitSequenceDifferentFrames": 0,
+      "sameExactXyztMultisetButDifferentOrderFrames": 0,
+      "exactXyztMultisetDifferentFrames": 0,
+      "samplingInactiveButOrderedOutputDifferentFrames": 0,
+      "neighborIndexSequenceDifferentFramesAmongIdenticalOrderedXyzt": 0,
+      "allRawInputContentAndTimesIdentical": true,
+      "sameExactBitPatternsComparedNotGeometricTolerance": true
+    },
+    "dynamic-threads2-repeat1_vs_dynamic-threads2-repeat2": {
+      "processedFrames": 1220,
+      "sourceDerivedSamplingActiveFrames": 1220,
+      "preparedPointCountDifferentFrames": 7,
+      "orderedXyztBitSequenceDifferentFrames": 677,
+      "sameExactXyztMultisetButDifferentOrderFrames": 0,
+      "exactXyztMultisetDifferentFrames": 677,
+      "samplingInactiveButOrderedOutputDifferentFrames": 0,
+      "neighborIndexSequenceDifferentFramesAmongIdenticalOrderedXyzt": 0,
+      "allRawInputContentAndTimesIdentical": true,
+      "sameExactBitPatternsComparedNotGeometricTolerance": true
+    },
+    "dynamic-threads2-repeat1_vs_dynamic-threads2-repeat3": {
+      "processedFrames": 1220,
+      "sourceDerivedSamplingActiveFrames": 1220,
+      "preparedPointCountDifferentFrames": 11,
+      "orderedXyztBitSequenceDifferentFrames": 688,
+      "sameExactXyztMultisetButDifferentOrderFrames": 0,
+      "exactXyztMultisetDifferentFrames": 688,
+      "samplingInactiveButOrderedOutputDifferentFrames": 0,
+      "neighborIndexSequenceDifferentFramesAmongIdenticalOrderedXyzt": 0,
+      "allRawInputContentAndTimesIdentical": true,
+      "sameExactBitPatternsComparedNotGeometricTolerance": true
+    },
+    "dynamic-threads2-repeat2_vs_dynamic-threads2-repeat3": {
+      "processedFrames": 1220,
+      "sourceDerivedSamplingActiveFrames": 1220,
+      "preparedPointCountDifferentFrames": 8,
+      "orderedXyztBitSequenceDifferentFrames": 669,
+      "sameExactXyztMultisetButDifferentOrderFrames": 0,
+      "exactXyztMultisetDifferentFrames": 669,
+      "samplingInactiveButOrderedOutputDifferentFrames": 0,
+      "neighborIndexSequenceDifferentFramesAmongIdenticalOrderedXyzt": 0,
+      "allRawInputContentAndTimesIdentical": true,
+      "sameExactBitPatternsComparedNotGeometricTolerance": true
+    },
+    "dynamic-threads1-repeat1_vs_dynamic-threads1-repeat2": {
+      "processedFrames": 1220,
+      "sourceDerivedSamplingActiveFrames": 1220,
+      "preparedPointCountDifferentFrames": 0,
+      "orderedXyztBitSequenceDifferentFrames": 0,
+      "sameExactXyztMultisetButDifferentOrderFrames": 0,
+      "exactXyztMultisetDifferentFrames": 0,
+      "samplingInactiveButOrderedOutputDifferentFrames": 0,
+      "neighborIndexSequenceDifferentFramesAmongIdenticalOrderedXyzt": 0,
+      "allRawInputContentAndTimesIdentical": true,
+      "sameExactBitPatternsComparedNotGeometricTolerance": true
+    },
+    "dynamic-threads1-repeat1_vs_dynamic-threads1-repeat3": {
+      "processedFrames": 1220,
+      "sourceDerivedSamplingActiveFrames": 1220,
+      "preparedPointCountDifferentFrames": 0,
+      "orderedXyztBitSequenceDifferentFrames": 0,
+      "sameExactXyztMultisetButDifferentOrderFrames": 0,
+      "exactXyztMultisetDifferentFrames": 0,
+      "samplingInactiveButOrderedOutputDifferentFrames": 0,
+      "neighborIndexSequenceDifferentFramesAmongIdenticalOrderedXyzt": 0,
+      "allRawInputContentAndTimesIdentical": true,
+      "sameExactBitPatternsComparedNotGeometricTolerance": true
+    },
+    "dynamic-threads1-repeat2_vs_dynamic-threads1-repeat3": {
+      "processedFrames": 1220,
+      "sourceDerivedSamplingActiveFrames": 1220,
+      "preparedPointCountDifferentFrames": 0,
+      "orderedXyztBitSequenceDifferentFrames": 0,
+      "sameExactXyztMultisetButDifferentOrderFrames": 0,
+      "exactXyztMultisetDifferentFrames": 0,
+      "samplingInactiveButOrderedOutputDifferentFrames": 0,
+      "neighborIndexSequenceDifferentFramesAmongIdenticalOrderedXyzt": 0,
+      "allRawInputContentAndTimesIdentical": true,
+      "sameExactBitPatternsComparedNotGeometricTolerance": true
+    }
+  },
+  "historicalCountComparisons": {
+    "static-threads2-repeat1": {
+      "historicalHost": {
+        "historicalReportSha256": "8147443aadf74f105c064e5ca1c8b2481845487bf1c9266f2c9402a01ecf16a9",
+        "differentPreparedPointCountFrames": 0,
+        "historicalPreparedPointContentWasNotRecorded": true,
+        "countsDoNotProvePointIdentityOrCausality": true
+      },
+      "historicalTarget": {
+        "historicalReportSha256": "e3520182bf5cd095ced30171fe7e418b4bfcc5d3f3cbe144bf63106f2a22c857",
+        "differentPreparedPointCountFrames": 0,
+        "historicalPreparedPointContentWasNotRecorded": true,
+        "countsDoNotProvePointIdentityOrCausality": true
+      }
+    },
+    "static-threads2-repeat2": {
+      "historicalHost": {
+        "historicalReportSha256": "8147443aadf74f105c064e5ca1c8b2481845487bf1c9266f2c9402a01ecf16a9",
+        "differentPreparedPointCountFrames": 0,
+        "historicalPreparedPointContentWasNotRecorded": true,
+        "countsDoNotProvePointIdentityOrCausality": true
+      },
+      "historicalTarget": {
+        "historicalReportSha256": "e3520182bf5cd095ced30171fe7e418b4bfcc5d3f3cbe144bf63106f2a22c857",
+        "differentPreparedPointCountFrames": 0,
+        "historicalPreparedPointContentWasNotRecorded": true,
+        "countsDoNotProvePointIdentityOrCausality": true
+      }
+    },
+    "static-threads2-repeat3": {
+      "historicalHost": {
+        "historicalReportSha256": "8147443aadf74f105c064e5ca1c8b2481845487bf1c9266f2c9402a01ecf16a9",
+        "differentPreparedPointCountFrames": 0,
+        "historicalPreparedPointContentWasNotRecorded": true,
+        "countsDoNotProvePointIdentityOrCausality": true
+      },
+      "historicalTarget": {
+        "historicalReportSha256": "e3520182bf5cd095ced30171fe7e418b4bfcc5d3f3cbe144bf63106f2a22c857",
+        "differentPreparedPointCountFrames": 0,
+        "historicalPreparedPointContentWasNotRecorded": true,
+        "countsDoNotProvePointIdentityOrCausality": true
+      }
+    },
+    "static-threads1-repeat1": {
+      "historicalHost": {
+        "historicalReportSha256": "8147443aadf74f105c064e5ca1c8b2481845487bf1c9266f2c9402a01ecf16a9",
+        "differentPreparedPointCountFrames": 0,
+        "historicalPreparedPointContentWasNotRecorded": true,
+        "countsDoNotProvePointIdentityOrCausality": true
+      },
+      "historicalTarget": {
+        "historicalReportSha256": "e3520182bf5cd095ced30171fe7e418b4bfcc5d3f3cbe144bf63106f2a22c857",
+        "differentPreparedPointCountFrames": 0,
+        "historicalPreparedPointContentWasNotRecorded": true,
+        "countsDoNotProvePointIdentityOrCausality": true
+      }
+    },
+    "static-threads1-repeat2": {
+      "historicalHost": {
+        "historicalReportSha256": "8147443aadf74f105c064e5ca1c8b2481845487bf1c9266f2c9402a01ecf16a9",
+        "differentPreparedPointCountFrames": 0,
+        "historicalPreparedPointContentWasNotRecorded": true,
+        "countsDoNotProvePointIdentityOrCausality": true
+      },
+      "historicalTarget": {
+        "historicalReportSha256": "e3520182bf5cd095ced30171fe7e418b4bfcc5d3f3cbe144bf63106f2a22c857",
+        "differentPreparedPointCountFrames": 0,
+        "historicalPreparedPointContentWasNotRecorded": true,
+        "countsDoNotProvePointIdentityOrCausality": true
+      }
+    },
+    "static-threads1-repeat3": {
+      "historicalHost": {
+        "historicalReportSha256": "8147443aadf74f105c064e5ca1c8b2481845487bf1c9266f2c9402a01ecf16a9",
+        "differentPreparedPointCountFrames": 0,
+        "historicalPreparedPointContentWasNotRecorded": true,
+        "countsDoNotProvePointIdentityOrCausality": true
+      },
+      "historicalTarget": {
+        "historicalReportSha256": "e3520182bf5cd095ced30171fe7e418b4bfcc5d3f3cbe144bf63106f2a22c857",
+        "differentPreparedPointCountFrames": 0,
+        "historicalPreparedPointContentWasNotRecorded": true,
+        "countsDoNotProvePointIdentityOrCausality": true
+      }
+    },
+    "dynamic-threads2-repeat1": {
+      "historicalHost": {
+        "historicalReportSha256": "e55958b10421a349db822c33a2da2bbad08dd67d68813fc72b74dd18eda44d10",
+        "differentPreparedPointCountFrames": 11,
+        "historicalPreparedPointContentWasNotRecorded": true,
+        "countsDoNotProvePointIdentityOrCausality": true
+      },
+      "historicalTarget": {
+        "historicalReportSha256": "e4f790a54b2e3136041778a934f6f53a477fede67d2a2f8c5bdcb788bc6fba59",
+        "differentPreparedPointCountFrames": 10,
+        "historicalPreparedPointContentWasNotRecorded": true,
+        "countsDoNotProvePointIdentityOrCausality": true
+      }
+    },
+    "dynamic-threads2-repeat2": {
+      "historicalHost": {
+        "historicalReportSha256": "e55958b10421a349db822c33a2da2bbad08dd67d68813fc72b74dd18eda44d10",
+        "differentPreparedPointCountFrames": 10,
+        "historicalPreparedPointContentWasNotRecorded": true,
+        "countsDoNotProvePointIdentityOrCausality": true
+      },
+      "historicalTarget": {
+        "historicalReportSha256": "e4f790a54b2e3136041778a934f6f53a477fede67d2a2f8c5bdcb788bc6fba59",
+        "differentPreparedPointCountFrames": 9,
+        "historicalPreparedPointContentWasNotRecorded": true,
+        "countsDoNotProvePointIdentityOrCausality": true
+      }
+    },
+    "dynamic-threads2-repeat3": {
+      "historicalHost": {
+        "historicalReportSha256": "e55958b10421a349db822c33a2da2bbad08dd67d68813fc72b74dd18eda44d10",
+        "differentPreparedPointCountFrames": 12,
+        "historicalPreparedPointContentWasNotRecorded": true,
+        "countsDoNotProvePointIdentityOrCausality": true
+      },
+      "historicalTarget": {
+        "historicalReportSha256": "e4f790a54b2e3136041778a934f6f53a477fede67d2a2f8c5bdcb788bc6fba59",
+        "differentPreparedPointCountFrames": 13,
+        "historicalPreparedPointContentWasNotRecorded": true,
+        "countsDoNotProvePointIdentityOrCausality": true
+      }
+    },
+    "dynamic-threads1-repeat1": {
+      "historicalHost": {
+        "historicalReportSha256": "e55958b10421a349db822c33a2da2bbad08dd67d68813fc72b74dd18eda44d10",
+        "differentPreparedPointCountFrames": 23,
+        "historicalPreparedPointContentWasNotRecorded": true,
+        "countsDoNotProvePointIdentityOrCausality": true
+      },
+      "historicalTarget": {
+        "historicalReportSha256": "e4f790a54b2e3136041778a934f6f53a477fede67d2a2f8c5bdcb788bc6fba59",
+        "differentPreparedPointCountFrames": 20,
+        "historicalPreparedPointContentWasNotRecorded": true,
+        "countsDoNotProvePointIdentityOrCausality": true
+      }
+    },
+    "dynamic-threads1-repeat2": {
+      "historicalHost": {
+        "historicalReportSha256": "e55958b10421a349db822c33a2da2bbad08dd67d68813fc72b74dd18eda44d10",
+        "differentPreparedPointCountFrames": 23,
+        "historicalPreparedPointContentWasNotRecorded": true,
+        "countsDoNotProvePointIdentityOrCausality": true
+      },
+      "historicalTarget": {
+        "historicalReportSha256": "e4f790a54b2e3136041778a934f6f53a477fede67d2a2f8c5bdcb788bc6fba59",
+        "differentPreparedPointCountFrames": 20,
+        "historicalPreparedPointContentWasNotRecorded": true,
+        "countsDoNotProvePointIdentityOrCausality": true
+      }
+    },
+    "dynamic-threads1-repeat3": {
+      "historicalHost": {
+        "historicalReportSha256": "e55958b10421a349db822c33a2da2bbad08dd67d68813fc72b74dd18eda44d10",
+        "differentPreparedPointCountFrames": 23,
+        "historicalPreparedPointContentWasNotRecorded": true,
+        "countsDoNotProvePointIdentityOrCausality": true
+      },
+      "historicalTarget": {
+        "historicalReportSha256": "e4f790a54b2e3136041778a934f6f53a477fede67d2a2f8c5bdcb788bc6fba59",
+        "differentPreparedPointCountFrames": 20,
+        "historicalPreparedPointContentWasNotRecorded": true,
+        "countsDoNotProvePointIdentityOrCausality": true
+      }
+    }
+  },
+  "boundaries": {
+    "robotContacted": false,
+    "rosNodeStarted": false,
+    "odometryExecuted": false,
+    "globalMappingExecuted": false,
+    "historicalDivergenceFullyExplained": false,
+    "crossArchitecturePreprocessingAccepted": false,
+    "timingHypothesisValidated": false,
+    "robotCalibrationValidated": false,
+    "navigationValidated": false,
+    "realtimePerformanceValidated": false,
+    "deploymentApproved": false,
+    "rawDataPublished": false
+  },
+  "allPrivateOutputsUnchangedAtExport": true,
+  "originalCapturesVerifiedUnchangedAtExport": true
+}

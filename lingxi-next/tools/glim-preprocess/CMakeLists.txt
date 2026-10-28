@@ -1,0 +1,7 @@
+cmake_minimum_required(VERSION 3.22)
+project(lingxi_glim_preprocess_diagnostic LANGUAGES CXX)
+find_package(glim REQUIRED)
+add_library(lingxi_glim_preprocess SHARED preprocess.cpp)
+target_compile_features(lingxi_glim_preprocess PRIVATE cxx_std_17)
+target_link_libraries(lingxi_glim_preprocess PRIVATE glim::glim)
+target_compile_options(lingxi_glim_preprocess PRIVATE -Wall -Wextra -Wpedantic)

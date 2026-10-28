@@ -27,6 +27,10 @@ The eight existing maps were subsequently compared on exact common integer
 header timestamps. The scan-end dynamic runs differ from their second submap;
 the underlying cause and geometric acceptance remain open.
 See [the read-only per-frame comparison](docs/SLAM_ARCHITECTURE_COMPARISON.md).
+Twelve separate-process native preprocessing observations then showed
+run-to-run sampled-point differences on the same x86 host with the original
+two-thread settings; the single-thread diagnostic controls repeated exactly.
+See [the repeatability limits](docs/SLAM_PREPROCESS_REPEATABILITY.md).
 The current 0.1.19
 runtime described below still uses native AIMDK interfaces and has not been
 silently switched to an open-source backend. Existing release archives and APKs
