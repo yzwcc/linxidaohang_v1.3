@@ -2,12 +2,14 @@
 
 日期：2026-10-28；环境：Windows x64。范围仅为新目录 `lingxi-next/`；
 没有部署或移动真实机器人，没有覆盖 AIMDK，也没有恢复或修改旧版本业务文件。
+另已完成目标 X2 的只读 SSH/ROS 检查与真实雷达采样，见 TARGET_INSPECTION.md；
+该检查不替代安装、建图、导航或声学验收。
 
 | 检查 | 结果 |
 |---|---|
 | TypeScript 前端/API 类型检查与 Vite 构建 | 通过 |
 | Vitest | 127 项通过，覆盖状态流与雷达流恢复、静默连接看门狗、重试退避与卸载清理、诊断隐私与容量、VAD EOS 到 SDK 播放态测量及缺失/过期证据、迁移/地图 ID、语音会话与白名单、知识依据、任务生命周期、雷达流和动作资源互锁 |
-| Python AIMDK 桥接测试 | 36 项通过；验证激光扫描/采样时刻 TF（含 50ms 有界等待）、点迹、真实只读 SQLite 登记、不暴露未提交数据、未知结构拒绝、大地图 ID、像素转换、旧定位拒绝、位姿单次发布、未确认状态互斥，以及预设动作状态、表情回执和灵创服务结果语义 |
+| Python AIMDK 桥接测试 | 37 项通过；新增原生状态订阅 BEST_EFFORT / TRANSIENT_LOCAL 构造器回归，控制命令 QoS 不变；另验证激光扫描/采样时刻 TF（含 50ms 有界等待）、点迹、真实只读 SQLite 登记、不暴露未提交数据、未知结构拒绝、大地图 ID、像素转换、旧定位拒绝、位姿单次发布、未确认状态互斥，以及预设动作状态、表情回执和灵创服务结果语义 |
 | Java JUnit | 21 项通过：唤醒与静默状态次序/断线重放/有效期 8 项、取消先于播报与过期请求拒绝 3 项、TTS 事件绑定/时序/结束确认 6 项、VAD EOS 与对话事件匹配/过期拒绝 2 项、SDK 原始 ASR 置信度类型/范围拒绝 2 项 |
 | 官方 AgentSDK 编译 | 通过，固定实际 JAR SHA256；不使用文档中旧版 Maven 示例 |
 | npm audit（生产依赖） | 0 项漏洞；不代表 Java 或厂商系统漏洞审计 |
@@ -19,23 +21,26 @@
 | axe WCAG 2 A/AA | 讲解页、导航页、桌面与横屏扫图页检查无违规；不代表人工无障碍认证 |
 | 0.1.1 重定位入口 | 浏览器点击所填世界位姿重定位收到模拟 API 200；桌面与 844×390 地图管理截图检查、横向溢出检查和 axe 均通过 |
 | 0.1.17 任务故障门控 | 先在旧实现复现四个失败用例：点位/讲解任务暂停或继续请求超时后，被迟到到达事件推进返航/播报。修复后四项均通过，另两个 HTTP 用例确认故障标识和建图/切图互锁持续保留、人工停止确认后恢复待命；不代表原生导航已在请求超时时停止，仍需现场检查并显式停止 |
-| 0.1.17 ARM64 commissioning 包 | `tools/verify-release.py` 审计通过：12,510 个文件、逐文件 SHA256、ELF64 AArch64 运行时、执行权限和固定 AgentSDK JAR；包标记 `productionAccepted: false` |
-| 0.1.17 Android commissioning APK | `tools/verify-android.py` 审计通过：签名、`sensorLandscape`、禁明文流量、禁备份和网页资源均通过；未在 Android 真机验收。Gradle 有 SDK 元数据/中文路径警告，构建成功，APK 实际资源与签名另行校验通过 |
+| 0.1.18 状态 QoS | 新回归先在旧实现失败，修复后通过；目标真实只读探测改用匹配 QoS 后 5.08 秒收到 25 条任务状态；未派发导航，不证明原生到达/停止链路已验收 |
+| 0.1.18 ARM64 commissioning 包 | `tools/verify-release.py` 审计通过：12,511 个文件、逐文件 SHA256、ELF64 AArch64 运行时、执行权限和固定 AgentSDK JAR；包标记 `productionAccepted: false` |
+| 0.1.18 Android commissioning APK | 构建成功；`tools/verify-android.py` 独立确认签名、`sensorLandscape`、禁明文流量、禁备份和网页资源。Gradle 仍有 SDK 元数据/中文路径警告；未在 Android 真机验收 |
 | VAD 到 SDK 播放态诊断 | 自动测试覆盖 EOS/ASR 同事件关联、缺失/过期/未来时间拒绝、SDK `playing` 首音与独立 P95 样本数；不等同声学首音验收 |
 
 包文件的存在、逐文件校验和、ARM64 ELF 与权限，以 `tools/verify-release.py` 对实际
 归档的输出为准。APK 另用 Android Build Tools 检查签名、清单与横屏配置。
 散列记录在交付文件旁的 `.sha256` 和机器人包内 `SHA256SUMS`，不在本文嵌入自引用散列。
-本次 ARM64 文件为 `artifacts/lingxi-next-0.1.17-commissioning-20261028-linux-arm64.tar.gz`，
-Android 文件为 `artifacts/lingxi-next-0.1.17-commissioning.apk`。各自 SHA256 以交付文件旁的
+本次 ARM64 文件为 `artifacts/lingxi-next-0.1.18-commissioning-20261028-linux-arm64.tar.gz`，
+Android 文件为 `artifacts/lingxi-next-0.1.18-commissioning.apk`。各自 SHA256 以交付文件旁的
 `.sha256` 文件为准。
 
-尚未验证：目标机器人实际话题、保存重载与坐标方向、短距导航/急停、
+尚未验证：目标机器人原生建图/重定位接口就绪、地图 TF、保存重载与坐标方向、短距导航/急停、
 ASR 置信度或官方拒识证据、目标设备 TTS 关联语义、预设动作/表情/灵创资源的实机调用与停止确认、云端凭据、
 Android 真机、目标 ARM64 上的安装/升级/回滚与真实服务启动、声学误唤醒与声学回录
 VAD 结束到首段可听反馈 P95。管理台 SDK 事件指标仍需在目标机确认 `vad_status`
 EOS 与 TTS `event_id` 的实际关联语义。
 因此本版本只允许 commissioning 联调安装，不能据此认定产品交付完成。
+本轮 Java 源码未改，表中的 Java JUnit/SDK 编译为此前已完成的结果，
+没有把本轮 ROS 只读采样视作语音验收。
 
 可在 Linux 开发环境以 root 执行 `python3 tools/test-deploy-linux.py` 复现部署脚本测试。
 脚本只在隔离 mount namespace 中修改一次性 chroot，不访问机器人或宿主 systemd；

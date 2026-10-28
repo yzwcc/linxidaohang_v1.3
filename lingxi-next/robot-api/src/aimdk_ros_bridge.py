@@ -263,6 +263,13 @@ class X2Node(Node):
             reliability=ReliabilityPolicy.RELIABLE,
             durability=DurabilityPolicy.TRANSIENT_LOCAL,
         )
+        # X2 state publishers offer best-effort delivery; requesting reliable
+        # delivery prevents DDS from matching these subscriptions.
+        state_transient = QoSProfile(
+            depth=10,
+            reliability=ReliabilityPolicy.BEST_EFFORT,
+            durability=DurabilityPolicy.TRANSIENT_LOCAL,
+        )
         best_effort_volatile = QoSProfile(
             depth=10,
             reliability=ReliabilityPolicy.BEST_EFFORT,
@@ -345,10 +352,10 @@ class X2Node(Node):
             try:
                 self.nav_publisher = self.create_publisher(PncTaskRequest, NAV_REQUEST_TOPIC, best_effort_volatile)
                 self.nav_response_subscription = self.create_subscription(
-                    PncTaskResponse, NAV_RESPONSE_TOPIC, self.on_navigation_response, reliable_transient
+                    PncTaskResponse, NAV_RESPONSE_TOPIC, self.on_navigation_response, state_transient
                 )
                 self.task_state_subscription = self.create_subscription(
-                    TaskMasterState, TASK_MASTER_TOPIC, self.on_task_state, reliable_transient
+                    TaskMasterState, TASK_MASTER_TOPIC, self.on_task_state, state_transient
                 )
                 self.navigation_ready = True
             except Exception as error:

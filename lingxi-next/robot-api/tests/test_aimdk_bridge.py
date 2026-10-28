@@ -45,6 +45,42 @@ spec.loader.exec_module(bridge)
 obj = types.SimpleNamespace
 
 
+class SubscriptionQos(unittest.TestCase):
+    def test_native_state_subscriptions_accept_best_effort_publishers(self):
+        subscriptions = {}
+        publications = {}
+        reliability = obj(RELIABLE="reliable", BEST_EFFORT="best-effort")
+        durability = obj(TRANSIENT_LOCAL="transient-local", VOLATILE="volatile")
+
+        def subscribe(_node, _message_type, topic, _callback, qos):
+            subscriptions[topic] = qos
+            return obj()
+
+        def publish(_node, _message_type, topic, qos):
+            publications[topic] = qos
+            return obj()
+
+        with patch.object(bridge.Node, "__init__", lambda _node, *_args: None), \
+                patch.object(bridge.X2Node, "create_subscription", subscribe, create=True), \
+                patch.object(bridge.X2Node, "create_publisher", publish, create=True), \
+                patch.object(bridge.X2Node, "create_client", lambda *_args: obj(), create=True), \
+                patch.object(bridge.X2Node, "get_logger", lambda _node: obj(warning=lambda *_args: None), create=True), \
+                patch.object(bridge.X2Node, "_load_action_interlock", lambda _node: None), \
+                patch.object(bridge, "Buffer", None), \
+                patch.object(bridge, "ACTION_SERVICES_AVAILABLE", False), \
+                patch.object(bridge, "NAV_TYPES_AVAILABLE", True), \
+                patch.object(bridge, "ReliabilityPolicy", reliability), \
+                patch.object(bridge, "DurabilityPolicy", durability), \
+                patch.object(bridge, "QoSProfile", lambda **kwargs: obj(**kwargs)):
+            bridge.X2Node()
+
+        for topic in (bridge.NAV_RESPONSE_TOPIC, bridge.TASK_MASTER_TOPIC):
+            self.assertEqual("best-effort", subscriptions[topic].reliability, topic)
+            self.assertEqual("transient-local", subscriptions[topic].durability, topic)
+        self.assertEqual("reliable", publications[bridge.INTEGRATED_COMMAND_TOPIC].reliability)
+        self.assertEqual("transient-local", publications[bridge.INTEGRATED_COMMAND_TOPIC].durability)
+
+
 class BridgeCallbacks(unittest.TestCase):
     def setUp(self):
         self.node = bridge.X2Node.__new__(bridge.X2Node)
