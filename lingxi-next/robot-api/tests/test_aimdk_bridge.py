@@ -368,10 +368,12 @@ class MapCatalog(unittest.TestCase):
         self.addCleanup(self.temporary.cleanup)
         self.directory = Path(self.temporary.name)
 
-    def database(self, rows):
+    def database(self, rows, *, text_ids=False):
         database = self.directory / "map.db"
         with closing(sqlite3.connect(database)) as connection, connection:
-            connection.execute("CREATE TABLE map (map_id INTEGER, map_name TEXT, vendor_data TEXT)")
+            schema = ("CREATE TABLE map (map_id TEXT, map_name TEXT, vendor_data TEXT)" if text_ids
+                      else "CREATE TABLE map (map_id INTEGER, map_name TEXT, vendor_data TEXT)")
+            connection.execute(schema)
             connection.executemany("INSERT INTO map VALUES (?, ?, 'preserved')", rows)
         return database
 
@@ -383,6 +385,27 @@ class MapCatalog(unittest.TestCase):
         self.assertEqual(["大厅", "展厅"], [item["name"] for item in maps])
         self.assertEqual(before, database.read_bytes())
         self.assertEqual(["map.db"], [file.name for file in self.directory.iterdir()])
+
+    def test_text_ids_are_exact_positive_safe_integers_sorted_numerically(self):
+        database = self.database([(str(bridge.MAX_SAFE_MAP_ID), "大厅"), ("9", "展厅")], text_ids=True)
+        before = database.read_bytes()
+        maps = bridge.read_map_catalog(self.directory)
+        self.assertEqual([bridge.MAX_SAFE_MAP_ID, 9], [item["mapId"] for item in maps])
+        self.assertTrue(all(type(item["mapId"]) is int for item in maps))
+        self.assertEqual(before, database.read_bytes())
+        self.assertEqual(["map.db"], [file.name for file in self.directory.iterdir()])
+
+    def test_text_id_coercions_and_unsafe_values_are_rejected_without_writes(self):
+        database = self.database([(None, "展厅")], text_ids=True)
+        for value in (None, "0", "-1", "+9", "09", "9.0", "9e0", " 9", "9 ", "９",
+                      str(bridge.MAX_SAFE_MAP_ID + 1), "9" * 100, b"9", 9.5):
+            with self.subTest(value=value):
+                with closing(sqlite3.connect(database)) as connection, connection:
+                    connection.execute("UPDATE map SET map_id=?", (value,))
+                before = database.read_bytes()
+                with self.assertRaises(bridge.AdapterError):
+                    bridge.read_map_catalog(self.directory)
+                self.assertEqual(before, database.read_bytes())
 
     def test_missing_database_is_not_created_and_yaml_variants_still_list(self):
         (self.directory / "旧场馆.yaml").touch()

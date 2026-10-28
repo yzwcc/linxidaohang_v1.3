@@ -13,6 +13,8 @@
   `aimdk v0.0.0-g14fe2e8`，但这不能单独判定已编译消息依赖的版本。
 - 用户提供的 faf4c945 SDK 目录包含预编译的 `aimdk_msgs`：
   `src/aimdk_msgs/prebuilt_aarch64/share/aimdk_msgs/local_setup.bash`。
+  该目录 `version` 为 `aimdk v1.1.0-gfaf4c94`；这证明附件 SDK 版本，
+  不证明正在运行的厂商进程已开放同版本接口。
   已以 root 在独立进程中直接加载该脚本并确认 `GetStoredMapByName` 类型可导入。
   该 SDK 根目录当次权限为 0707、属主/组为 agi；run 属于 agi 组，
   因此不能直接遍历该目录。没有更改权限。
@@ -81,6 +83,41 @@ BEST_EFFORT 订阅在后续 5.08 秒窗口收到 25 条任务状态。
 需由现场或厂商确认当前原生软件支持及启用 AIMDK v1.1.0 地图接口的条件，
 再检查定位/TF、保存重载与原生导航。不能通过改名调用不同类型服务、
 绕过状态检查、写地图数据库或替换厂商系统来宣称适配成功。
+
+## 原生配置交叉核对
+
+- 附件内 `src/py_examples/py_examples/slam.py` 使用
+  `/integrated_command`，QoS 为 RELIABLE / TRANSIENT_LOCAL；
+  随包 SLAM 文档也列出 `/relocalization_pose` 与 `GetStoredMapByName`。
+  随包 `quick_start/prerequisites.html` 明确要求 SDK 与机器人固件版本对应。
+- 正在运行的 `slam` 使用 `/agibot/software/nav/config/slam/slam_config.yaml`。
+  配置声明建图/定位点云与里程计输出，但声明不代表当前已创建发布端或开始建图。
+  其 RPC 规则选用 MQTT；`map_manager` 的 RPC 规则另开放 MQTT、HTTP、ROS2。
+  这些内部规则不等同于公开 SDK 的字符串命令和专用服务协议。
+- 独立只读探测加载附件消息和厂商实际
+  `/agibot/software/entry/cfg/ros_dds_configuration.xml`，确认其白名单内网接口存在。
+  6 秒发现窗口内，公开建图/重定位接收端仍为零，三个 SLAM 里程计和建图点云
+  发布端仍为零，任务状态发布端可发现。不能简单归因于用户切换了局域网 IP。
+- 图中可发现 `aimdk.protocol.MappingService` 等内部服务，类型为
+  `ros2_plugin_proto/srv/RosRpcWrapper`，以及旧 `GetStoredMap` 服务。
+  仅记录接口元数据，没有调用、构造内部协议负载或将其当作 v1.1.0 公开接口替代。
+- `task_manager.version` 为 `0.2.221`，文件记录提交时间为
+  `2026-07-28 16:51:23`。这是组件版本，不是整机固件版本，不能据此断言固件过旧。
+  当前证据不足以确定是原生版本、兼容层未启用或其他启动条件所致；
+  应由厂商确认相应固件构建及公开接口启用条件，不自动升级或更改厂商配置。
+
+## TEXT 地图 ID 兼容修复
+
+只读检查确认 `map_id` 声明类型为 TEXT，当前检查的两行也实际返回字符串；
+两个值均符合正十进制整数格式和 JavaScript 安全整数范围。
+没有输出地图名称、原始 ID、坐标或其他业务字段。
+
+0.1.18 读取器仅接受 Python 整数，会误拒绝这种登记。
+0.1.19 仅将规范 ASCII 正十进制字符串转为精确整数，保留安全上限，
+并按数值倒序读取；空值、前导零、正负号、空白、小数、指数、非 ASCII 数字、
+二进制及超界值仍拒绝。SQLite 保持 `mode=ro` 与 `query_only`，不修改厂商数据库。
+新增有效 TEXT ID 回归先在旧实现失败；修复后全部 39 项 Python 测试通过，
+覆盖数值排序、精度上界和数据库字节不变。该修复不使缺失的地图服务自动就绪。
 
 仍待现场执行：地图保存/重载、导航与急停、讲解打断、
 语音回调/云端、Android 真机和声学首响/误唤醒验收。

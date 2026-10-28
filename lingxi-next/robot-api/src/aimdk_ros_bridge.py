@@ -136,13 +136,15 @@ def read_map_catalog(directory: Path) -> list[dict[str, Any]]:
     try:
         with closing(sqlite3.connect(database.resolve().as_uri() + "?mode=ro", uri=True, timeout=1.0)) as connection:
             connection.execute("PRAGMA query_only=ON")
-            rows = connection.execute("SELECT map_id, map_name FROM map ORDER BY map_id DESC LIMIT ?",
+            rows = connection.execute("SELECT map_id, map_name FROM map ORDER BY CAST(map_id AS INTEGER) DESC LIMIT ?",
                                       (MAX_MAPS,)).fetchall()
     except sqlite3.Error as error:
         raise AdapterError("无法只读查询 AIMDK map.db，请检查权限和 map 表结构") from error
     result = []
     names = set()
     for map_id, name in rows:
+        if isinstance(map_id, str) and re.fullmatch(r"[1-9][0-9]{0,15}", map_id):
+            map_id = int(map_id)
         if (isinstance(map_id, bool) or not isinstance(map_id, int)
                 or not 0 < map_id <= MAX_SAFE_MAP_ID or not valid_map_name(name) or name in names):
             raise AdapterError("AIMDK 地图登记含无效 ID、名称或重名，未展示不确定地图")
