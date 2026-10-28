@@ -27,6 +27,9 @@
    当次只读检查已收到真实雷达点云和 BEST_EFFORT 任务状态；未发现 v1.1.0 的建图命令接收端、重定位接收端与按名称查图服务，未取得地图定位和完整 TF，不能开始建图/导航。
    已使用厂商实际 DDS 配置复核，结果不变。运行配置与图中内部 Proto RPC 不等同于公开 SDK 协议；
    需确认原生固件/兼容层启用条件，而非重命名旧接口、盲目重启或覆盖厂商系统。
+   后续已在 `auto_integrated` 与 `map_manager` 启动日志确认组件因授权校验失败而未正常启动
+   （`SignatureInvalid(5)`）。需由厂商恢复有效官方授权并确认版本配套，见 VENDOR_HANDOFF.md；
+   进程存在、`Business` 模式或 SDK 已编译均不能替代接口就绪检查。
 2. 目标机器必须同时报告真实 `listening_status`（含时间与事件 ID）、ASR `confidence` 数值。官方通用 ASR 参数没有保证该字段，缺失时 Java 会拒绝路由并报告 `asr_confidence_unavailable`；非数字、非有限或超出 0–1 范围则报告 `asr_confidence_invalid`。需用真实回调核对或接入厂商有依据的拒识/置信度接口，禁止字符串强制转换或默认 1.0 绕过。乱序与断线语义通过模拟事件验证，不代替目标设备验收。
 3. 确认 `tts_status.item_id/event_id` 与 SDK 被动回复/任务流请求关联。没有匹配 playing+finished 状态时不报告播完。任务流 execute_ack 的成功不能证明播完，厂商文档说明超时也可能成功。
 4. AIMDK 动作服务已按 v1.1.0 压缩包的 `.srv/.msg` 与官方示例实现，但仍需现场确认 X2 当前服务是否上线、输入源注册权限、预设动作姿态要求、真实资源清单和成功/失败消息。`GetMcPresetMotionState` 的成功状态用于确认预设动作结束；`PlayEmoji.success` 只确认表情服务接受；灵创 `ExecuteActionResource` 只有执行服务回包，没有播放完成回执，因此页面/任务只记录“已接受”，并保持导航/建图互锁，需操作员现场检查并确认动作停止后才能解除。该互锁会持久化，服务重启不会自行清除。不能把模拟资源名称当作实机资源。
