@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "reviewDate": "2026-10-28",
-  "reviewScope": "pinned_sources_passive_target_observation_host_cpu_build_and_synthetic_native_smoke",
+  "reviewScope": "pinned_sources_passive_capture_host_cpu_build_and_jammy_arm64_cross_link",
   "selectionStatus": "provisional_no_algorithm_benchmarks",
   "deploymentApproved": false,
   "repositories": [
@@ -108,6 +108,12 @@
     "hostCpuCoreBuild": "passed_x86_64_ubuntu_24_04_not_target_arm64",
     "nativeTimeConversion": "passed_synthetic_fixture_only",
     "hostBuildEvidence": "slam-cpu-build-evidence.json",
+    "arm64CoreCrossBuild": "passed_jammy_arm64_cross_link_not_target_execution",
+    "arm64BuildEvidence": "slam-arm64-build-evidence.json",
+    "operatorControlledCapture": "completed_static_and_dynamic_integrity_verified",
+    "captureEvidence": "slam-capture-evidence.json",
+    "targetDependencyLoading": "not_run",
+    "rosWrapperBuild": "not_run",
     "dynamicReplay": "not_run",
     "mapPersistenceAndRelocalization": "not_run",
     "navigationAndEmergencyStop": "not_run"

@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 1,
+  "observedDate": "2026-10-28",
+  "purpose": "operator_remote_controlled_recording_and_offline_input_audit",
+  "operatorConfirmedReady": true,
+  "motionCommandsSentByAgent": 0,
+  "robotSystemModeChanged": false,
+  "recordingProcessesStopped": true,
+  "rawDataPublished": false,
+  "remoteFileSha256Observed": true,
+  "localCopySha256Verified": true,
+  "localCopyDatabaseQuickCheckPassed": true,
+  "localCopyTopicCountsVerified": true,
+  "datasets": {
+    "static": {
+      "directoryName": "lingxi-next-validation-static-20261028-a",
+      "durationSecondsFromMetadata": 34.334393523,
+      "databaseBytes": 305774592,
+      "messageCount": 14700,
+      "topicCounts": {"cloud": 353, "imu": 6880, "odometry": 5815, "tf": 1647, "tf_static": 5},
+      "sha256": {
+        "metadata.yaml": "f30f6dd98eca813aebef4b2886a225226c750ef7ea1a2e29de95fbbd7ca2394d",
+        "lingxi-next-validation-static-20261028-a_0.db3": "d1aa24573d73fcec097befb1e87685b8a568f9589b5302dd26ec988356ad1fb8"
+      }
+    },
+    "dynamic": {
+      "directoryName": "lingxi-next-validation-dynamic-20261028-a",
+      "durationSecondsFromMetadata": 122.179286243,
+      "databaseBytes": 1064198144,
+      "messageCount": 52338,
+      "topicCounts": {"cloud": 1232, "imu": 24446, "odometry": 20766, "tf": 5889, "tf_static": 5},
+      "recordedArrivalHz": {"cloud": 10.081394311873085, "imu": 200.08790438480696, "odometry": 169.9681169670074},
+      "maxHeaderGapSeconds": {"cloud": 0.11546611785888672, "imu": 0.03979611396789551, "odometry": 0.012172460556030273},
+      "nonIncreasingHeaderStamps": {"cloud": 0, "imu": 0, "odometry": 0},
+      "cloudLayoutErrors": 0,
+      "sampledPointTimeCandidate": "relative_nanoseconds_not_calibration",
+      "sha256": {
+        "metadata.yaml": "81e212db1ec91064749737102036ff0a4d4626c5a2ff22c4af51226fa67e3045",
+        "lingxi-next-validation-dynamic-20261028-a_0.db3": "e510033bf60852d1ffc657defa833485248acb23b5f3f748093957fa62b47bd0",
+        "lingxi-next-validation-dynamic-20261028-a_1.db3": "c45ac09ba9b4ccd35cf61e447b5e7f084c2409c49d51a55908564937d9445d0e"
+      }
+    }
+  },
+  "boundaries": {
+    "calibrationValidated": false,
+    "imuUnitsValidated": false,
+    "dynamicSynchronizationValidated": false,
+    "slamTrajectoryExecuted": false,
+    "mapPersistenceValidated": false,
+    "relocalizationValidated": false,
+    "navigationValidated": false,
+    "deploymentApproved": false
+  }
+}

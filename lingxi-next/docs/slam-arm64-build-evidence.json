@@ -1,0 +1,132 @@
+{
+  "schemaVersion": 1,
+  "observedDate": "2026-10-28",
+  "purpose": "jammy_arm64_cpu_cross_build",
+  "result": "arm64_cross_built_and_linked_not_executed",
+  "host": {
+    "os": "Ubuntu 24.04 under WSL2",
+    "machine": "x86_64",
+    "cmake": "3.28.3",
+    "parallelJobs": 2,
+    "nice": 10
+  },
+  "target": {
+    "baseline": "Ubuntu 22.04 Jammy",
+    "machine": "aarch64",
+    "compiler": "GCC 11.4.0",
+    "cppOptimization": "O1",
+    "cudaEnabled": false,
+    "viewerEnabled": false
+  },
+  "sourceCommits": {
+    "gtsam": "3ad4b4c3cb28394c9597f48fa02dad361c8450e3",
+    "gtsam_points": "9d32e7dbecf6015560d84b4901d6b0a6f483ec46",
+    "glim": "1a197c999e4865f5cab7c9cd25474128413ebbca"
+  },
+  "downloadedAndExtractedPackageCounts": {"amd64": 35, "arm64": 103},
+  "coreStages": [
+    {"name": "gtsam_configure", "exitCode": 0},
+    {"name": "gtsam_build", "exitCode": 0},
+    {"name": "gtsam_install", "exitCode": 0},
+    {"name": "gtsam_points_configure", "exitCode": 0},
+    {"name": "gtsam_points_build", "exitCode": 0},
+    {"name": "gtsam_points_install", "exitCode": 0},
+    {"name": "glim_configure", "exitCode": 0},
+    {"name": "glim_build", "exitCode": 0},
+    {"name": "glim_install", "exitCode": 0}
+  ],
+  "syntheticLinkStages": [
+    {"name": "synthetic_link_configure", "exitCode": 0},
+    {"name": "synthetic_link_build", "exitCode": 0}
+  ],
+  "artifacts": [
+    {
+      "file": "libgtsam.so",
+      "machine": "AArch64",
+      "class": "ELF64",
+      "maxGlibcRequirement": "2.32",
+      "sha256": "fee5315024f5eaf4b7b432bc8ff2c9715c098fe6a3693d8177a39bc9a538620f",
+      "maxGLIBCXXRequirement": "3.4.29",
+      "maxCXXABIRequirement": "1.3.11"
+    },
+    {
+      "file": "libgtsam_unstable.so",
+      "machine": "AArch64",
+      "class": "ELF64",
+      "maxGlibcRequirement": "2.32",
+      "sha256": "23737cbfcc09f537685df07d7f59d75484b2718df8a5fa2cec7e374eb94f0432",
+      "maxGLIBCXXRequirement": "3.4.29",
+      "maxCXXABIRequirement": "1.3.9"
+    },
+    {
+      "file": "libgtsam_points.so",
+      "machine": "AArch64",
+      "class": "ELF64",
+      "maxGlibcRequirement": "2.32",
+      "sha256": "1b279b1d3ad4e252499167a6f9d16f17eec8e7ca634d7157fbd594692e2a54fb",
+      "maxGLIBCXXRequirement": "3.4.29",
+      "maxCXXABIRequirement": "1.3.11"
+    },
+    {
+      "file": "libglim.so",
+      "machine": "AArch64",
+      "class": "ELF64",
+      "maxGlibcRequirement": "2.34",
+      "sha256": "3c70a22f4151c0c600f394bc65c1dff5c6d133566cb110866b869caeb9ae7f81",
+      "maxGLIBCXXRequirement": "3.4.30",
+      "maxCXXABIRequirement": "1.3.9"
+    },
+    {
+      "file": "libodometry_estimation_cpu.so",
+      "machine": "AArch64",
+      "class": "ELF64",
+      "maxGlibcRequirement": "2.17",
+      "sha256": "5f9507bf8c075b89f5c072d0d9d3e0f535de259c884d955f5ad9230bbd632c0d",
+      "maxGLIBCXXRequirement": "3.4",
+      "maxCXXABIRequirement": "1.3.9"
+    },
+    {
+      "file": "libsub_mapping_passthrough.so",
+      "machine": "AArch64",
+      "class": "ELF64",
+      "maxGlibcRequirement": "2.17",
+      "sha256": "b02836ba474b7eedc08c1585b8e34a0e30dac36a0ceecf5d404b13c08f0dedb7",
+      "maxGLIBCXXRequirement": "3.4",
+      "maxCXXABIRequirement": "1.3.9"
+    },
+    {
+      "file": "libglobal_mapping_pose_graph.so",
+      "machine": "AArch64",
+      "class": "ELF64",
+      "maxGlibcRequirement": "2.17",
+      "sha256": "b88d2d485da76da8ae7e911821f5f60686a184f6255f7241b04426bfd04a619c",
+      "maxGLIBCXXRequirement": "3.4",
+      "maxCXXABIRequirement": "1.3.9"
+    },
+    {
+      "file": "lingxi_glim_time_smoke",
+      "machine": "AArch64",
+      "class": "ELF64",
+      "maxGlibcRequirement": "2.34",
+      "sha256": "9742ca38d0d9efd9795c367eceb63ebde1fc86ad889f94611b2a7bb6e722062f",
+      "maxGLIBCXXRequirement": "3.4.29",
+      "maxCXXABIRequirement": "1.3.9"
+    }
+  ],
+  "sha256": {
+    "local-cross-build-report.json": "ed478a4aadf134f398d5c7b267f48e33406d420ac4403ada3b87c86c1bd4a25f",
+    "local-download-report.json": "ccf4faa1dce4e5add0d6287a286e6cae72b6027edf95d3565e6602d2af174b03"
+  },
+  "boundaries": {
+    "systemPackagesInstalled": false,
+    "deploymentApproved": false,
+    "targetExecutionValidated": false,
+    "targetDependencyLoadingValidated": false,
+    "rosWrapperValidated": false,
+    "robotCalibrationValidated": false,
+    "realSlamTrajectoryExecuted": false,
+    "navigationValidated": false,
+    "allTransitiveDependenciesPinned": false,
+    "motionCommandsSent": 0
+  }
+}

@@ -131,10 +131,12 @@ CMake、Ninja、Eigen、Boost serialization 和 spdlog 没有安装到 WSL 系�
 `~/.cache/lingxi-next/slam-cpu-20261028-b/build-report.json`，
 合成报告和详细日志在其 `native-smoke/`；首次主动中断的 `-a` 目录仍保留。
 
-**仍未完成**：ARM64/Humble 核心及 ROS 2 包构建、真实 rosbag 回放、
+**本页未涵盖**：ARM64/Humble 验收、真实 rosbag 回放、
 传感器标定/动态同步、实时性、地图保存重载/重定位、运动安全及自主导航。
 没有安装或替换机器人软件，没有运行真实 SLAM 轨迹估计。
 本机构建只是降低依赖组合与时间转换配置的不确定性。
+其后完成的 Jammy ARM64 核心交叉构建单独记录于 `SLAM_ARM64_BUILD.md`；
+它没有执行目标程序，也未构建 ROS 2 封装。
 脱敏的阶段结果、源码提交和实际二进制/日志校验和记录在
 `slam-cpu-build-evidence.json`。它只记录本次构建，不保证换路径或工具链重编后
 具有相同二进制校验和，也不代替目标架构的验收。

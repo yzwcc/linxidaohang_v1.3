@@ -237,8 +237,8 @@ class Audit:
         self.static_edges = set()
         self.invalid_transforms = 0
 
-    def cloud(self, message):
-        self.streams["cloud"].observe(message.header)
+    def cloud(self, message, *, arrival=None, wall_time=None):
+        self.streams["cloud"].observe(message.header, arrival, wall_time)
         try:
             sample = sample_cloud(message, self.sample_budget)
         except (ValueError, struct.error, OverflowError) as error:
@@ -261,8 +261,8 @@ class Audit:
                 for key, measurement in evidence.items():
                     aggregate[key].add(measurement)
 
-    def imu(self, message):
-        self.streams["imu"].observe(message.header)
+    def imu(self, message, *, arrival=None, wall_time=None):
+        self.streams["imu"].observe(message.header, arrival, wall_time)
         vector = message.linear_acceleration
         self.imu_acceleration_norm.add(finite_norm([vector.x, vector.y, vector.z]))
         vector = message.angular_velocity
@@ -273,8 +273,8 @@ class Audit:
         else:
             self.imu_orientation_norm.add(finite_norm([value.x, value.y, value.z, value.w]))
 
-    def odometry(self, message):
-        self.streams["odometry"].observe(message.header)
+    def odometry(self, message, *, arrival=None, wall_time=None):
+        self.streams["odometry"].observe(message.header, arrival, wall_time)
         self.odometry_child_frames.add(message.child_frame_id)
         value = message.twist.twist.linear
         self.odometry_linear_speed.add(finite_norm([value.x, value.y, value.z]))
