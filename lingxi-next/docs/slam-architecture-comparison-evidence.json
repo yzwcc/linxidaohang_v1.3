@@ -1,0 +1,1262 @@
+{
+  "schemaVersion": 1,
+  "observedDate": "2026-10-28",
+  "purpose": "read_only_exact_common_frame_comparison_not_accuracy_or_causal_acceptance",
+  "captureManifestSha256": "dff6ef252728ac0a26989b880d1d3a11769922467c8f5d7747c1b04a5c2c1e28",
+  "sourceCommits": {
+    "gtsam": "3ad4b4c3cb28394c9597f48fa02dad361c8450e3",
+    "gtsam_points": "9d32e7dbecf6015560d84b4901d6b0a6f483ec46",
+    "glim": "1a197c999e4865f5cab7c9cd25474128413ebbca"
+  },
+  "historicalEvidenceSha256": {
+    "host": "711368d7c7a5a4f7ee262b6fd2b23770a3c44de5727ae8fdc63be03c21432fc6",
+    "target": "dcb8cbc2a16114a998cba858f81f997fe97a1e86a27745d11d433d146a18ae42"
+  },
+  "comparatorSourceSha256": "b741d1a7f57894dee2fd9e87b47638f80221ae26bfc449239d2665f30c88d6aa",
+  "reviewedUpstreamSourcesSha256": {
+    "src/glim/mapping/sub_mapping_passthrough.cpp": "7ab652e45aced130c7289cf95413fbfc2a91acf7cdc467827dd63c15562cf86e",
+    "src/glim/mapping/sub_map.cpp": "9120ec005d4be9afbd7814fef4fb5b63cb7747a7637b1720bef5c5e16e8691b3",
+    "src/glim/odometry/estimation_frame.cpp": "884761a8b228ecdff59dc272578bf91bceb76c44c12c7a1c305d025b37e134a3",
+    "config/config_sub_mapping_passthrough.json": "78807724166f5096ced9fb3a19fc9cb9fcb0994209c9486f573337da99c0e6b8"
+  },
+  "submappingRules": {
+    "translationKeyframeStrictlyGreaterThanRawUnits": 0.1,
+    "rotationKeyframeStrictlyGreaterThanRadians": 0.01,
+    "maximumKeyframes": 50,
+    "absoluteVoxelLimitDisabled": true,
+    "adaptiveVoxelRatioRelativeToThirdKeyframe": 2.5,
+    "endOfSequenceFlushesNonemptyRemainder": true,
+    "runtimeKeyframeAndVoxelTraceWasNotRecorded": true,
+    "roundedSavedPosesAreNotAnExactSplitDecisionTrace": true,
+    "repeatTrialsSeparatingArchitectureFromRunVariationCompleted": false
+  },
+  "provenance": {
+    "staticStart": {
+      "x86_64": {
+        "mappingReportSha256": "e2a6aaf75e0c53e2b3da875af29bb629e6517abdb3be4a9dac3a3dcaade987d6",
+        "baseReplayReportSha256": "19ba60f898e389afd1470977d3de41f1f1a977794c3240cf3e73c3c3b387bac9",
+        "privateTrajectorySha256": "9b6e285006e547691cdf02e4ccc58aa31accbd95bb70c9cb32ce3248e96c1981",
+        "mapArtifactInventorySha256": "ebb10eaeaa59fa5d36180ffd3e13d76e2241ab6ec15873adaaad6ddcad0c4d18"
+      },
+      "aarch64": {
+        "mappingReportSha256": "1c3f678dc3c0cf647c7134774a1dea03e820c7a7c1cfe7b902d1a3d9cff94956",
+        "baseReplayReportSha256": "2fedb13eb388172549cead04cf5b674c748c4698284c6762f399b5c2fb6792d4",
+        "privateTrajectorySha256": "e2355decaf2aebe50ac1d6494024c7f3bfb2fe7d3e1b6bdbe867a836ce023063",
+        "mapArtifactInventorySha256": "d3db26c74ab4a20e7a8ff03a585fcb378da80b775d195e388cc67952cbe037ff"
+      }
+    },
+    "staticEnd": {
+      "x86_64": {
+        "mappingReportSha256": "dfdc38fa3106e07ee2b3ba0bc694b8d3d4a59f145aa16037c26b08f4e163210b",
+        "baseReplayReportSha256": "8147443aadf74f105c064e5ca1c8b2481845487bf1c9266f2c9402a01ecf16a9",
+        "privateTrajectorySha256": "a27cdbbfce348d3d50adda764f495409333477bf413963f69365a472a667cc51",
+        "mapArtifactInventorySha256": "9fa5581586d22ebf5b28b5a141484ff2af360f9c0deddeb3129497897e2c5228"
+      },
+      "aarch64": {
+        "mappingReportSha256": "10a34674efd1ca2be44f701aab54e598f555f574a05edaa882e642ecfa856a22",
+        "baseReplayReportSha256": "e3520182bf5cd095ced30171fe7e418b4bfcc5d3f3cbe144bf63106f2a22c857",
+        "privateTrajectorySha256": "4c4f4d63782ddbe9a575093c01f849897009709f8198a71a39c74426a1ae0ebc",
+        "mapArtifactInventorySha256": "dbaf322687ab3c2932f7b946d78cf6522cfe2157c6b191af53bb2d73ccb1ec3b"
+      }
+    },
+    "dynamicStart": {
+      "x86_64": {
+        "mappingReportSha256": "fa072d7b1cf888b119ee21ab01c00af2daf353c9766d8373a7e072195d3259e7",
+        "baseReplayReportSha256": "bb530417f8756730169d9c602ff62c9d4aab0cefe972e3f0dd3e4e0424f87b27",
+        "privateTrajectorySha256": "3f2664a385f4234ac89a8b683c7f37ed016e93a7b7c1a146ac3161b1afaa61a1",
+        "mapArtifactInventorySha256": "b677e0bab7d650ada9bff12f0e1d31c6394ebe2127492524a364b9379532241b"
+      },
+      "aarch64": {
+        "mappingReportSha256": "fe4ce5046b74ce711badc999819c4768e73bde99788c95a0be9f9286345300a1",
+        "baseReplayReportSha256": "787291e5c33d717bd0b37d9244cd8a4b579793e28e5bed895b319b57dd7483a2",
+        "privateTrajectorySha256": "d8a5d4f46d7ccdd25797342f828d7ac4fedbff63107a39abc0d3501f509f2415",
+        "mapArtifactInventorySha256": "4b66ba6f433f16c96abafbca9e422bb8e8ce67db48a527780d1d5832458c6538"
+      }
+    },
+    "dynamicEnd": {
+      "x86_64": {
+        "mappingReportSha256": "dc6f882953897e4a7d7482c1441f2fa23e0e570089ff999e26e686b40d909383",
+        "baseReplayReportSha256": "e55958b10421a349db822c33a2da2bbad08dd67d68813fc72b74dd18eda44d10",
+        "privateTrajectorySha256": "26fa87756c30f8b7c47a520667092fb00a6ebfa6f83a19b0d9a7be2c4200facc",
+        "mapArtifactInventorySha256": "c7a5c8226502a754a73140faced49006e31164c63b75eee34e58a60184437de3"
+      },
+      "aarch64": {
+        "mappingReportSha256": "20e2e43aa27e333c1321157de38a68fa7f6ae4d03d86d3fbc2c367e921a66daa",
+        "baseReplayReportSha256": "e4f790a54b2e3136041778a934f6f53a477fede67d2a2f8c5bdcb788bc6fba59",
+        "privateTrajectorySha256": "8ec98940bc072dc0eaf1d52ddfbd5fb426f34558098fc016d83ce45eff1b3277",
+        "mapArtifactInventorySha256": "43bcaf8fe7f1ed18359b9a462203aba30bfe839908d34fc812d3c399a811f005"
+      }
+    }
+  },
+  "crossArchitecture": {
+    "staticStart": {
+      "onlineLidarPosesNotFinalSmoothed": {
+        "matching": {
+          "method": "exact_int64_header_nanoseconds_no_interpolation",
+          "referenceFrames": 313,
+          "candidateFrames": 313,
+          "commonFrames": 313,
+          "excludedReferenceFrames": 0,
+          "excludedCandidateFrames": 0,
+          "commonSpanSeconds": 31.198425,
+          "referenceInternalGaps": 0,
+          "candidateInternalGaps": 0
+        },
+        "unadjusted": {
+          "positionDifferenceRawUnits": {
+            "p50": 0.0024852928443259916,
+            "p95": 0.0033111458446651925,
+            "maximum": 0.003828717693297253,
+            "rms": 0.0025482940080360163
+          },
+          "orientationDifferenceRadians": {
+            "p50": 7.407307200575204e-05,
+            "p95": 0.0003032709914438343,
+            "maximum": 0.00033084203309695825,
+            "rms": 0.00015144999557660928
+          }
+        },
+        "firstCommonPoseRigidAlignmentOnly": {
+          "positionDifferenceRawUnits": {
+            "p50": 0.0019536787210924157,
+            "p95": 0.0025729579590423233,
+            "maximum": 0.0029798671487849568,
+            "rms": 0.0019691158768896074
+          },
+          "orientationDifferenceRadians": {
+            "p50": 0.00018560064603041995,
+            "p95": 0.0002687829434486965,
+            "maximum": 0.00031815132870061493,
+            "rms": 0.00019081209201642988
+          }
+        },
+        "relativeBetweenConsecutiveCommonFrames": {
+          "positionDifferenceRawUnits": {
+            "p50": 0.0002874207172408259,
+            "p95": 0.0006168206794580848,
+            "maximum": 0.001888877252140912,
+            "rms": 0.0003815110223077713
+          },
+          "orientationDifferenceRadians": {
+            "p50": 1.52812068116968e-05,
+            "p95": 3.393424714370213e-05,
+            "maximum": 6.178598286360014e-05,
+            "rms": 1.9719944261960488e-05
+          }
+        },
+        "scaleFitted": false,
+        "bestFitTrajectoryAlignmentUsed": false,
+        "accuracyAgainstTruthMeasured": false
+      },
+      "savedGlobalLidarPosesRoundedToSixDecimals": {
+        "matching": {
+          "method": "exact_int64_header_nanoseconds_no_interpolation",
+          "referenceFrames": 313,
+          "candidateFrames": 313,
+          "commonFrames": 313,
+          "excludedReferenceFrames": 0,
+          "excludedCandidateFrames": 0,
+          "commonSpanSeconds": 31.198425,
+          "referenceInternalGaps": 0,
+          "candidateInternalGaps": 0
+        },
+        "unadjusted": {
+          "positionDifferenceRawUnits": {
+            "p50": 0.0024726483777520814,
+            "p95": 0.002810858497716364,
+            "maximum": 0.002900319637557212,
+            "rms": 0.0024789927525292713
+          },
+          "orientationDifferenceRadians": {
+            "p50": 4.7831408218893574e-05,
+            "p95": 0.00020795551271703111,
+            "maximum": 0.00021985406624776892,
+            "rms": 9.2850546957759e-05
+          }
+        },
+        "firstCommonPoseRigidAlignmentOnly": {
+          "positionDifferenceRawUnits": {
+            "p50": 0.001754562220723596,
+            "p95": 0.0019720165125196813,
+            "maximum": 0.002451656652084214,
+            "rms": 0.0017252094461254642
+          },
+          "orientationDifferenceRadians": {
+            "p50": 0.00015570448005935747,
+            "p95": 0.00020080876488947933,
+            "maximum": 0.00021493221378731533,
+            "rms": 0.00015129847103944387
+          }
+        },
+        "relativeBetweenConsecutiveCommonFrames": {
+          "positionDifferenceRawUnits": {
+            "p50": 2.527867992032139e-05,
+            "p95": 0.0001957018591850813,
+            "maximum": 0.0014485295215247748,
+            "rms": 0.00012599148859288346
+          },
+          "orientationDifferenceRadians": {
+            "p50": 2.8241685599472573e-06,
+            "p95": 2.015320235455093e-05,
+            "maximum": 5.691078483147273e-05,
+            "rms": 9.719730208525893e-06
+          }
+        },
+        "scaleFitted": false,
+        "bestFitTrajectoryAlignmentUsed": false,
+        "accuracyAgainstTruthMeasured": false
+      },
+      "algorithmTimeDifferenceSeconds": {
+        "p50": 0.0,
+        "p95": 0.0,
+        "maximum": 0.0,
+        "rms": 0.0
+      },
+      "sameTimingHypothesis": true,
+      "differentHypothesisPosesReferToDifferentScanInstants": false,
+      "savedSubmapPartition": {
+        "referenceSubmaps": 1,
+        "candidateSubmaps": 1,
+        "referenceFramesPerSubmap": [
+          313
+        ],
+        "candidateFramesPerSubmap": [
+          313
+        ],
+        "identicalInternalBoundaryPrefixCount": 0,
+        "sharedInternalBoundaries": 0,
+        "identicalPartition": true,
+        "firstDifferentBoundaryIsInternalOnBothSides": false,
+        "firstDifferentInternalSubmapsBothHaveFewerThan50Frames": false,
+        "sourceRuleInferenceNotRuntimeTrace": "not_determined_from_frame_counts",
+        "splitTriggerTraceAvailable": false,
+        "runtimeSplitTriggerDirectlyObserved": false
+      },
+      "recordedPreprocessingCounters": {
+        "processedScansComparedInRecordedOrder": 343,
+        "preparedPointCountDifferentScans": 0,
+        "maximumAbsolutePreparedPointCountDifference": 0,
+        "firstPreparedCountDifferenceProcessedOrdinalOneBased": null,
+        "marginalizedFrameCountDifferentScans": 0,
+        "preparedPointCoordinatesAndOrderWereNotRecorded": true,
+        "equalCountsAreNotProofOfIdenticalPreparedPoints": true
+      }
+    },
+    "staticEnd": {
+      "onlineLidarPosesNotFinalSmoothed": {
+        "matching": {
+          "method": "exact_int64_header_nanoseconds_no_interpolation",
+          "referenceFrames": 311,
+          "candidateFrames": 311,
+          "commonFrames": 311,
+          "excludedReferenceFrames": 0,
+          "excludedCandidateFrames": 0,
+          "commonSpanSeconds": 30.998219,
+          "referenceInternalGaps": 0,
+          "candidateInternalGaps": 0
+        },
+        "unadjusted": {
+          "positionDifferenceRawUnits": {
+            "p50": 0.0011765552005140233,
+            "p95": 0.0015400862992352832,
+            "maximum": 0.0019553786294447847,
+            "rms": 0.0011810202082770814
+          },
+          "orientationDifferenceRadians": {
+            "p50": 6.414563799421371e-05,
+            "p95": 7.945720324992929e-05,
+            "maximum": 9.804229705636794e-05,
+            "rms": 6.216437410591508e-05
+          }
+        },
+        "firstCommonPoseRigidAlignmentOnly": {
+          "positionDifferenceRawUnits": {
+            "p50": 0.0005336420838028053,
+            "p95": 0.0009102171532328533,
+            "maximum": 0.0015890185133995715,
+            "rms": 0.0005861301562319085
+          },
+          "orientationDifferenceRadians": {
+            "p50": 3.313521438785045e-05,
+            "p95": 9.165906040435322e-05,
+            "maximum": 0.00011727708619745087,
+            "rms": 4.744113450873549e-05
+          }
+        },
+        "relativeBetweenConsecutiveCommonFrames": {
+          "positionDifferenceRawUnits": {
+            "p50": 0.00022738740470979298,
+            "p95": 0.0005742247681691803,
+            "maximum": 0.0020834649594307516,
+            "rms": 0.0003500695171327289
+          },
+          "orientationDifferenceRadians": {
+            "p50": 1.2137717091764204e-05,
+            "p95": 3.441754648692576e-05,
+            "maximum": 5.065421091709906e-05,
+            "rms": 1.793623484326947e-05
+          }
+        },
+        "scaleFitted": false,
+        "bestFitTrajectoryAlignmentUsed": false,
+        "accuracyAgainstTruthMeasured": false
+      },
+      "savedGlobalLidarPosesRoundedToSixDecimals": {
+        "matching": {
+          "method": "exact_int64_header_nanoseconds_no_interpolation",
+          "referenceFrames": 311,
+          "candidateFrames": 311,
+          "commonFrames": 311,
+          "excludedReferenceFrames": 0,
+          "excludedCandidateFrames": 0,
+          "commonSpanSeconds": 30.998219,
+          "referenceInternalGaps": 0,
+          "candidateInternalGaps": 0
+        },
+        "unadjusted": {
+          "positionDifferenceRawUnits": {
+            "p50": 0.0010808047927354878,
+            "p95": 0.001289638709086617,
+            "maximum": 0.001374701785843024,
+            "rms": 0.0010830397334856564
+          },
+          "orientationDifferenceRadians": {
+            "p50": 6.405932556259623e-05,
+            "p95": 7.356318244264183e-05,
+            "maximum": 8.143668531566993e-05,
+            "rms": 6.032505333363979e-05
+          }
+        },
+        "firstCommonPoseRigidAlignmentOnly": {
+          "positionDifferenceRawUnits": {
+            "p50": 0.00030432594150774626,
+            "p95": 0.0004955280139780508,
+            "maximum": 0.0009887572204067333,
+            "rms": 0.000323739003000151
+          },
+          "orientationDifferenceRadians": {
+            "p50": 2.0293934110828764e-05,
+            "p95": 5.375277192657425e-05,
+            "maximum": 7.238676510072737e-05,
+            "rms": 2.6466161005542544e-05
+          }
+        },
+        "relativeBetweenConsecutiveCommonFrames": {
+          "positionDifferenceRawUnits": {
+            "p50": 2.1512260972115452e-05,
+            "p95": 0.00013297657393314822,
+            "maximum": 0.0011022161559789058,
+            "rms": 8.437903804637626e-05
+          },
+          "orientationDifferenceRadians": {
+            "p50": 2.4527298381646495e-06,
+            "p95": 1.720402894113397e-05,
+            "maximum": 5.900791558516696e-05,
+            "rms": 7.874349664321897e-06
+          }
+        },
+        "scaleFitted": false,
+        "bestFitTrajectoryAlignmentUsed": false,
+        "accuracyAgainstTruthMeasured": false
+      },
+      "algorithmTimeDifferenceSeconds": {
+        "p50": 0.0,
+        "p95": 0.0,
+        "maximum": 0.0,
+        "rms": 0.0
+      },
+      "sameTimingHypothesis": true,
+      "differentHypothesisPosesReferToDifferentScanInstants": false,
+      "savedSubmapPartition": {
+        "referenceSubmaps": 1,
+        "candidateSubmaps": 1,
+        "referenceFramesPerSubmap": [
+          311
+        ],
+        "candidateFramesPerSubmap": [
+          311
+        ],
+        "identicalInternalBoundaryPrefixCount": 0,
+        "sharedInternalBoundaries": 0,
+        "identicalPartition": true,
+        "firstDifferentBoundaryIsInternalOnBothSides": false,
+        "firstDifferentInternalSubmapsBothHaveFewerThan50Frames": false,
+        "sourceRuleInferenceNotRuntimeTrace": "not_determined_from_frame_counts",
+        "splitTriggerTraceAvailable": false,
+        "runtimeSplitTriggerDirectlyObserved": false
+      },
+      "recordedPreprocessingCounters": {
+        "processedScansComparedInRecordedOrder": 342,
+        "preparedPointCountDifferentScans": 0,
+        "maximumAbsolutePreparedPointCountDifference": 0,
+        "firstPreparedCountDifferenceProcessedOrdinalOneBased": null,
+        "marginalizedFrameCountDifferentScans": 0,
+        "preparedPointCoordinatesAndOrderWereNotRecorded": true,
+        "equalCountsAreNotProofOfIdenticalPreparedPoints": true
+      }
+    },
+    "dynamicStart": {
+      "onlineLidarPosesNotFinalSmoothed": {
+        "matching": {
+          "method": "exact_int64_header_nanoseconds_no_interpolation",
+          "referenceFrames": 1190,
+          "candidateFrames": 1190,
+          "commonFrames": 1190,
+          "excludedReferenceFrames": 0,
+          "excludedCandidateFrames": 0,
+          "commonSpanSeconds": 118.900356,
+          "referenceInternalGaps": 0,
+          "candidateInternalGaps": 0
+        },
+        "unadjusted": {
+          "positionDifferenceRawUnits": {
+            "p50": 0.013373874678407689,
+            "p95": 0.022066997408240148,
+            "maximum": 0.030787513237429908,
+            "rms": 0.014051716569178767
+          },
+          "orientationDifferenceRadians": {
+            "p50": 0.002177249646865733,
+            "p95": 0.003148726902807888,
+            "maximum": 0.003427343008720869,
+            "rms": 0.0019234853334384992
+          }
+        },
+        "firstCommonPoseRigidAlignmentOnly": {
+          "positionDifferenceRawUnits": {
+            "p50": 0.014247113130339634,
+            "p95": 0.021961544988509805,
+            "maximum": 0.030227821505481096,
+            "rms": 0.013868031083267732
+          },
+          "orientationDifferenceRadians": {
+            "p50": 0.0020858488107126094,
+            "p95": 0.0030527213332137634,
+            "maximum": 0.0033354232608376264,
+            "rms": 0.00185189415788365
+          }
+        },
+        "relativeBetweenConsecutiveCommonFrames": {
+          "positionDifferenceRawUnits": {
+            "p50": 0.0004261232813855923,
+            "p95": 0.001978486608008598,
+            "maximum": 0.005664448979953265,
+            "rms": 0.0009378939527112009
+          },
+          "orientationDifferenceRadians": {
+            "p50": 2.1901086689200115e-05,
+            "p95": 0.00010463233975505628,
+            "maximum": 0.0003317349177115166,
+            "rms": 4.852934361182247e-05
+          }
+        },
+        "scaleFitted": false,
+        "bestFitTrajectoryAlignmentUsed": false,
+        "accuracyAgainstTruthMeasured": false
+      },
+      "savedGlobalLidarPosesRoundedToSixDecimals": {
+        "matching": {
+          "method": "exact_int64_header_nanoseconds_no_interpolation",
+          "referenceFrames": 1190,
+          "candidateFrames": 1190,
+          "commonFrames": 1190,
+          "excludedReferenceFrames": 0,
+          "excludedCandidateFrames": 0,
+          "commonSpanSeconds": 118.900356,
+          "referenceInternalGaps": 0,
+          "candidateInternalGaps": 0
+        },
+        "unadjusted": {
+          "positionDifferenceRawUnits": {
+            "p50": 0.011708154000858149,
+            "p95": 0.02704632274020531,
+            "maximum": 0.030382051444890968,
+            "rms": 0.01449202068873962
+          },
+          "orientationDifferenceRadians": {
+            "p50": 0.0021776230086403333,
+            "p95": 0.0032850853786859664,
+            "maximum": 0.0037350850587174827,
+            "rms": 0.002031613481871388
+          }
+        },
+        "firstCommonPoseRigidAlignmentOnly": {
+          "positionDifferenceRawUnits": {
+            "p50": 0.011907988005338134,
+            "p95": 0.02637305998219782,
+            "maximum": 0.029620788264712206,
+            "rms": 0.014284963887050613
+          },
+          "orientationDifferenceRadians": {
+            "p50": 0.002079783170509192,
+            "p95": 0.0032264061387981802,
+            "maximum": 0.0037288002426629522,
+            "rms": 0.0019592865058429307
+          }
+        },
+        "relativeBetweenConsecutiveCommonFrames": {
+          "positionDifferenceRawUnits": {
+            "p50": 0.0001190687877904798,
+            "p95": 0.0011341742578035406,
+            "maximum": 0.0122055000539221,
+            "rms": 0.0011385389497609883
+          },
+          "orientationDifferenceRadians": {
+            "p50": 1.702038801302738e-05,
+            "p95": 0.0002250872491481304,
+            "maximum": 0.0019978094171151793,
+            "rms": 0.00020850112144104858
+          }
+        },
+        "scaleFitted": false,
+        "bestFitTrajectoryAlignmentUsed": false,
+        "accuracyAgainstTruthMeasured": false
+      },
+      "algorithmTimeDifferenceSeconds": {
+        "p50": 0.0,
+        "p95": 0.0,
+        "maximum": 0.0,
+        "rms": 0.0
+      },
+      "sameTimingHypothesis": true,
+      "differentHypothesisPosesReferToDifferentScanInstants": false,
+      "savedSubmapPartition": {
+        "referenceSubmaps": 7,
+        "candidateSubmaps": 7,
+        "referenceFramesPerSubmap": [
+          459,
+          30,
+          55,
+          50,
+          43,
+          48,
+          505
+        ],
+        "candidateFramesPerSubmap": [
+          459,
+          30,
+          55,
+          50,
+          43,
+          48,
+          505
+        ],
+        "identicalInternalBoundaryPrefixCount": 6,
+        "sharedInternalBoundaries": 6,
+        "identicalPartition": true,
+        "firstDifferentBoundaryIsInternalOnBothSides": false,
+        "firstDifferentInternalSubmapsBothHaveFewerThan50Frames": false,
+        "sourceRuleInferenceNotRuntimeTrace": "not_determined_from_frame_counts",
+        "splitTriggerTraceAvailable": false,
+        "runtimeSplitTriggerDirectlyObserved": false
+      },
+      "recordedPreprocessingCounters": {
+        "processedScansComparedInRecordedOrder": 1221,
+        "preparedPointCountDifferentScans": 11,
+        "maximumAbsolutePreparedPointCountDifference": 18,
+        "firstPreparedCountDifferenceProcessedOrdinalOneBased": 448,
+        "marginalizedFrameCountDifferentScans": 0,
+        "preparedPointCoordinatesAndOrderWereNotRecorded": true,
+        "equalCountsAreNotProofOfIdenticalPreparedPoints": true
+      }
+    },
+    "dynamicEnd": {
+      "onlineLidarPosesNotFinalSmoothed": {
+        "matching": {
+          "method": "exact_int64_header_nanoseconds_no_interpolation",
+          "referenceFrames": 1189,
+          "candidateFrames": 1189,
+          "commonFrames": 1189,
+          "excludedReferenceFrames": 0,
+          "excludedCandidateFrames": 0,
+          "commonSpanSeconds": 118.800399,
+          "referenceInternalGaps": 0,
+          "candidateInternalGaps": 0
+        },
+        "unadjusted": {
+          "positionDifferenceRawUnits": {
+            "p50": 0.10092151160160474,
+            "p95": 0.13878029600295486,
+            "maximum": 0.16942348904805798,
+            "rms": 0.0837832231837763
+          },
+          "orientationDifferenceRadians": {
+            "p50": 0.013032897057524794,
+            "p95": 0.014285945928311141,
+            "maximum": 0.015483466280436283,
+            "rms": 0.010161324270486995
+          }
+        },
+        "firstCommonPoseRigidAlignmentOnly": {
+          "positionDifferenceRawUnits": {
+            "p50": 0.10073705770275498,
+            "p95": 0.13858066070725772,
+            "maximum": 0.1692812407149293,
+            "rms": 0.08363366306419162
+          },
+          "orientationDifferenceRadians": {
+            "p50": 0.013079634395840008,
+            "p95": 0.014332697414919394,
+            "maximum": 0.015528043374414055,
+            "rms": 0.010197493825198476
+          }
+        },
+        "relativeBetweenConsecutiveCommonFrames": {
+          "positionDifferenceRawUnits": {
+            "p50": 0.0007960738636529022,
+            "p95": 0.006422579936912509,
+            "maximum": 0.027715643391106295,
+            "rms": 0.003104948279264929
+          },
+          "orientationDifferenceRadians": {
+            "p50": 3.9885740252504926e-05,
+            "p95": 0.0007062571296205402,
+            "maximum": 0.0029659257897701767,
+            "rms": 0.0003666823266744423
+          }
+        },
+        "scaleFitted": false,
+        "bestFitTrajectoryAlignmentUsed": false,
+        "accuracyAgainstTruthMeasured": false
+      },
+      "savedGlobalLidarPosesRoundedToSixDecimals": {
+        "matching": {
+          "method": "exact_int64_header_nanoseconds_no_interpolation",
+          "referenceFrames": 1189,
+          "candidateFrames": 1189,
+          "commonFrames": 1189,
+          "excludedReferenceFrames": 0,
+          "excludedCandidateFrames": 0,
+          "commonSpanSeconds": 118.800399,
+          "referenceInternalGaps": 0,
+          "candidateInternalGaps": 0
+        },
+        "unadjusted": {
+          "positionDifferenceRawUnits": {
+            "p50": 0.09759595069468814,
+            "p95": 0.1355782340200041,
+            "maximum": 0.14964851214094982,
+            "rms": 0.08358774052702317
+          },
+          "orientationDifferenceRadians": {
+            "p50": 0.012049937650962291,
+            "p95": 0.013851282320096818,
+            "maximum": 0.015190686774117359,
+            "rms": 0.010011595464718677
+          }
+        },
+        "firstCommonPoseRigidAlignmentOnly": {
+          "positionDifferenceRawUnits": {
+            "p50": 0.09740932631039402,
+            "p95": 0.1354116106550924,
+            "maximum": 0.1494363946644817,
+            "rms": 0.08343636793445229
+          },
+          "orientationDifferenceRadians": {
+            "p50": 0.012093068404092773,
+            "p95": 0.013897880206491502,
+            "maximum": 0.015237675847351966,
+            "rms": 0.010048341087345147
+          }
+        },
+        "relativeBetweenConsecutiveCommonFrames": {
+          "positionDifferenceRawUnits": {
+            "p50": 0.00019299328479869377,
+            "p95": 0.0025080931437255335,
+            "maximum": 0.0127105101363182,
+            "rms": 0.001440962038177008
+          },
+          "orientationDifferenceRadians": {
+            "p50": 2.8342941902611138e-05,
+            "p95": 0.0009748229018760701,
+            "maximum": 0.0029879102653134542,
+            "rms": 0.0004351040382135129
+          }
+        },
+        "scaleFitted": false,
+        "bestFitTrajectoryAlignmentUsed": false,
+        "accuracyAgainstTruthMeasured": false
+      },
+      "algorithmTimeDifferenceSeconds": {
+        "p50": 0.0,
+        "p95": 0.0,
+        "maximum": 0.0,
+        "rms": 0.0
+      },
+      "sameTimingHypothesis": true,
+      "differentHypothesisPosesReferToDifferentScanInstants": false,
+      "savedSubmapPartition": {
+        "referenceSubmaps": 9,
+        "candidateSubmaps": 10,
+        "referenceFramesPerSubmap": [
+          459,
+          29,
+          47,
+          17,
+          33,
+          46,
+          47,
+          14,
+          497
+        ],
+        "candidateFramesPerSubmap": [
+          459,
+          28,
+          53,
+          12,
+          33,
+          46,
+          47,
+          13,
+          26,
+          472
+        ],
+        "identicalInternalBoundaryPrefixCount": 1,
+        "sharedInternalBoundaries": 5,
+        "identicalPartition": false,
+        "firstDifferentBoundaryIsInternalOnBothSides": true,
+        "firstDifferentInternalSubmapsBothHaveFewerThan50Frames": true,
+        "sourceRuleInferenceNotRuntimeTrace": "adaptive_voxel_criterion_required_for_both_short_internal_submaps",
+        "splitTriggerTraceAvailable": false,
+        "runtimeSplitTriggerDirectlyObserved": false
+      },
+      "recordedPreprocessingCounters": {
+        "processedScansComparedInRecordedOrder": 1220,
+        "preparedPointCountDifferentScans": 11,
+        "maximumAbsolutePreparedPointCountDifference": 6,
+        "firstPreparedCountDifferenceProcessedOrdinalOneBased": 447,
+        "marginalizedFrameCountDifferentScans": 0,
+        "preparedPointCoordinatesAndOrderWereNotRecorded": true,
+        "equalCountsAreNotProofOfIdenticalPreparedPoints": true
+      }
+    }
+  },
+  "crossTimingHypotheses": {
+    "x86_64": {
+      "static": {
+        "onlineLidarPosesNotFinalSmoothed": {
+          "matching": {
+            "method": "exact_int64_header_nanoseconds_no_interpolation",
+            "referenceFrames": 313,
+            "candidateFrames": 311,
+            "commonFrames": 311,
+            "excludedReferenceFrames": 2,
+            "excludedCandidateFrames": 0,
+            "commonSpanSeconds": 30.998219,
+            "referenceInternalGaps": 0,
+            "candidateInternalGaps": 0
+          },
+          "unadjusted": {
+            "positionDifferenceRawUnits": {
+              "p50": 0.004390467959830807,
+              "p95": 0.006574026795682526,
+              "maximum": 0.0077165024566082305,
+              "rms": 0.004552976717133425
+            },
+            "orientationDifferenceRadians": {
+              "p50": 0.00026627377265255476,
+              "p95": 0.0003509911256946082,
+              "maximum": 0.00043121489196839126,
+              "rms": 0.0002606179103744579
+            }
+          },
+          "firstCommonPoseRigidAlignmentOnly": {
+            "positionDifferenceRawUnits": {
+              "p50": 0.00479179618375251,
+              "p95": 0.007157901522061883,
+              "maximum": 0.007981419330067565,
+              "rms": 0.004986485664572493
+            },
+            "orientationDifferenceRadians": {
+              "p50": 0.00023081286807856923,
+              "p95": 0.00028937806851913575,
+              "maximum": 0.0003261640788198897,
+              "rms": 0.00022678973072158434
+            }
+          },
+          "relativeBetweenConsecutiveCommonFrames": {
+            "positionDifferenceRawUnits": {
+              "p50": 0.00036534539014862726,
+              "p95": 0.0008685881887321551,
+              "maximum": 0.007454681944395293,
+              "rms": 0.0007785212355403161
+            },
+            "orientationDifferenceRadians": {
+              "p50": 4.4445236249051354e-05,
+              "p95": 8.657863746350306e-05,
+              "maximum": 0.00011703857707438306,
+              "rms": 5.187524679059623e-05
+            }
+          },
+          "scaleFitted": false,
+          "bestFitTrajectoryAlignmentUsed": false,
+          "accuracyAgainstTruthMeasured": false
+        },
+        "savedGlobalLidarPosesRoundedToSixDecimals": {
+          "matching": {
+            "method": "exact_int64_header_nanoseconds_no_interpolation",
+            "referenceFrames": 313,
+            "candidateFrames": 311,
+            "commonFrames": 311,
+            "excludedReferenceFrames": 2,
+            "excludedCandidateFrames": 0,
+            "commonSpanSeconds": 30.998219,
+            "referenceInternalGaps": 0,
+            "candidateInternalGaps": 0
+          },
+          "unadjusted": {
+            "positionDifferenceRawUnits": {
+              "p50": 0.004420169906236638,
+              "p95": 0.004984095001693688,
+              "maximum": 0.009537501140235842,
+              "rms": 0.0044815625052816105
+            },
+            "orientationDifferenceRadians": {
+              "p50": 0.00024814468528039287,
+              "p95": 0.00033402615345688616,
+              "maximum": 0.00037346274151839375,
+              "rms": 0.0002497831224172422
+            }
+          },
+          "firstCommonPoseRigidAlignmentOnly": {
+            "positionDifferenceRawUnits": {
+              "p50": 0.00694310753522954,
+              "p95": 0.007956093522707026,
+              "maximum": 0.013062096602953353,
+              "rms": 0.007008238394391161
+            },
+            "orientationDifferenceRadians": {
+              "p50": 0.00021565026157554823,
+              "p95": 0.00026323903161581,
+              "maximum": 0.0002969543313359747,
+              "rms": 0.00021724021365193927
+            }
+          },
+          "relativeBetweenConsecutiveCommonFrames": {
+            "positionDifferenceRawUnits": {
+              "p50": 3.859177122031433e-05,
+              "p95": 0.000398529457615118,
+              "maximum": 0.0064741574042781564,
+              "rms": 0.0005420401684289763
+            },
+            "orientationDifferenceRadians": {
+              "p50": 3.928146240201313e-05,
+              "p95": 7.418888050269467e-05,
+              "maximum": 0.00012460373494318846,
+              "rms": 4.538159535013114e-05
+            }
+          },
+          "scaleFitted": false,
+          "bestFitTrajectoryAlignmentUsed": false,
+          "accuracyAgainstTruthMeasured": false
+        },
+        "algorithmTimeDifferenceSeconds": {
+          "p50": 0.0951750000000402,
+          "p95": 0.09518100000002505,
+          "maximum": 0.09518100000002505,
+          "rms": 0.0951761737618659
+        },
+        "sameTimingHypothesis": false,
+        "differentHypothesisPosesReferToDifferentScanInstants": true
+      },
+      "dynamic": {
+        "onlineLidarPosesNotFinalSmoothed": {
+          "matching": {
+            "method": "exact_int64_header_nanoseconds_no_interpolation",
+            "referenceFrames": 1190,
+            "candidateFrames": 1189,
+            "commonFrames": 1189,
+            "excludedReferenceFrames": 1,
+            "excludedCandidateFrames": 0,
+            "commonSpanSeconds": 118.800399,
+            "referenceInternalGaps": 0,
+            "candidateInternalGaps": 0
+          },
+          "unadjusted": {
+            "positionDifferenceRawUnits": {
+              "p50": 0.04036696995937827,
+              "p95": 0.10586024626670187,
+              "maximum": 0.22147098811981603,
+              "rms": 0.047921723416524
+            },
+            "orientationDifferenceRadians": {
+              "p50": 0.002630246039564021,
+              "p95": 0.0865140656913219,
+              "maximum": 0.17044660917224005,
+              "rms": 0.03426328022184883
+            }
+          },
+          "firstCommonPoseRigidAlignmentOnly": {
+            "positionDifferenceRawUnits": {
+              "p50": 0.03835444633874746,
+              "p95": 0.10513778078462614,
+              "maximum": 0.22274149935227547,
+              "rms": 0.047321442104090644
+            },
+            "orientationDifferenceRadians": {
+              "p50": 0.0024312026121556204,
+              "p95": 0.0865778265662856,
+              "maximum": 0.1701435270764087,
+              "rms": 0.03426032314782071
+            }
+          },
+          "relativeBetweenConsecutiveCommonFrames": {
+            "positionDifferenceRawUnits": {
+              "p50": 0.0007848579041506659,
+              "p95": 0.024624661998603276,
+              "maximum": 0.08266908571052844,
+              "rms": 0.010171182512266596
+            },
+            "orientationDifferenceRadians": {
+              "p50": 8.16008322243516e-05,
+              "p95": 0.07117880772096613,
+              "maximum": 0.174824135605958,
+              "rms": 0.02824295267471874
+            }
+          },
+          "scaleFitted": false,
+          "bestFitTrajectoryAlignmentUsed": false,
+          "accuracyAgainstTruthMeasured": false
+        },
+        "savedGlobalLidarPosesRoundedToSixDecimals": {
+          "matching": {
+            "method": "exact_int64_header_nanoseconds_no_interpolation",
+            "referenceFrames": 1190,
+            "candidateFrames": 1189,
+            "commonFrames": 1189,
+            "excludedReferenceFrames": 1,
+            "excludedCandidateFrames": 0,
+            "commonSpanSeconds": 118.800399,
+            "referenceInternalGaps": 0,
+            "candidateInternalGaps": 0
+          },
+          "unadjusted": {
+            "positionDifferenceRawUnits": {
+              "p50": 0.04319813352449388,
+              "p95": 0.0901706145004724,
+              "maximum": 0.15519259938863064,
+              "rms": 0.04601698019840415
+            },
+            "orientationDifferenceRadians": {
+              "p50": 0.0022926058014205992,
+              "p95": 0.08697185521657874,
+              "maximum": 0.17623473866546885,
+              "rms": 0.03379441444506649
+            }
+          },
+          "firstCommonPoseRigidAlignmentOnly": {
+            "positionDifferenceRawUnits": {
+              "p50": 0.0417824097231142,
+              "p95": 0.09111045174926133,
+              "maximum": 0.15626117011171675,
+              "rms": 0.0455307341220798
+            },
+            "orientationDifferenceRadians": {
+              "p50": 0.001971060241336924,
+              "p95": 0.08694459121373256,
+              "maximum": 0.17655206971526083,
+              "rms": 0.0337916165039799
+            }
+          },
+          "relativeBetweenConsecutiveCommonFrames": {
+            "positionDifferenceRawUnits": {
+              "p50": 0.0002740288810620284,
+              "p95": 0.018657973966531575,
+              "maximum": 0.04633777764253038,
+              "rms": 0.007951158108877204
+            },
+            "orientationDifferenceRadians": {
+              "p50": 7.79481298828777e-05,
+              "p95": 0.07093923932645461,
+              "maximum": 0.1747363107870776,
+              "rms": 0.028396236312716146
+            }
+          },
+          "scaleFitted": false,
+          "bestFitTrajectoryAlignmentUsed": false,
+          "accuracyAgainstTruthMeasured": false
+        },
+        "algorithmTimeDifferenceSeconds": {
+          "p50": 0.09517499999992651,
+          "p95": 0.09518100000002505,
+          "maximum": 0.09518100000002505,
+          "rms": 0.09517642732201048
+        },
+        "sameTimingHypothesis": false,
+        "differentHypothesisPosesReferToDifferentScanInstants": true
+      }
+    },
+    "aarch64": {
+      "static": {
+        "onlineLidarPosesNotFinalSmoothed": {
+          "matching": {
+            "method": "exact_int64_header_nanoseconds_no_interpolation",
+            "referenceFrames": 313,
+            "candidateFrames": 311,
+            "commonFrames": 311,
+            "excludedReferenceFrames": 2,
+            "excludedCandidateFrames": 0,
+            "commonSpanSeconds": 30.998219,
+            "referenceInternalGaps": 0,
+            "candidateInternalGaps": 0
+          },
+          "unadjusted": {
+            "positionDifferenceRawUnits": {
+              "p50": 0.0030484926390705793,
+              "p95": 0.005135200255064213,
+              "maximum": 0.006077046510638061,
+              "rms": 0.003293534750338393
+            },
+            "orientationDifferenceRadians": {
+              "p50": 0.0003534978620974575,
+              "p95": 0.00043675903159285355,
+              "maximum": 0.0005957364642909088,
+              "rms": 0.00035872572623770415
+            }
+          },
+          "firstCommonPoseRigidAlignmentOnly": {
+            "positionDifferenceRawUnits": {
+              "p50": 0.005049061348423657,
+              "p95": 0.006439249223801801,
+              "maximum": 0.007592867869974878,
+              "rms": 0.005133645261480883
+            },
+            "orientationDifferenceRadians": {
+              "p50": 0.00029388393044199097,
+              "p95": 0.00036340362137321616,
+              "maximum": 0.0004351959402128406,
+              "rms": 0.0002937367361952006
+            }
+          },
+          "relativeBetweenConsecutiveCommonFrames": {
+            "positionDifferenceRawUnits": {
+              "p50": 0.00037743391794006027,
+              "p95": 0.000822756596158411,
+              "maximum": 0.0069849224140304655,
+              "rms": 0.0007500542197919007
+            },
+            "orientationDifferenceRadians": {
+              "p50": 4.4067824136000244e-05,
+              "p95": 8.594852832487166e-05,
+              "maximum": 0.00011216681020301223,
+              "rms": 5.145189873856427e-05
+            }
+          },
+          "scaleFitted": false,
+          "bestFitTrajectoryAlignmentUsed": false,
+          "accuracyAgainstTruthMeasured": false
+        },
+        "savedGlobalLidarPosesRoundedToSixDecimals": {
+          "matching": {
+            "method": "exact_int64_header_nanoseconds_no_interpolation",
+            "referenceFrames": 313,
+            "candidateFrames": 311,
+            "commonFrames": 311,
+            "excludedReferenceFrames": 2,
+            "excludedCandidateFrames": 0,
+            "commonSpanSeconds": 30.998219,
+            "referenceInternalGaps": 0,
+            "candidateInternalGaps": 0
+          },
+          "unadjusted": {
+            "positionDifferenceRawUnits": {
+              "p50": 0.0030303428848894305,
+              "p95": 0.0036045644645922546,
+              "maximum": 0.008610657408119313,
+              "rms": 0.0030846769705856945
+            },
+            "orientationDifferenceRadians": {
+              "p50": 0.0003482643428098349,
+              "p95": 0.00039136861996670743,
+              "maximum": 0.00044001338871029383,
+              "rms": 0.00034392505846023787
+            }
+          },
+          "firstCommonPoseRigidAlignmentOnly": {
+            "positionDifferenceRawUnits": {
+              "p50": 0.006884170879107932,
+              "p95": 0.007547469514451047,
+              "maximum": 0.012698117373821875,
+              "rms": 0.006854679465638102
+            },
+            "orientationDifferenceRadians": {
+              "p50": 0.0002495682145575534,
+              "p95": 0.0002781175021252241,
+              "maximum": 0.0003084435464286725,
+              "rms": 0.00024767867245580294
+            }
+          },
+          "relativeBetweenConsecutiveCommonFrames": {
+            "positionDifferenceRawUnits": {
+              "p50": 3.955982599040603e-05,
+              "p95": 0.00035550708596793695,
+              "maximum": 0.006465252930560627,
+              "rms": 0.0005371357042250124
+            },
+            "orientationDifferenceRadians": {
+              "p50": 3.891014067434473e-05,
+              "p95": 7.565652309910207e-05,
+              "maximum": 0.00011169167047473919,
+              "rms": 4.5119387609205745e-05
+            }
+          },
+          "scaleFitted": false,
+          "bestFitTrajectoryAlignmentUsed": false,
+          "accuracyAgainstTruthMeasured": false
+        },
+        "algorithmTimeDifferenceSeconds": {
+          "p50": 0.0951750000000402,
+          "p95": 0.09518100000002505,
+          "maximum": 0.09518100000002505,
+          "rms": 0.0951761737618659
+        },
+        "sameTimingHypothesis": false,
+        "differentHypothesisPosesReferToDifferentScanInstants": true
+      },
+      "dynamic": {
+        "onlineLidarPosesNotFinalSmoothed": {
+          "matching": {
+            "method": "exact_int64_header_nanoseconds_no_interpolation",
+            "referenceFrames": 1190,
+            "candidateFrames": 1189,
+            "commonFrames": 1189,
+            "excludedReferenceFrames": 1,
+            "excludedCandidateFrames": 0,
+            "commonSpanSeconds": 118.800399,
+            "referenceInternalGaps": 0,
+            "candidateInternalGaps": 0
+          },
+          "unadjusted": {
+            "positionDifferenceRawUnits": {
+              "p50": 0.08278189131470794,
+              "p95": 0.11828533513853161,
+              "maximum": 0.24959526463894635,
+              "rms": 0.07311843850350234
+            },
+            "orientationDifferenceRadians": {
+              "p50": 0.011283990482628101,
+              "p95": 0.08739112451659466,
+              "maximum": 0.18111070040855998,
+              "rms": 0.03534887789197179
+            }
+          },
+          "firstCommonPoseRigidAlignmentOnly": {
+            "positionDifferenceRawUnits": {
+              "p50": 0.08073537662329944,
+              "p95": 0.11745121763975917,
+              "maximum": 0.24942238223105404,
+              "rms": 0.07209566712035531
+            },
+            "orientationDifferenceRadians": {
+              "p50": 0.011380197017394015,
+              "p95": 0.08763973701330813,
+              "maximum": 0.1813663392967275,
+              "rms": 0.03541245749271629
+            }
+          },
+          "relativeBetweenConsecutiveCommonFrames": {
+            "positionDifferenceRawUnits": {
+              "p50": 0.0007766107440725755,
+              "p95": 0.024880717563745137,
+              "maximum": 0.08761077447533132,
+              "rms": 0.010633658140897994
+            },
+            "orientationDifferenceRadians": {
+              "p50": 7.929151627644626e-05,
+              "p95": 0.07125687039559474,
+              "maximum": 0.17513760637417689,
+              "rms": 0.028254877603627365
+            }
+          },
+          "scaleFitted": false,
+          "bestFitTrajectoryAlignmentUsed": false,
+          "accuracyAgainstTruthMeasured": false
+        },
+        "savedGlobalLidarPosesRoundedToSixDecimals": {
+          "matching": {
+            "method": "exact_int64_header_nanoseconds_no_interpolation",
+            "referenceFrames": 1190,
+            "candidateFrames": 1189,
+            "commonFrames": 1189,
+            "excludedReferenceFrames": 1,
+            "excludedCandidateFrames": 0,
+            "commonSpanSeconds": 118.800399,
+            "referenceInternalGaps": 0,
+            "candidateInternalGaps": 0
+          },
+          "unadjusted": {
+            "positionDifferenceRawUnits": {
+              "p50": 0.0712026809467172,
+              "p95": 0.11586696957137475,
+              "maximum": 0.2058615891636903,
+              "rms": 0.06914128882083208
+            },
+            "orientationDifferenceRadians": {
+              "p50": 0.010998418764409613,
+              "p95": 0.09005474406960479,
+              "maximum": 0.1917183373471973,
+              "rms": 0.03551492148032551
+            }
+          },
+          "firstCommonPoseRigidAlignmentOnly": {
+            "positionDifferenceRawUnits": {
+              "p50": 0.07014233035686139,
+              "p95": 0.11692390030490978,
+              "maximum": 0.20604901452114383,
+              "rms": 0.06877993625621083
+            },
+            "orientationDifferenceRadians": {
+              "p50": 0.011258834454282642,
+              "p95": 0.08999249834569663,
+              "maximum": 0.19198007485498192,
+              "rms": 0.035581241422306335
+            }
+          },
+          "relativeBetweenConsecutiveCommonFrames": {
+            "positionDifferenceRawUnits": {
+              "p50": 0.000355716972307145,
+              "p95": 0.018376276492812732,
+              "maximum": 0.043594139461926085,
+              "rms": 0.00788457693970412
+            },
+            "orientationDifferenceRadians": {
+              "p50": 8.914433211808776e-05,
+              "p95": 0.07108948246092175,
+              "maximum": 0.17458257527055895,
+              "rms": 0.028377806782935534
+            }
+          },
+          "scaleFitted": false,
+          "bestFitTrajectoryAlignmentUsed": false,
+          "accuracyAgainstTruthMeasured": false
+        },
+        "algorithmTimeDifferenceSeconds": {
+          "p50": 0.09517499999992651,
+          "p95": 0.09518100000002505,
+          "maximum": 0.09518100000002505,
+          "rms": 0.09517642732201048
+        },
+        "sameTimingHypothesis": false,
+        "differentHypothesisPosesReferToDifferentScanInstants": true
+      }
+    }
+  },
+  "boundaries": {
+    "crossArchitectureGeometryAccepted": false,
+    "divergenceRootCauseEstablished": false,
+    "timingHypothesisValidated": false,
+    "robotCalibrationValidated": false,
+    "groundTruthAvailable": false,
+    "loopClosureValidated": false,
+    "relocalizationValidated": false,
+    "targetRealtimePerformanceValidated": false,
+    "voiceConcurrencyValidated": false,
+    "navigationValidated": false,
+    "deploymentApproved": false,
+    "rawDataPublished": false,
+    "robotContactedByComparator": false,
+    "rosNodeStartedByComparator": false,
+    "motionCommandsSent": false
+  },
+  "allHistoricalMapAndTrajectoryDigestsUnchanged": true
+}

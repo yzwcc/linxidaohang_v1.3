@@ -23,6 +23,10 @@ See [the odometry limits](docs/SLAM_GLIM_OFFLINE.md) and
 [the isolated ARM64 target check](docs/SLAM_ARM64_TARGET.md), plus
 [the actual-target recorded replays](docs/SLAM_ARM64_RECORDED.md), and
 [the ARM64 map persistence limits](docs/SLAM_ARM64_MAPPING.md).
+The eight existing maps were subsequently compared on exact common integer
+header timestamps. The scan-end dynamic runs differ from their second submap;
+the underlying cause and geometric acceptance remain open.
+See [the read-only per-frame comparison](docs/SLAM_ARCHITECTURE_COMPARISON.md).
 The current 0.1.19
 runtime described below still uses native AIMDK interfaces and has not been
 silently switched to an open-source backend. Existing release archives and APKs
