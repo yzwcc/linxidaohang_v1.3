@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "reviewDate": "2026-10-28",
-  "reviewScope": "pinned_sources_passive_capture_host_cpu_build_and_jammy_arm64_cross_link",
-  "selectionStatus": "provisional_no_algorithm_benchmarks",
+  "reviewScope": "pinned_sources_passive_capture_core_build_and_kiss_only_real_offline_diagnostic",
+  "selectionStatus": "provisional_kiss_only_diagnostic_no_full_comparison",
   "deploymentApproved": false,
   "repositories": [
     {
@@ -112,9 +112,12 @@
     "arm64BuildEvidence": "slam-arm64-build-evidence.json",
     "operatorControlledCapture": "completed_static_and_dynamic_integrity_verified",
     "captureEvidence": "slam-capture-evidence.json",
+    "kissOfflineDiagnostic": "all_clouds_processed_quality_not_accepted",
+    "kissOfflineEvidence": "slam-kiss-offline-evidence.json",
+    "fullSameDataComparison": "not_run",
     "targetDependencyLoading": "not_run",
     "rosWrapperBuild": "not_run",
-    "dynamicReplay": "not_run",
+    "dynamicReplay": "kiss_icp_only_diagnostic_completed_glim_not_run",
     "mapPersistenceAndRelocalization": "not_run",
     "navigationAndEmergencyStop": "not_run"
   }

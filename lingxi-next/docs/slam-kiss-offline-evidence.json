@@ -1,0 +1,454 @@
+{
+  "schemaVersion": 1,
+  "observedDate": "2026-10-28",
+  "purpose": "same_capture_kiss_only_diagnostic_not_full_algorithm_comparison",
+  "selectionStatus": "not_accepted_pending_calibration_and_glim_comparison",
+  "runtime": {
+    "host": {
+      "system": "Linux",
+      "machine": "x86_64",
+      "python": "3.12.3"
+    },
+    "versions": {
+      "kiss-icp": "1.3.0",
+      "rosbags": "0.11.9",
+      "numpy": "2.5.4"
+    },
+    "wheelInventory": [
+      {
+        "file": "annotated_doc-0.0.5-py3-none-any.whl",
+        "sha256": "117bac03a25ede5df5440e855b32d556049ca169ead221505badf432fed4b101"
+      },
+      {
+        "file": "annotated_types-0.8.0-py3-none-any.whl",
+        "sha256": "f072f4d804ea359e4eaf198b1af7a8b0943881a87f31bb764f8bf219bb9419e0"
+      },
+      {
+        "file": "apsw-3.54.1.0-cp312-cp312-manylinux_2_28_x86_64.whl",
+        "sha256": "91b7cbc275ce425e0d542bf6b5ea820432d40521502bbd3a36749f1bbd62a610"
+      },
+      {
+        "file": "backports_zstd-1.8.0-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl",
+        "sha256": "f9e9aa28a44db1897fb637f037175566f3b75890d4bae6cae7ba34f1df1e0804"
+      },
+      {
+        "file": "kiss_icp-1.3.0-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+        "sha256": "762d319c26870af2ba190edf61e22390244305b27ba958fdb3b84a73a9916a5b"
+      },
+      {
+        "file": "lz4-4.4.5-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl",
+        "sha256": "24092635f47538b392c4eaeff14c7270d2c8e806bf4be2a6446a378591c5e69e"
+      },
+      {
+        "file": "markdown_it_py-4.2.0-py3-none-any.whl",
+        "sha256": "9f7ebbcd14fe59494226453aed97c1070d83f8d24b6fc3a3bcf9a38092641c4a"
+      },
+      {
+        "file": "mdurl-0.1.2-py3-none-any.whl",
+        "sha256": "84008a41e51615a49fc9966191ff91509e3c40b939176e643fd50a5c2196b8f8"
+      },
+      {
+        "file": "natsort-8.4.0-py3-none-any.whl",
+        "sha256": "4732914fb471f56b5cce04d7bae6f164a592c7712e1c85f9ef585e197299521c"
+      },
+      {
+        "file": "numpy-2.5.4-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl",
+        "sha256": "fbde6962867ee75b48b0ee29b2b9372ec5d617799dbaf38e82dc0596f2f7738a"
+      },
+      {
+        "file": "pydantic-2.14.1-py3-none-any.whl",
+        "sha256": "9195d967ec791692a04438115466764fb8b9a27b31f14a760437694f40d6b454"
+      },
+      {
+        "file": "pydantic_core-2.50.1-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+        "sha256": "93ba4e9d8210d941c200431a56b2c0400b131865947903937ed3ec5404307d2e"
+      },
+      {
+        "file": "pydantic_settings-2.16.1-py3-none-any.whl",
+        "sha256": "30f5313340da4e8f1b440d1910b92a5bc3ccbb6b4ba70ec2b8395bc921f418f5"
+      },
+      {
+        "file": "pygments-2.21.0-py3-none-any.whl",
+        "sha256": "2363c69b61c4a97c838da3b130dcd6468f4848992b21a82f2a63ec34377137d9"
+      },
+      {
+        "file": "pyquaternion-0.9.9-py3-none-any.whl",
+        "sha256": "e65f6e3f7b1fdf1a9e23f82434334a1ae84f14223eee835190cd2e841f8172ec"
+      },
+      {
+        "file": "python_dotenv-1.2.4-py3-none-any.whl",
+        "sha256": "42269a8a5b3fd54ffa6f3d84b18abed50064717576b4ecf03dc4a55d8aa04fdc"
+      },
+      {
+        "file": "rich-15.0.0-py3-none-any.whl",
+        "sha256": "33bd4ef74232fb73fe9279a257718407f169c09b78a87ad3d296f548e27de0bb"
+      },
+      {
+        "file": "rosbags-0.11.9-py3-none-any.whl",
+        "sha256": "010c5a48b326e4dad6a79183db243c7b59188121d37b629d8c166ecaed3fc890"
+      },
+      {
+        "file": "ruamel_yaml-0.19.1-py3-none-any.whl",
+        "sha256": "27592957fedf6e0b62f281e96effd28043345e0e66001f97683aa9a40c667c93"
+      },
+      {
+        "file": "shellingham-1.5.4-py2.py3-none-any.whl",
+        "sha256": "7ecfff8f2fd72616f7481040475a65b2bf8af90a56c89140852d1120324e8686"
+      },
+      {
+        "file": "tqdm-4.70.1-py3-none-any.whl",
+        "sha256": "c293e525e6fef9c20e8728fd4612df02a0aa31bb5fe91ecd93e123b1b7bffa73"
+      },
+      {
+        "file": "typer-0.27.3-py3-none-any.whl",
+        "sha256": "e50022f28b82a86313e54501317a1db64bf8f8d036ff8cfe5ca7e47675454aff"
+      },
+      {
+        "file": "typing_extensions-4.16.0-py3-none-any.whl",
+        "sha256": "481caa481374e813c1b176ada14e97f1f67a4539ce9cfeb3f350d78d6370c2e8"
+      },
+      {
+        "file": "typing_inspection-0.4.4-py3-none-any.whl",
+        "sha256": "65b8397ba37ccbce054456aaccddfc91e6e3083c92824df348d96ca832f3f147"
+      }
+    ],
+    "installedPackages": [
+      {
+        "name": "annotated-doc",
+        "version": "0.0.5"
+      },
+      {
+        "name": "annotated-types",
+        "version": "0.8.0"
+      },
+      {
+        "name": "apsw",
+        "version": "3.54.1.0"
+      },
+      {
+        "name": "backports.zstd",
+        "version": "1.8.0"
+      },
+      {
+        "name": "kiss-icp",
+        "version": "1.3.0"
+      },
+      {
+        "name": "lz4",
+        "version": "4.4.5"
+      },
+      {
+        "name": "markdown-it-py",
+        "version": "4.2.0"
+      },
+      {
+        "name": "mdurl",
+        "version": "0.1.2"
+      },
+      {
+        "name": "natsort",
+        "version": "8.4.0"
+      },
+      {
+        "name": "numpy",
+        "version": "2.5.4"
+      },
+      {
+        "name": "pydantic",
+        "version": "2.14.1"
+      },
+      {
+        "name": "pydantic-settings",
+        "version": "2.16.1"
+      },
+      {
+        "name": "pydantic_core",
+        "version": "2.50.1"
+      },
+      {
+        "name": "Pygments",
+        "version": "2.21.0"
+      },
+      {
+        "name": "pyquaternion",
+        "version": "0.9.9"
+      },
+      {
+        "name": "python-dotenv",
+        "version": "1.2.4"
+      },
+      {
+        "name": "rich",
+        "version": "15.0.0"
+      },
+      {
+        "name": "rosbags",
+        "version": "0.11.9"
+      },
+      {
+        "name": "ruamel.yaml",
+        "version": "0.19.1"
+      },
+      {
+        "name": "shellingham",
+        "version": "1.5.4"
+      },
+      {
+        "name": "tqdm",
+        "version": "4.70.1"
+      },
+      {
+        "name": "typer",
+        "version": "0.27.3"
+      },
+      {
+        "name": "typing-inspection",
+        "version": "0.4.4"
+      },
+      {
+        "name": "typing_extensions",
+        "version": "4.16.0"
+      }
+    ]
+  },
+  "runs": {
+    "initialStatic": {
+      "dataset": "static",
+      "result": "all_recorded_clouds_processed_not_quality_acceptance",
+      "processedFrames": 353,
+      "pointsPassedToAlgorithm": 8999917,
+      "nonfiniteCoordinatesDropped": 0,
+      "recordedCloudHeaderSpanSeconds": 35.198054,
+      "processingWallSeconds": 2.9820731600000023,
+      "processCpuSeconds": 4.924113686,
+      "peakResidentMiB": 82.7734375,
+      "offlineRecordedSpanToProcessingTimeRatio": 11.803216122303308,
+      "decodeMillisecondsP50P95P99": [
+        1.0712469999987206,
+        1.5177679999986535,
+        1.9289981600023527
+      ],
+      "registrationMillisecondsP50P95P99": [
+        6.187128000000541,
+        8.000832799999811,
+        8.549090519999398
+      ],
+      "registrationMillisecondsMaximum": 9.121591999999623,
+      "perFrameRegistrationPointCountMinMax": [
+        954,
+        1039
+      ],
+      "perFramePointTimeSpanSecondsMinMax": [
+        0.09483100000000001,
+        0.094849
+      ],
+      "estimatedMotionNotGroundTruth": {
+        "accumulatedPositionStepsRawUnits": 0.6596900419514573,
+        "endToStartDistanceRawUnits": 0.0020901808923036547,
+        "maximumDistanceFromStartRawUnits": 0.006961567197619488
+      },
+      "privateTrajectorySha256": "4c90979da7deb28533f794fe260d4847064b7d3342125a43a4cb483f3a6f6047",
+      "captureManifestSha256": "dff6ef252728ac0a26989b880d1d3a11769922467c8f5d7747c1b04a5c2c1e28",
+      "profileSha256": "fd59b8c2c35e48ec081b690161b3e5682402f8f9c2e9e8b3a662b323a0979dd6",
+      "localReportSha256": "3a6652cf77b0badc0b61a30004862dd9b122a1d7fc5b94acf938cdd0854ad434",
+      "profileFile": "kiss-offline-profile.json",
+      "initialDevelopmentRun": true
+    },
+    "initialDynamic": {
+      "dataset": "dynamic",
+      "result": "all_recorded_clouds_processed_not_quality_acceptance",
+      "processedFrames": 1232,
+      "pointsPassedToAlgorithm": 31270824,
+      "nonfiniteCoordinatesDropped": 0,
+      "recordedCloudHeaderSpanSeconds": 123.100253,
+      "processingWallSeconds": 56.8831604,
+      "processCpuSeconds": 110.360520674,
+      "peakResidentMiB": 102.7421875,
+      "offlineRecordedSpanToProcessingTimeRatio": 2.164089550129848,
+      "decodeMillisecondsP50P95P99": [
+        1.0212794999944208,
+        1.450350799999356,
+        1.8350971100042577
+      ],
+      "registrationMillisecondsP50P95P99": [
+        32.13873350000185,
+        141.71225539999992,
+        210.54904828000232
+      ],
+      "registrationMillisecondsMaximum": 440.6698490000025,
+      "perFrameRegistrationPointCountMinMax": [
+        316,
+        1825
+      ],
+      "perFramePointTimeSpanSecondsMinMax": [
+        0.09483100000000001,
+        0.094849
+      ],
+      "estimatedMotionNotGroundTruth": {
+        "accumulatedPositionStepsRawUnits": 66.20737469618814,
+        "endToStartDistanceRawUnits": 5.095660868700593,
+        "maximumDistanceFromStartRawUnits": 6.6960500643554095
+      },
+      "privateTrajectorySha256": "c599d68134712d28e2bb2abbd29cbdae7c14d386c8a3052440413a9845eaa907",
+      "captureManifestSha256": "dff6ef252728ac0a26989b880d1d3a11769922467c8f5d7747c1b04a5c2c1e28",
+      "profileSha256": "fd59b8c2c35e48ec081b690161b3e5682402f8f9c2e9e8b3a662b323a0979dd6",
+      "localReportSha256": "924160edae606a6205ef27ffe04a2ff49ea347c4328efb086ed188a1d961aab6",
+      "profileFile": "kiss-offline-profile.json",
+      "initialDevelopmentRun": true
+    },
+    "staticDeskew": {
+      "dataset": "static",
+      "result": "all_recorded_clouds_processed_not_quality_acceptance",
+      "processedFrames": 353,
+      "pointsPassedToAlgorithm": 8999917,
+      "nonfiniteCoordinatesDropped": 0,
+      "recordedCloudHeaderSpanSeconds": 35.198054,
+      "processingWallSeconds": 3.005328219999999,
+      "processCpuSeconds": 4.946172047999999,
+      "peakResidentMiB": 85.09375,
+      "offlineRecordedSpanToProcessingTimeRatio": 11.711883502694427,
+      "decodeMillisecondsP50P95P99": [
+        1.0834839999986912,
+        1.5488968000006762,
+        2.1452220399997683
+      ],
+      "registrationMillisecondsP50P95P99": [
+        6.19474700000211,
+        7.9932535999986944,
+        8.722338999998984
+      ],
+      "registrationMillisecondsMaximum": 13.955690000003074,
+      "registrationOver100MillisecondsFrames": 0,
+      "latencySamplesIncludeFirstFrame": true,
+      "perFrameRegistrationPointCountMinMax": [
+        954,
+        1039
+      ],
+      "perFramePointTimeSpanSecondsMinMax": [
+        0.09483100000000001,
+        0.094849
+      ],
+      "estimatedMotionNotGroundTruth": {
+        "accumulatedPositionStepsRawUnits": 0.6596900419514591,
+        "endToStartDistanceRawUnits": 0.0020901808923040836,
+        "maximumDistanceFromStartRawUnits": 0.006961567197619531,
+        "maximumConsecutivePositionStepRawUnits": 0.0051727303026775084,
+        "maximumConsecutiveRotationDegrees": 0.058608338989630554
+      },
+      "privateTrajectorySha256": "47ee2b8ecb00a9c204f18fecb816c6ab36b7f5e9d3c4d152adf4cac389b5ea18",
+      "runnerSha256": "ebe6d933005fa0821b50c0f91477e7a80a32ac1d174bf1040ec90d91e382a8aa",
+      "captureManifestSha256": "dff6ef252728ac0a26989b880d1d3a11769922467c8f5d7747c1b04a5c2c1e28",
+      "profileSha256": "fd59b8c2c35e48ec081b690161b3e5682402f8f9c2e9e8b3a662b323a0979dd6",
+      "localReportSha256": "9e9dfd073e5f242382db68598e50c9f5b230e451381782718ebf21ab02169b73",
+      "profileFile": "kiss-offline-profile.json",
+      "initialDevelopmentRun": false
+    },
+    "dynamicDeskew": {
+      "dataset": "dynamic",
+      "result": "all_recorded_clouds_processed_not_quality_acceptance",
+      "processedFrames": 1232,
+      "pointsPassedToAlgorithm": 31270824,
+      "nonfiniteCoordinatesDropped": 0,
+      "recordedCloudHeaderSpanSeconds": 123.100253,
+      "processingWallSeconds": 52.13819927299999,
+      "processCpuSeconds": 102.34461318700001,
+      "peakResidentMiB": 105.59765625,
+      "offlineRecordedSpanToProcessingTimeRatio": 2.3610376790237178,
+      "decodeMillisecondsP50P95P99": [
+        0.9774700000022563,
+        1.367312450003766,
+        1.8358878600020754
+      ],
+      "registrationMillisecondsP50P95P99": [
+        29.497972999998012,
+        129.6019032500013,
+        203.62325758999734
+      ],
+      "registrationMillisecondsMaximum": 390.7745780000056,
+      "registrationOver100MillisecondsFrames": 116,
+      "latencySamplesIncludeFirstFrame": true,
+      "perFrameRegistrationPointCountMinMax": [
+        316,
+        1825
+      ],
+      "perFramePointTimeSpanSecondsMinMax": [
+        0.09483100000000001,
+        0.094849
+      ],
+      "estimatedMotionNotGroundTruth": {
+        "accumulatedPositionStepsRawUnits": 66.20737469618844,
+        "endToStartDistanceRawUnits": 5.0956608687005955,
+        "maximumDistanceFromStartRawUnits": 6.696050064355408,
+        "maximumConsecutivePositionStepRawUnits": 1.9351795269396934,
+        "maximumConsecutiveRotationDegrees": 18.026539363009004
+      },
+      "privateTrajectorySha256": "3e0ea53e4072b518e1fa3a5074b7151eb4a0e08a969be4ff7b0c5a5a5307744b",
+      "runnerSha256": "ebe6d933005fa0821b50c0f91477e7a80a32ac1d174bf1040ec90d91e382a8aa",
+      "captureManifestSha256": "dff6ef252728ac0a26989b880d1d3a11769922467c8f5d7747c1b04a5c2c1e28",
+      "profileSha256": "fd59b8c2c35e48ec081b690161b3e5682402f8f9c2e9e8b3a662b323a0979dd6",
+      "localReportSha256": "4825f746675a86dfdd2fc1de20bdbadb916f1d4b6cc6338b706e905727f0825b",
+      "profileFile": "kiss-offline-profile.json",
+      "initialDevelopmentRun": false
+    },
+    "dynamicNoDeskew": {
+      "dataset": "dynamic",
+      "result": "all_recorded_clouds_processed_not_quality_acceptance",
+      "processedFrames": 1232,
+      "pointsPassedToAlgorithm": 31270824,
+      "nonfiniteCoordinatesDropped": 0,
+      "recordedCloudHeaderSpanSeconds": 123.100253,
+      "processingWallSeconds": 38.199600406,
+      "processCpuSeconds": 73.865456824,
+      "peakResidentMiB": 101.84375,
+      "offlineRecordedSpanToProcessingTimeRatio": 3.2225534218065977,
+      "decodeMillisecondsP50P95P99": [
+        0.9505080000016264,
+        1.2750813499984306,
+        1.5474823200004553
+      ],
+      "registrationMillisecondsP50P95P99": [
+        23.27383500000124,
+        88.36546734999902,
+        127.44044783000128
+      ],
+      "registrationMillisecondsMaximum": 365.8394610000002,
+      "registrationOver100MillisecondsFrames": 44,
+      "latencySamplesIncludeFirstFrame": true,
+      "perFrameRegistrationPointCountMinMax": [
+        335,
+        1845
+      ],
+      "perFramePointTimeSpanSecondsMinMax": [
+        0.09483100000000001,
+        0.094849
+      ],
+      "estimatedMotionNotGroundTruth": {
+        "accumulatedPositionStepsRawUnits": 30.697670736974437,
+        "endToStartDistanceRawUnits": 4.850013012849686,
+        "maximumDistanceFromStartRawUnits": 6.073988034489751,
+        "maximumConsecutivePositionStepRawUnits": 1.3311751035700559,
+        "maximumConsecutiveRotationDegrees": 14.966976397556829
+      },
+      "privateTrajectorySha256": "6ddc9d3d594f76a722e392e06974de4f70690b740242e867364661cf8dfc0baf",
+      "runnerSha256": "ebe6d933005fa0821b50c0f91477e7a80a32ac1d174bf1040ec90d91e382a8aa",
+      "captureManifestSha256": "dff6ef252728ac0a26989b880d1d3a11769922467c8f5d7747c1b04a5c2c1e28",
+      "profileSha256": "11245b91bfb539f52c07c5d331abf7f84a55550af2be50b066f53509c9592c1c",
+      "localReportSha256": "205732bdf97236b5c1e96b8cb38ba882e59b9b699d7e45a6db4619b26207bf45",
+      "profileFile": "kiss-offline-no-deskew-profile.json",
+      "initialDevelopmentRun": false
+    }
+  },
+  "boundaries": {
+    "groundTruthAvailable": false,
+    "physicalUnitsCalibrated": false,
+    "binaryMatchesReviewedGitCommitProven": false,
+    "glimRealReplayExecuted": false,
+    "fullSameDataComparisonPassed": false,
+    "targetArm64RuntimeValidated": false,
+    "mapPersistenceValidated": false,
+    "relocalizationValidated": false,
+    "navigationValidated": false,
+    "deploymentApproved": false,
+    "rawDataPublished": false
+  }
+}

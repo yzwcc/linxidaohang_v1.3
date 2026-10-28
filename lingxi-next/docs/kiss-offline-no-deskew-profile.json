@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "scope": "offline_real_recording_diagnostic",
+  "robotCalibrationValidated": false,
+  "navigationValidated": false,
+  "pointTimeInterpretation": "frame_relative_nanoseconds_hypothesis",
+  "parameters": {
+    "data": {"max_range": 30.0, "min_range": 0.5, "deskew": false},
+    "mapping": {"voxel_size": 0.3, "max_points_per_voxel": 20},
+    "registration": {
+      "max_num_iterations": 500,
+      "convergence_criterion": 0.0001,
+      "max_num_threads": 2
+    },
+    "adaptive_threshold": {
+      "fixed_threshold": null,
+      "initial_threshold": 2.0,
+      "min_motion_th": 0.1
+    }
+  }
+}

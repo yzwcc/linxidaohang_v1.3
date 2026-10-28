@@ -33,9 +33,11 @@ class CandidateBaselines(unittest.TestCase):
     def test_review_does_not_claim_deployment_or_full_dependency_lock(self):
         self.assertFalse(self.manifest["deploymentApproved"])
         self.assertFalse(self.manifest["dependenciesPinned"])
-        self.assertEqual("provisional_no_algorithm_benchmarks", self.manifest["selectionStatus"])
-        for key in ("dynamicReplay", "mapPersistenceAndRelocalization", "navigationAndEmergencyStop"):
+        self.assertEqual("provisional_kiss_only_diagnostic_no_full_comparison", self.manifest["selectionStatus"])
+        for key in ("fullSameDataComparison", "mapPersistenceAndRelocalization", "navigationAndEmergencyStop"):
             self.assertEqual("not_run", self.manifest["targetValidation"][key])
+        self.assertEqual("kiss_icp_only_diagnostic_completed_glim_not_run",
+                         self.manifest["targetValidation"]["dynamicReplay"])
 
     def test_documentation_links_the_same_reviewed_commits(self):
         document = (ROOT / "docs" / "OPEN_SOURCE_NAV_EVALUATION.md").read_text(encoding="utf-8")
@@ -55,7 +57,8 @@ class CandidateBaselines(unittest.TestCase):
         self.assertEqual(evidence["sampledCloudFrames"], evidence["matchingFrames"])
         self.assertFalse(evidence["calibrationValidated"])
         self.assertEqual("unverified", target["dynamicTimeAlignment"])
-        self.assertEqual("not_run", target["dynamicReplay"])
+        self.assertEqual("kiss_icp_only_diagnostic_completed_glim_not_run", target["dynamicReplay"])
+        self.assertEqual("all_clouds_processed_quality_not_accepted", target["kissOfflineDiagnostic"])
         self.assertIn("synthetic_profile_only", target["offlineConfigGeneration"])
 
     def test_wrapper_package_declaration_is_not_a_verified_root_license_file(self):
