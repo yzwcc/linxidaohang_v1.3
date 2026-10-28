@@ -125,13 +125,26 @@ class OfflineKissInputs(unittest.TestCase):
         self.assertEqual(profile, ablation)
 
     def test_existing_trial_directory_is_preserved(self):
-        with tempfile.TemporaryDirectory() as directory:
+        with (tempfile.TemporaryDirectory() as directory,
+              patch.object(replay.metadata, "version", side_effect=replay.VERSIONS.__getitem__),
+              patch.object(replay, "verify") as verify):
             root = Path(directory)
             marker = root / "synthetic-marker"
             marker.write_text("SYNTHETIC DO NOT REPLACE")
             with self.assertRaisesRegex(ValueError, "existing_trial_results"):
                 replay.run("unused", root, "static", "unused", "unused", root)
             self.assertEqual("SYNTHETIC DO NOT REPLACE", marker.read_text())
+            verify.assert_not_called()
+
+    def test_wrong_package_version_is_rejected_before_recording_access(self):
+        with (tempfile.TemporaryDirectory() as directory,
+              patch.object(replay.metadata, "version", return_value="synthetic_wrong_version"),
+              patch.object(replay, "verify") as verify):
+            root = Path(directory)
+            with self.assertRaisesRegex(ValueError, "unexpected_diagnostic_package_version"):
+                replay.run("unused", root, "static", "unused", "unused", root / "new")
+            verify.assert_not_called()
+            self.assertFalse((root / "new").exists())
 
 
 class OfflineSourceBoundaries(unittest.TestCase):

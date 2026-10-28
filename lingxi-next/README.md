@@ -36,6 +36,12 @@ the two-thread variation; single-thread outputs matched exactly both within
 the target and across all same-condition host/target pairs. Per-call cost
 was measured separately from mapping and live-input performance.
 See [the ARM64 preprocessing evidence](docs/SLAM_ARM64_PREPROCESS.md).
+Twelve new complete x86 mapping runs with one preprocessing thread also
+completed save and fresh-process reload. Within each condition the partitions
+and point counts repeated, with numerically close online trajectories, but
+the complete point arrays were not bit-identical. Neither timing hypothesis,
+map geometry nor a production thread configuration is accepted.
+See [the full-map control limits](docs/SLAM_CONTROLLED_MAPPING.md).
 An independent full-recording range audit records returns beyond 5 raw-coordinate
 units. The roughly 5 m travel estimate is not calibration truth; travel,
 scan coverage and map accuracy are different quantities.
