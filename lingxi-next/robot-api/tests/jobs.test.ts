@@ -201,6 +201,39 @@ describe("navigation and tour lifecycle", () => {
     await vi.advanceTimersByTimeAsync(60_000);
     expect(adapter.startNavigation).toHaveBeenCalledTimes(1);
   });
+  it("sends stop after an in-flight resume so a late resume cannot restart navigation", async () => {
+    await jobs.startPoint(point);
+    await jobs.control("pause");
+
+    const commands: string[] = [];
+    let applyResume!: () => void;
+    vi.mocked(adapter.controlNavigation).mockImplementation((action) => {
+      commands.push(action);
+      if (action === "resume") {
+        return new Promise<void>((resolve) => {
+          applyResume = () => {
+            nav = { ...nav, status: "running" };
+            resolve();
+          };
+        });
+      }
+      nav = { ...nav, status: action === "stop" ? "idle" : "paused" };
+      return Promise.resolve();
+    });
+
+    const resuming = jobs.control("resume");
+    await vi.advanceTimersByTimeAsync(1);
+    const stopping = jobs.control("stop");
+    await vi.advanceTimersByTimeAsync(1);
+    expect(commands).toEqual(["resume"]);
+    await expect(jobs.control("resume")).rejects.toThrow("状态已失效");
+
+    applyResume();
+    await Promise.all([resuming, stopping]);
+    expect(commands).toEqual(["resume", "stop"]);
+    expect(nav.status).toBe("idle");
+    expect(jobs.state().status).toBe("idle");
+  });
   it("does not send a stop after its voice turn becomes stale while dispatch is pending", async () => {
     let release!: () => void;
     let authorized = true;

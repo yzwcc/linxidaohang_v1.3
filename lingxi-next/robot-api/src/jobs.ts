@@ -25,6 +25,7 @@ type ActiveJob = {
   interruption: number;
   speechId?: string;
   pendingDispatch?: Promise<void>;
+  pendingNavigationControls: Set<Promise<void>>;
 };
 export type JobRecord = { task: string; point: string; at: string; reason: string };
 
@@ -133,6 +134,7 @@ export class JobManager {
     this.assertAuthorized(authorize);
     const job = this.current;
     if (!job) throw new Error("当前没有活动任务");
+    if (action !== "stop" && !this.isCurrent(job)) throw new Error("任务状态已失效");
     if (action === "stop") {
       await job.pendingDispatch?.catch(() => undefined);
       this.assertAuthorized(authorize);
@@ -141,6 +143,7 @@ export class JobManager {
       job.cancelled = true;
       this.generation += 1;
       try {
+        await Promise.allSettled([...job.pendingNavigationControls]);
         const results = await Promise.allSettled([
           job.speechId ? this.speaker.cancel?.(job.speechId) : undefined,
           job.taskId ? this.adapter.controlNavigation("stop", job.taskId) : undefined,
@@ -171,7 +174,9 @@ export class JobManager {
         if (job.speechId) await this.speaker.cancel?.(job.speechId);
         this.assertAuthorized(authorize);
         // Once accepted, finish this pause even if the voice session ends.
-        if (this.isCurrent(job) && job.phase === "navigating" && job.taskId) await this.adapter.controlNavigation("pause", job.taskId);
+        if (this.isCurrent(job) && job.phase === "navigating" && job.taskId) {
+          await this.requestNavigationControl(job, "pause");
+        }
       } catch (error) {
         job.manualPaused = false;
         if (!authorize()) throw error;
@@ -182,7 +187,7 @@ export class JobManager {
     }
     if (!job.manualPaused) return;
     try {
-      if (job.phase === "navigating" && job.taskId) await this.adapter.controlNavigation("resume", job.taskId);
+      if (job.phase === "navigating" && job.taskId) await this.requestNavigationControl(job, "resume");
     } catch (error) {
       job.manualPaused = false;
       this.halt(job, "继续请求未确认，请检查状态并停止后重试");
@@ -250,7 +255,7 @@ export class JobManager {
     const job: ActiveJob = {
       runId: randomUUID(), kind, manualPaused: false, cancelled: false,
       generation: ++this.generation, phase: "navigating", status: "requested",
-      detail, interruption: 0,
+      detail, interruption: 0, pendingNavigationControls: new Set(),
     };
     this.current = job;
     return job;
@@ -448,6 +453,18 @@ export class JobManager {
 
   private isCurrent(job: ActiveJob) {
     return this.current === job && !job.cancelled && job.generation === this.generation;
+  }
+
+  private requestNavigationControl(job: ActiveJob, action: "pause" | "resume"): Promise<void> {
+    const taskId = job.taskId;
+    if (!taskId) return Promise.resolve();
+    const request = this.adapter.controlNavigation(action, taskId);
+    job.pendingNavigationControls.add(request);
+    void request.then(
+      () => job.pendingNavigationControls.delete(request),
+      () => job.pendingNavigationControls.delete(request),
+    );
+    return request;
   }
 
   async dispose(): Promise<void> {
