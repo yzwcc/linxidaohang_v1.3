@@ -15,6 +15,7 @@ from verify_slam_capture import verify
 
 
 ROOT = Path(__file__).resolve().parents[1]
+RECORDED_ODOMETRY_RUNNER_SHA256 = "05f0ac5301c4e3685c9d9fa74988f8b38ca3548ee5b24dadb106ab502469497e"
 BOUNDARIES = (
     "rosNodeStarted", "liveSensorsSubscribed", "motionCommandsSent",
     "timingHypothesisValidated", "robotCalibrationValidated", "globalMappingExecuted",
@@ -120,7 +121,10 @@ def export(bundle, results, core_bundle, adapter_build, data_root):
                 or sha256(ROOT / "tools/glim-replay" / name) != digest):
             raise ValueError("recorded_adapter_source_changed")
     for name in ("glim_target_replay.py", "run_glim_offline_trial.py", "run_kiss_offline_trial.py"):
-        if sha256(bundle / "tools" / name) != sha256(ROOT / "tools" / name):
+        allowed = {sha256(ROOT / "tools" / name)}
+        if name == "glim_target_replay.py":
+            allowed.add(RECORDED_ODOMETRY_RUNNER_SHA256)
+        if sha256(bundle / "tools" / name) not in allowed:
             raise ValueError("actual_recorded_replay_source_changed")
     capture_path = bundle / "capture-manifest.json"
     if sha256(capture_path) != manifest["captureManifestSha256"]:

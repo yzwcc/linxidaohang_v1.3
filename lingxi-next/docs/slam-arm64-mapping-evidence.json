@@ -1,0 +1,454 @@
+{
+  "schemaVersion": 1,
+  "observedDate": "2026-10-28",
+  "purpose": "actual_arm64_recorded_map_persistence_not_geometry_relocalization_or_navigation",
+  "result": "four_actual_arm64_recorded_mapping_trials_completed_not_quality_acceptance",
+  "sourceCommits": {
+    "gtsam": "3ad4b4c3cb28394c9597f48fa02dad361c8450e3",
+    "gtsam_points": "9d32e7dbecf6015560d84b4901d6b0a6f483ec46",
+    "glim": "1a197c999e4865f5cab7c9cd25474128413ebbca"
+  },
+  "captureManifestSha256": "dff6ef252728ac0a26989b880d1d3a11769922467c8f5d7747c1b04a5c2c1e28",
+  "replayManifestSha256": "1238b4e985c7057dc91b81646d5f41f517f4fbf3e8f30fb1038143e2d71b32b4",
+  "odometryReplayManifestSha256": "5100c4da0bd7f8d9139ed6498f6366f4a2b9ef56f890b49dba6658e10e3256e0",
+  "privateCollectionReportSha256": "784cad8aebd2f23b139eff4ab012db2676364b33d81f173a50ebd4ebcf02d568",
+  "mappingBuildReportSha256": "79d6cf27c66022088f81c4af9e08905b929581b10572b7390a95cc011352cb5b",
+  "mappingAdapterSha256": "5eea694f5145e657d18848bf2d20eb94c81dd0867585e936d27e68e70a0acb84",
+  "odometryAdapterSha256": "3b814b90d62162461b00e98f98ba29a46827d3b9fbb398b597c29ae5ac633b5e",
+  "nativeSourceSha256": {
+    "mapping.cpp": "0769e7bdd399a1c9addfde89655bd0596baf922cc0b4a1618147b91ad51fda9c",
+    "CMakeLists.txt": "5d60565098aa8dc97a9144b160ed5019dad2fb408b0cae9627271ecc4378ac3e"
+  },
+  "actualTargetSourcesSha256": {
+    "glim_target_mapping.py": "274919647e57256fdd841304e93de5e17113a78247ba901bbfa0f04e0738d7ba",
+    "glim_target_replay.py": "20d0adf3f6e68b6c4d9a61b970be716ee5ead74d609918bd67edb4fcacc46d77",
+    "run_glim_mapping_trial.py": "80c3c04178a6e9d1cc2bdc6fb467c746bc14245d69c0a6d7c04b4e22b5e2fa6a"
+  },
+  "coordinatorSourceSha256": "adbc45a80452caf68a63de61c0eadf1ee0fe502575e9a2eb279bdf3722034464",
+  "toolSourcesAtExport": {
+    "build_glim_target_replay.py": "3a25b50a63f9f4ebde38abb1b491bbd735bb5ace6865d91f1e6c9b9fccf43e3b",
+    "export_glim_target_mapping_evidence.py": "bdcc3640603926efe6a0f2c8f9d459b487e3c718b3187fbbb5f060bd5cf7a7c4"
+  },
+  "runs": {
+    "staticStart": {
+      "dataset": "static",
+      "timingHypothesis": "header_is_scan_start",
+      "target": {
+        "machine": "aarch64",
+        "python": "3.10.12",
+        "numpy": "1.26.1"
+      },
+      "mapping": {
+        "finalizedFramesFedOnce": 313,
+        "submaps": 1,
+        "points": 2349,
+        "savedFrames": 313,
+        "minimumLoopTravel": 50.0,
+        "submapTravel": 0.0
+      },
+      "mapInventory": {
+        "num_submaps": 1,
+        "num_all_frames": 313,
+        "num_matching_cost_factors": 0,
+        "fileCount": 12,
+        "totalBytes": 919469,
+        "artifactInventorySha256": "d3db26c74ab4a20e7a8ff03a585fcb378da80b775d195e388cc67952cbe037ff"
+      },
+      "roundTrip": {
+        "pointCount": 2349,
+        "maximumPointDisplacementRawUnits": 1.0444157241495915e-06,
+        "rmsPointDisplacementRawUnits": 2.3350471278601167e-07,
+        "predeclaredToleranceRawUnits": 0.0001,
+        "samePointOrderCompared": true,
+        "geometricAccuracyValidated": false
+      },
+      "scanAccounting": {
+        "recordedScans": 353,
+        "processedScans": 343,
+        "skippedUnbracketedScans": 10,
+        "initializationScans": 30,
+        "estimatedPoses": 313,
+        "imuSamplesInserted": 6864
+      },
+      "timingsWithMappingCallbacksNotRealtimeAcceptance": {
+        "preprocessMillisecondsP50P95P99": [
+          6.907793,
+          8.9188692,
+          11.315147439999993
+        ],
+        "odometryMillisecondsP50P95P99": [
+          16.426781,
+          38.51209599999998,
+          57.1157560799998
+        ],
+        "combinedMillisecondsMaximum": 84.17030100000001,
+        "combinedMillisecondsP50P95P99": [
+          23.959574,
+          45.3025891,
+          65.94598399999975
+        ],
+        "processingWallSeconds": 10.965146703998471,
+        "processCpuSeconds": 17.437215904,
+        "peakResidentMiB": 195.51171875
+      },
+      "estimatedMotionNotGroundTruth": {
+        "accumulatedPositionStepsRawUnits": 0.1311648758264342,
+        "endToStartDistanceRawUnits": 0.02236390169356458,
+        "maximumConsecutivePositionStepRawUnits": 0.003945612865696103
+      },
+      "totalWallSecondsIncludingReload": 17.267868001999886,
+      "checks": {
+        "globalMappingExecutedOnArm64": true,
+        "nonemptyMapSavedOnArm64": true,
+        "allFinalizedFramesFedExactlyOnce": true,
+        "freshArm64ProcessReloadPassed": true,
+        "finiteSameCountPointRoundTripPassed": true,
+        "mapUnchangedDuringReload": true
+      },
+      "boundaries": {
+        "rosNodeStarted": false,
+        "liveSensorsSubscribed": false,
+        "motionCommandsSent": false,
+        "timingHypothesisValidated": false,
+        "robotCalibrationValidated": false,
+        "geometricAccuracyValidated": false,
+        "loopClosureValidated": false,
+        "relocalizationValidated": false,
+        "navigationValidated": false,
+        "targetRealtimePerformanceValidated": false,
+        "voiceConcurrencyValidated": false,
+        "deploymentApproved": false,
+        "rawDataPublished": false
+      },
+      "reloadedInDifferentArm64Process": true,
+      "privateMappingReportSha256": "1c3f678dc3c0cf647c7134774a1dea03e820c7a7c1cfe7b902d1a3d9cff94956",
+      "baseReplayReportSha256": "2fedb13eb388172549cead04cf5b674c748c4698284c6762f399b5c2fb6792d4",
+      "reloadReportSha256": "582380580b10686398953e9f7f18f4d393ab906d4b40324ab5f13212c4c52418",
+      "privateSavedPointsSha256": "c0922ed279f5cfb8c4a55a291b5392837ef09b0984d99d980320409256be267d",
+      "privateReloadedPointsSha256": "0eeb8b47e1a7e4dfadfc19eb24d43a45459ba67cec6bc3e18b88efccd2d5c65f",
+      "privateNativeLogSha256": "9be221f7c5a066680f3f6ba5a48ee4801ec9e74513f62adda61fa22ecedcb8c5",
+      "privateReloadLogSha256": "5871764f2662eb045be1b96c51b2964fcefe2a838aec4b00b6de8d451f243d0c",
+      "privateTrajectorySha256": "e2355decaf2aebe50ac1d6494024c7f3bfb2fe7d3e1b6bdbe867a836ce023063",
+      "nativeLogsCheckedForErrorsAndRecovery": true
+    },
+    "staticEnd": {
+      "dataset": "static",
+      "timingHypothesis": "header_is_scan_end",
+      "target": {
+        "machine": "aarch64",
+        "python": "3.10.12",
+        "numpy": "1.26.1"
+      },
+      "mapping": {
+        "finalizedFramesFedOnce": 311,
+        "submaps": 1,
+        "points": 2347,
+        "savedFrames": 311,
+        "minimumLoopTravel": 50.0,
+        "submapTravel": 0.0
+      },
+      "mapInventory": {
+        "num_submaps": 1,
+        "num_all_frames": 311,
+        "num_matching_cost_factors": 0,
+        "fileCount": 12,
+        "totalBytes": 920498,
+        "artifactInventorySha256": "dbaf322687ab3c2932f7b946d78cf6522cfe2157c6b191af53bb2d73ccb1ec3b"
+      },
+      "roundTrip": {
+        "pointCount": 2347,
+        "maximumPointDisplacementRawUnits": 1.0283863889811076e-06,
+        "rmsPointDisplacementRawUnits": 2.33868443935723e-07,
+        "predeclaredToleranceRawUnits": 0.0001,
+        "samePointOrderCompared": true,
+        "geometricAccuracyValidated": false
+      },
+      "scanAccounting": {
+        "recordedScans": 353,
+        "processedScans": 342,
+        "skippedUnbracketedScans": 11,
+        "initializationScans": 31,
+        "estimatedPoses": 311,
+        "imuSamplesInserted": 6845
+      },
+      "timingsWithMappingCallbacksNotRealtimeAcceptance": {
+        "preprocessMillisecondsP50P95P99": [
+          6.905025,
+          8.20290935,
+          11.163657969999964
+        ],
+        "odometryMillisecondsP50P95P99": [
+          15.9828335,
+          36.81709534999999,
+          60.10210483999999
+        ],
+        "combinedMillisecondsMaximum": 77.73454000000001,
+        "combinedMillisecondsP50P95P99": [
+          23.22902,
+          43.69383924999999,
+          66.95761328999998
+        ],
+        "processingWallSeconds": 10.686807258000044,
+        "processCpuSeconds": 17.126302752,
+        "peakResidentMiB": 194.8984375
+      },
+      "estimatedMotionNotGroundTruth": {
+        "accumulatedPositionStepsRawUnits": 0.13613655940982966,
+        "endToStartDistanceRawUnits": 0.02114126091952768,
+        "maximumConsecutivePositionStepRawUnits": 0.006722269458880557
+      },
+      "totalWallSecondsIncludingReload": 16.94045337300122,
+      "checks": {
+        "globalMappingExecutedOnArm64": true,
+        "nonemptyMapSavedOnArm64": true,
+        "allFinalizedFramesFedExactlyOnce": true,
+        "freshArm64ProcessReloadPassed": true,
+        "finiteSameCountPointRoundTripPassed": true,
+        "mapUnchangedDuringReload": true
+      },
+      "boundaries": {
+        "rosNodeStarted": false,
+        "liveSensorsSubscribed": false,
+        "motionCommandsSent": false,
+        "timingHypothesisValidated": false,
+        "robotCalibrationValidated": false,
+        "geometricAccuracyValidated": false,
+        "loopClosureValidated": false,
+        "relocalizationValidated": false,
+        "navigationValidated": false,
+        "targetRealtimePerformanceValidated": false,
+        "voiceConcurrencyValidated": false,
+        "deploymentApproved": false,
+        "rawDataPublished": false
+      },
+      "reloadedInDifferentArm64Process": true,
+      "privateMappingReportSha256": "10a34674efd1ca2be44f701aab54e598f555f574a05edaa882e642ecfa856a22",
+      "baseReplayReportSha256": "e3520182bf5cd095ced30171fe7e418b4bfcc5d3f3cbe144bf63106f2a22c857",
+      "reloadReportSha256": "7bbb21f777605b30068ca980cfb6ecf073f6268e6a1d46607de22536990ed0f5",
+      "privateSavedPointsSha256": "9a84b96732ebe0ac98a29386186734117eb214e401a5b86b3630e01c88a01fd6",
+      "privateReloadedPointsSha256": "670165eceb12954bbbc0b951c2f571f7ad234da942ee89df4be31ca6f9edefe3",
+      "privateNativeLogSha256": "f3d52b605bc45d8c8e15de9e2ec778d9a54a9340802adb51ddab64ffed70060c",
+      "privateReloadLogSha256": "52e4984f9af98bbf419e35b8bc1bc18104878868932c82cc08b8c121d9126bd5",
+      "privateTrajectorySha256": "4c4f4d63782ddbe9a575093c01f849897009709f8198a71a39c74426a1ae0ebc",
+      "nativeLogsCheckedForErrorsAndRecovery": true
+    },
+    "dynamicStart": {
+      "dataset": "dynamic",
+      "timingHypothesis": "header_is_scan_start",
+      "target": {
+        "machine": "aarch64",
+        "python": "3.10.12",
+        "numpy": "1.26.1"
+      },
+      "mapping": {
+        "finalizedFramesFedOnce": 1190,
+        "submaps": 7,
+        "points": 89842,
+        "savedFrames": 1190,
+        "minimumLoopTravel": 50.0,
+        "submapTravel": 2.6472142348242835
+      },
+      "mapInventory": {
+        "num_submaps": 7,
+        "num_all_frames": 1190,
+        "num_matching_cost_factors": 0,
+        "fileCount": 42,
+        "totalBytes": 7365671,
+        "artifactInventorySha256": "4b66ba6f433f16c96abafbca9e422bb8e8ce67db48a527780d1d5832458c6538"
+      },
+      "roundTrip": {
+        "pointCount": 89842,
+        "maximumPointDisplacementRawUnits": 1.3302253314701857e-06,
+        "rmsPointDisplacementRawUnits": 2.534010839896642e-07,
+        "predeclaredToleranceRawUnits": 0.0001,
+        "samePointOrderCompared": true,
+        "geometricAccuracyValidated": false
+      },
+      "scanAccounting": {
+        "recordedScans": 1232,
+        "processedScans": 1221,
+        "skippedUnbracketedScans": 11,
+        "initializationScans": 31,
+        "estimatedPoses": 1190,
+        "imuSamplesInserted": 24434
+      },
+      "timingsWithMappingCallbacksNotRealtimeAcceptance": {
+        "preprocessMillisecondsP50P95P99": [
+          6.896048,
+          8.636906,
+          10.7315534
+        ],
+        "odometryMillisecondsP50P95P99": [
+          20.027535,
+          36.369655,
+          45.526696599999994
+        ],
+        "combinedMillisecondsMaximum": 70.325934,
+        "combinedMillisecondsP50P95P99": [
+          27.082207,
+          43.851552999999996,
+          53.61427179999997
+        ],
+        "processingWallSeconds": 42.02773512600106,
+        "processCpuSeconds": 67.19364688,
+        "peakResidentMiB": 287.92578125
+      },
+      "estimatedMotionNotGroundTruth": {
+        "accumulatedPositionStepsRawUnits": 8.133072669995698,
+        "endToStartDistanceRawUnits": 0.6738219667360117,
+        "maximumConsecutivePositionStepRawUnits": 0.09286801310241767
+      },
+      "totalWallSecondsIncludingReload": 51.381352083997626,
+      "checks": {
+        "globalMappingExecutedOnArm64": true,
+        "nonemptyMapSavedOnArm64": true,
+        "allFinalizedFramesFedExactlyOnce": true,
+        "freshArm64ProcessReloadPassed": true,
+        "finiteSameCountPointRoundTripPassed": true,
+        "mapUnchangedDuringReload": true
+      },
+      "boundaries": {
+        "rosNodeStarted": false,
+        "liveSensorsSubscribed": false,
+        "motionCommandsSent": false,
+        "timingHypothesisValidated": false,
+        "robotCalibrationValidated": false,
+        "geometricAccuracyValidated": false,
+        "loopClosureValidated": false,
+        "relocalizationValidated": false,
+        "navigationValidated": false,
+        "targetRealtimePerformanceValidated": false,
+        "voiceConcurrencyValidated": false,
+        "deploymentApproved": false,
+        "rawDataPublished": false
+      },
+      "reloadedInDifferentArm64Process": true,
+      "privateMappingReportSha256": "fe4ce5046b74ce711badc999819c4768e73bde99788c95a0be9f9286345300a1",
+      "baseReplayReportSha256": "787291e5c33d717bd0b37d9244cd8a4b579793e28e5bed895b319b57dd7483a2",
+      "reloadReportSha256": "e24dcdb5d64cec37a43bd43b9ef188a42a911b56e3292ee00e7714c16171afa2",
+      "privateSavedPointsSha256": "ad3fe53b274ab269887a763c172ec1dc8f46383be545916ffaea6fc15baa3099",
+      "privateReloadedPointsSha256": "bda05d0bdfb6e81d2a35df91c50174486fe73384e04088b39cc196caa4166e00",
+      "privateNativeLogSha256": "9a0534c263d299a6cb2ec68c86f7f0495f21132e377434212c94bb9865975669",
+      "privateReloadLogSha256": "34a5343a05003994e413ab3be2e133b248e104c075ca414deacfc76f3b55e8cb",
+      "privateTrajectorySha256": "d8a5d4f46d7ccdd25797342f828d7ac4fedbff63107a39abc0d3501f509f2415",
+      "nativeLogsCheckedForErrorsAndRecovery": true
+    },
+    "dynamicEnd": {
+      "dataset": "dynamic",
+      "timingHypothesis": "header_is_scan_end",
+      "target": {
+        "machine": "aarch64",
+        "python": "3.10.12",
+        "numpy": "1.26.1"
+      },
+      "mapping": {
+        "finalizedFramesFedOnce": 1189,
+        "submaps": 10,
+        "points": 207358,
+        "savedFrames": 1189,
+        "minimumLoopTravel": 50.0,
+        "submapTravel": 4.410872546753556
+      },
+      "mapInventory": {
+        "num_submaps": 10,
+        "num_all_frames": 1189,
+        "num_matching_cost_factors": 0,
+        "fileCount": 57,
+        "totalBytes": 12989491,
+        "artifactInventorySha256": "43bcaf8fe7f1ed18359b9a462203aba30bfe839908d34fc812d3c399a811f005"
+      },
+      "roundTrip": {
+        "pointCount": 207358,
+        "maximumPointDisplacementRawUnits": 1.329395407431054e-06,
+        "rmsPointDisplacementRawUnits": 2.678229881643428e-07,
+        "predeclaredToleranceRawUnits": 0.0001,
+        "samePointOrderCompared": true,
+        "geometricAccuracyValidated": false
+      },
+      "scanAccounting": {
+        "recordedScans": 1232,
+        "processedScans": 1220,
+        "skippedUnbracketedScans": 12,
+        "initializationScans": 31,
+        "estimatedPoses": 1189,
+        "imuSamplesInserted": 24415
+      },
+      "timingsWithMappingCallbacksNotRealtimeAcceptance": {
+        "preprocessMillisecondsP50P95P99": [
+          6.887971,
+          8.78304955,
+          10.81592161
+        ],
+        "odometryMillisecondsP50P95P99": [
+          25.385186500000003,
+          44.62211305,
+          49.835093779999966
+        ],
+        "combinedMillisecondsMaximum": 70.556297,
+        "combinedMillisecondsP50P95P99": [
+          32.239323,
+          52.07468314999999,
+          57.44111972999999
+        ],
+        "processingWallSeconds": 48.20656917700035,
+        "processCpuSeconds": 78.491216032,
+        "peakResidentMiB": 314.46484375
+      },
+      "estimatedMotionNotGroundTruth": {
+        "accumulatedPositionStepsRawUnits": 9.944216857386614,
+        "endToStartDistanceRawUnits": 0.726595751003309,
+        "maximumConsecutivePositionStepRawUnits": 0.11743639516964498
+      },
+      "totalWallSecondsIncludingReload": 57.646655263000866,
+      "checks": {
+        "globalMappingExecutedOnArm64": true,
+        "nonemptyMapSavedOnArm64": true,
+        "allFinalizedFramesFedExactlyOnce": true,
+        "freshArm64ProcessReloadPassed": true,
+        "finiteSameCountPointRoundTripPassed": true,
+        "mapUnchangedDuringReload": true
+      },
+      "boundaries": {
+        "rosNodeStarted": false,
+        "liveSensorsSubscribed": false,
+        "motionCommandsSent": false,
+        "timingHypothesisValidated": false,
+        "robotCalibrationValidated": false,
+        "geometricAccuracyValidated": false,
+        "loopClosureValidated": false,
+        "relocalizationValidated": false,
+        "navigationValidated": false,
+        "targetRealtimePerformanceValidated": false,
+        "voiceConcurrencyValidated": false,
+        "deploymentApproved": false,
+        "rawDataPublished": false
+      },
+      "reloadedInDifferentArm64Process": true,
+      "privateMappingReportSha256": "20e2e43aa27e333c1321157de38a68fa7f6ae4d03d86d3fbc2c367e921a66daa",
+      "baseReplayReportSha256": "e4f790a54b2e3136041778a934f6f53a477fede67d2a2f8c5bdcb788bc6fba59",
+      "reloadReportSha256": "c14aaf21b61d4b683740923cd99426c2027867e4d849fccbd5c5f91ce5536fac",
+      "privateSavedPointsSha256": "96604bd8dd3f5a9ff8981fc8a29a7b7e31ad08db37439f6fe6b071f9ed0318d1",
+      "privateReloadedPointsSha256": "713ab5b219116029c014923da43c37ea59a2efc31e3b7d4a028f4dc1be082284",
+      "privateNativeLogSha256": "033b6bb6097449c6a42a180465a427a2379f9ebfa3350d7ee2db233c132ed1fa",
+      "privateReloadLogSha256": "dc106e9d8eb316a18aa22b9548c9c43b05436ff44b5cc6861ab10c50f4834c65",
+      "privateTrajectorySha256": "8ec98940bc072dc0eaf1d52ddfbd5fb426f34558098fc016d83ce45eff1b3277",
+      "nativeLogsCheckedForErrorsAndRecovery": true
+    }
+  },
+  "originalCapturesUnchangedAtExport": true,
+  "boundaries": {
+    "rosNodeStarted": false,
+    "liveSensorsSubscribed": false,
+    "motionCommandsSent": false,
+    "timingHypothesisValidated": false,
+    "robotCalibrationValidated": false,
+    "geometricAccuracyValidated": false,
+    "loopClosureValidated": false,
+    "relocalizationValidated": false,
+    "navigationValidated": false,
+    "targetRealtimePerformanceValidated": false,
+    "voiceConcurrencyValidated": false,
+    "deploymentApproved": false,
+    "rawDataPublished": false
+  }
+}

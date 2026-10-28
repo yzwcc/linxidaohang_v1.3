@@ -18,9 +18,9 @@ from slam_target_probe import verify_bundle
 from verify_slam_capture import sha256, verify
 
 
-def verify_replay_bundle(root):
+def verify_replay_bundle(root, purpose="arm64_recorded_glim_odometry_trial"):
     manifest = json.loads((root / "replay-manifest.json").read_text())
-    if (manifest.get("purpose") != "arm64_recorded_glim_odometry_trial"
+    if (manifest.get("purpose") != purpose
             or manifest.get("sourceCommits") != PINS
             or manifest.get("timingHypothesesOnlyNotCalibration") is not True
             or manifest.get("navigationValidated") is not False):
@@ -116,9 +116,9 @@ def replay_recording(bag, expected, hypothesis, native, messages=recorded_messag
     }, np.stack(poses), np.asarray(stamps, dtype=np.int64), np.asarray(algorithm_stamps), np.stack(measurements)
 
 
-def run(args):
+def validate_environment(root, core_root):
     expected_library_path = ":".join((
-        str(args.root / "lib"), str(args.core_root / "lib"),
+        str(root / "lib"), str(core_root / "lib"),
         "/opt/ros/humble/lib/aarch64-linux-gnu", "/opt/ros/humble/lib",
     ))
     if (platform.system() != "Linux" or platform.machine() != "aarch64" or os.geteuid() == 0
@@ -128,9 +128,14 @@ def run(args):
             or os.environ.get("OPENBLAS_NUM_THREADS") != "2"
             or any(key in os.environ for key in ("LD_PRELOAD", "ROS_DOMAIN_ID", "ROS_DISTRO"))):
         raise ValueError("ordinary_user_explicit_arm64_offline_environment_required")
+
+
+def run(args, native_factory=Native, on_native_closed=None,
+        bundle_purpose="arm64_recorded_glim_odometry_trial"):
+    validate_environment(args.root, args.core_root)
     if args.output.exists() or args.output.parent != args.root:
         raise ValueError("new_private_output_inside_trial_required")
-    manifest = verify_replay_bundle(args.root)
+    manifest = verify_replay_bundle(args.root, bundle_purpose)
     verify_bundle(args.core_root)
     if sha256(args.core_root / "bundle-manifest.json") != manifest["coreBundleManifestSha256"]:
         raise ValueError("isolated_core_bundle_mismatch")
@@ -172,8 +177,8 @@ def run(args):
         with (args.output / "private-native.log").open("x") as log:
             os.dup2(log.fileno(), 1)
             os.dup2(log.fileno(), 2)
-            native = Native(args.root / "lib/liblingxi_glim_offline.so", args.root / "config",
-                            args.core_root / "lib/libodometry_estimation_cpu.so")
+            native = native_factory(args.root / "lib/liblingxi_glim_offline.so", args.root / "config",
+                                    args.core_root / "lib/libodometry_estimation_cpu.so")
             expected = capture["datasets"][args.dataset]
             summary, poses, stamps, algorithm_stamps, measurements = replay_recording(
                 args.data_root / expected["directoryName"], expected, args.hypothesis, native,
@@ -187,6 +192,8 @@ def run(args):
                             header_stamps_ns=stamps, algorithm_stamps_relative_seconds=algorithm_stamps,
                             preprocess_odometry_pointcount_marginalized=measurements)
         report.update(summary)
+        if on_native_closed is not None:
+            on_native_closed(report)
         report.update({
             "result": "all_recorded_scans_accounted_for_on_arm64_not_quality_acceptance",
             "preprocessMillisecondsP50P95P99": np.percentile(measurements[:, 0], [50, 95, 99]).tolist(),
