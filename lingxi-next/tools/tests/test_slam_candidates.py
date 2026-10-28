@@ -78,11 +78,13 @@ class CandidateBaselines(unittest.TestCase):
         self.assertEqual("MIT", wrapper["packageLicense"])
         self.assertEqual("package.xml_declaration_only", wrapper["licenseEvidence"])
 
-    def test_capture_and_cross_link_do_not_imply_ros_or_target_loading(self):
+    def test_cross_link_and_synthetic_target_loading_do_not_imply_ros_or_real_data_runtime(self):
         target = self.manifest["targetValidation"]
         self.assertEqual("completed_static_and_dynamic_integrity_verified", target["operatorControlledCapture"])
         self.assertEqual("passed_jammy_arm64_cross_link_not_target_execution", target["arm64CoreCrossBuild"])
-        self.assertEqual("not_run", target["targetDependencyLoading"])
+        self.assertEqual("passed_four_cpu_modules_isolated_on_actual_arm64_robot",
+                         target["targetDependencyLoading"])
+        self.assertEqual("not_run", target["targetRealDataRuntime"])
         self.assertEqual("not_run", target["rosWrapperBuild"])
 
 

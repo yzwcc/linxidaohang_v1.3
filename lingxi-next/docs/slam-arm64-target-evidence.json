@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 1,
+  "observedDate": "2026-10-28",
+  "purpose": "arm64_real_target_module_loading_and_synthetic_execution_not_slam_acceptance",
+  "result": "target_cpu_loading_and_synthetic_execution_passed_not_slam_acceptance",
+  "sourceCommits": {
+    "gtsam": "3ad4b4c3cb28394c9597f48fa02dad361c8450e3",
+    "gtsam_points": "9d32e7dbecf6015560d84b4901d6b0a6f483ec46",
+    "glim": "1a197c999e4865f5cab7c9cd25474128413ebbca"
+  },
+  "crossBuildReportSha256": "ed478a4aadf134f398d5c7b267f48e33406d420ac4403ada3b87c86c1bd4a25f",
+  "privateTrialReportSha256": "b6cc5c6a820983813315712d56a7787da584235749a5b48194c208c092944b1e",
+  "bundleManifestSha256": "a4a0cea60ace957864f48b2b8bf726ee9f6e0594be8238cac36dbd11d024b733",
+  "bundleFilesIncludingManifest": 33,
+  "bundlePayloadBytes": 52191936,
+  "actualTargetProbeSourceSha256": "cc58ce591d955691e168cb62b68c970ab24fbc30043d1fccfe23ffafb9716978",
+  "toolSourcesAtExport": {
+    "prepare_slam_target_bundle.py": "6ca7dfae0173693917b8bb50e0cda5bfc86e74cd75b4120c27eb67edbe9c8c73",
+    "run_slam_target_trial.py": "bc0b1cb3292dd8a22364c48f8a547abbb24e8e30a98cfef05362079ff5ac29d8"
+  },
+  "target": {
+    "machine": "aarch64",
+    "python": "3.10.12",
+    "libc": [
+      "glibc",
+      "2.35"
+    ]
+  },
+  "mappedBundleLibrariesSha256": {
+    "libcephes-gtsam.so.1": "7e18a24d0795a956df312b33c0f2f437c7130e0cdeb5b596a50ed30b4d356e24",
+    "libglim.so": "3c70a22f4151c0c600f394bc65c1dff5c6d133566cb110866b869caeb9ae7f81",
+    "libglobal_mapping.so": "8ea3963e4fb3678870f6471a3401702e2ebf8949302e6e909427e49069a8a31b",
+    "libglobal_mapping_pose_graph.so": "b88d2d485da76da8ae7e911821f5f60686a184f6255f7241b04426bfd04a619c",
+    "libgtsam.so.4": "fee5315024f5eaf4b7b432bc8ff2c9715c098fe6a3693d8177a39bc9a538620f",
+    "libgtsam_points.so.1": "1b279b1d3ad4e252499167a6f9d16f17eec8e7ca634d7157fbd594692e2a54fb",
+    "libmetis-gtsam.so": "844a86b408f2ed51445162f6aeb7979212e8aaae064ad59e0d3862ec6b96e400",
+    "libodometry_estimation_cpu.so": "5f9507bf8c075b89f5c072d0d9d3e0f535de259c884d955f5ad9230bbd632c0d",
+    "libsub_mapping_passthrough.so": "b02836ba474b7eedc08c1585b8e34a0e30dac36a0ceecf5d404b13c08f0dedb7"
+  },
+  "syntheticProgram": {
+    "inputClassification": "synthetic_fixture",
+    "nativeModulesLoaded": 3,
+    "frameSeconds": 1000,
+    "firstSeconds": 0.000332,
+    "lastSeconds": 0.095181,
+    "robotCalibrationValidated": false,
+    "navigationValidated": false
+  },
+  "probeSecondsNotSlamBenchmark": 0.2258600759996625,
+  "checks": {
+    "fourCpuModulesLoaded": true,
+    "bundleIntegrityPassed": true,
+    "isolatedLibrariesObserved": true,
+    "syntheticExecutablePassed": true
+  },
+  "boundaries": {
+    "systemPackagesInstalled": false,
+    "rosStarted": false,
+    "motionCommandsSent": false,
+    "realDataProcessedOnTarget": false,
+    "robotCalibrationValidated": false,
+    "relocalizationValidated": false,
+    "targetRealtimePerformanceValidated": false,
+    "rosWrapperValidated": false,
+    "navigationValidated": false,
+    "deploymentApproved": false,
+    "rawDataPublished": false
+  }
+}

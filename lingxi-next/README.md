@@ -10,10 +10,13 @@ An independent open-source mapping/navigation path is now being evaluated.
 See [the comparison and read-only target results](docs/OPEN_SOURCE_NAV_EVALUATION.md).
 Sensor capture, isolated CPU builds and real KISS/GLIM odometry diagnostics
 have been completed. Real GLIM point-cloud maps have also been saved and
-reloaded in fresh CPU processes. Timing calibration, map geometry, loop closure,
-relocalization, target runtime and physical navigation are not accepted.
+reloaded in fresh CPU processes. Four CPU modules also loaded successfully on
+the real ARM64 robot, where a synthetic timing executable passed.
+Timing calibration, map geometry, loop closure, relocalization, real-sensor
+target runtime and physical navigation are not accepted.
 See [the odometry limits](docs/SLAM_GLIM_OFFLINE.md) and
-[the map persistence evidence](docs/SLAM_GLIM_MAPPING.md).
+[the map persistence evidence](docs/SLAM_GLIM_MAPPING.md), and
+[the isolated ARM64 target check](docs/SLAM_ARM64_TARGET.md).
 The current 0.1.19
 runtime described below still uses native AIMDK interfaces and has not been
 silently switched to an open-source backend. Existing release archives and APKs
