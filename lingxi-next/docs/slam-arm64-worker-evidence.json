@@ -1,0 +1,573 @@
+{
+  "schemaVersion": 1,
+  "observedDate": "2026-10-28",
+  "purpose": "actual_arm64_paced_sensor_worker_not_live_dds_mapping_or_navigation_acceptance",
+  "freshTargetProcessCount": 4,
+  "captureManifestSha256": "dff6ef252728ac0a26989b880d1d3a11769922467c8f5d7747c1b04a5c2c1e28",
+  "baselineTargetEvidenceSha256": "7a84e64a8b431512f48b0cc76d2532902c868535aab54cbad27c85261f265ee7",
+  "replayManifestSha256": "8db94e8df1844438ee9b45cdd44f383968d9098533a691bc6b45355887c22ac5",
+  "collectionReportSha256": "91463b56412673515a1e3b4de5ec8bb915289cfaea4c273994054567201c0419",
+  "coreBundleManifestSha256": "a4a0cea60ace957864f48b2b8bf726ee9f6e0594be8238cac36dbd11d024b733",
+  "controlManifestSha256": "d17f9ebab0a67c4c8dcc26c227141533f1301132599b57fa313e97c35ed79bfd",
+  "actualRuntimeSourceSha256": {
+    "robot-slam/lingxi_slam/__init__.py": "9a59075191196952798a68b31564f2fc148727cbcfa59ae715657865894c4226",
+    "robot-slam/lingxi_slam/messages.py": "bb52d293b2d839ecb80bc51d0b5dcff17b533911b17c9ab462d86f255c1dc336",
+    "robot-slam/lingxi_slam/stream.py": "1fcca31c82dcec8a6969576c98c27e68582f0a6288b8482d8442c8703ff5d0bc",
+    "robot-slam/lingxi_slam/worker.py": "59beea9c8c9015dc1b24f09fc010ccb86f59eda469a0d9af990777c715ff5cea",
+    "tools/glim_target_worker.py": "e45fbaa2e29fef1f9bccc7c395247185d8b1d1e31f84b738646da289e71ede01"
+  },
+  "toolSourcesSha256": {
+    "prepare_glim_worker_target.py": "5fe27c0da536f3540868e3d6b058c0790c54a47e0a84acfbd2657b7ec5c4c954",
+    "run_glim_worker_target.py": "cb98c9c2db79b0afe9a46e2a4aa278b1cff484bfebe1c6255f60df87b32e2216",
+    "export_glim_worker_evidence.py": "27169b234ed6d5869f2980c716166145872e454a21b683e4b5ec067153cc6a45"
+  },
+  "numericPacingRoundoffAllowanceSeconds": 1e-09,
+  "metricRecomputationAbsoluteTolerance": 1e-09,
+  "runs": {
+    "static-start": {
+      "dataset": "static",
+      "timingHypothesis": "header_is_scan_start",
+      "target": {
+        "machine": "aarch64",
+        "python": "3.10.12",
+        "numpy": "1.26.1"
+      },
+      "worker": {
+        "counts": {
+          "acceptedImu": 6880,
+          "acceptedClouds": 353,
+          "completedMessages": 7233,
+          "discardedMessages": 0,
+          "rejectedMessages": 0,
+          "maximumQueuedMessages": 16,
+          "maximumQueuedClouds": 9,
+          "maximumQueuedPayloadBytes": 7323696
+        },
+        "limits": {
+          "maximum_messages": 4096,
+          "maximum_clouds": 16,
+          "maximum_payload_bytes": 67108864,
+          "maximum_cloud_payload_bytes": 8388608,
+          "maximum_queue_age_seconds": 0.5,
+          "maximum_processing_seconds": 0.75,
+          "tick_seconds": 0.05,
+          "shutdown_seconds": 3.0
+        },
+        "maximumObservedQueueAgeSeconds": 0.07684258600056637,
+        "threadJoinedAndAllQueuesReleased": true,
+        "stream": {
+          "counts": {
+            "receivedImu": 6880,
+            "receivedClouds": 353,
+            "insertedImu": 6864,
+            "processedScans": 343,
+            "initializationScans": 30,
+            "estimatedPoses": 313,
+            "skippedBeforeImu": 10,
+            "skippedAfterImuAtEndOfInput": 0,
+            "discardedOnFailure": 0,
+            "maximumPendingImu": 24,
+            "maximumPendingClouds": 1,
+            "maximumPendingBytes": 816960
+          },
+          "limits": {
+            "maximum_pending_imu": 4096,
+            "maximum_pending_clouds": 32,
+            "maximum_pending_bytes": 67108864,
+            "maximum_points_per_cloud": 2000000,
+            "maximum_imu_gap_ns": 50000000,
+            "maximum_cloud_gap_ns": 500000000,
+            "initial_wait_seconds": 2.0,
+            "maximum_wait_seconds": 0.75,
+            "maximum_sensor_silence_seconds": 0.75
+          },
+          "allBuffersReleasedAtExplicitEndOfInput": true,
+          "maximumActualCallbackScanWaitSeconds": 0.0018807569940690883
+        }
+      },
+      "observedPacedDeliveryNotDds": {
+        "recordedReceiveSpanSeconds": 34.334393523,
+        "actualCallbackSpanSeconds": 34.33456365299935,
+        "producerLatenessMillisecondsP50P95P99": [
+          0.20707599635727547,
+          0.4549833972941278,
+          1.5679159173499362
+        ],
+        "producerLatenessMillisecondsMaximum": 18.176237998144273,
+        "cloudCallbackSnapshotMillisecondsP50P95P99": [
+          0.23307900119107217,
+          0.3421236018766649,
+          0.4954403601004745
+        ],
+        "imuCallbackSnapshotMillisecondsP50P95P99": [
+          0.12457100092433393,
+          0.21282399429765064,
+          0.3254938858299284
+        ],
+        "frameResultAfterCloudCallbackBeginMillisecondsP50P95P99": [
+          32.19326699763769,
+          52.1623910986818,
+          69.11870454161541
+        ],
+        "frameResultAfterCloudCallbackBeginMillisecondsMaximum": 79.54615999915404
+      },
+      "nativeCalls": {
+        "create": 1,
+        "imu": 6864,
+        "frame": 343,
+        "close": 1
+      },
+      "nativeCallsAndConsumerHaveOneNonproducerOwner": true,
+      "baselineComparisonNotTruthAccuracy": {
+        "sameEstimatedHeaderDomain": true,
+        "sameAlgorithmTimestamps": true,
+        "sameScanCounters": true,
+        "onlinePoseDifference": {
+          "positionDifferenceRawUnits": {
+            "p50": 1.8800906561943003e-12,
+            "p95": 1.3561684555104058e-11,
+            "maximum": 2.3950564948314477e-11,
+            "rms": 6.239257755216521e-12
+          },
+          "orientationDifferenceRadians": {
+            "p50": 7.346303048346888e-12,
+            "p95": 1.009905732184698e-11,
+            "maximum": 1.0449206925570981e-11,
+            "rms": 7.620071324807156e-12
+          }
+        }
+      },
+      "observedPacedProcessCostsNotLivePerformance": {
+        "totalWallSecondsIncludingVerification": 36.98168114099826,
+        "processCpuSeconds": 24.783777088,
+        "peakResidentMiB": 198.18359375,
+        "combinedNativeMillisecondsP50P95P99": [
+          28.150982,
+          47.24546669999999,
+          65.35274649999997
+        ]
+      },
+      "reportSha256": "110b978202a36fc35a719d296295c9e23caa0bb3cc499013bfaa13196516cca2",
+      "filesSha256": {
+        "private-trajectory.npz": "3c642f21ad3346e876987c39092bf154949fd58a45947d5e67252cb43d19a16b",
+        "private-delivery.npz": "8a7f5bba67d69eb99b4ff1bf207f5de5486e4caaf3c62a4b715d210b2ea9114b",
+        "private-native.log": "47d83f15be29b3ec8864825f3225877c5b1956f514e03fbc458028cd73680d8a"
+      }
+    },
+    "static-end": {
+      "dataset": "static",
+      "timingHypothesis": "header_is_scan_end",
+      "target": {
+        "machine": "aarch64",
+        "python": "3.10.12",
+        "numpy": "1.26.1"
+      },
+      "worker": {
+        "counts": {
+          "acceptedImu": 6880,
+          "acceptedClouds": 353,
+          "completedMessages": 7233,
+          "discardedMessages": 0,
+          "rejectedMessages": 0,
+          "maximumQueuedMessages": 16,
+          "maximumQueuedClouds": 9,
+          "maximumQueuedPayloadBytes": 7323752
+        },
+        "limits": {
+          "maximum_messages": 4096,
+          "maximum_clouds": 16,
+          "maximum_payload_bytes": 67108864,
+          "maximum_cloud_payload_bytes": 8388608,
+          "maximum_queue_age_seconds": 0.5,
+          "maximum_processing_seconds": 0.75,
+          "tick_seconds": 0.05,
+          "shutdown_seconds": 3.0
+        },
+        "maximumObservedQueueAgeSeconds": 0.07926161799696274,
+        "threadJoinedAndAllQueuesReleased": true,
+        "stream": {
+          "counts": {
+            "receivedImu": 6880,
+            "receivedClouds": 353,
+            "insertedImu": 6845,
+            "processedScans": 342,
+            "initializationScans": 31,
+            "estimatedPoses": 311,
+            "skippedBeforeImu": 11,
+            "skippedAfterImuAtEndOfInput": 0,
+            "discardedOnFailure": 0,
+            "maximumPendingImu": 44,
+            "maximumPendingClouds": 1,
+            "maximumPendingBytes": 816960
+          },
+          "limits": {
+            "maximum_pending_imu": 4096,
+            "maximum_pending_clouds": 32,
+            "maximum_pending_bytes": 67108864,
+            "maximum_points_per_cloud": 2000000,
+            "maximum_imu_gap_ns": 50000000,
+            "maximum_cloud_gap_ns": 500000000,
+            "initial_wait_seconds": 2.0,
+            "maximum_wait_seconds": 0.75,
+            "maximum_sensor_silence_seconds": 0.75
+          },
+          "allBuffersReleasedAtExplicitEndOfInput": true,
+          "maximumActualCallbackScanWaitSeconds": 0.0
+        }
+      },
+      "observedPacedDeliveryNotDds": {
+        "recordedReceiveSpanSeconds": 34.334393523,
+        "actualCallbackSpanSeconds": 34.334593455001595,
+        "producerLatenessMillisecondsP50P95P99": [
+          0.2054689980433011,
+          0.40973379966473533,
+          1.3293465593528726
+        ],
+        "producerLatenessMillisecondsMaximum": 18.59013499863238,
+        "cloudCallbackSnapshotMillisecondsP50P95P99": [
+          0.22136799816507846,
+          0.3151108016027137,
+          0.366876996413339
+        ],
+        "imuCallbackSnapshotMillisecondsP50P95P99": [
+          0.12434699601726606,
+          0.20768154754478005,
+          0.30896591706550686
+        ],
+        "frameResultAfterCloudCallbackBeginMillisecondsP50P95P99": [
+          31.76596449702629,
+          47.544429098707035,
+          55.51413217050137
+        ],
+        "frameResultAfterCloudCallbackBeginMillisecondsMaximum": 81.1103779997211
+      },
+      "nativeCalls": {
+        "create": 1,
+        "imu": 6845,
+        "frame": 342,
+        "close": 1
+      },
+      "nativeCallsAndConsumerHaveOneNonproducerOwner": true,
+      "baselineComparisonNotTruthAccuracy": {
+        "sameEstimatedHeaderDomain": true,
+        "sameAlgorithmTimestamps": true,
+        "sameScanCounters": true,
+        "onlinePoseDifference": {
+          "positionDifferenceRawUnits": {
+            "p50": 4.697835055958318e-13,
+            "p95": 6.533698362662702e-13,
+            "maximum": 7.855046756385198e-13,
+            "rms": 4.727637817332555e-13
+          },
+          "orientationDifferenceRadians": {
+            "p50": 1.2909433309164184e-13,
+            "p95": 3.1799822202469015e-13,
+            "maximum": 3.388507344550399e-13,
+            "rms": 1.7804576464498872e-13
+          }
+        }
+      },
+      "observedPacedProcessCostsNotLivePerformance": {
+        "totalWallSecondsIncludingVerification": 36.954387972000404,
+        "processCpuSeconds": 24.286569280000002,
+        "peakResidentMiB": 203.05859375,
+        "combinedNativeMillisecondsP50P95P99": [
+          27.894575000000003,
+          44.255499750000006,
+          51.51367675
+        ]
+      },
+      "reportSha256": "c278f1c7990900affcdce3e39c1ad64a2c72f58155f2c27cabe23f928c94ce44",
+      "filesSha256": {
+        "private-trajectory.npz": "ce5cabaee18d9124cddca5b3d0dd111620122980fb2b3ff4c45050eae73c5b16",
+        "private-delivery.npz": "b577c48f9bb68c6e71e5896ccf8d81a02ed5187df3a2f8f37f75fd2e7e93a24a",
+        "private-native.log": "ae64b1a05e8d17f799858b8d4a1f4afe6dc5877f32552abed5c0e605b34301a3"
+      }
+    },
+    "dynamic-start": {
+      "dataset": "dynamic",
+      "timingHypothesis": "header_is_scan_start",
+      "target": {
+        "machine": "aarch64",
+        "python": "3.10.12",
+        "numpy": "1.26.1"
+      },
+      "worker": {
+        "counts": {
+          "acceptedImu": 24446,
+          "acceptedClouds": 1232,
+          "completedMessages": 25678,
+          "discardedMessages": 0,
+          "rejectedMessages": 0,
+          "maximumQueuedMessages": 16,
+          "maximumQueuedClouds": 10,
+          "maximumQueuedPayloadBytes": 8162480
+        },
+        "limits": {
+          "maximum_messages": 4096,
+          "maximum_clouds": 16,
+          "maximum_payload_bytes": 67108864,
+          "maximum_cloud_payload_bytes": 8388608,
+          "maximum_queue_age_seconds": 0.5,
+          "maximum_processing_seconds": 0.75,
+          "tick_seconds": 0.05,
+          "shutdown_seconds": 3.0
+        },
+        "maximumObservedQueueAgeSeconds": 0.07463190599810332,
+        "threadJoinedAndAllQueuesReleased": true,
+        "stream": {
+          "counts": {
+            "receivedImu": 24446,
+            "receivedClouds": 1232,
+            "insertedImu": 24434,
+            "processedScans": 1221,
+            "initializationScans": 31,
+            "estimatedPoses": 1190,
+            "skippedBeforeImu": 11,
+            "skippedAfterImuAtEndOfInput": 0,
+            "discardedOnFailure": 0,
+            "maximumPendingImu": 33,
+            "maximumPendingClouds": 1,
+            "maximumPendingBytes": 828000
+          },
+          "limits": {
+            "maximum_pending_imu": 4096,
+            "maximum_pending_clouds": 32,
+            "maximum_pending_bytes": 67108864,
+            "maximum_points_per_cloud": 2000000,
+            "maximum_imu_gap_ns": 50000000,
+            "maximum_cloud_gap_ns": 500000000,
+            "initial_wait_seconds": 2.0,
+            "maximum_wait_seconds": 0.75,
+            "maximum_sensor_silence_seconds": 0.75
+          },
+          "allBuffersReleasedAtExplicitEndOfInput": true,
+          "maximumActualCallbackScanWaitSeconds": 0.0286236700048903
+        }
+      },
+      "observedPacedDeliveryNotDds": {
+        "recordedReceiveSpanSeconds": 122.171303105,
+        "actualCallbackSpanSeconds": 122.17155914800242,
+        "producerLatenessMillisecondsP50P95P99": [
+          0.206540001277844,
+          0.5106454002344655,
+          1.7151271182167338
+        ],
+        "producerLatenessMillisecondsMaximum": 23.234340995777814,
+        "cloudCallbackSnapshotMillisecondsP50P95P99": [
+          0.2317830003448762,
+          0.3489235990855378,
+          0.4509445533039993
+        ],
+        "imuCallbackSnapshotMillisecondsP50P95P99": [
+          0.12137150406488217,
+          0.21631200070260093,
+          0.32341739715775464
+        ],
+        "frameResultAfterCloudCallbackBeginMillisecondsP50P95P99": [
+          38.76518100150861,
+          55.21038000006229,
+          63.72797139920289
+        ],
+        "frameResultAfterCloudCallbackBeginMillisecondsMaximum": 75.7678299996769
+      },
+      "nativeCalls": {
+        "create": 1,
+        "imu": 24434,
+        "frame": 1221,
+        "close": 1
+      },
+      "nativeCallsAndConsumerHaveOneNonproducerOwner": true,
+      "baselineComparisonNotTruthAccuracy": {
+        "sameEstimatedHeaderDomain": true,
+        "sameAlgorithmTimestamps": true,
+        "sameScanCounters": true,
+        "onlinePoseDifference": {
+          "positionDifferenceRawUnits": {
+            "p50": 5.350534297343307e-12,
+            "p95": 2.3556811079984266e-11,
+            "maximum": 2.560468221412417e-11,
+            "rms": 1.2170548737538883e-11
+          },
+          "orientationDifferenceRadians": {
+            "p50": 1.5135366433231542e-13,
+            "p95": 6.17743816611608e-13,
+            "maximum": 6.79745338449596e-13,
+            "rms": 3.2083885857296895e-13
+          }
+        }
+      },
+      "observedPacedProcessCostsNotLivePerformance": {
+        "totalWallSecondsIncludingVerification": 124.90137759799836,
+        "processCpuSeconds": 91.574469792,
+        "peakResidentMiB": 241.39453125,
+        "combinedNativeMillisecondsP50P95P99": [
+          34.465472,
+          51.025849,
+          57.2800702
+        ]
+      },
+      "reportSha256": "38cc19bad980137d2a1b5a7c2ca714c9336ad1e876bbd22ccda1dd88d4ab4dda",
+      "filesSha256": {
+        "private-trajectory.npz": "1be5fea8d8ea91a7fdf8a546d12f05c1be735bacd3dd7baf281fe9c3f11769f1",
+        "private-delivery.npz": "7e2abda85f262d389d23ebe0f91330119cee95f7ad19e72881d3f25d37839202",
+        "private-native.log": "7b7118a7d57605ea106677f43c0d9c39b873f8c3c2795c4824b72872f94a539e"
+      }
+    },
+    "dynamic-end": {
+      "dataset": "dynamic",
+      "timingHypothesis": "header_is_scan_end",
+      "target": {
+        "machine": "aarch64",
+        "python": "3.10.12",
+        "numpy": "1.26.1"
+      },
+      "worker": {
+        "counts": {
+          "acceptedImu": 24446,
+          "acceptedClouds": 1232,
+          "completedMessages": 25678,
+          "discardedMessages": 0,
+          "rejectedMessages": 0,
+          "maximumQueuedMessages": 18,
+          "maximumQueuedClouds": 10,
+          "maximumQueuedPayloadBytes": 8162480
+        },
+        "limits": {
+          "maximum_messages": 4096,
+          "maximum_clouds": 16,
+          "maximum_payload_bytes": 67108864,
+          "maximum_cloud_payload_bytes": 8388608,
+          "maximum_queue_age_seconds": 0.5,
+          "maximum_processing_seconds": 0.75,
+          "tick_seconds": 0.05,
+          "shutdown_seconds": 3.0
+        },
+        "maximumObservedQueueAgeSeconds": 0.08494129600148881,
+        "threadJoinedAndAllQueuesReleased": true,
+        "stream": {
+          "counts": {
+            "receivedImu": 24446,
+            "receivedClouds": 1232,
+            "insertedImu": 24415,
+            "processedScans": 1220,
+            "initializationScans": 31,
+            "estimatedPoses": 1189,
+            "skippedBeforeImu": 12,
+            "skippedAfterImuAtEndOfInput": 0,
+            "discardedOnFailure": 0,
+            "maximumPendingImu": 53,
+            "maximumPendingClouds": 1,
+            "maximumPendingBytes": 828000
+          },
+          "limits": {
+            "maximum_pending_imu": 4096,
+            "maximum_pending_clouds": 32,
+            "maximum_pending_bytes": 67108864,
+            "maximum_points_per_cloud": 2000000,
+            "maximum_imu_gap_ns": 50000000,
+            "maximum_cloud_gap_ns": 500000000,
+            "initial_wait_seconds": 2.0,
+            "maximum_wait_seconds": 0.75,
+            "maximum_sensor_silence_seconds": 0.75
+          },
+          "allBuffersReleasedAtExplicitEndOfInput": true,
+          "maximumActualCallbackScanWaitSeconds": 0.0
+        }
+      },
+      "observedPacedDeliveryNotDds": {
+        "recordedReceiveSpanSeconds": 122.171303105,
+        "actualCallbackSpanSeconds": 122.17148264500429,
+        "producerLatenessMillisecondsP50P95P99": [
+          0.21107549856225205,
+          0.4257134000340554,
+          1.4161359475817648
+        ],
+        "producerLatenessMillisecondsMaximum": 17.114101999794684,
+        "cloudCallbackSnapshotMillisecondsP50P95P99": [
+          0.2323749977222178,
+          0.3399593482754426,
+          0.46348403229785695
+        ],
+        "imuCallbackSnapshotMillisecondsP50P95P99": [
+          0.13010700058657676,
+          0.20991174642404076,
+          0.31864940065133796
+        ],
+        "frameResultAfterCloudCallbackBeginMillisecondsP50P95P99": [
+          40.58260499732569,
+          58.541645353034255,
+          64.16634203742433
+        ],
+        "frameResultAfterCloudCallbackBeginMillisecondsMaximum": 86.10464200319257
+      },
+      "nativeCalls": {
+        "create": 1,
+        "imu": 24415,
+        "frame": 1220,
+        "close": 1
+      },
+      "nativeCallsAndConsumerHaveOneNonproducerOwner": true,
+      "baselineComparisonNotTruthAccuracy": {
+        "sameEstimatedHeaderDomain": true,
+        "sameAlgorithmTimestamps": true,
+        "sameScanCounters": true,
+        "onlinePoseDifference": {
+          "positionDifferenceRawUnits": {
+            "p50": 1.0071518270244515e-11,
+            "p95": 7.398440186777559e-11,
+            "maximum": 8.195662967883777e-11,
+            "rms": 3.458667627321622e-11
+          },
+          "orientationDifferenceRadians": {
+            "p50": 6.384445583280869e-13,
+            "p95": 1.2424930448185722e-12,
+            "maximum": 1.546274190824993e-12,
+            "rms": 7.265137243235141e-13
+          }
+        }
+      },
+      "observedPacedProcessCostsNotLivePerformance": {
+        "totalWallSecondsIncludingVerification": 124.85500162000244,
+        "processCpuSeconds": 98.72210985599999,
+        "peakResidentMiB": 242.08984375,
+        "combinedNativeMillisecondsP50P95P99": [
+          36.4528135,
+          54.53833845,
+          60.125973189999996
+        ]
+      },
+      "reportSha256": "f887f208bdbd6efafc4b70dd3b0c435633eacf1aeb65b95770fcfba629a4e8b8",
+      "filesSha256": {
+        "private-trajectory.npz": "400ac79c088d89446f70ce09f9e5e319e9d5153ca5c2d07eb5dc45ababad871e",
+        "private-delivery.npz": "46f71e20c613c5066bfc32c1090d43e1addcec68b983ee93f5067e16b34a9beb",
+        "private-native.log": "2e4d05fe6d69386814c5ab67848c8317b0176b2826f0d2a6f19535071973c0a0"
+      }
+    }
+  },
+  "boundaries": {
+    "rosNodeStarted": false,
+    "liveSensorsSubscribed": false,
+    "ddsPerformanceValidated": false,
+    "motionCommandsSent": false,
+    "timingHypothesisValidated": false,
+    "robotCalibrationValidated": false,
+    "globalMappingExecuted": false,
+    "mapSaved": false,
+    "relocalizationValidated": false,
+    "voiceConcurrencyValidated": false,
+    "navigationValidated": false,
+    "deploymentApproved": false,
+    "rawDataPublished": false
+  },
+  "actualTargetNativeLibrariesSha256": {
+    "libgtsam.so.4": "fee5315024f5eaf4b7b432bc8ff2c9715c098fe6a3693d8177a39bc9a538620f",
+    "libodometry_estimation_cpu.so": "5f9507bf8c075b89f5c072d0d9d3e0f535de259c884d955f5ad9230bbd632c0d",
+    "libcephes-gtsam.so.1": "7e18a24d0795a956df312b33c0f2f437c7130e0cdeb5b596a50ed30b4d356e24",
+    "libmetis-gtsam.so": "844a86b408f2ed51445162f6aeb7979212e8aaae064ad59e0d3862ec6b96e400",
+    "libgtsam_points.so.1": "1b279b1d3ad4e252499167a6f9d16f17eec8e7ca634d7157fbd594692e2a54fb",
+    "libglim.so": "3c70a22f4151c0c600f394bc65c1dff5c6d133566cb110866b869caeb9ae7f81",
+    "liblingxi_glim_offline.so": "3b814b90d62162461b00e98f98ba29a46827d3b9fbb398b597c29ae5ac633b5e"
+  },
+  "originalCapturesAndBundleUnchangedAtExport": true
+}

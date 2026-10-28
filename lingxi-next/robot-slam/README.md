@@ -34,9 +34,11 @@ It has no application motion, TF or map publisher or service client. Standard
 rclpy infrastructure can still publish parameter events; this is not a claim
 that creating a ROS node produces zero network traffic.
 
-This is not a deployed subscriber or a production service. Actual DDS
-behavior, native-worker throughput, ARM64 execution and shutdown under
-unresponsive native code remain to be measured. Python cannot forcibly
+This is not a deployed subscriber or a production service. Actual ARM64 native
+worker execution has now been measured with four paced, original-recording
+trials; see `docs/SLAM_ARM64_WORKER.md`. Actual DDS behavior, long-running
+throughput and shutdown under unresponsive native code remain to be measured.
+Python cannot forcibly
 terminate a stuck native thread; process isolation/supervision is still needed
 before production. Queue age begins at the serialized callback, not the sensor
 or DDS transport, and is not an end-to-end latency guarantee.

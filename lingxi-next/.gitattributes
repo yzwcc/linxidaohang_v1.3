@@ -11,3 +11,4 @@ docs/slam-controlled-mapping-evidence.json text eol=lf
 docs/slam-controlled-target-evidence.json text eol=lf
 docs/slam-stream-input-evidence.json text eol=lf
 docs/slam-message-adapter-evidence.json text eol=lf
+docs/slam-arm64-worker-evidence.json text eol=lf

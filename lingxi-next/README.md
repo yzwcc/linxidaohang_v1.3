@@ -62,6 +62,12 @@ clouds and 31,326 IMU messages match the prior decoder, including every point
 and per-point time. Concurrency tests use synthetic engines; this is not yet
 actual DDS, ARM64 streaming or native-worker performance acceptance.
 See [the passive sensor worker](docs/SLAM_PASSIVE_WORKER.md).
+Four new processes on the actual ARM64 robot now exercise this worker and the
+unchanged native odometry engine at the original recording's receive cadence.
+All messages are accounted for, native calls have one nonproducer owner, and
+worker shutdown joins cleanly. This is paced bag input, not live DDS, mapping,
+localization recovery or navigation acceptance.
+See [the actual ARM64 worker checks](docs/SLAM_ARM64_WORKER.md).
 An independent full-recording range audit records returns beyond 5 raw-coordinate
 units. The roughly 5 m travel estimate is not calibration truth; travel,
 scan coverage and map accuracy are different quantities.
