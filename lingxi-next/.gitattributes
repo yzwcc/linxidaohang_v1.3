@@ -5,3 +5,5 @@
 tools/glim-preprocess/*.cpp text eol=lf
 tools/glim-preprocess/CMakeLists.txt text eol=lf
 docs/slam-preprocess-repeatability-evidence.json text eol=lf
+docs/slam-arm64-preprocess-evidence.json text eol=lf
+docs/lidar-range-evidence.json text eol=lf

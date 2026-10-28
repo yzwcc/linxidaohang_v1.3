@@ -31,6 +31,15 @@ Twelve separate-process native preprocessing observations then showed
 run-to-run sampled-point differences on the same x86 host with the original
 two-thread settings; the single-thread diagnostic controls repeated exactly.
 See [the repeatability limits](docs/SLAM_PREPROCESS_REPEATABILITY.md).
+Twelve further preprocessing runs on the actual ARM64 robot reproduced
+the two-thread variation; single-thread outputs matched exactly both within
+the target and across all same-condition host/target pairs. Per-call cost
+was measured separately from mapping and live-input performance.
+See [the ARM64 preprocessing evidence](docs/SLAM_ARM64_PREPROCESS.md).
+An independent full-recording range audit records returns beyond 5 raw-coordinate
+units. The roughly 5 m travel estimate is not calibration truth; travel,
+scan coverage and map accuracy are different quantities.
+See [the raw-coordinate range limits](docs/LIDAR_RANGE_INSPECTION.md).
 The current 0.1.19
 runtime described below still uses native AIMDK interfaces and has not been
 silently switched to an open-source backend. Existing release archives and APKs

@@ -1,0 +1,1288 @@
+{
+  "schemaVersion": 1,
+  "observedDate": "2026-10-28",
+  "purpose": "actual_arm64_preprocessing_repetition_and_observed_cost_not_navigation_acceptance",
+  "sourceCommits": {
+    "gtsam": "3ad4b4c3cb28394c9597f48fa02dad361c8450e3",
+    "gtsam_points": "9d32e7dbecf6015560d84b4901d6b0a6f483ec46",
+    "glim": "1a197c999e4865f5cab7c9cd25474128413ebbca"
+  },
+  "hostEvidenceSha256": "84d4184e6a9484c4679c568836c0b52769cdfd05e04776ae004ac5dc35487d3e",
+  "captureManifestSha256": "dff6ef252728ac0a26989b880d1d3a11769922467c8f5d7747c1b04a5c2c1e28",
+  "bundleManifestSha256": "84407bbeb062b86d0b0f489cdedec399f15824c040f4003d196c86108503c5e6",
+  "coreBundleManifestSha256": "a4a0cea60ace957864f48b2b8bf726ee9f6e0594be8238cac36dbd11d024b733",
+  "adapterBuildReportSha256": "549aca1638c93973f7a1e6f6938f30be0e96bf4a4c5b9e0a31f6efec2540bfaf",
+  "nativeAdapterSha256": "8fc5dd7d1aafc92c3460b46e7e4b13f30828a09ea0a3eeef5da7daa8af2f1707",
+  "nativeSourceSha256": {
+    "preprocess.cpp": "0606b3cf9bdebd9f7f9fe1f38a5cdd3e7426a08e625c4d4f98724d2f2667accf",
+    "CMakeLists.txt": "8953d8a65b2abf4bd937fa62195354fb55e5fb3828d920ec86bea791342e8700"
+  },
+  "unchangedConfigurationManifestSha256": "0c399c4be893a56283f15a69ebf78ce576200424d3f1be7e4ae078049c56b53a",
+  "collectionReportSha256": "c3209b0f8f6b8e38719360479a85d5b6e168aa7d40b710189243ea98c3562efc",
+  "coordinatorSourceSha256": "230788413ecdc8cd6da175bf2d8376aff729a4041a5bbc2db123fd40355eee73",
+  "runnerSourceSha256": "041b58ef4bdced5f1a781f44a6090dcf4a3f9d115b8c1ae6e22ae10fdf187888",
+  "exporterSourceSha256": "ef98cde84ad6dae37506d9e912495a7d53a5332a2dc4c619a16d6004f5d6d689",
+  "freshArm64ProcessCount": 12,
+  "repeatsPerCondition": 3,
+  "robotContactedForIsolatedRecordedReplay": true,
+  "controlIsNotProductionConfiguration": true,
+  "runs": {
+    "static-threads2-repeat1": {
+      "dataset": "static",
+      "diagnosticThreads": 2,
+      "hostMachine": "aarch64",
+      "python": "3.10.12",
+      "numpy": "1.26.1",
+      "recordedScans": 353,
+      "processedScans": 342,
+      "skippedUnbracketedScans": 11,
+      "totalPreparedPoints": 2205054,
+      "filesSha256": {
+        "private-index.npz": "aab3e95a51ebe14e4203ee8133cd9c7203bc1dcf9625f53b9ac12764f8763cfb",
+        "private-prepared-xyzt.f64": "b0720026af3f7aa2c5adab6444809acde28db9c0bb6a608c3d9fc2ae83e67d06",
+        "private-neighbors.i32": "590a3afd76836feb44723acb591c52de61df10fbaf0d96665f72b6ae16749f4a",
+        "private-metrics.npz": "495eee2bb8963ddde0373fe68a3fc6383915b6f8d09b352206155517f68b8d25",
+        "private-native.log": "7bb3ef14bf343563e09d3affa19a0c69b176e17fd0153e97b46c917eaa0481db"
+      },
+      "loadedLibrariesSha256": {
+        "libcephes-gtsam.so.1": "7e18a24d0795a956df312b33c0f2f437c7130e0cdeb5b596a50ed30b4d356e24",
+        "libglim.so": "3c70a22f4151c0c600f394bc65c1dff5c6d133566cb110866b869caeb9ae7f81",
+        "libgtsam.so.4": "fee5315024f5eaf4b7b432bc8ff2c9715c098fe6a3693d8177a39bc9a538620f",
+        "libgtsam_points.so.1": "1b279b1d3ad4e252499167a6f9d16f17eec8e7ca634d7157fbd594692e2a54fb",
+        "liblingxi_glim_preprocess.so": "8fc5dd7d1aafc92c3460b46e7e4b13f30828a09ea0a3eeef5da7daa8af2f1707",
+        "libmetis-gtsam.so": "844a86b408f2ed51445162f6aeb7979212e8aaae064ad59e0d3862ec6b96e400"
+      },
+      "reportSha256": "ba7a3032d6ba4b620b1b5022685bc551e9c78472601739bad0a448d63926dcba",
+      "timing": {
+        "callWallMillisecondsP50P95P99": [
+          7.354836,
+          9.228004499999999,
+          10.554130619999997
+        ],
+        "callWallMillisecondsMaximum": 11.361343,
+        "callCpuMillisecondsP50P95P99": [
+          12.372848000000001,
+          13.0782304,
+          13.610142719999997
+        ],
+        "completeCallWallSeconds": 2.610617142,
+        "completeCallCpuSeconds": 4.2527464,
+        "processedHeaderSpanSeconds": 34.096599,
+        "processedHeaderIntervalMillisecondsP50P95P99": [
+          99.999,
+          101.142,
+          101.647
+        ],
+        "processingWallSeconds": 4.472629288000462,
+        "processingCpuSeconds": 6.0936219519999995,
+        "totalWallSeconds": 7.685253397998167,
+        "peakResidentMiB": 101.16015625,
+        "callIncludesNativeWrapperAllocationAndCopy": true,
+        "processingLoopIncludesCloudReadDecodeHashAndPrivateOutput": true,
+        "doesNotMeasureLiveEndToEndOrVoiceConcurrency": true
+      }
+    },
+    "static-threads2-repeat2": {
+      "dataset": "static",
+      "diagnosticThreads": 2,
+      "hostMachine": "aarch64",
+      "python": "3.10.12",
+      "numpy": "1.26.1",
+      "recordedScans": 353,
+      "processedScans": 342,
+      "skippedUnbracketedScans": 11,
+      "totalPreparedPoints": 2205054,
+      "filesSha256": {
+        "private-index.npz": "aab3e95a51ebe14e4203ee8133cd9c7203bc1dcf9625f53b9ac12764f8763cfb",
+        "private-prepared-xyzt.f64": "621bc9828c5d27151d969c3180f32c031cb793e00ca594029bf62138aabfea02",
+        "private-neighbors.i32": "a5890b02874517a00e8838c42d3437706d12e34ff916ea118462b2969d6071f4",
+        "private-metrics.npz": "0db21f4eb56563dfb2c5f274deebbf5f62edd4db2f4ab92d164238a39c94f722",
+        "private-native.log": "508acb83711ed8a39be7135722f1b8bda904f19efb36531340ce3a99aef23f2b"
+      },
+      "loadedLibrariesSha256": {
+        "libcephes-gtsam.so.1": "7e18a24d0795a956df312b33c0f2f437c7130e0cdeb5b596a50ed30b4d356e24",
+        "libglim.so": "3c70a22f4151c0c600f394bc65c1dff5c6d133566cb110866b869caeb9ae7f81",
+        "libgtsam.so.4": "fee5315024f5eaf4b7b432bc8ff2c9715c098fe6a3693d8177a39bc9a538620f",
+        "libgtsam_points.so.1": "1b279b1d3ad4e252499167a6f9d16f17eec8e7ca634d7157fbd594692e2a54fb",
+        "liblingxi_glim_preprocess.so": "8fc5dd7d1aafc92c3460b46e7e4b13f30828a09ea0a3eeef5da7daa8af2f1707",
+        "libmetis-gtsam.so": "844a86b408f2ed51445162f6aeb7979212e8aaae064ad59e0d3862ec6b96e400"
+      },
+      "reportSha256": "eb747d172b6f7033814d1cf6b527829552f2574b1b793c5c44bb868bb2a9ff4b",
+      "timing": {
+        "callWallMillisecondsP50P95P99": [
+          7.384722999999999,
+          9.229996899999998,
+          11.628855059999998
+        ],
+        "callWallMillisecondsMaximum": 13.133317,
+        "callCpuMillisecondsP50P95P99": [
+          12.357232,
+          13.0762176,
+          13.859609279999995
+        ],
+        "completeCallWallSeconds": 2.627092033,
+        "completeCallCpuSeconds": 4.256511712,
+        "processedHeaderSpanSeconds": 34.096599,
+        "processedHeaderIntervalMillisecondsP50P95P99": [
+          99.999,
+          101.142,
+          101.647
+        ],
+        "processingWallSeconds": 4.494151049999346,
+        "processingCpuSeconds": 6.089525343999999,
+        "totalWallSeconds": 7.724483440000768,
+        "peakResidentMiB": 100.18359375,
+        "callIncludesNativeWrapperAllocationAndCopy": true,
+        "processingLoopIncludesCloudReadDecodeHashAndPrivateOutput": true,
+        "doesNotMeasureLiveEndToEndOrVoiceConcurrency": true
+      }
+    },
+    "static-threads2-repeat3": {
+      "dataset": "static",
+      "diagnosticThreads": 2,
+      "hostMachine": "aarch64",
+      "python": "3.10.12",
+      "numpy": "1.26.1",
+      "recordedScans": 353,
+      "processedScans": 342,
+      "skippedUnbracketedScans": 11,
+      "totalPreparedPoints": 2205054,
+      "filesSha256": {
+        "private-index.npz": "aab3e95a51ebe14e4203ee8133cd9c7203bc1dcf9625f53b9ac12764f8763cfb",
+        "private-prepared-xyzt.f64": "35ea8976322389af16be5848efbd20f0cec89ca58527e1f8aaf49003e9117038",
+        "private-neighbors.i32": "2249ec0b72b43c61c2131a2235ba1c80cd275b0b2292cf41beb51bc610f284a4",
+        "private-metrics.npz": "3f0f6513fed6d29d3a5dc0a7b746735d45381a2802652f97ef687ed9e6ec00e5",
+        "private-native.log": "82be87ef783b77c920fd7ad3d6b0e166d6f89745e3e5745cfafa64e3efd748bb"
+      },
+      "loadedLibrariesSha256": {
+        "libcephes-gtsam.so.1": "7e18a24d0795a956df312b33c0f2f437c7130e0cdeb5b596a50ed30b4d356e24",
+        "libglim.so": "3c70a22f4151c0c600f394bc65c1dff5c6d133566cb110866b869caeb9ae7f81",
+        "libgtsam.so.4": "fee5315024f5eaf4b7b432bc8ff2c9715c098fe6a3693d8177a39bc9a538620f",
+        "libgtsam_points.so.1": "1b279b1d3ad4e252499167a6f9d16f17eec8e7ca634d7157fbd594692e2a54fb",
+        "liblingxi_glim_preprocess.so": "8fc5dd7d1aafc92c3460b46e7e4b13f30828a09ea0a3eeef5da7daa8af2f1707",
+        "libmetis-gtsam.so": "844a86b408f2ed51445162f6aeb7979212e8aaae064ad59e0d3862ec6b96e400"
+      },
+      "reportSha256": "6b0b0e28e4adfc5012c0912e60510385f4f4530acc3847232883f23948e77556",
+      "timing": {
+        "callWallMillisecondsP50P95P99": [
+          7.3581330000000005,
+          8.82692795,
+          10.827010349999998
+        ],
+        "callWallMillisecondsMaximum": 11.73305,
+        "callCpuMillisecondsP50P95P99": [
+          12.375216,
+          13.074460799999999,
+          13.54549888
+        ],
+        "completeCallWallSeconds": 2.595063237,
+        "completeCallCpuSeconds": 4.257116896,
+        "processedHeaderSpanSeconds": 34.096599,
+        "processedHeaderIntervalMillisecondsP50P95P99": [
+          99.999,
+          101.142,
+          101.647
+        ],
+        "processingWallSeconds": 4.480352146001678,
+        "processingCpuSeconds": 6.105287232,
+        "totalWallSeconds": 7.684868045998883,
+        "peakResidentMiB": 98.1171875,
+        "callIncludesNativeWrapperAllocationAndCopy": true,
+        "processingLoopIncludesCloudReadDecodeHashAndPrivateOutput": true,
+        "doesNotMeasureLiveEndToEndOrVoiceConcurrency": true
+      }
+    },
+    "static-threads1-repeat1": {
+      "dataset": "static",
+      "diagnosticThreads": 1,
+      "hostMachine": "aarch64",
+      "python": "3.10.12",
+      "numpy": "1.26.1",
+      "recordedScans": 353,
+      "processedScans": 342,
+      "skippedUnbracketedScans": 11,
+      "totalPreparedPoints": 2205054,
+      "filesSha256": {
+        "private-index.npz": "aab3e95a51ebe14e4203ee8133cd9c7203bc1dcf9625f53b9ac12764f8763cfb",
+        "private-prepared-xyzt.f64": "ff4873a605af550ec01e0d21453cffb7c537770d7962907f49548c66a2d21eff",
+        "private-neighbors.i32": "3e32e59f108d5fc3d367766b1baadd2f528ce537e670d122afc0a6c4148bb6eb",
+        "private-metrics.npz": "425fc8507035fd5fbaba56c9924814434a7748cfe0a19d4bde3c15d47b0dcf47",
+        "private-native.log": "d596fe0bf3e2af84fdd3d79036581c62645066fcb277c9aa8b7a98534128ea2d"
+      },
+      "loadedLibrariesSha256": {
+        "libcephes-gtsam.so.1": "7e18a24d0795a956df312b33c0f2f437c7130e0cdeb5b596a50ed30b4d356e24",
+        "libglim.so": "3c70a22f4151c0c600f394bc65c1dff5c6d133566cb110866b869caeb9ae7f81",
+        "libgtsam.so.4": "fee5315024f5eaf4b7b432bc8ff2c9715c098fe6a3693d8177a39bc9a538620f",
+        "libgtsam_points.so.1": "1b279b1d3ad4e252499167a6f9d16f17eec8e7ca634d7157fbd594692e2a54fb",
+        "liblingxi_glim_preprocess.so": "8fc5dd7d1aafc92c3460b46e7e4b13f30828a09ea0a3eeef5da7daa8af2f1707",
+        "libmetis-gtsam.so": "844a86b408f2ed51445162f6aeb7979212e8aaae064ad59e0d3862ec6b96e400"
+      },
+      "reportSha256": "53f3c267e1d1f3ca6458b9f2793ec0b0399602e979b07d8cf585f431bc5ee564",
+      "timing": {
+        "callWallMillisecondsP50P95P99": [
+          11.715166,
+          12.1785152,
+          12.694554799999997
+        ],
+        "callWallMillisecondsMaximum": 13.139494,
+        "callCpuMillisecondsP50P95P99": [
+          11.624848,
+          11.9881408,
+          12.60251136
+        ],
+        "completeCallWallSeconds": 4.022827007,
+        "completeCallCpuSeconds": 3.990616672,
+        "processedHeaderSpanSeconds": 34.096599,
+        "processedHeaderIntervalMillisecondsP50P95P99": [
+          99.999,
+          101.142,
+          101.647
+        ],
+        "processingWallSeconds": 5.842051801002526,
+        "processingCpuSeconds": 5.8011700479999995,
+        "totalWallSeconds": 8.995859997998195,
+        "peakResidentMiB": 97.80078125,
+        "callIncludesNativeWrapperAllocationAndCopy": true,
+        "processingLoopIncludesCloudReadDecodeHashAndPrivateOutput": true,
+        "doesNotMeasureLiveEndToEndOrVoiceConcurrency": true
+      }
+    },
+    "static-threads1-repeat2": {
+      "dataset": "static",
+      "diagnosticThreads": 1,
+      "hostMachine": "aarch64",
+      "python": "3.10.12",
+      "numpy": "1.26.1",
+      "recordedScans": 353,
+      "processedScans": 342,
+      "skippedUnbracketedScans": 11,
+      "totalPreparedPoints": 2205054,
+      "filesSha256": {
+        "private-index.npz": "aab3e95a51ebe14e4203ee8133cd9c7203bc1dcf9625f53b9ac12764f8763cfb",
+        "private-prepared-xyzt.f64": "ff4873a605af550ec01e0d21453cffb7c537770d7962907f49548c66a2d21eff",
+        "private-neighbors.i32": "3e32e59f108d5fc3d367766b1baadd2f528ce537e670d122afc0a6c4148bb6eb",
+        "private-metrics.npz": "b80bd23bea3997cea6d420d81b2585c4a321df2190488da52b7692369f5d6ff3",
+        "private-native.log": "4c7d196d2f442c6891851afa81438f62960ea0e18595691c78a2b4776199f315"
+      },
+      "loadedLibrariesSha256": {
+        "libcephes-gtsam.so.1": "7e18a24d0795a956df312b33c0f2f437c7130e0cdeb5b596a50ed30b4d356e24",
+        "libglim.so": "3c70a22f4151c0c600f394bc65c1dff5c6d133566cb110866b869caeb9ae7f81",
+        "libgtsam.so.4": "fee5315024f5eaf4b7b432bc8ff2c9715c098fe6a3693d8177a39bc9a538620f",
+        "libgtsam_points.so.1": "1b279b1d3ad4e252499167a6f9d16f17eec8e7ca634d7157fbd594692e2a54fb",
+        "liblingxi_glim_preprocess.so": "8fc5dd7d1aafc92c3460b46e7e4b13f30828a09ea0a3eeef5da7daa8af2f1707",
+        "libmetis-gtsam.so": "844a86b408f2ed51445162f6aeb7979212e8aaae064ad59e0d3862ec6b96e400"
+      },
+      "reportSha256": "003419a0f48018705d4b7d36bf6d78ad5dfbed43b7218381b951f3becc1f0d34",
+      "timing": {
+        "callWallMillisecondsP50P95P99": [
+          11.7687295,
+          12.23938795,
+          12.68781875
+        ],
+        "callWallMillisecondsMaximum": 13.095848,
+        "callCpuMillisecondsP50P95P99": [
+          11.65016,
+          12.0739264,
+          12.57681024
+        ],
+        "completeCallWallSeconds": 4.04168703,
+        "completeCallCpuSeconds": 4.001511808,
+        "processedHeaderSpanSeconds": 34.096599,
+        "processedHeaderIntervalMillisecondsP50P95P99": [
+          99.999,
+          101.142,
+          101.647
+        ],
+        "processingWallSeconds": 5.897948260997509,
+        "processingCpuSeconds": 5.829143967999999,
+        "totalWallSeconds": 9.121079862001352,
+        "peakResidentMiB": 97.24609375,
+        "callIncludesNativeWrapperAllocationAndCopy": true,
+        "processingLoopIncludesCloudReadDecodeHashAndPrivateOutput": true,
+        "doesNotMeasureLiveEndToEndOrVoiceConcurrency": true
+      }
+    },
+    "static-threads1-repeat3": {
+      "dataset": "static",
+      "diagnosticThreads": 1,
+      "hostMachine": "aarch64",
+      "python": "3.10.12",
+      "numpy": "1.26.1",
+      "recordedScans": 353,
+      "processedScans": 342,
+      "skippedUnbracketedScans": 11,
+      "totalPreparedPoints": 2205054,
+      "filesSha256": {
+        "private-index.npz": "aab3e95a51ebe14e4203ee8133cd9c7203bc1dcf9625f53b9ac12764f8763cfb",
+        "private-prepared-xyzt.f64": "ff4873a605af550ec01e0d21453cffb7c537770d7962907f49548c66a2d21eff",
+        "private-neighbors.i32": "3e32e59f108d5fc3d367766b1baadd2f528ce537e670d122afc0a6c4148bb6eb",
+        "private-metrics.npz": "4b546a633f786a2040440dcaafca9a7c9966950490e2ca08e14f3923cc265e54",
+        "private-native.log": "b9b71e5b2feb0185a41d295b7c1fac37f5938ac8f6be05764bb66d0a83f68275"
+      },
+      "loadedLibrariesSha256": {
+        "libcephes-gtsam.so.1": "7e18a24d0795a956df312b33c0f2f437c7130e0cdeb5b596a50ed30b4d356e24",
+        "libglim.so": "3c70a22f4151c0c600f394bc65c1dff5c6d133566cb110866b869caeb9ae7f81",
+        "libgtsam.so.4": "fee5315024f5eaf4b7b432bc8ff2c9715c098fe6a3693d8177a39bc9a538620f",
+        "libgtsam_points.so.1": "1b279b1d3ad4e252499167a6f9d16f17eec8e7ca634d7157fbd594692e2a54fb",
+        "liblingxi_glim_preprocess.so": "8fc5dd7d1aafc92c3460b46e7e4b13f30828a09ea0a3eeef5da7daa8af2f1707",
+        "libmetis-gtsam.so": "844a86b408f2ed51445162f6aeb7979212e8aaae064ad59e0d3862ec6b96e400"
+      },
+      "reportSha256": "0daa2c730ab64ae359ba86752113910188b76d405ddfd399abfa139b0b167429",
+      "timing": {
+        "callWallMillisecondsP50P95P99": [
+          11.7267145,
+          12.22634685,
+          12.85683104
+        ],
+        "callWallMillisecondsMaximum": 12.918672,
+        "callCpuMillisecondsP50P95P99": [
+          11.619632,
+          12.0693376,
+          12.676339839999997
+        ],
+        "completeCallWallSeconds": 4.02971736,
+        "completeCallCpuSeconds": 3.9928792,
+        "processedHeaderSpanSeconds": 34.096599,
+        "processedHeaderIntervalMillisecondsP50P95P99": [
+          99.999,
+          101.142,
+          101.647
+        ],
+        "processingWallSeconds": 5.850613483002235,
+        "processingCpuSeconds": 5.800776128,
+        "totalWallSeconds": 9.02073318100156,
+        "peakResidentMiB": 97.99609375,
+        "callIncludesNativeWrapperAllocationAndCopy": true,
+        "processingLoopIncludesCloudReadDecodeHashAndPrivateOutput": true,
+        "doesNotMeasureLiveEndToEndOrVoiceConcurrency": true
+      }
+    },
+    "dynamic-threads2-repeat1": {
+      "dataset": "dynamic",
+      "diagnosticThreads": 2,
+      "hostMachine": "aarch64",
+      "python": "3.10.12",
+      "numpy": "1.26.1",
+      "recordedScans": 1232,
+      "processedScans": 1220,
+      "skippedUnbracketedScans": 12,
+      "totalPreparedPoints": 7901788,
+      "filesSha256": {
+        "private-index.npz": "f6d8cc6b71f50dd2550cccf6a0f91a052d3765cbb8f38181117f71136ab55bde",
+        "private-prepared-xyzt.f64": "ae5229a52f5f77ab808fb51e17aedee6edc8dec0fe4b3574b422733540c83180",
+        "private-neighbors.i32": "1a30b878623f579fcb1de1a0facc2ca9a1deba3c9c4dba3825ab7d723dabbcc2",
+        "private-metrics.npz": "5eb36a2a65674e68c8df3a98837b757b4587512981f92648a938783aa023b798",
+        "private-native.log": "91963e735cb3249bfdc8552869c7da839fefddd41aa51e5722edabfe069f9c8d"
+      },
+      "loadedLibrariesSha256": {
+        "libcephes-gtsam.so.1": "7e18a24d0795a956df312b33c0f2f437c7130e0cdeb5b596a50ed30b4d356e24",
+        "libglim.so": "3c70a22f4151c0c600f394bc65c1dff5c6d133566cb110866b869caeb9ae7f81",
+        "libgtsam.so.4": "fee5315024f5eaf4b7b432bc8ff2c9715c098fe6a3693d8177a39bc9a538620f",
+        "libgtsam_points.so.1": "1b279b1d3ad4e252499167a6f9d16f17eec8e7ca634d7157fbd594692e2a54fb",
+        "liblingxi_glim_preprocess.so": "8fc5dd7d1aafc92c3460b46e7e4b13f30828a09ea0a3eeef5da7daa8af2f1707",
+        "libmetis-gtsam.so": "844a86b408f2ed51445162f6aeb7979212e8aaae064ad59e0d3862ec6b96e400"
+      },
+      "reportSha256": "c975e0861681ba4567b5ae03bb2834c312514e0d013edf46af9f7ee40871852a",
+      "timing": {
+        "callWallMillisecondsP50P95P99": [
+          7.39616,
+          9.2362586,
+          11.339599949999998
+        ],
+        "callWallMillisecondsMaximum": 16.235432,
+        "callCpuMillisecondsP50P95P99": [
+          12.357824,
+          13.6530112,
+          15.561222719999996
+        ],
+        "completeCallWallSeconds": 9.329940391,
+        "completeCallCpuSeconds": 15.244973472,
+        "processedHeaderSpanSeconds": 121.900235,
+        "processedHeaderIntervalMillisecondsP50P95P99": [
+          99.996,
+          101.8901,
+          103.86725999999999
+        ],
+        "processingWallSeconds": 15.90516155899968,
+        "processingCpuSeconds": 21.698533184,
+        "totalWallSeconds": 21.08997665300194,
+        "peakResidentMiB": 98.3359375,
+        "callIncludesNativeWrapperAllocationAndCopy": true,
+        "processingLoopIncludesCloudReadDecodeHashAndPrivateOutput": true,
+        "doesNotMeasureLiveEndToEndOrVoiceConcurrency": true
+      }
+    },
+    "dynamic-threads2-repeat2": {
+      "dataset": "dynamic",
+      "diagnosticThreads": 2,
+      "hostMachine": "aarch64",
+      "python": "3.10.12",
+      "numpy": "1.26.1",
+      "recordedScans": 1232,
+      "processedScans": 1220,
+      "skippedUnbracketedScans": 12,
+      "totalPreparedPoints": 7901789,
+      "filesSha256": {
+        "private-index.npz": "6e4940250f8090ae50c4f806b9e9c789367082d5397b3f0c20ea03883c24371f",
+        "private-prepared-xyzt.f64": "bc8179914af794c2c3c53c7e53c7e5f6edee29ae43fa07c4cdcd091b6809baf7",
+        "private-neighbors.i32": "69c86d21cfc9cc5ffe32ef3efbf038784b19e41878f722c6aef823c82b0a2965",
+        "private-metrics.npz": "76e23b49f578069ed8289e4a48673f80598b69a444f42988b96a6f31ada1de58",
+        "private-native.log": "468a3d2f92dea6a9fd35551790185e3bec626dc025bab0107a1a8b541d772bf4"
+      },
+      "loadedLibrariesSha256": {
+        "libcephes-gtsam.so.1": "7e18a24d0795a956df312b33c0f2f437c7130e0cdeb5b596a50ed30b4d356e24",
+        "libglim.so": "3c70a22f4151c0c600f394bc65c1dff5c6d133566cb110866b869caeb9ae7f81",
+        "libgtsam.so.4": "fee5315024f5eaf4b7b432bc8ff2c9715c098fe6a3693d8177a39bc9a538620f",
+        "libgtsam_points.so.1": "1b279b1d3ad4e252499167a6f9d16f17eec8e7ca634d7157fbd594692e2a54fb",
+        "liblingxi_glim_preprocess.so": "8fc5dd7d1aafc92c3460b46e7e4b13f30828a09ea0a3eeef5da7daa8af2f1707",
+        "libmetis-gtsam.so": "844a86b408f2ed51445162f6aeb7979212e8aaae064ad59e0d3862ec6b96e400"
+      },
+      "reportSha256": "bfae77269d939f281871109449818a9a0cd3d3acc59e787d5ef7cbe3a8c5bde2",
+      "timing": {
+        "callWallMillisecondsP50P95P99": [
+          7.381331,
+          9.4187207,
+          11.370737069999999
+        ],
+        "callWallMillisecondsMaximum": 14.056834,
+        "callCpuMillisecondsP50P95P99": [
+          12.335472,
+          13.6580608,
+          15.509401599999999
+        ],
+        "completeCallWallSeconds": 9.372145071,
+        "completeCallCpuSeconds": 15.244911904,
+        "processedHeaderSpanSeconds": 121.900235,
+        "processedHeaderIntervalMillisecondsP50P95P99": [
+          99.996,
+          101.8901,
+          103.86725999999999
+        ],
+        "processingWallSeconds": 16.0449515399996,
+        "processingCpuSeconds": 21.704452511999996,
+        "totalWallSeconds": 20.987953775998903,
+        "peakResidentMiB": 101.73046875,
+        "callIncludesNativeWrapperAllocationAndCopy": true,
+        "processingLoopIncludesCloudReadDecodeHashAndPrivateOutput": true,
+        "doesNotMeasureLiveEndToEndOrVoiceConcurrency": true
+      }
+    },
+    "dynamic-threads2-repeat3": {
+      "dataset": "dynamic",
+      "diagnosticThreads": 2,
+      "hostMachine": "aarch64",
+      "python": "3.10.12",
+      "numpy": "1.26.1",
+      "recordedScans": 1232,
+      "processedScans": 1220,
+      "skippedUnbracketedScans": 12,
+      "totalPreparedPoints": 7901772,
+      "filesSha256": {
+        "private-index.npz": "aca12d35c837add5a3f23f40db27416f0584ba0fb70446ce275f3ea0174d40b3",
+        "private-prepared-xyzt.f64": "969f44ea5b33c7e0dced5c962e2c92051999749af52f33d7161696921479b1dd",
+        "private-neighbors.i32": "260f3af2e5734e9a265a59832bb5c80246c5bcf0869f114767c79ffc4c514ec9",
+        "private-metrics.npz": "7c5ee2af09c41a8379f80dd8a77191f2202867563217da26bdd84603e4cb885d",
+        "private-native.log": "998d7831b9a0cef8e586697196c8e5e533b6c701ecbfb5d1628c23654bd9e117"
+      },
+      "loadedLibrariesSha256": {
+        "libcephes-gtsam.so.1": "7e18a24d0795a956df312b33c0f2f437c7130e0cdeb5b596a50ed30b4d356e24",
+        "libglim.so": "3c70a22f4151c0c600f394bc65c1dff5c6d133566cb110866b869caeb9ae7f81",
+        "libgtsam.so.4": "fee5315024f5eaf4b7b432bc8ff2c9715c098fe6a3693d8177a39bc9a538620f",
+        "libgtsam_points.so.1": "1b279b1d3ad4e252499167a6f9d16f17eec8e7ca634d7157fbd594692e2a54fb",
+        "liblingxi_glim_preprocess.so": "8fc5dd7d1aafc92c3460b46e7e4b13f30828a09ea0a3eeef5da7daa8af2f1707",
+        "libmetis-gtsam.so": "844a86b408f2ed51445162f6aeb7979212e8aaae064ad59e0d3862ec6b96e400"
+      },
+      "reportSha256": "80edffdb0f3f8bf4ea4e738f8d3ebc3c53875069c4313eaffac2623d802da16e",
+      "timing": {
+        "callWallMillisecondsP50P95P99": [
+          7.3809635,
+          9.29507215,
+          11.33510791
+        ],
+        "callWallMillisecondsMaximum": 15.121982,
+        "callCpuMillisecondsP50P95P99": [
+          12.328095999999999,
+          13.686038400000001,
+          15.478904959999994
+        ],
+        "completeCallWallSeconds": 9.364162515,
+        "completeCallCpuSeconds": 15.228670688,
+        "processedHeaderSpanSeconds": 121.900235,
+        "processedHeaderIntervalMillisecondsP50P95P99": [
+          99.996,
+          101.8901,
+          103.86725999999999
+        ],
+        "processingWallSeconds": 16.107634042000427,
+        "processingCpuSeconds": 21.71278672,
+        "totalWallSeconds": 21.043904665999435,
+        "peakResidentMiB": 101.12890625,
+        "callIncludesNativeWrapperAllocationAndCopy": true,
+        "processingLoopIncludesCloudReadDecodeHashAndPrivateOutput": true,
+        "doesNotMeasureLiveEndToEndOrVoiceConcurrency": true
+      }
+    },
+    "dynamic-threads1-repeat1": {
+      "dataset": "dynamic",
+      "diagnosticThreads": 1,
+      "hostMachine": "aarch64",
+      "python": "3.10.12",
+      "numpy": "1.26.1",
+      "recordedScans": 1232,
+      "processedScans": 1220,
+      "skippedUnbracketedScans": 12,
+      "totalPreparedPoints": 7901775,
+      "filesSha256": {
+        "private-index.npz": "217b2f40abb22db71e19862bfef09bc3dfb7d51c96b18cddcd4f51940fb277b4",
+        "private-prepared-xyzt.f64": "62c16646271f3692af55843573046001c876dffbb90cc79244bd83205eaf6397",
+        "private-neighbors.i32": "b10416b95a0084855a62b8c2087badf886265e55a8d8ae1cd5d61dbffe6d9263",
+        "private-metrics.npz": "b7816d56823f881e495705be4b864b282a690a6d362ea4ab6c5f9e8e67898a33",
+        "private-native.log": "63f1654833dea7c338589828dea16cb2e09f4a0ada79ada0146d0ad9ea2906fa"
+      },
+      "loadedLibrariesSha256": {
+        "libcephes-gtsam.so.1": "7e18a24d0795a956df312b33c0f2f437c7130e0cdeb5b596a50ed30b4d356e24",
+        "libglim.so": "3c70a22f4151c0c600f394bc65c1dff5c6d133566cb110866b869caeb9ae7f81",
+        "libgtsam.so.4": "fee5315024f5eaf4b7b432bc8ff2c9715c098fe6a3693d8177a39bc9a538620f",
+        "libgtsam_points.so.1": "1b279b1d3ad4e252499167a6f9d16f17eec8e7ca634d7157fbd594692e2a54fb",
+        "liblingxi_glim_preprocess.so": "8fc5dd7d1aafc92c3460b46e7e4b13f30828a09ea0a3eeef5da7daa8af2f1707",
+        "libmetis-gtsam.so": "844a86b408f2ed51445162f6aeb7979212e8aaae064ad59e0d3862ec6b96e400"
+      },
+      "reportSha256": "feeaf403feb532a96ae9557de5aafc32acbdfb64fbd5ec9f0678c7020ab70b46",
+      "timing": {
+        "callWallMillisecondsP50P95P99": [
+          11.7249725,
+          13.0520282,
+          14.929873909999992
+        ],
+        "callWallMillisecondsMaximum": 17.117517,
+        "callCpuMillisecondsP50P95P99": [
+          11.62432,
+          12.8932304,
+          14.7558976
+        ],
+        "completeCallWallSeconds": 14.501736403,
+        "completeCallCpuSeconds": 14.356536704,
+        "processedHeaderSpanSeconds": 121.900235,
+        "processedHeaderIntervalMillisecondsP50P95P99": [
+          99.996,
+          101.8901,
+          103.86725999999999
+        ],
+        "processingWallSeconds": 20.941882917999465,
+        "processingCpuSeconds": 20.742932064,
+        "totalWallSeconds": 25.978316965996783,
+        "peakResidentMiB": 99.765625,
+        "callIncludesNativeWrapperAllocationAndCopy": true,
+        "processingLoopIncludesCloudReadDecodeHashAndPrivateOutput": true,
+        "doesNotMeasureLiveEndToEndOrVoiceConcurrency": true
+      }
+    },
+    "dynamic-threads1-repeat2": {
+      "dataset": "dynamic",
+      "diagnosticThreads": 1,
+      "hostMachine": "aarch64",
+      "python": "3.10.12",
+      "numpy": "1.26.1",
+      "recordedScans": 1232,
+      "processedScans": 1220,
+      "skippedUnbracketedScans": 12,
+      "totalPreparedPoints": 7901775,
+      "filesSha256": {
+        "private-index.npz": "217b2f40abb22db71e19862bfef09bc3dfb7d51c96b18cddcd4f51940fb277b4",
+        "private-prepared-xyzt.f64": "62c16646271f3692af55843573046001c876dffbb90cc79244bd83205eaf6397",
+        "private-neighbors.i32": "b10416b95a0084855a62b8c2087badf886265e55a8d8ae1cd5d61dbffe6d9263",
+        "private-metrics.npz": "ee6bd5cf6eaee8e12d61774a7c1a93e8f3dfce53b0e4d1389da7d03776517fac",
+        "private-native.log": "1cca8a53aa23161074420b1324fdcb5bb5d88f14207ad82a36f309a947fcc2c0"
+      },
+      "loadedLibrariesSha256": {
+        "libcephes-gtsam.so.1": "7e18a24d0795a956df312b33c0f2f437c7130e0cdeb5b596a50ed30b4d356e24",
+        "libglim.so": "3c70a22f4151c0c600f394bc65c1dff5c6d133566cb110866b869caeb9ae7f81",
+        "libgtsam.so.4": "fee5315024f5eaf4b7b432bc8ff2c9715c098fe6a3693d8177a39bc9a538620f",
+        "libgtsam_points.so.1": "1b279b1d3ad4e252499167a6f9d16f17eec8e7ca634d7157fbd594692e2a54fb",
+        "liblingxi_glim_preprocess.so": "8fc5dd7d1aafc92c3460b46e7e4b13f30828a09ea0a3eeef5da7daa8af2f1707",
+        "libmetis-gtsam.so": "844a86b408f2ed51445162f6aeb7979212e8aaae064ad59e0d3862ec6b96e400"
+      },
+      "reportSha256": "be31eeae0d532f1b25d452f57635bca4dd7812d534214283e56d79e86415ebc3",
+      "timing": {
+        "callWallMillisecondsP50P95P99": [
+          11.687757000000001,
+          12.8934775,
+          14.907365019999999
+        ],
+        "callWallMillisecondsMaximum": 16.937688,
+        "callCpuMillisecondsP50P95P99": [
+          11.609568,
+          12.814860799999998,
+          14.762903039999994
+        ],
+        "completeCallWallSeconds": 14.452424402,
+        "completeCallCpuSeconds": 14.348940352,
+        "processedHeaderSpanSeconds": 121.900235,
+        "processedHeaderIntervalMillisecondsP50P95P99": [
+          99.996,
+          101.8901,
+          103.86725999999999
+        ],
+        "processingWallSeconds": 20.8859014280024,
+        "processingCpuSeconds": 20.75163424,
+        "totalWallSeconds": 26.09068645300067,
+        "peakResidentMiB": 96.0390625,
+        "callIncludesNativeWrapperAllocationAndCopy": true,
+        "processingLoopIncludesCloudReadDecodeHashAndPrivateOutput": true,
+        "doesNotMeasureLiveEndToEndOrVoiceConcurrency": true
+      }
+    },
+    "dynamic-threads1-repeat3": {
+      "dataset": "dynamic",
+      "diagnosticThreads": 1,
+      "hostMachine": "aarch64",
+      "python": "3.10.12",
+      "numpy": "1.26.1",
+      "recordedScans": 1232,
+      "processedScans": 1220,
+      "skippedUnbracketedScans": 12,
+      "totalPreparedPoints": 7901775,
+      "filesSha256": {
+        "private-index.npz": "217b2f40abb22db71e19862bfef09bc3dfb7d51c96b18cddcd4f51940fb277b4",
+        "private-prepared-xyzt.f64": "62c16646271f3692af55843573046001c876dffbb90cc79244bd83205eaf6397",
+        "private-neighbors.i32": "b10416b95a0084855a62b8c2087badf886265e55a8d8ae1cd5d61dbffe6d9263",
+        "private-metrics.npz": "52b5f6c4fba2982385a0ef494f38b1d9ddfab78f98f7c573291282c63cad3fc6",
+        "private-native.log": "84efe005101493931117fa99eacafab34f6d22aa8379f8400251aa008429fec4"
+      },
+      "loadedLibrariesSha256": {
+        "libcephes-gtsam.so.1": "7e18a24d0795a956df312b33c0f2f437c7130e0cdeb5b596a50ed30b4d356e24",
+        "libglim.so": "3c70a22f4151c0c600f394bc65c1dff5c6d133566cb110866b869caeb9ae7f81",
+        "libgtsam.so.4": "fee5315024f5eaf4b7b432bc8ff2c9715c098fe6a3693d8177a39bc9a538620f",
+        "libgtsam_points.so.1": "1b279b1d3ad4e252499167a6f9d16f17eec8e7ca634d7157fbd594692e2a54fb",
+        "liblingxi_glim_preprocess.so": "8fc5dd7d1aafc92c3460b46e7e4b13f30828a09ea0a3eeef5da7daa8af2f1707",
+        "libmetis-gtsam.so": "844a86b408f2ed51445162f6aeb7979212e8aaae064ad59e0d3862ec6b96e400"
+      },
+      "reportSha256": "55b3824b16134a0465115eb1850c342a3a3a82d748b23d2ab1b8ef1a0ba5556e",
+      "timing": {
+        "callWallMillisecondsP50P95P99": [
+          11.7685985,
+          12.99771485,
+          15.125540209999995
+        ],
+        "callWallMillisecondsMaximum": 16.843522,
+        "callCpuMillisecondsP50P95P99": [
+          11.660768000000001,
+          12.8863408,
+          14.931095039999997
+        ],
+        "completeCallWallSeconds": 14.556409855,
+        "completeCallCpuSeconds": 14.409708384,
+        "processedHeaderSpanSeconds": 121.900235,
+        "processedHeaderIntervalMillisecondsP50P95P99": [
+          99.996,
+          101.8901,
+          103.86725999999999
+        ],
+        "processingWallSeconds": 21.01283514300303,
+        "processingCpuSeconds": 20.813705376,
+        "totalWallSeconds": 26.060783554999944,
+        "peakResidentMiB": 98.171875,
+        "callIncludesNativeWrapperAllocationAndCopy": true,
+        "processingLoopIncludesCloudReadDecodeHashAndPrivateOutput": true,
+        "doesNotMeasureLiveEndToEndOrVoiceConcurrency": true
+      }
+    }
+  },
+  "withinTargetConditionPairs": {
+    "static-threads2-repeat1_vs_static-threads2-repeat2": {
+      "processedFrames": 342,
+      "sourceDerivedSamplingActiveFrames": 342,
+      "preparedPointCountDifferentFrames": 0,
+      "orderedXyztBitSequenceDifferentFrames": 145,
+      "sameExactXyztMultisetButDifferentOrderFrames": 0,
+      "exactXyztMultisetDifferentFrames": 145,
+      "samplingInactiveButOrderedOutputDifferentFrames": 0,
+      "neighborIndexSequenceDifferentFramesAmongIdenticalOrderedXyzt": 0,
+      "allRawInputContentAndTimesIdentical": true,
+      "sameExactBitPatternsComparedNotGeometricTolerance": true
+    },
+    "static-threads2-repeat1_vs_static-threads2-repeat3": {
+      "processedFrames": 342,
+      "sourceDerivedSamplingActiveFrames": 342,
+      "preparedPointCountDifferentFrames": 0,
+      "orderedXyztBitSequenceDifferentFrames": 153,
+      "sameExactXyztMultisetButDifferentOrderFrames": 0,
+      "exactXyztMultisetDifferentFrames": 153,
+      "samplingInactiveButOrderedOutputDifferentFrames": 0,
+      "neighborIndexSequenceDifferentFramesAmongIdenticalOrderedXyzt": 0,
+      "allRawInputContentAndTimesIdentical": true,
+      "sameExactBitPatternsComparedNotGeometricTolerance": true
+    },
+    "static-threads2-repeat2_vs_static-threads2-repeat3": {
+      "processedFrames": 342,
+      "sourceDerivedSamplingActiveFrames": 342,
+      "preparedPointCountDifferentFrames": 0,
+      "orderedXyztBitSequenceDifferentFrames": 157,
+      "sameExactXyztMultisetButDifferentOrderFrames": 0,
+      "exactXyztMultisetDifferentFrames": 157,
+      "samplingInactiveButOrderedOutputDifferentFrames": 0,
+      "neighborIndexSequenceDifferentFramesAmongIdenticalOrderedXyzt": 0,
+      "allRawInputContentAndTimesIdentical": true,
+      "sameExactBitPatternsComparedNotGeometricTolerance": true
+    },
+    "static-threads1-repeat1_vs_static-threads1-repeat2": {
+      "processedFrames": 342,
+      "sourceDerivedSamplingActiveFrames": 342,
+      "preparedPointCountDifferentFrames": 0,
+      "orderedXyztBitSequenceDifferentFrames": 0,
+      "sameExactXyztMultisetButDifferentOrderFrames": 0,
+      "exactXyztMultisetDifferentFrames": 0,
+      "samplingInactiveButOrderedOutputDifferentFrames": 0,
+      "neighborIndexSequenceDifferentFramesAmongIdenticalOrderedXyzt": 0,
+      "allRawInputContentAndTimesIdentical": true,
+      "sameExactBitPatternsComparedNotGeometricTolerance": true
+    },
+    "static-threads1-repeat1_vs_static-threads1-repeat3": {
+      "processedFrames": 342,
+      "sourceDerivedSamplingActiveFrames": 342,
+      "preparedPointCountDifferentFrames": 0,
+      "orderedXyztBitSequenceDifferentFrames": 0,
+      "sameExactXyztMultisetButDifferentOrderFrames": 0,
+      "exactXyztMultisetDifferentFrames": 0,
+      "samplingInactiveButOrderedOutputDifferentFrames": 0,
+      "neighborIndexSequenceDifferentFramesAmongIdenticalOrderedXyzt": 0,
+      "allRawInputContentAndTimesIdentical": true,
+      "sameExactBitPatternsComparedNotGeometricTolerance": true
+    },
+    "static-threads1-repeat2_vs_static-threads1-repeat3": {
+      "processedFrames": 342,
+      "sourceDerivedSamplingActiveFrames": 342,
+      "preparedPointCountDifferentFrames": 0,
+      "orderedXyztBitSequenceDifferentFrames": 0,
+      "sameExactXyztMultisetButDifferentOrderFrames": 0,
+      "exactXyztMultisetDifferentFrames": 0,
+      "samplingInactiveButOrderedOutputDifferentFrames": 0,
+      "neighborIndexSequenceDifferentFramesAmongIdenticalOrderedXyzt": 0,
+      "allRawInputContentAndTimesIdentical": true,
+      "sameExactBitPatternsComparedNotGeometricTolerance": true
+    },
+    "dynamic-threads2-repeat1_vs_dynamic-threads2-repeat2": {
+      "processedFrames": 1220,
+      "sourceDerivedSamplingActiveFrames": 1220,
+      "preparedPointCountDifferentFrames": 8,
+      "orderedXyztBitSequenceDifferentFrames": 395,
+      "sameExactXyztMultisetButDifferentOrderFrames": 0,
+      "exactXyztMultisetDifferentFrames": 395,
+      "samplingInactiveButOrderedOutputDifferentFrames": 0,
+      "neighborIndexSequenceDifferentFramesAmongIdenticalOrderedXyzt": 0,
+      "allRawInputContentAndTimesIdentical": true,
+      "sameExactBitPatternsComparedNotGeometricTolerance": true
+    },
+    "dynamic-threads2-repeat1_vs_dynamic-threads2-repeat3": {
+      "processedFrames": 1220,
+      "sourceDerivedSamplingActiveFrames": 1220,
+      "preparedPointCountDifferentFrames": 9,
+      "orderedXyztBitSequenceDifferentFrames": 412,
+      "sameExactXyztMultisetButDifferentOrderFrames": 0,
+      "exactXyztMultisetDifferentFrames": 412,
+      "samplingInactiveButOrderedOutputDifferentFrames": 0,
+      "neighborIndexSequenceDifferentFramesAmongIdenticalOrderedXyzt": 0,
+      "allRawInputContentAndTimesIdentical": true,
+      "sameExactBitPatternsComparedNotGeometricTolerance": true
+    },
+    "dynamic-threads2-repeat2_vs_dynamic-threads2-repeat3": {
+      "processedFrames": 1220,
+      "sourceDerivedSamplingActiveFrames": 1220,
+      "preparedPointCountDifferentFrames": 11,
+      "orderedXyztBitSequenceDifferentFrames": 525,
+      "sameExactXyztMultisetButDifferentOrderFrames": 0,
+      "exactXyztMultisetDifferentFrames": 525,
+      "samplingInactiveButOrderedOutputDifferentFrames": 0,
+      "neighborIndexSequenceDifferentFramesAmongIdenticalOrderedXyzt": 0,
+      "allRawInputContentAndTimesIdentical": true,
+      "sameExactBitPatternsComparedNotGeometricTolerance": true
+    },
+    "dynamic-threads1-repeat1_vs_dynamic-threads1-repeat2": {
+      "processedFrames": 1220,
+      "sourceDerivedSamplingActiveFrames": 1220,
+      "preparedPointCountDifferentFrames": 0,
+      "orderedXyztBitSequenceDifferentFrames": 0,
+      "sameExactXyztMultisetButDifferentOrderFrames": 0,
+      "exactXyztMultisetDifferentFrames": 0,
+      "samplingInactiveButOrderedOutputDifferentFrames": 0,
+      "neighborIndexSequenceDifferentFramesAmongIdenticalOrderedXyzt": 0,
+      "allRawInputContentAndTimesIdentical": true,
+      "sameExactBitPatternsComparedNotGeometricTolerance": true
+    },
+    "dynamic-threads1-repeat1_vs_dynamic-threads1-repeat3": {
+      "processedFrames": 1220,
+      "sourceDerivedSamplingActiveFrames": 1220,
+      "preparedPointCountDifferentFrames": 0,
+      "orderedXyztBitSequenceDifferentFrames": 0,
+      "sameExactXyztMultisetButDifferentOrderFrames": 0,
+      "exactXyztMultisetDifferentFrames": 0,
+      "samplingInactiveButOrderedOutputDifferentFrames": 0,
+      "neighborIndexSequenceDifferentFramesAmongIdenticalOrderedXyzt": 0,
+      "allRawInputContentAndTimesIdentical": true,
+      "sameExactBitPatternsComparedNotGeometricTolerance": true
+    },
+    "dynamic-threads1-repeat2_vs_dynamic-threads1-repeat3": {
+      "processedFrames": 1220,
+      "sourceDerivedSamplingActiveFrames": 1220,
+      "preparedPointCountDifferentFrames": 0,
+      "orderedXyztBitSequenceDifferentFrames": 0,
+      "sameExactXyztMultisetButDifferentOrderFrames": 0,
+      "exactXyztMultisetDifferentFrames": 0,
+      "samplingInactiveButOrderedOutputDifferentFrames": 0,
+      "neighborIndexSequenceDifferentFramesAmongIdenticalOrderedXyzt": 0,
+      "allRawInputContentAndTimesIdentical": true,
+      "sameExactBitPatternsComparedNotGeometricTolerance": true
+    }
+  },
+  "crossArchitectureSameConditionPairs": {
+    "arm64-static-threads2-repeat1_vs_x86-static-threads2-repeat1": {
+      "processedFrames": 342,
+      "sourceDerivedSamplingActiveFrames": 342,
+      "preparedPointCountDifferentFrames": 0,
+      "orderedXyztBitSequenceDifferentFrames": 220,
+      "sameExactXyztMultisetButDifferentOrderFrames": 0,
+      "exactXyztMultisetDifferentFrames": 220,
+      "samplingInactiveButOrderedOutputDifferentFrames": 0,
+      "neighborIndexSequenceDifferentFramesAmongIdenticalOrderedXyzt": 0,
+      "allRawInputContentAndTimesIdentical": true,
+      "sameExactBitPatternsComparedNotGeometricTolerance": true
+    },
+    "arm64-static-threads2-repeat1_vs_x86-static-threads2-repeat2": {
+      "processedFrames": 342,
+      "sourceDerivedSamplingActiveFrames": 342,
+      "preparedPointCountDifferentFrames": 0,
+      "orderedXyztBitSequenceDifferentFrames": 223,
+      "sameExactXyztMultisetButDifferentOrderFrames": 0,
+      "exactXyztMultisetDifferentFrames": 223,
+      "samplingInactiveButOrderedOutputDifferentFrames": 0,
+      "neighborIndexSequenceDifferentFramesAmongIdenticalOrderedXyzt": 0,
+      "allRawInputContentAndTimesIdentical": true,
+      "sameExactBitPatternsComparedNotGeometricTolerance": true
+    },
+    "arm64-static-threads2-repeat1_vs_x86-static-threads2-repeat3": {
+      "processedFrames": 342,
+      "sourceDerivedSamplingActiveFrames": 342,
+      "preparedPointCountDifferentFrames": 0,
+      "orderedXyztBitSequenceDifferentFrames": 202,
+      "sameExactXyztMultisetButDifferentOrderFrames": 0,
+      "exactXyztMultisetDifferentFrames": 202,
+      "samplingInactiveButOrderedOutputDifferentFrames": 0,
+      "neighborIndexSequenceDifferentFramesAmongIdenticalOrderedXyzt": 0,
+      "allRawInputContentAndTimesIdentical": true,
+      "sameExactBitPatternsComparedNotGeometricTolerance": true
+    },
+    "arm64-static-threads2-repeat2_vs_x86-static-threads2-repeat1": {
+      "processedFrames": 342,
+      "sourceDerivedSamplingActiveFrames": 342,
+      "preparedPointCountDifferentFrames": 0,
+      "orderedXyztBitSequenceDifferentFrames": 219,
+      "sameExactXyztMultisetButDifferentOrderFrames": 0,
+      "exactXyztMultisetDifferentFrames": 219,
+      "samplingInactiveButOrderedOutputDifferentFrames": 0,
+      "neighborIndexSequenceDifferentFramesAmongIdenticalOrderedXyzt": 0,
+      "allRawInputContentAndTimesIdentical": true,
+      "sameExactBitPatternsComparedNotGeometricTolerance": true
+    },
+    "arm64-static-threads2-repeat2_vs_x86-static-threads2-repeat2": {
+      "processedFrames": 342,
+      "sourceDerivedSamplingActiveFrames": 342,
+      "preparedPointCountDifferentFrames": 0,
+      "orderedXyztBitSequenceDifferentFrames": 213,
+      "sameExactXyztMultisetButDifferentOrderFrames": 0,
+      "exactXyztMultisetDifferentFrames": 213,
+      "samplingInactiveButOrderedOutputDifferentFrames": 0,
+      "neighborIndexSequenceDifferentFramesAmongIdenticalOrderedXyzt": 0,
+      "allRawInputContentAndTimesIdentical": true,
+      "sameExactBitPatternsComparedNotGeometricTolerance": true
+    },
+    "arm64-static-threads2-repeat2_vs_x86-static-threads2-repeat3": {
+      "processedFrames": 342,
+      "sourceDerivedSamplingActiveFrames": 342,
+      "preparedPointCountDifferentFrames": 0,
+      "orderedXyztBitSequenceDifferentFrames": 199,
+      "sameExactXyztMultisetButDifferentOrderFrames": 0,
+      "exactXyztMultisetDifferentFrames": 199,
+      "samplingInactiveButOrderedOutputDifferentFrames": 0,
+      "neighborIndexSequenceDifferentFramesAmongIdenticalOrderedXyzt": 0,
+      "allRawInputContentAndTimesIdentical": true,
+      "sameExactBitPatternsComparedNotGeometricTolerance": true
+    },
+    "arm64-static-threads2-repeat3_vs_x86-static-threads2-repeat1": {
+      "processedFrames": 342,
+      "sourceDerivedSamplingActiveFrames": 342,
+      "preparedPointCountDifferentFrames": 0,
+      "orderedXyztBitSequenceDifferentFrames": 219,
+      "sameExactXyztMultisetButDifferentOrderFrames": 0,
+      "exactXyztMultisetDifferentFrames": 219,
+      "samplingInactiveButOrderedOutputDifferentFrames": 0,
+      "neighborIndexSequenceDifferentFramesAmongIdenticalOrderedXyzt": 0,
+      "allRawInputContentAndTimesIdentical": true,
+      "sameExactBitPatternsComparedNotGeometricTolerance": true
+    },
+    "arm64-static-threads2-repeat3_vs_x86-static-threads2-repeat2": {
+      "processedFrames": 342,
+      "sourceDerivedSamplingActiveFrames": 342,
+      "preparedPointCountDifferentFrames": 0,
+      "orderedXyztBitSequenceDifferentFrames": 215,
+      "sameExactXyztMultisetButDifferentOrderFrames": 0,
+      "exactXyztMultisetDifferentFrames": 215,
+      "samplingInactiveButOrderedOutputDifferentFrames": 0,
+      "neighborIndexSequenceDifferentFramesAmongIdenticalOrderedXyzt": 0,
+      "allRawInputContentAndTimesIdentical": true,
+      "sameExactBitPatternsComparedNotGeometricTolerance": true
+    },
+    "arm64-static-threads2-repeat3_vs_x86-static-threads2-repeat3": {
+      "processedFrames": 342,
+      "sourceDerivedSamplingActiveFrames": 342,
+      "preparedPointCountDifferentFrames": 0,
+      "orderedXyztBitSequenceDifferentFrames": 212,
+      "sameExactXyztMultisetButDifferentOrderFrames": 0,
+      "exactXyztMultisetDifferentFrames": 212,
+      "samplingInactiveButOrderedOutputDifferentFrames": 0,
+      "neighborIndexSequenceDifferentFramesAmongIdenticalOrderedXyzt": 0,
+      "allRawInputContentAndTimesIdentical": true,
+      "sameExactBitPatternsComparedNotGeometricTolerance": true
+    },
+    "arm64-static-threads1-repeat1_vs_x86-static-threads1-repeat1": {
+      "processedFrames": 342,
+      "sourceDerivedSamplingActiveFrames": 342,
+      "preparedPointCountDifferentFrames": 0,
+      "orderedXyztBitSequenceDifferentFrames": 0,
+      "sameExactXyztMultisetButDifferentOrderFrames": 0,
+      "exactXyztMultisetDifferentFrames": 0,
+      "samplingInactiveButOrderedOutputDifferentFrames": 0,
+      "neighborIndexSequenceDifferentFramesAmongIdenticalOrderedXyzt": 0,
+      "allRawInputContentAndTimesIdentical": true,
+      "sameExactBitPatternsComparedNotGeometricTolerance": true
+    },
+    "arm64-static-threads1-repeat1_vs_x86-static-threads1-repeat2": {
+      "processedFrames": 342,
+      "sourceDerivedSamplingActiveFrames": 342,
+      "preparedPointCountDifferentFrames": 0,
+      "orderedXyztBitSequenceDifferentFrames": 0,
+      "sameExactXyztMultisetButDifferentOrderFrames": 0,
+      "exactXyztMultisetDifferentFrames": 0,
+      "samplingInactiveButOrderedOutputDifferentFrames": 0,
+      "neighborIndexSequenceDifferentFramesAmongIdenticalOrderedXyzt": 0,
+      "allRawInputContentAndTimesIdentical": true,
+      "sameExactBitPatternsComparedNotGeometricTolerance": true
+    },
+    "arm64-static-threads1-repeat1_vs_x86-static-threads1-repeat3": {
+      "processedFrames": 342,
+      "sourceDerivedSamplingActiveFrames": 342,
+      "preparedPointCountDifferentFrames": 0,
+      "orderedXyztBitSequenceDifferentFrames": 0,
+      "sameExactXyztMultisetButDifferentOrderFrames": 0,
+      "exactXyztMultisetDifferentFrames": 0,
+      "samplingInactiveButOrderedOutputDifferentFrames": 0,
+      "neighborIndexSequenceDifferentFramesAmongIdenticalOrderedXyzt": 0,
+      "allRawInputContentAndTimesIdentical": true,
+      "sameExactBitPatternsComparedNotGeometricTolerance": true
+    },
+    "arm64-static-threads1-repeat2_vs_x86-static-threads1-repeat1": {
+      "processedFrames": 342,
+      "sourceDerivedSamplingActiveFrames": 342,
+      "preparedPointCountDifferentFrames": 0,
+      "orderedXyztBitSequenceDifferentFrames": 0,
+      "sameExactXyztMultisetButDifferentOrderFrames": 0,
+      "exactXyztMultisetDifferentFrames": 0,
+      "samplingInactiveButOrderedOutputDifferentFrames": 0,
+      "neighborIndexSequenceDifferentFramesAmongIdenticalOrderedXyzt": 0,
+      "allRawInputContentAndTimesIdentical": true,
+      "sameExactBitPatternsComparedNotGeometricTolerance": true
+    },
+    "arm64-static-threads1-repeat2_vs_x86-static-threads1-repeat2": {
+      "processedFrames": 342,
+      "sourceDerivedSamplingActiveFrames": 342,
+      "preparedPointCountDifferentFrames": 0,
+      "orderedXyztBitSequenceDifferentFrames": 0,
+      "sameExactXyztMultisetButDifferentOrderFrames": 0,
+      "exactXyztMultisetDifferentFrames": 0,
+      "samplingInactiveButOrderedOutputDifferentFrames": 0,
+      "neighborIndexSequenceDifferentFramesAmongIdenticalOrderedXyzt": 0,
+      "allRawInputContentAndTimesIdentical": true,
+      "sameExactBitPatternsComparedNotGeometricTolerance": true
+    },
+    "arm64-static-threads1-repeat2_vs_x86-static-threads1-repeat3": {
+      "processedFrames": 342,
+      "sourceDerivedSamplingActiveFrames": 342,
+      "preparedPointCountDifferentFrames": 0,
+      "orderedXyztBitSequenceDifferentFrames": 0,
+      "sameExactXyztMultisetButDifferentOrderFrames": 0,
+      "exactXyztMultisetDifferentFrames": 0,
+      "samplingInactiveButOrderedOutputDifferentFrames": 0,
+      "neighborIndexSequenceDifferentFramesAmongIdenticalOrderedXyzt": 0,
+      "allRawInputContentAndTimesIdentical": true,
+      "sameExactBitPatternsComparedNotGeometricTolerance": true
+    },
+    "arm64-static-threads1-repeat3_vs_x86-static-threads1-repeat1": {
+      "processedFrames": 342,
+      "sourceDerivedSamplingActiveFrames": 342,
+      "preparedPointCountDifferentFrames": 0,
+      "orderedXyztBitSequenceDifferentFrames": 0,
+      "sameExactXyztMultisetButDifferentOrderFrames": 0,
+      "exactXyztMultisetDifferentFrames": 0,
+      "samplingInactiveButOrderedOutputDifferentFrames": 0,
+      "neighborIndexSequenceDifferentFramesAmongIdenticalOrderedXyzt": 0,
+      "allRawInputContentAndTimesIdentical": true,
+      "sameExactBitPatternsComparedNotGeometricTolerance": true
+    },
+    "arm64-static-threads1-repeat3_vs_x86-static-threads1-repeat2": {
+      "processedFrames": 342,
+      "sourceDerivedSamplingActiveFrames": 342,
+      "preparedPointCountDifferentFrames": 0,
+      "orderedXyztBitSequenceDifferentFrames": 0,
+      "sameExactXyztMultisetButDifferentOrderFrames": 0,
+      "exactXyztMultisetDifferentFrames": 0,
+      "samplingInactiveButOrderedOutputDifferentFrames": 0,
+      "neighborIndexSequenceDifferentFramesAmongIdenticalOrderedXyzt": 0,
+      "allRawInputContentAndTimesIdentical": true,
+      "sameExactBitPatternsComparedNotGeometricTolerance": true
+    },
+    "arm64-static-threads1-repeat3_vs_x86-static-threads1-repeat3": {
+      "processedFrames": 342,
+      "sourceDerivedSamplingActiveFrames": 342,
+      "preparedPointCountDifferentFrames": 0,
+      "orderedXyztBitSequenceDifferentFrames": 0,
+      "sameExactXyztMultisetButDifferentOrderFrames": 0,
+      "exactXyztMultisetDifferentFrames": 0,
+      "samplingInactiveButOrderedOutputDifferentFrames": 0,
+      "neighborIndexSequenceDifferentFramesAmongIdenticalOrderedXyzt": 0,
+      "allRawInputContentAndTimesIdentical": true,
+      "sameExactBitPatternsComparedNotGeometricTolerance": true
+    },
+    "arm64-dynamic-threads2-repeat1_vs_x86-dynamic-threads2-repeat1": {
+      "processedFrames": 1220,
+      "sourceDerivedSamplingActiveFrames": 1220,
+      "preparedPointCountDifferentFrames": 15,
+      "orderedXyztBitSequenceDifferentFrames": 807,
+      "sameExactXyztMultisetButDifferentOrderFrames": 0,
+      "exactXyztMultisetDifferentFrames": 807,
+      "samplingInactiveButOrderedOutputDifferentFrames": 0,
+      "neighborIndexSequenceDifferentFramesAmongIdenticalOrderedXyzt": 0,
+      "allRawInputContentAndTimesIdentical": true,
+      "sameExactBitPatternsComparedNotGeometricTolerance": true
+    },
+    "arm64-dynamic-threads2-repeat1_vs_x86-dynamic-threads2-repeat2": {
+      "processedFrames": 1220,
+      "sourceDerivedSamplingActiveFrames": 1220,
+      "preparedPointCountDifferentFrames": 12,
+      "orderedXyztBitSequenceDifferentFrames": 779,
+      "sameExactXyztMultisetButDifferentOrderFrames": 0,
+      "exactXyztMultisetDifferentFrames": 779,
+      "samplingInactiveButOrderedOutputDifferentFrames": 0,
+      "neighborIndexSequenceDifferentFramesAmongIdenticalOrderedXyzt": 0,
+      "allRawInputContentAndTimesIdentical": true,
+      "sameExactBitPatternsComparedNotGeometricTolerance": true
+    },
+    "arm64-dynamic-threads2-repeat1_vs_x86-dynamic-threads2-repeat3": {
+      "processedFrames": 1220,
+      "sourceDerivedSamplingActiveFrames": 1220,
+      "preparedPointCountDifferentFrames": 14,
+      "orderedXyztBitSequenceDifferentFrames": 828,
+      "sameExactXyztMultisetButDifferentOrderFrames": 0,
+      "exactXyztMultisetDifferentFrames": 828,
+      "samplingInactiveButOrderedOutputDifferentFrames": 0,
+      "neighborIndexSequenceDifferentFramesAmongIdenticalOrderedXyzt": 0,
+      "allRawInputContentAndTimesIdentical": true,
+      "sameExactBitPatternsComparedNotGeometricTolerance": true
+    },
+    "arm64-dynamic-threads2-repeat2_vs_x86-dynamic-threads2-repeat1": {
+      "processedFrames": 1220,
+      "sourceDerivedSamplingActiveFrames": 1220,
+      "preparedPointCountDifferentFrames": 15,
+      "orderedXyztBitSequenceDifferentFrames": 795,
+      "sameExactXyztMultisetButDifferentOrderFrames": 0,
+      "exactXyztMultisetDifferentFrames": 795,
+      "samplingInactiveButOrderedOutputDifferentFrames": 0,
+      "neighborIndexSequenceDifferentFramesAmongIdenticalOrderedXyzt": 0,
+      "allRawInputContentAndTimesIdentical": true,
+      "sameExactBitPatternsComparedNotGeometricTolerance": true
+    },
+    "arm64-dynamic-threads2-repeat2_vs_x86-dynamic-threads2-repeat2": {
+      "processedFrames": 1220,
+      "sourceDerivedSamplingActiveFrames": 1220,
+      "preparedPointCountDifferentFrames": 12,
+      "orderedXyztBitSequenceDifferentFrames": 759,
+      "sameExactXyztMultisetButDifferentOrderFrames": 0,
+      "exactXyztMultisetDifferentFrames": 759,
+      "samplingInactiveButOrderedOutputDifferentFrames": 0,
+      "neighborIndexSequenceDifferentFramesAmongIdenticalOrderedXyzt": 0,
+      "allRawInputContentAndTimesIdentical": true,
+      "sameExactBitPatternsComparedNotGeometricTolerance": true
+    },
+    "arm64-dynamic-threads2-repeat2_vs_x86-dynamic-threads2-repeat3": {
+      "processedFrames": 1220,
+      "sourceDerivedSamplingActiveFrames": 1220,
+      "preparedPointCountDifferentFrames": 12,
+      "orderedXyztBitSequenceDifferentFrames": 761,
+      "sameExactXyztMultisetButDifferentOrderFrames": 0,
+      "exactXyztMultisetDifferentFrames": 761,
+      "samplingInactiveButOrderedOutputDifferentFrames": 0,
+      "neighborIndexSequenceDifferentFramesAmongIdenticalOrderedXyzt": 0,
+      "allRawInputContentAndTimesIdentical": true,
+      "sameExactBitPatternsComparedNotGeometricTolerance": true
+    },
+    "arm64-dynamic-threads2-repeat3_vs_x86-dynamic-threads2-repeat1": {
+      "processedFrames": 1220,
+      "sourceDerivedSamplingActiveFrames": 1220,
+      "preparedPointCountDifferentFrames": 10,
+      "orderedXyztBitSequenceDifferentFrames": 784,
+      "sameExactXyztMultisetButDifferentOrderFrames": 0,
+      "exactXyztMultisetDifferentFrames": 784,
+      "samplingInactiveButOrderedOutputDifferentFrames": 0,
+      "neighborIndexSequenceDifferentFramesAmongIdenticalOrderedXyzt": 0,
+      "allRawInputContentAndTimesIdentical": true,
+      "sameExactBitPatternsComparedNotGeometricTolerance": true
+    },
+    "arm64-dynamic-threads2-repeat3_vs_x86-dynamic-threads2-repeat2": {
+      "processedFrames": 1220,
+      "sourceDerivedSamplingActiveFrames": 1220,
+      "preparedPointCountDifferentFrames": 13,
+      "orderedXyztBitSequenceDifferentFrames": 772,
+      "sameExactXyztMultisetButDifferentOrderFrames": 0,
+      "exactXyztMultisetDifferentFrames": 772,
+      "samplingInactiveButOrderedOutputDifferentFrames": 0,
+      "neighborIndexSequenceDifferentFramesAmongIdenticalOrderedXyzt": 0,
+      "allRawInputContentAndTimesIdentical": true,
+      "sameExactBitPatternsComparedNotGeometricTolerance": true
+    },
+    "arm64-dynamic-threads2-repeat3_vs_x86-dynamic-threads2-repeat3": {
+      "processedFrames": 1220,
+      "sourceDerivedSamplingActiveFrames": 1220,
+      "preparedPointCountDifferentFrames": 11,
+      "orderedXyztBitSequenceDifferentFrames": 792,
+      "sameExactXyztMultisetButDifferentOrderFrames": 0,
+      "exactXyztMultisetDifferentFrames": 792,
+      "samplingInactiveButOrderedOutputDifferentFrames": 0,
+      "neighborIndexSequenceDifferentFramesAmongIdenticalOrderedXyzt": 0,
+      "allRawInputContentAndTimesIdentical": true,
+      "sameExactBitPatternsComparedNotGeometricTolerance": true
+    },
+    "arm64-dynamic-threads1-repeat1_vs_x86-dynamic-threads1-repeat1": {
+      "processedFrames": 1220,
+      "sourceDerivedSamplingActiveFrames": 1220,
+      "preparedPointCountDifferentFrames": 0,
+      "orderedXyztBitSequenceDifferentFrames": 0,
+      "sameExactXyztMultisetButDifferentOrderFrames": 0,
+      "exactXyztMultisetDifferentFrames": 0,
+      "samplingInactiveButOrderedOutputDifferentFrames": 0,
+      "neighborIndexSequenceDifferentFramesAmongIdenticalOrderedXyzt": 0,
+      "allRawInputContentAndTimesIdentical": true,
+      "sameExactBitPatternsComparedNotGeometricTolerance": true
+    },
+    "arm64-dynamic-threads1-repeat1_vs_x86-dynamic-threads1-repeat2": {
+      "processedFrames": 1220,
+      "sourceDerivedSamplingActiveFrames": 1220,
+      "preparedPointCountDifferentFrames": 0,
+      "orderedXyztBitSequenceDifferentFrames": 0,
+      "sameExactXyztMultisetButDifferentOrderFrames": 0,
+      "exactXyztMultisetDifferentFrames": 0,
+      "samplingInactiveButOrderedOutputDifferentFrames": 0,
+      "neighborIndexSequenceDifferentFramesAmongIdenticalOrderedXyzt": 0,
+      "allRawInputContentAndTimesIdentical": true,
+      "sameExactBitPatternsComparedNotGeometricTolerance": true
+    },
+    "arm64-dynamic-threads1-repeat1_vs_x86-dynamic-threads1-repeat3": {
+      "processedFrames": 1220,
+      "sourceDerivedSamplingActiveFrames": 1220,
+      "preparedPointCountDifferentFrames": 0,
+      "orderedXyztBitSequenceDifferentFrames": 0,
+      "sameExactXyztMultisetButDifferentOrderFrames": 0,
+      "exactXyztMultisetDifferentFrames": 0,
+      "samplingInactiveButOrderedOutputDifferentFrames": 0,
+      "neighborIndexSequenceDifferentFramesAmongIdenticalOrderedXyzt": 0,
+      "allRawInputContentAndTimesIdentical": true,
+      "sameExactBitPatternsComparedNotGeometricTolerance": true
+    },
+    "arm64-dynamic-threads1-repeat2_vs_x86-dynamic-threads1-repeat1": {
+      "processedFrames": 1220,
+      "sourceDerivedSamplingActiveFrames": 1220,
+      "preparedPointCountDifferentFrames": 0,
+      "orderedXyztBitSequenceDifferentFrames": 0,
+      "sameExactXyztMultisetButDifferentOrderFrames": 0,
+      "exactXyztMultisetDifferentFrames": 0,
+      "samplingInactiveButOrderedOutputDifferentFrames": 0,
+      "neighborIndexSequenceDifferentFramesAmongIdenticalOrderedXyzt": 0,
+      "allRawInputContentAndTimesIdentical": true,
+      "sameExactBitPatternsComparedNotGeometricTolerance": true
+    },
+    "arm64-dynamic-threads1-repeat2_vs_x86-dynamic-threads1-repeat2": {
+      "processedFrames": 1220,
+      "sourceDerivedSamplingActiveFrames": 1220,
+      "preparedPointCountDifferentFrames": 0,
+      "orderedXyztBitSequenceDifferentFrames": 0,
+      "sameExactXyztMultisetButDifferentOrderFrames": 0,
+      "exactXyztMultisetDifferentFrames": 0,
+      "samplingInactiveButOrderedOutputDifferentFrames": 0,
+      "neighborIndexSequenceDifferentFramesAmongIdenticalOrderedXyzt": 0,
+      "allRawInputContentAndTimesIdentical": true,
+      "sameExactBitPatternsComparedNotGeometricTolerance": true
+    },
+    "arm64-dynamic-threads1-repeat2_vs_x86-dynamic-threads1-repeat3": {
+      "processedFrames": 1220,
+      "sourceDerivedSamplingActiveFrames": 1220,
+      "preparedPointCountDifferentFrames": 0,
+      "orderedXyztBitSequenceDifferentFrames": 0,
+      "sameExactXyztMultisetButDifferentOrderFrames": 0,
+      "exactXyztMultisetDifferentFrames": 0,
+      "samplingInactiveButOrderedOutputDifferentFrames": 0,
+      "neighborIndexSequenceDifferentFramesAmongIdenticalOrderedXyzt": 0,
+      "allRawInputContentAndTimesIdentical": true,
+      "sameExactBitPatternsComparedNotGeometricTolerance": true
+    },
+    "arm64-dynamic-threads1-repeat3_vs_x86-dynamic-threads1-repeat1": {
+      "processedFrames": 1220,
+      "sourceDerivedSamplingActiveFrames": 1220,
+      "preparedPointCountDifferentFrames": 0,
+      "orderedXyztBitSequenceDifferentFrames": 0,
+      "sameExactXyztMultisetButDifferentOrderFrames": 0,
+      "exactXyztMultisetDifferentFrames": 0,
+      "samplingInactiveButOrderedOutputDifferentFrames": 0,
+      "neighborIndexSequenceDifferentFramesAmongIdenticalOrderedXyzt": 0,
+      "allRawInputContentAndTimesIdentical": true,
+      "sameExactBitPatternsComparedNotGeometricTolerance": true
+    },
+    "arm64-dynamic-threads1-repeat3_vs_x86-dynamic-threads1-repeat2": {
+      "processedFrames": 1220,
+      "sourceDerivedSamplingActiveFrames": 1220,
+      "preparedPointCountDifferentFrames": 0,
+      "orderedXyztBitSequenceDifferentFrames": 0,
+      "sameExactXyztMultisetButDifferentOrderFrames": 0,
+      "exactXyztMultisetDifferentFrames": 0,
+      "samplingInactiveButOrderedOutputDifferentFrames": 0,
+      "neighborIndexSequenceDifferentFramesAmongIdenticalOrderedXyzt": 0,
+      "allRawInputContentAndTimesIdentical": true,
+      "sameExactBitPatternsComparedNotGeometricTolerance": true
+    },
+    "arm64-dynamic-threads1-repeat3_vs_x86-dynamic-threads1-repeat3": {
+      "processedFrames": 1220,
+      "sourceDerivedSamplingActiveFrames": 1220,
+      "preparedPointCountDifferentFrames": 0,
+      "orderedXyztBitSequenceDifferentFrames": 0,
+      "sameExactXyztMultisetButDifferentOrderFrames": 0,
+      "exactXyztMultisetDifferentFrames": 0,
+      "samplingInactiveButOrderedOutputDifferentFrames": 0,
+      "neighborIndexSequenceDifferentFramesAmongIdenticalOrderedXyzt": 0,
+      "allRawInputContentAndTimesIdentical": true,
+      "sameExactBitPatternsComparedNotGeometricTolerance": true
+    }
+  },
+  "boundaries": {
+    "rosNodeStarted": false,
+    "liveSensorsSubscribed": false,
+    "motionCommandsSent": false,
+    "odometryExecuted": false,
+    "globalMappingExecuted": false,
+    "historicalDivergenceFullyExplained": false,
+    "timingHypothesisValidated": false,
+    "robotCalibrationValidated": false,
+    "navigationValidated": false,
+    "relocalizationValidated": false,
+    "realtimePerformanceValidated": false,
+    "voiceConcurrencyValidated": false,
+    "deploymentApproved": false,
+    "rawDataPublished": false
+  },
+  "allOriginalCapturesAndCompletePrivateOutputsUnchangedAtExport": true
+}

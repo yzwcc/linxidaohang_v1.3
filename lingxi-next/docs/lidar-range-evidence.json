@@ -1,0 +1,365 @@
+{
+  "schemaVersion": 1,
+  "purpose": "all_recorded_cloud_distance_aggregates_not_sensor_range_or_map_acceptance",
+  "runnerSourceSha256": "b2a63003a035c4964221ca80a7f2b94518177abfa15687e95ef104a4c22230aa",
+  "decoderSourceSha256": "ebe6d933005fa0821b50c0f91477e7a80a32ac1d174bf1040ec90d91e382a8aa",
+  "captureManifestSha256": "dff6ef252728ac0a26989b880d1d3a11769922467c8f5d7747c1b04a5c2c1e28",
+  "rosbagsVersion": "0.11.9",
+  "boundaries": {
+    "robotContacted": false,
+    "containsRosNode": false,
+    "containsMotionAdapter": false,
+    "coordinatesRescaled": false,
+    "pointsDownsampled": false,
+    "rangeFilterApplied": false,
+    "physicalUnitsCalibrated": false,
+    "ratedSensorRangeEstablished": false,
+    "mapGeometryValidated": false,
+    "navigationValidated": false,
+    "deploymentApproved": false,
+    "rawCoordinatesPublished": false
+  },
+  "datasets": {
+    "static": {
+      "recordedScans": 353,
+      "sourcePointCount": 8999917,
+      "nonfiniteCoordinatePointCount": 0,
+      "recordedHeaderSpanSeconds": 35.198054,
+      "radial3d": {
+        "finitePointCount": 8999917,
+        "zeroDistancePointCount": 0,
+        "distanceUnits": "raw_point_coordinate_units_not_validated_metres",
+        "histogramLowerInclusiveUpperExclusive": [
+          {
+            "lower": 0,
+            "upper": 1,
+            "count": 0
+          },
+          {
+            "lower": 1,
+            "upper": 2,
+            "count": 2405653
+          },
+          {
+            "lower": 2,
+            "upper": 5,
+            "count": 4087051
+          },
+          {
+            "lower": 5,
+            "upper": 10,
+            "count": 2286657
+          },
+          {
+            "lower": 10,
+            "upper": 20,
+            "count": 161648
+          },
+          {
+            "lower": 20,
+            "upper": 30,
+            "count": 0
+          },
+          {
+            "lower": 30,
+            "upper": 50,
+            "count": 58908
+          },
+          {
+            "lower": 50,
+            "upper": 100,
+            "count": 0
+          },
+          {
+            "lower": 100,
+            "upper": null,
+            "count": 0
+          }
+        ],
+        "minimum": 1.0499687463466907,
+        "maximum": 32.44479139863627,
+        "perScanStatisticsMinP50P95Max": {
+          "minimum": [
+            1.0499687463466907,
+            1.059980328856757,
+            1.064973220714999,
+            1.0699729012614119
+          ],
+          "median": [
+            3.6299069787390477,
+            3.8100143479955078,
+            3.814944748472303,
+            3.8149958966165167
+          ],
+          "p95": [
+            7.68001936098547,
+            8.260023465404451,
+            8.302811198353067,
+            8.330929500654536
+          ],
+          "maximum": [
+            17.039693604445578,
+            32.29479204383431,
+            32.404791040576875,
+            32.44479139863627
+          ]
+        },
+        "perScanPercentilesAreNotPooledPointPercentiles": true
+      },
+      "horizontalXY": {
+        "finitePointCount": 8999917,
+        "zeroDistancePointCount": 0,
+        "distanceUnits": "raw_point_coordinate_units_not_validated_metres",
+        "histogramLowerInclusiveUpperExclusive": [
+          {
+            "lower": 0,
+            "upper": 1,
+            "count": 0
+          },
+          {
+            "lower": 1,
+            "upper": 2,
+            "count": 2915829
+          },
+          {
+            "lower": 2,
+            "upper": 5,
+            "count": 3795989
+          },
+          {
+            "lower": 5,
+            "upper": 10,
+            "count": 2142119
+          },
+          {
+            "lower": 10,
+            "upper": 20,
+            "count": 87072
+          },
+          {
+            "lower": 20,
+            "upper": 30,
+            "count": 58867
+          },
+          {
+            "lower": 30,
+            "upper": 50,
+            "count": 41
+          },
+          {
+            "lower": 50,
+            "upper": 100,
+            "count": 0
+          },
+          {
+            "lower": 100,
+            "upper": null,
+            "count": 0
+          }
+        ],
+        "minimum": 1.010452709552569,
+        "maximum": 30.130361295792465,
+        "perScanStatisticsMinP50P95Max": {
+          "minimum": [
+            1.010452709552569,
+            1.0438730074627394,
+            1.0471875166243028,
+            1.0506016388965438
+          ],
+          "median": [
+            3.2053983414110587,
+            3.362377839770136,
+            3.364677122724436,
+            3.367853477357402
+          ],
+          "p95": [
+            7.439947594401218,
+            8.075708393481982,
+            8.099506167581776,
+            8.119059871199244
+          ],
+          "maximum": [
+            15.491781695506491,
+            29.929883366457652,
+            30.046625820174807,
+            30.130361295792465
+          ]
+        },
+        "perScanPercentilesAreNotPooledPointPercentiles": true
+      },
+      "noImuOrScanCoverageGateApplied": true,
+      "noRangeOrZeroReturnFilterApplied": true
+    },
+    "dynamic": {
+      "recordedScans": 1232,
+      "sourcePointCount": 31270824,
+      "nonfiniteCoordinatePointCount": 0,
+      "recordedHeaderSpanSeconds": 123.100253,
+      "radial3d": {
+        "finitePointCount": 31270824,
+        "zeroDistancePointCount": 0,
+        "distanceUnits": "raw_point_coordinate_units_not_validated_metres",
+        "histogramLowerInclusiveUpperExclusive": [
+          {
+            "lower": 0,
+            "upper": 1,
+            "count": 5424
+          },
+          {
+            "lower": 1,
+            "upper": 2,
+            "count": 8382232
+          },
+          {
+            "lower": 2,
+            "upper": 5,
+            "count": 12683615
+          },
+          {
+            "lower": 5,
+            "upper": 10,
+            "count": 9195334
+          },
+          {
+            "lower": 10,
+            "upper": 20,
+            "count": 775874
+          },
+          {
+            "lower": 20,
+            "upper": 30,
+            "count": 38320
+          },
+          {
+            "lower": 30,
+            "upper": 50,
+            "count": 190025
+          },
+          {
+            "lower": 50,
+            "upper": 100,
+            "count": 0
+          },
+          {
+            "lower": 100,
+            "upper": null,
+            "count": 0
+          }
+        ],
+        "minimum": 0.23499178242775526,
+        "maximum": 32.43979021908412,
+        "perScanStatisticsMinP50P95Max": {
+          "minimum": [
+            0.23499178242775526,
+            1.0599808891939986,
+            1.1049795624230458,
+            1.1399880965712967
+          ],
+          "median": [
+            2.3699218689255726,
+            3.81493834854524,
+            4.165022673082715,
+            4.774880106614086
+          ],
+          "p95": [
+            4.629971407620025,
+            8.9550472204401,
+            10.425412068889788,
+            11.629681641158527
+          ],
+          "maximum": [
+            6.435072080802032,
+            31.809498526564113,
+            32.35478196877021,
+            32.43979021908412
+          ]
+        },
+        "perScanPercentilesAreNotPooledPointPercentiles": true
+      },
+      "horizontalXY": {
+        "finitePointCount": 31270824,
+        "zeroDistancePointCount": 0,
+        "distanceUnits": "raw_point_coordinate_units_not_validated_metres",
+        "histogramLowerInclusiveUpperExclusive": [
+          {
+            "lower": 0,
+            "upper": 1,
+            "count": 5912
+          },
+          {
+            "lower": 1,
+            "upper": 2,
+            "count": 9877691
+          },
+          {
+            "lower": 2,
+            "upper": 5,
+            "count": 12687207
+          },
+          {
+            "lower": 5,
+            "upper": 10,
+            "count": 8056879
+          },
+          {
+            "lower": 10,
+            "upper": 20,
+            "count": 422008
+          },
+          {
+            "lower": 20,
+            "upper": 30,
+            "count": 208402
+          },
+          {
+            "lower": 30,
+            "upper": 50,
+            "count": 12725
+          },
+          {
+            "lower": 50,
+            "upper": 100,
+            "count": 0
+          },
+          {
+            "lower": 100,
+            "upper": null,
+            "count": 0
+          }
+        ],
+        "minimum": 0.18566344554261946,
+        "maximum": 32.21804898838723,
+        "perScanStatisticsMinP50P95Max": {
+          "minimum": [
+            0.18566344554261946,
+            1.0471875166243028,
+            1.0872416324133034,
+            1.1141309370493808
+          ],
+          "median": [
+            2.165966530964251,
+            3.3646486043338237,
+            4.053201836808386,
+            4.616158532450598
+          ],
+          "p95": [
+            4.253720842434568,
+            8.067308847594196,
+            9.606183830118527,
+            10.926200729829976
+          ],
+          "maximum": [
+            5.7861996851867055,
+            29.976847535818525,
+            30.450666013418804,
+            32.21804898838723
+          ]
+        },
+        "perScanPercentilesAreNotPooledPointPercentiles": true
+      },
+      "noImuOrScanCoverageGateApplied": true,
+      "noRangeOrZeroReturnFilterApplied": true
+    }
+  },
+  "allOriginalCapturesUnchangedBeforeAndAfter": true
+}
