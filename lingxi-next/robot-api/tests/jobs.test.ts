@@ -272,6 +272,47 @@ describe("navigation and tour lifecycle", () => {
     expect(jobs.state().status).toBe("failed");
     await expect(jobs.control("resume")).rejects.toThrow("先停止");
   });
+  it.each(["point", "tour"] as const)("keeps a halted %s from advancing after a late arrival", async (kind) => {
+    store.state.idleReturnSeconds = 30;
+    if (kind === "point") await jobs.startPoint(point);
+    else await jobs.startTour(tour);
+    await vi.advanceTimersByTimeAsync(20);
+    const taskId = nav.taskId;
+    vi.mocked(adapter.controlNavigation).mockRejectedValueOnce(new Error("pause timeout"));
+
+    await expect(jobs.control("pause")).rejects.toThrow("pause timeout");
+    nav = { status: "finished", taskId };
+    await vi.advanceTimersByTimeAsync(60_000);
+
+    expect(adapter.startNavigation).toHaveBeenCalledTimes(1);
+    expect(speak).not.toHaveBeenCalled();
+    expect(jobs.state()).toMatchObject({ status: "failed", requiresStop: true });
+    expect(jobs.hasActiveJob()).toBe(true);
+    await expect(jobs.startPoint(point)).rejects.toThrow("已有任务");
+    await jobs.control("stop");
+    expect(jobs.state().status).toBe("idle");
+  });
+  it.each(["point", "tour"] as const)("keeps a halted %s from advancing after an unconfirmed resume", async (kind) => {
+    store.state.idleReturnSeconds = 30;
+    if (kind === "point") await jobs.startPoint(point);
+    else await jobs.startTour(tour);
+    await vi.advanceTimersByTimeAsync(20);
+    await jobs.control("pause");
+    const taskId = nav.taskId;
+    vi.mocked(adapter.controlNavigation).mockRejectedValueOnce(new Error("resume timeout"));
+
+    await expect(jobs.control("resume")).rejects.toThrow("resume timeout");
+    nav = { status: "finished", taskId };
+    await vi.advanceTimersByTimeAsync(60_000);
+
+    expect(adapter.startNavigation).toHaveBeenCalledTimes(1);
+    expect(speak).not.toHaveBeenCalled();
+    expect(jobs.state()).toMatchObject({ status: "failed", requiresStop: true });
+    await expect(jobs.control("resume")).rejects.toThrow("先停止");
+    await expect(jobs.startTour(tour)).rejects.toThrow("已有任务");
+    await jobs.control("stop");
+    expect(jobs.state().status).toBe("idle");
+  });
   it("still stops native navigation when speech cancellation fails and blocks overlap", async () => {
     await jobs.startPoint(point);
     // A pending narration/confirmation can overlap a native stop.

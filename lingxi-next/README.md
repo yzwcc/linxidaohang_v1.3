@@ -59,6 +59,11 @@ is available and its state topic is fresh. Only point-to-point targets,
 pause/resume, and stop are exposed; no velocity, arbitrary joint, or raw ROS
 controls are implemented here.
 
+If a navigation pause/resume request cannot be confirmed, the task remains
+faulted until an explicit stop is confirmed. Late arrival events cannot restart
+tour narration, dispatch another point, or trigger idle return. This interlock
+does not claim that an unconfirmed native navigation command has stopped.
+
 AIMDK preset actions and expressions use fixed X2 enum allowlists. LinkCraft
 resources are loaded from the robot's live resource service and execution
 accepts only a short-lived opaque ID from that list. Preset motions require a

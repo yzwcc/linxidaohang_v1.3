@@ -6,7 +6,7 @@
 | 检查 | 结果 |
 |---|---|
 | TypeScript 前端/API 类型检查与 Vite 构建 | 通过 |
-| Vitest | 121 项通过，覆盖状态流与雷达流恢复、静默连接看门狗、重试退避与卸载清理、诊断隐私与容量、VAD EOS 到 SDK 播放态测量及缺失/过期证据、迁移/地图 ID、语音会话与白名单、知识依据、任务生命周期、雷达流和动作资源互锁 |
+| Vitest | 127 项通过，覆盖状态流与雷达流恢复、静默连接看门狗、重试退避与卸载清理、诊断隐私与容量、VAD EOS 到 SDK 播放态测量及缺失/过期证据、迁移/地图 ID、语音会话与白名单、知识依据、任务生命周期、雷达流和动作资源互锁 |
 | Python AIMDK 桥接测试 | 36 项通过；验证激光扫描/采样时刻 TF（含 50ms 有界等待）、点迹、真实只读 SQLite 登记、不暴露未提交数据、未知结构拒绝、大地图 ID、像素转换、旧定位拒绝、位姿单次发布、未确认状态互斥，以及预设动作状态、表情回执和灵创服务结果语义 |
 | Java JUnit | 21 项通过：唤醒与静默状态次序/断线重放/有效期 8 项、取消先于播报与过期请求拒绝 3 项、TTS 事件绑定/时序/结束确认 6 项、VAD EOS 与对话事件匹配/过期拒绝 2 项、SDK 原始 ASR 置信度类型/范围拒绝 2 项 |
 | 官方 AgentSDK 编译 | 通过，固定实际 JAR SHA256；不使用文档中旧版 Maven 示例 |
@@ -18,15 +18,16 @@
 | 雷达断流界面 | 0.1.16 使用独立 3016/5186 端口的当前源码模拟 API/页面，核对 PID、启动时间与版本；只暂停雷达消息，画布清空到 0 个非背景像素且显示断流提示，WebSocket 自动重连；恢复消息后无需刷新或重新配对即可显示每帧 1,080 点；离开扫图页后不再重试。桌面 1440×960、横屏 844×390 有实际 Canvas 像素且无横向文档溢出。故障注入仅在本机模拟服务执行 |
 | axe WCAG 2 A/AA | 讲解页、导航页、桌面与横屏扫图页检查无违规；不代表人工无障碍认证 |
 | 0.1.1 重定位入口 | 浏览器点击所填世界位姿重定位收到模拟 API 200；桌面与 844×390 地图管理截图检查、横向溢出检查和 axe 均通过 |
-| 0.1.16 ARM64 commissioning 包 | `tools/verify-release.py` 审计通过：12,510 个文件、逐文件 SHA256、ELF64 AArch64 运行时、执行权限和固定 AgentSDK JAR；包标记 `productionAccepted: false` |
-| 0.1.16 Android commissioning APK | `tools/verify-android.py` 审计通过：签名、`sensorLandscape`、禁明文流量、禁备份和网页资源均通过；未在 Android 真机验收。Gradle 有 SDK 元数据/中文路径警告，构建成功，APK 实际资源与签名另行校验通过 |
+| 0.1.17 任务故障门控 | 先在旧实现复现四个失败用例：点位/讲解任务暂停或继续请求超时后，被迟到到达事件推进返航/播报。修复后四项均通过，另两个 HTTP 用例确认故障标识和建图/切图互锁持续保留、人工停止确认后恢复待命；不代表原生导航已在请求超时时停止，仍需现场检查并显式停止 |
+| 0.1.17 ARM64 commissioning 包 | `tools/verify-release.py` 审计通过：12,510 个文件、逐文件 SHA256、ELF64 AArch64 运行时、执行权限和固定 AgentSDK JAR；包标记 `productionAccepted: false` |
+| 0.1.17 Android commissioning APK | `tools/verify-android.py` 审计通过：签名、`sensorLandscape`、禁明文流量、禁备份和网页资源均通过；未在 Android 真机验收。Gradle 有 SDK 元数据/中文路径警告，构建成功，APK 实际资源与签名另行校验通过 |
 | VAD 到 SDK 播放态诊断 | 自动测试覆盖 EOS/ASR 同事件关联、缺失/过期/未来时间拒绝、SDK `playing` 首音与独立 P95 样本数；不等同声学首音验收 |
 
 包文件的存在、逐文件校验和、ARM64 ELF 与权限，以 `tools/verify-release.py` 对实际
 归档的输出为准。APK 另用 Android Build Tools 检查签名、清单与横屏配置。
 散列记录在交付文件旁的 `.sha256` 和机器人包内 `SHA256SUMS`，不在本文嵌入自引用散列。
-本次 ARM64 文件为 `artifacts/lingxi-next-0.1.16-commissioning-20261028-linux-arm64.tar.gz`，
-Android 文件为 `artifacts/lingxi-next-0.1.16-commissioning.apk`。各自 SHA256 以交付文件旁的
+本次 ARM64 文件为 `artifacts/lingxi-next-0.1.17-commissioning-20261028-linux-arm64.tar.gz`，
+Android 文件为 `artifacts/lingxi-next-0.1.17-commissioning.apk`。各自 SHA256 以交付文件旁的
 `.sha256` 文件为准。
 
 尚未验证：目标机器人实际话题、保存重载与坐标方向、短距导航/急停、

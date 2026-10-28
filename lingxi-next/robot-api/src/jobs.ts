@@ -134,6 +134,7 @@ export class JobManager {
     this.assertAuthorized(authorize);
     const job = this.current;
     if (!job) throw new Error("当前没有活动任务");
+    if (action !== "stop" && job.phase === "halted") throw new Error("任务状态未确认，请先停止任务");
     if (action !== "stop" && !this.isCurrent(job)) throw new Error("任务状态已失效");
     if (action === "stop") {
       await job.pendingDispatch?.catch(() => undefined);
@@ -163,7 +164,6 @@ export class JobManager {
       }
       return;
     }
-    if (job.phase === "halted") throw new Error("任务状态未确认，请先停止任务");
     if (action === "pause") {
       await job.pendingDispatch;
       this.assertAuthorized(authorize);
@@ -452,7 +452,8 @@ export class JobManager {
   }
 
   private isCurrent(job: ActiveJob) {
-    return this.current === job && !job.cancelled && job.generation === this.generation;
+    // Retain halted jobs for an explicit stop, but never advance their runners.
+    return this.current === job && !job.cancelled && job.generation === this.generation && job.phase !== "halted";
   }
 
   private requestNavigationControl(job: ActiveJob, action: "pause" | "resume"): Promise<void> {

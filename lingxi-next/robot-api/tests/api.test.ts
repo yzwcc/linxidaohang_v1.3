@@ -168,6 +168,44 @@ describe("paired local console API", () => {
     expect((await app.inject({ method: "POST", url: "/api/v1/maps/demo-lab/activate",
       headers: headers(), payload: {} })).statusCode).toBe(409);
   });
+  it.each(["point", "tour"] as const)("keeps a faulted %s blocked at the API until an explicit stop", async (kind) => {
+    let lateArrival = false;
+    const originalSnapshot = adapter.getSnapshot.bind(adapter);
+    vi.spyOn(adapter, "getSnapshot").mockImplementation(async () => {
+      const snapshot = await originalSnapshot();
+      return lateArrival
+        ? { ...snapshot, navigation: { ...snapshot.navigation, status: "finished" } }
+        : snapshot;
+    });
+    const navigate = vi.spyOn(adapter, "startNavigation");
+    const starting = await app.inject(kind === "point"
+      ? { method: "POST", url: "/api/v1/navigation/point", headers: headers(), payload: { pointId: "point-2" } }
+      : { method: "POST", url: "/api/v1/tours/tour-1/start", headers: headers() });
+    expect(starting.statusCode).toBe(202);
+    await vi.waitFor(() => expect(navigate).toHaveBeenCalledTimes(1));
+
+    vi.spyOn(adapter, "controlNavigation").mockRejectedValueOnce(new Error("pause confirmation timeout"));
+    expect((await app.inject({
+      method: "POST", url: "/api/v1/navigation/control", headers: headers(), payload: { action: "pause" },
+    })).statusCode).toBe(500);
+    lateArrival = true;
+    // Allow the already running navigation poll to observe the late result.
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    const state = (await app.inject({ url: "/api/v1/state", headers: headers() })).json();
+    expect(state.navigation).toMatchObject({ status: "failed", requiresStop: true });
+    expect(navigate).toHaveBeenCalledTimes(1);
+    expect(speak).not.toHaveBeenCalled();
+    expect((await app.inject({ method: "POST", url: "/api/v1/mapping/start", headers: headers() })).statusCode).toBe(409);
+    expect((await app.inject({
+      method: "POST", url: "/api/v1/maps/demo-lab/activate", headers: headers(), payload: {},
+    })).statusCode).toBe(409);
+
+    lateArrival = false;
+    expect((await app.inject({
+      method: "POST", url: "/api/v1/navigation/control", headers: headers(), payload: { action: "stop" },
+    })).statusCode).toBe(200);
+    expect((await app.inject({ url: "/api/v1/state", headers: headers() })).json().navigation.status).toBe("idle");
+  });
   it("requires an explicit operator confirmation before clearing action interlock", async () => {
     const rejected = await app.inject({
       method: "POST", url: "/api/v1/actions/confirm-idle", headers: headers(),
