@@ -51,6 +51,11 @@ All 60 within/across-architecture geometry pairs were measured without
 sampling, ICP or scale fitting. This is repeatability, not truth accuracy or
 live-navigation acceptance.
 See [the ARM64 full-map controls](docs/SLAM_ARM64_CONTROLLED_MAPPING.md).
+A bounded single-owner LiDAR/IMU input component now also completes four
+recorded-arrival-order GLIM trials without preloading the entire IMU stream.
+The effective frame domain, algorithm times and scan counters match the
+frozen controls. This is not paced/live performance or a deployed ROS adapter.
+See [the streaming input boundary](docs/SLAM_STREAM_INPUT.md).
 An independent full-recording range audit records returns beyond 5 raw-coordinate
 units. The roughly 5 m travel estimate is not calibration truth; travel,
 scan coverage and map accuracy are different quantities.

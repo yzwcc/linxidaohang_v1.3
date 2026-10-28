@@ -1,0 +1,347 @@
+{
+  "schemaVersion": 1,
+  "observedDate": "2026-10-28",
+  "purpose": "bounded_recorded_arrival_order_input_not_live_mapping_or_calibration",
+  "baselineEvidenceSha256": "95d503a17e097c2da3fdc605ac05c489c5b2b89d4d4186e2378bd4c40e422f4a",
+  "captureManifestSha256": "dff6ef252728ac0a26989b880d1d3a11769922467c8f5d7747c1b04a5c2c1e28",
+  "collectionReportSha256": "07f60c3b33e93191b1cc5ab8575f618fa8bbcdfb12b1b64fb3fb718596b063b2",
+  "sourceSha256": {
+    "tools/run_glim_stream_trial.py": "512ee896c05345de191d7793ac6c1602291d699125c07eeb0d44ff7ff4e2597a",
+    "robot-slam/lingxi_slam/__init__.py": "9a59075191196952798a68b31564f2fc148727cbcfa59ae715657865894c4226",
+    "robot-slam/lingxi_slam/stream.py": "1fcca31c82dcec8a6969576c98c27e68582f0a6288b8482d8442c8703ff5d0bc",
+    "tools/run_glim_offline_trial.py": "aa04dce703a0f121138318b6ee52ba999e47593d6ed2ccac7bd2c524c1cff683",
+    "tools/run_kiss_offline_trial.py": "ebe6d933005fa0821b50c0f91477e7a80a32ac1d174bf1040ec90d91e382a8aa",
+    "tools/diagnose_slam_sensors.py": "0c9808ca472b6d7be7b3b118c05d83b13f5b975e76da1c732e08adf071e1b824",
+    "tools/export_glim_controlled_mapping.py": "0141b810faf4e2bae55bb42261102c7f9cea9b122536ca0ceb06574f927c42cb",
+    "tools/compare_glim_architectures.py": "b741d1a7f57894dee2fd9e87b47638f80221ae26bfc449239d2665f30c88d6aa",
+    "tools/verify_slam_capture.py": "073c280e1791636e6ccd41c016ca50d56fa3a71078eb5ab1a4bfcc77e0259bad",
+    "tools/slam_bag_audit.py": "529f6eb0b6a5050e74d0c65c566d53893f5e989e0a1a6d889ba0d27bf7a7620b"
+  },
+  "exporterSourceSha256": "8af5997f1f11b9ab1bae629dc7645e241b57c59513a66f66a9b250b6a4cde871",
+  "sourceCommits": {
+    "gtsam": "3ad4b4c3cb28394c9597f48fa02dad361c8450e3",
+    "gtsam_points": "9d32e7dbecf6015560d84b4901d6b0a6f483ec46",
+    "glim": "1a197c999e4865f5cab7c9cd25474128413ebbca"
+  },
+  "conditionCount": 4,
+  "runs": {
+    "static-start": {
+      "dataset": "static",
+      "timingHypothesis": "header_is_scan_start",
+      "counts": {
+        "receivedImu": 6880,
+        "receivedClouds": 353,
+        "insertedImu": 6864,
+        "processedScans": 343,
+        "initializationScans": 30,
+        "estimatedPoses": 313,
+        "skippedBeforeImu": 10,
+        "skippedAfterImuAtEndOfInput": 0,
+        "discardedOnFailure": 0,
+        "maximumPendingImu": 24,
+        "maximumPendingClouds": 1,
+        "maximumPendingBytes": 816960
+      },
+      "limits": {
+        "maximum_pending_imu": 4096,
+        "maximum_pending_clouds": 32,
+        "maximum_pending_bytes": 67108864,
+        "maximum_points_per_cloud": 2000000,
+        "maximum_imu_gap_ns": 50000000,
+        "maximum_cloud_gap_ns": 500000000,
+        "initial_wait_seconds": 2.0,
+        "maximum_wait_seconds": 0.75,
+        "maximum_sensor_silence_seconds": 0.75
+      },
+      "maximumRecordedArrivalScanWaitSeconds": 0.0019139069999027924,
+      "allBuffersReleasedAtExplicitEndOfInput": true,
+      "baselineComparisonNotTruthAccuracy": {
+        "sameEstimatedHeaderDomain": true,
+        "sameAlgorithmTimestamps": true,
+        "sameScanCounters": true,
+        "onlinePoseDifference": {
+          "positionDifferenceRawUnits": {
+            "p50": 5.332989897324338e-13,
+            "p95": 2.23447095335247e-12,
+            "maximum": 2.2903826366394758e-12,
+            "rms": 1.254919335779621e-12
+          },
+          "orientationDifferenceRadians": {
+            "p50": 8.803834203486922e-14,
+            "p95": 1.4130868662934394e-13,
+            "maximum": 1.4480676642276124e-13,
+            "rms": 9.168236540526139e-14
+          }
+        }
+      },
+      "actualLoadedLibrariesSha256": {
+        "libgtsam.so.4.3a0": "a04a785a5dae6737bed3246d6fa3d380824a36979311c97e2698bc460a420ddf",
+        "libgtsam_points.so.1.2.2": "b3ad18f233148fb0a4d0ff84f25199138da247357b878684619bdf214bb7e695",
+        "libmetis-gtsam.so": "27d1eafe1948d539734637a685b0459411b56b6b575d443a328ed06742810571",
+        "libglim.so": "6c554c6a48119eb9d2ce9d595076c64de581070f50c60438e85108bc9ebedb47",
+        "libcephes-gtsam.so.1.0.0": "865de51290543bbef9aaeffc4f025c575fbe76ac48e91ee09346e44b8df6b1ba",
+        "liblingxi_glim_offline.so": "d88b2ce24c70dde901e33747bd622238172729ce0dfaff74b37da0e0a0d78b8d",
+        "libodometry_estimation_cpu.so": "dc5ed040f36e8a83fd0207e5307894d95b1062f659e182db0e03cac8d02316ca"
+      },
+      "observedOfflineNativeTimingsNotLivePerformance": {
+        "preprocessMillisecondsP50P95P99": [
+          5.91489,
+          6.938470199999999,
+          8.122120459999998
+        ],
+        "odometryMillisecondsP50P95P99": [
+          7.619769,
+          16.123435999999998,
+          21.418924859999983
+        ]
+      },
+      "totalWallSecondsNotPacedRealtimeAcceptance": 12.027979295999998,
+      "reportSha256": "d1110fd77670a89d6a713055162583b2f248af9ed5e27a81dcaf5e00312df718",
+      "privateTrajectorySha256": "413b6b5319dd5965c7e8974ec12a28d77948dd773301ea401aa5cc43b49461ca",
+      "privateNativeLogSha256": "7e9a0ab00127ee8b5a6cb1edff29b320c960ff7977fbc8df963d2d83da7f8e3d"
+    },
+    "static-end": {
+      "dataset": "static",
+      "timingHypothesis": "header_is_scan_end",
+      "counts": {
+        "receivedImu": 6880,
+        "receivedClouds": 353,
+        "insertedImu": 6845,
+        "processedScans": 342,
+        "initializationScans": 31,
+        "estimatedPoses": 311,
+        "skippedBeforeImu": 11,
+        "skippedAfterImuAtEndOfInput": 0,
+        "discardedOnFailure": 0,
+        "maximumPendingImu": 44,
+        "maximumPendingClouds": 1,
+        "maximumPendingBytes": 816960
+      },
+      "limits": {
+        "maximum_pending_imu": 4096,
+        "maximum_pending_clouds": 32,
+        "maximum_pending_bytes": 67108864,
+        "maximum_points_per_cloud": 2000000,
+        "maximum_imu_gap_ns": 50000000,
+        "maximum_cloud_gap_ns": 500000000,
+        "initial_wait_seconds": 2.0,
+        "maximum_wait_seconds": 0.75,
+        "maximum_sensor_silence_seconds": 0.75
+      },
+      "maximumRecordedArrivalScanWaitSeconds": 0.0,
+      "allBuffersReleasedAtExplicitEndOfInput": true,
+      "baselineComparisonNotTruthAccuracy": {
+        "sameEstimatedHeaderDomain": true,
+        "sameAlgorithmTimestamps": true,
+        "sameScanCounters": true,
+        "onlinePoseDifference": {
+          "positionDifferenceRawUnits": {
+            "p50": 1.987649653732529e-12,
+            "p95": 1.266832992347066e-11,
+            "maximum": 2.0816524479480404e-11,
+            "rms": 5.569462405786276e-12
+          },
+          "orientationDifferenceRadians": {
+            "p50": 2.8679312833309473e-12,
+            "p95": 6.966707330149971e-12,
+            "maximum": 7.322516487709727e-12,
+            "rms": 3.503992772662172e-12
+          }
+        }
+      },
+      "actualLoadedLibrariesSha256": {
+        "libgtsam.so.4.3a0": "a04a785a5dae6737bed3246d6fa3d380824a36979311c97e2698bc460a420ddf",
+        "libgtsam_points.so.1.2.2": "b3ad18f233148fb0a4d0ff84f25199138da247357b878684619bdf214bb7e695",
+        "libmetis-gtsam.so": "27d1eafe1948d539734637a685b0459411b56b6b575d443a328ed06742810571",
+        "libglim.so": "6c554c6a48119eb9d2ce9d595076c64de581070f50c60438e85108bc9ebedb47",
+        "libcephes-gtsam.so.1.0.0": "865de51290543bbef9aaeffc4f025c575fbe76ac48e91ee09346e44b8df6b1ba",
+        "liblingxi_glim_offline.so": "d88b2ce24c70dde901e33747bd622238172729ce0dfaff74b37da0e0a0d78b8d",
+        "libodometry_estimation_cpu.so": "dc5ed040f36e8a83fd0207e5307894d95b1062f659e182db0e03cac8d02316ca"
+      },
+      "observedOfflineNativeTimingsNotLivePerformance": {
+        "preprocessMillisecondsP50P95P99": [
+          5.865346499999999,
+          6.5695958999999995,
+          7.148723729999999
+        ],
+        "odometryMillisecondsP50P95P99": [
+          7.6580685,
+          15.239338249999996,
+          18.895981149999994
+        ]
+      },
+      "totalWallSecondsNotPacedRealtimeAcceptance": 11.728926892000004,
+      "reportSha256": "7e2d2995e66888c6b247065368156dedf93e02091dca3e17cad12f4a7f7ca3b0",
+      "privateTrajectorySha256": "93e5d84a6ebbdec3681a5d57bd79c3da202087615593b2975889e659a89d5ef4",
+      "privateNativeLogSha256": "28fc3c5925bb8c21ebaacaacece0c7066d41e7945f96a171914ea4eb91a14a6c"
+    },
+    "dynamic-start": {
+      "dataset": "dynamic",
+      "timingHypothesis": "header_is_scan_start",
+      "counts": {
+        "receivedImu": 24446,
+        "receivedClouds": 1232,
+        "insertedImu": 24434,
+        "processedScans": 1221,
+        "initializationScans": 31,
+        "estimatedPoses": 1190,
+        "skippedBeforeImu": 11,
+        "skippedAfterImuAtEndOfInput": 0,
+        "discardedOnFailure": 0,
+        "maximumPendingImu": 33,
+        "maximumPendingClouds": 1,
+        "maximumPendingBytes": 828000
+      },
+      "limits": {
+        "maximum_pending_imu": 4096,
+        "maximum_pending_clouds": 32,
+        "maximum_pending_bytes": 67108864,
+        "maximum_points_per_cloud": 2000000,
+        "maximum_imu_gap_ns": 50000000,
+        "maximum_cloud_gap_ns": 500000000,
+        "initial_wait_seconds": 2.0,
+        "maximum_wait_seconds": 0.75,
+        "maximum_sensor_silence_seconds": 0.75
+      },
+      "maximumRecordedArrivalScanWaitSeconds": 0.028588878000164186,
+      "allBuffersReleasedAtExplicitEndOfInput": true,
+      "baselineComparisonNotTruthAccuracy": {
+        "sameEstimatedHeaderDomain": true,
+        "sameAlgorithmTimestamps": true,
+        "sameScanCounters": true,
+        "onlinePoseDifference": {
+          "positionDifferenceRawUnits": {
+            "p50": 2.6607663031127203e-12,
+            "p95": 5.954484738265126e-12,
+            "maximum": 7.019401179488217e-12,
+            "rms": 3.0795367740785666e-12
+          },
+          "orientationDifferenceRadians": {
+            "p50": 6.344639792316971e-13,
+            "p95": 9.867218182211534e-13,
+            "maximum": 1.0481229399716638e-12,
+            "rms": 5.993399109005915e-13
+          }
+        }
+      },
+      "actualLoadedLibrariesSha256": {
+        "libgtsam.so.4.3a0": "a04a785a5dae6737bed3246d6fa3d380824a36979311c97e2698bc460a420ddf",
+        "libgtsam_points.so.1.2.2": "b3ad18f233148fb0a4d0ff84f25199138da247357b878684619bdf214bb7e695",
+        "libcephes-gtsam.so.1.0.0": "865de51290543bbef9aaeffc4f025c575fbe76ac48e91ee09346e44b8df6b1ba",
+        "libmetis-gtsam.so": "27d1eafe1948d539734637a685b0459411b56b6b575d443a328ed06742810571",
+        "libglim.so": "6c554c6a48119eb9d2ce9d595076c64de581070f50c60438e85108bc9ebedb47",
+        "liblingxi_glim_offline.so": "d88b2ce24c70dde901e33747bd622238172729ce0dfaff74b37da0e0a0d78b8d",
+        "libodometry_estimation_cpu.so": "dc5ed040f36e8a83fd0207e5307894d95b1062f659e182db0e03cac8d02316ca"
+      },
+      "observedOfflineNativeTimingsNotLivePerformance": {
+        "preprocessMillisecondsP50P95P99": [
+          5.925138,
+          7.236377,
+          8.512362799999991
+        ],
+        "odometryMillisecondsP50P95P99": [
+          9.636446,
+          16.758514,
+          19.657127399999997
+        ]
+      },
+      "totalWallSecondsNotPacedRealtimeAcceptance": 39.369638275,
+      "reportSha256": "c855619d03c331f733d993274bbfe4611851e9c8b366bc4b6a6cef06b7203836",
+      "privateTrajectorySha256": "8a31be2eda4aa526f305395a37c8d9180169f2bfddd5ada21dd25d86b6bb3675",
+      "privateNativeLogSha256": "2349d192413f52bda7ca18ff609571fdb9da268a516b09ed77d865b6094e5be4"
+    },
+    "dynamic-end": {
+      "dataset": "dynamic",
+      "timingHypothesis": "header_is_scan_end",
+      "counts": {
+        "receivedImu": 24446,
+        "receivedClouds": 1232,
+        "insertedImu": 24415,
+        "processedScans": 1220,
+        "initializationScans": 31,
+        "estimatedPoses": 1189,
+        "skippedBeforeImu": 12,
+        "skippedAfterImuAtEndOfInput": 0,
+        "discardedOnFailure": 0,
+        "maximumPendingImu": 53,
+        "maximumPendingClouds": 1,
+        "maximumPendingBytes": 828000
+      },
+      "limits": {
+        "maximum_pending_imu": 4096,
+        "maximum_pending_clouds": 32,
+        "maximum_pending_bytes": 67108864,
+        "maximum_points_per_cloud": 2000000,
+        "maximum_imu_gap_ns": 50000000,
+        "maximum_cloud_gap_ns": 500000000,
+        "initial_wait_seconds": 2.0,
+        "maximum_wait_seconds": 0.75,
+        "maximum_sensor_silence_seconds": 0.75
+      },
+      "maximumRecordedArrivalScanWaitSeconds": 0.0,
+      "allBuffersReleasedAtExplicitEndOfInput": true,
+      "baselineComparisonNotTruthAccuracy": {
+        "sameEstimatedHeaderDomain": true,
+        "sameAlgorithmTimestamps": true,
+        "sameScanCounters": true,
+        "onlinePoseDifference": {
+          "positionDifferenceRawUnits": {
+            "p50": 5.36530830689424e-12,
+            "p95": 4.070281246560428e-11,
+            "maximum": 4.700048584861012e-11,
+            "rms": 1.70176270181778e-11
+          },
+          "orientationDifferenceRadians": {
+            "p50": 7.786253216777574e-14,
+            "p95": 8.500044797550411e-13,
+            "maximum": 1.0520293362469897e-12,
+            "rms": 3.5121876151984786e-13
+          }
+        }
+      },
+      "actualLoadedLibrariesSha256": {
+        "libmetis-gtsam.so": "27d1eafe1948d539734637a685b0459411b56b6b575d443a328ed06742810571",
+        "libgtsam.so.4.3a0": "a04a785a5dae6737bed3246d6fa3d380824a36979311c97e2698bc460a420ddf",
+        "libgtsam_points.so.1.2.2": "b3ad18f233148fb0a4d0ff84f25199138da247357b878684619bdf214bb7e695",
+        "libcephes-gtsam.so.1.0.0": "865de51290543bbef9aaeffc4f025c575fbe76ac48e91ee09346e44b8df6b1ba",
+        "libglim.so": "6c554c6a48119eb9d2ce9d595076c64de581070f50c60438e85108bc9ebedb47",
+        "liblingxi_glim_offline.so": "d88b2ce24c70dde901e33747bd622238172729ce0dfaff74b37da0e0a0d78b8d",
+        "libodometry_estimation_cpu.so": "dc5ed040f36e8a83fd0207e5307894d95b1062f659e182db0e03cac8d02316ca"
+      },
+      "observedOfflineNativeTimingsNotLivePerformance": {
+        "preprocessMillisecondsP50P95P99": [
+          5.8963775,
+          6.91195665,
+          7.8058586599999975
+        ],
+        "odometryMillisecondsP50P95P99": [
+          10.200416,
+          16.72247895,
+          18.559976409999994
+        ]
+      },
+      "totalWallSecondsNotPacedRealtimeAcceptance": 39.753807058999996,
+      "reportSha256": "a3cc85d2deac5dc205b89c3303669ef26067e736b0b33f285613473d96d31d14",
+      "privateTrajectorySha256": "31c3f6439464bc1e3a0d21e230ad77201452b636e5c86906731c3dddd3679d64",
+      "privateNativeLogSha256": "76b742ea533c107d4febe62f834d8fa22f6a81fdadcfcf9b6a630bb14ef2b7b1"
+    }
+  },
+  "boundaries": {
+    "robotContacted": false,
+    "rosNodeStarted": false,
+    "liveSensorsSubscribed": false,
+    "motionCommandsSent": false,
+    "recordedArrivalTimingIsLivePerformance": false,
+    "timingHypothesisValidated": false,
+    "robotCalibrationValidated": false,
+    "mapGeometryValidated": false,
+    "globalMappingExecuted": false,
+    "relocalizationValidated": false,
+    "voiceConcurrencyValidated": false,
+    "targetArm64StreamingValidated": false,
+    "navigationValidated": false,
+    "deploymentApproved": false,
+    "rawDataPublished": false
+  },
+  "originalCapturesAndExecutedSourcesUnchangedAtExport": true
+}
