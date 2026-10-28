@@ -33,10 +33,13 @@ class CandidateBaselines(unittest.TestCase):
     def test_review_does_not_claim_deployment_or_full_dependency_lock(self):
         self.assertFalse(self.manifest["deploymentApproved"])
         self.assertFalse(self.manifest["dependenciesPinned"])
-        self.assertEqual("provisional_kiss_only_diagnostic_no_full_comparison", self.manifest["selectionStatus"])
-        for key in ("fullSameDataComparison", "mapPersistenceAndRelocalization", "navigationAndEmergencyStop"):
+        self.assertEqual("provisional_glim_supported_pending_timing_mapping_and_target_validation",
+                         self.manifest["selectionStatus"])
+        for key in ("mapPersistenceAndRelocalization", "navigationAndEmergencyStop"):
             self.assertEqual("not_run", self.manifest["targetValidation"][key])
-        self.assertEqual("kiss_icp_only_diagnostic_completed_glim_not_run",
+        self.assertEqual("not_accepted_common_window_and_mapping_comparison_pending",
+                         self.manifest["targetValidation"]["fullSameDataComparison"])
+        self.assertEqual("kiss_and_glim_odometry_diagnostics_completed_not_navigation_acceptance",
                          self.manifest["targetValidation"]["dynamicReplay"])
 
     def test_documentation_links_the_same_reviewed_commits(self):
@@ -57,9 +60,11 @@ class CandidateBaselines(unittest.TestCase):
         self.assertEqual(evidence["sampledCloudFrames"], evidence["matchingFrames"])
         self.assertFalse(evidence["calibrationValidated"])
         self.assertEqual("unverified", target["dynamicTimeAlignment"])
-        self.assertEqual("kiss_icp_only_diagnostic_completed_glim_not_run", target["dynamicReplay"])
+        self.assertEqual("kiss_and_glim_odometry_diagnostics_completed_not_navigation_acceptance",
+                         target["dynamicReplay"])
         self.assertEqual("all_clouds_processed_quality_not_accepted", target["kissOfflineDiagnostic"])
-        self.assertIn("synthetic_profile_only", target["offlineConfigGeneration"])
+        self.assertEqual("all_scans_accounted_for_two_unapproved_timing_hypotheses", target["glimOfflineDiagnostic"])
+        self.assertIn("not_calibration", target["offlineConfigGeneration"])
 
     def test_wrapper_package_declaration_is_not_a_verified_root_license_file(self):
         wrapper = next(

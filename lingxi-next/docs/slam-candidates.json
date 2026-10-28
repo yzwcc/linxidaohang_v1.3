@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "reviewDate": "2026-10-28",
-  "reviewScope": "pinned_sources_passive_capture_core_build_and_kiss_only_real_offline_diagnostic",
-  "selectionStatus": "provisional_kiss_only_diagnostic_no_full_comparison",
+  "reviewScope": "pinned_sources_passive_capture_core_build_and_kiss_glim_real_odometry_diagnostics",
+  "selectionStatus": "provisional_glim_supported_pending_timing_mapping_and_target_validation",
   "deploymentApproved": false,
   "repositories": [
     {
@@ -104,7 +104,10 @@
     },
     "imuCalibration": "unverified",
     "dynamicTimeAlignment": "unverified",
-    "offlineConfigGeneration": "passed_with_pinned_sources_and_synthetic_profile_only",
+    "offlineConfigGeneration": "passed_synthetic_and_reviewed_diagnostic_hypothesis_profiles_not_calibration",
+    "cloudDistanceUnits": "sdk_declares_metres_not_empirically_calibrated",
+    "imuUnitDeclarations": "sdk_example_si_supported_by_dynamics_not_calibration",
+    "imuOrientation": "identity_through_both_captures_not_attitude_measurement",
     "hostCpuCoreBuild": "passed_x86_64_ubuntu_24_04_not_target_arm64",
     "nativeTimeConversion": "passed_synthetic_fixture_only",
     "hostBuildEvidence": "slam-cpu-build-evidence.json",
@@ -114,10 +117,12 @@
     "captureEvidence": "slam-capture-evidence.json",
     "kissOfflineDiagnostic": "all_clouds_processed_quality_not_accepted",
     "kissOfflineEvidence": "slam-kiss-offline-evidence.json",
-    "fullSameDataComparison": "not_run",
+    "glimOfflineDiagnostic": "all_scans_accounted_for_two_unapproved_timing_hypotheses",
+    "glimOfflineEvidence": "slam-glim-offline-evidence.json",
+    "fullSameDataComparison": "not_accepted_common_window_and_mapping_comparison_pending",
     "targetDependencyLoading": "not_run",
     "rosWrapperBuild": "not_run",
-    "dynamicReplay": "kiss_icp_only_diagnostic_completed_glim_not_run",
+    "dynamicReplay": "kiss_and_glim_odometry_diagnostics_completed_not_navigation_acceptance",
     "mapPersistenceAndRelocalization": "not_run",
     "navigationAndEmergencyStop": "not_run"
   }
