@@ -56,6 +56,12 @@ recorded-arrival-order GLIM trials without preloading the entire IMU stream.
 The effective frame domain, algorithm times and scan counters match the
 frozen controls. This is not paced/live performance or a deployed ROS adapter.
 See [the streaming input boundary](docs/SLAM_STREAM_INPUT.md).
+The next input layer adds immutable sensor snapshots, a bounded callback-to-worker
+queue and an opt-in passive Humble subscription wrapper. All 1,585 recorded
+clouds and 31,326 IMU messages match the prior decoder, including every point
+and per-point time. Concurrency tests use synthetic engines; this is not yet
+actual DDS, ARM64 streaming or native-worker performance acceptance.
+See [the passive sensor worker](docs/SLAM_PASSIVE_WORKER.md).
 An independent full-recording range audit records returns beyond 5 raw-coordinate
 units. The roughly 5 m travel estimate is not calibration truth; travel,
 scan coverage and map accuracy are different quantities.

@@ -18,11 +18,32 @@ frames. EOF/stop releases buffers and counts trailing unbracketed scans; it
 does not save a map or certify successful mapping. Engine shutdown remains
 the caller's responsibility.
 
-This is not yet a ROS subscriber or a production service. A live adapter must
-also bound its callback-to-worker queue, check a real monotonic watchdog,
-validate the sensor profile and isolate native processing from callbacks.
-The recorded-arrival trial does not model CPU queueing or prove real-time
+`messages.py` now snapshots the entire raw cloud payload and immutable IMU
+vectors using an explicit frame/time profile. `worker.SensorWorker` bounds
+callback count, cloud count, raw payload bytes and queue age. Its one owner
+thread creates the engine, decodes clouds, calls `SensorStream`, delivers
+results and closes the engine. Callback threads never call native methods.
+Stop discards queued packets; failure is latched. Monotonic idle ticks detect
+missing sensors. Snapshot/stop also detect overdue work and report a still-live
+thread rather than claiming a native hang was terminated.
+
+`passive_ros.run_passive` is an opt-in, bounded Humble session with its own
+context and single-threaded executor. It subscribes only to explicit cloud/IMU
+topics, disables rosout/parameter services and ignores global ROS arguments.
+It has no application motion, TF or map publisher or service client. Standard
+rclpy infrastructure can still publish parameter events; this is not a claim
+that creating a ROS node produces zero network traffic.
+
+This is not a deployed subscriber or a production service. Actual DDS
+behavior, native-worker throughput, ARM64 execution and shutdown under
+unresponsive native code remain to be measured. Python cannot forcibly
+terminate a stuck native thread; process isolation/supervision is still needed
+before production. Queue age begins at the serialized callback, not the sensor
+or DDS transport, and is not an end-to-end latency guarantee.
+The prior recorded-arrival trial does not model CPU queueing or prove real-time
 performance, calibration, ARM64 streaming, localization or navigation.
 
 See `docs/SLAM_STREAM_INPUT.md` for actual-recording checks. Existing AIMDK
 services, installers and release artifacts remain unchanged.
+See `docs/SLAM_PASSIVE_WORKER.md` for worker limits and the message-equivalence
+check. No module auto-loads a native library or activates a robot backend.

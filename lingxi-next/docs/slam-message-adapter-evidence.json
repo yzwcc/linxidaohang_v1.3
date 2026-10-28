@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "observedDate": "2026-10-28",
+  "purpose": "complete_recorded_message_snapshot_decode_equivalence_only",
+  "result": "all_recorded_sensor_messages_match_frozen_decoder_not_live_acceptance",
+  "sourceSha256": {
+    "robot-slam/lingxi_slam/messages.py": "bb52d293b2d839ecb80bc51d0b5dcff17b533911b17c9ab462d86f255c1dc336",
+    "tools/check_slam_message_adapter.py": "366a6e9cb1e76dcefd56ad2f718fb22c0eee284a1bb851c1524e3a0d7bc9bd18",
+    "tools/run_kiss_offline_trial.py": "ebe6d933005fa0821b50c0f91477e7a80a32ac1d174bf1040ec90d91e382a8aa",
+    "tools/diagnose_slam_sensors.py": "0c9808ca472b6d7be7b3b118c05d83b13f5b975e76da1c732e08adf071e1b824",
+    "tools/slam_bag_audit.py": "529f6eb0b6a5050e74d0c65c566d53893f5e989e0a1a6d889ba0d27bf7a7620b",
+    "tools/verify_slam_capture.py": "073c280e1791636e6ccd41c016ca50d56fa3a71078eb5ab1a4bfcc77e0259bad"
+  },
+  "captureManifestSha256": "dff6ef252728ac0a26989b880d1d3a11769922467c8f5d7747c1b04a5c2c1e28",
+  "datasets": {
+    "static": {
+      "comparedMessages": {
+        "cloud": 353,
+        "imu": 6880
+      },
+      "completePointsCompared": 8999917,
+      "maximumSnapshotPayloadBytes": 816960,
+      "allCoordinatesOffsetsAndImuValuesExactlyEqualToFrozenDecoder": true
+    },
+    "dynamic": {
+      "comparedMessages": {
+        "cloud": 1232,
+        "imu": 24446
+      },
+      "completePointsCompared": 31270824,
+      "maximumSnapshotPayloadBytes": 828000,
+      "allCoordinatesOffsetsAndImuValuesExactlyEqualToFrozenDecoder": true
+    }
+  },
+  "boundaries": {
+    "robotContacted": false,
+    "workerExecuted": false,
+    "rosNodeStarted": false,
+    "nativeSlamExecuted": false,
+    "motionCommandsSent": false,
+    "pointTimesCalibrated": false,
+    "mapGeometryValidated": false,
+    "navigationValidated": false,
+    "deploymentApproved": false,
+    "rawDataPublished": false
+  },
+  "originalCapturesAndSourcesUnchanged": true
+}
