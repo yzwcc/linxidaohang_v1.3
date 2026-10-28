@@ -1,0 +1,361 @@
+{
+  "schemaVersion": 1,
+  "purpose": "factory_and_recorded_frame_audit_not_calibration_acceptance",
+  "runnerSha256": "03375a989583b26e6a92557cb23515d7f97cd0586e2cfd54a54aa424819e5374",
+  "factoryReaderSha256": "4173f6682c60ebb254658362524d79c27941d9984d9f1377e2e99b2f73596f37",
+  "factoryCaptureReportSha256": "0e90f3fb15eb0b1637e15b5c4b49c1d6293a3433af234517aa5494c8b5bb0a97",
+  "privateFactoryFileSha256": "09e29f222ab156a8ce088f89517b65ce21f91a159a51d8f0130612c70f8ee371",
+  "factoryAggregate": {
+    "sections": [
+      "chest_lidar",
+      "head_rear_rgb",
+      "head_rgbd_rgb",
+      "stereo_left",
+      "stereo_right"
+    ],
+    "lidarImuNamedSectionPresent": false,
+    "chestImuSectionPresent": false,
+    "waistImuSectionPresent": false,
+    "chestLidarRotationDeterminant": 1.0000005300530668,
+    "chestLidarRotationOrthogonalityMaximumError": 5.299137828540523e-07,
+    "factoryBaseLidarCannotSupplyLidarImuExtrinsic": true
+  },
+  "captureManifestSha256": "dff6ef252728ac0a26989b880d1d3a11769922467c8f5d7747c1b04a5c2c1e28",
+  "profileSha256": "201194cf0d07fedf0a3a22b6cc17081575505469d8cbd72f14f626cf3d95e633",
+  "sdkDocument": {
+    "member": "aimdk-aarch64-faf4c945-artifacts/docs/cn/_build/html/en/dev/about_agibot_X2/coordinate_system.html",
+    "memberSha256": "d736227d0897a7e2112c73fee126fcc7bc6cb77ce41aa2dbdbc3821d4e144554",
+    "archiveSha256": "dc80fe5d2907881ed77beb230680867efac6bd28b458f83d2ff4e9479abe3615",
+    "factoryFileDeclaredAuthoritative": true,
+    "urdfAndPerDeviceFactoryCalibrationAreDistinct": true
+  },
+  "datasets": {
+    "static": {
+      "selectedMessageCounts": {
+        "cloud": 353,
+        "tf": 1647,
+        "tf_static": 5
+      },
+      "profileMatchesRecordedLidarImuTf": true,
+      "baseToLidarPath": [
+        "base_link",
+        "pelvis",
+        "waist_yaw_link",
+        "waist_pitch_link",
+        "torso_link",
+        "lidar_chest_front"
+      ],
+      "dynamicEdgesOnBaseToLidarPath": [
+        [
+          "pelvis",
+          "waist_yaw_link"
+        ],
+        [
+          "waist_yaw_link",
+          "waist_pitch_link"
+        ],
+        [
+          "waist_pitch_link",
+          "torso_link"
+        ]
+      ],
+      "staticOnlyBaseToLidarPath": false,
+      "maximumInterpolationGapMilliseconds": 50.0,
+      "queries": {
+        "header_is_scan_start": {
+          "bracketedQueries": 341,
+          "uncoveredQueries": 12,
+          "uncoveredReasons": {
+            "outside_dynamic_tf_coverage": 12
+          },
+          "largestUsedInterpolationGapMilliseconds": 22.049417,
+          "maximumRotationFromFirstTfDegrees": 0.0,
+          "maximumTranslationFromFirstTfMetres": 0.0,
+          "factoryConventionComparisonsNotCalibration": {
+            "literal_matrix": {
+              "rotationDifferenceDegreesMinP50Max": [
+                3.6890001086715256,
+                3.6890001086715256,
+                3.6890001086715256
+              ],
+              "translationDifferenceMetresMinP50Max": [
+                0.006311423966575085,
+                0.006311423966575085,
+                0.006311423966575085
+              ]
+            },
+            "inverse_matrix": {
+              "rotationDifferenceDegreesMinP50Max": [
+                179.3656356107136,
+                179.3656356107136,
+                179.3656356107136
+              ],
+              "translationDifferenceMetresMinP50Max": [
+                0.5189007331795199,
+                0.5189007331795199,
+                0.5189007331795199
+              ]
+            }
+          }
+        },
+        "header_is_scan_end": {
+          "bracketedQueries": 340,
+          "uncoveredQueries": 13,
+          "uncoveredReasons": {
+            "outside_dynamic_tf_coverage": 13
+          },
+          "largestUsedInterpolationGapMilliseconds": 22.049417,
+          "maximumRotationFromFirstTfDegrees": 0.0,
+          "maximumTranslationFromFirstTfMetres": 0.0,
+          "factoryConventionComparisonsNotCalibration": {
+            "literal_matrix": {
+              "rotationDifferenceDegreesMinP50Max": [
+                3.6890001086715256,
+                3.6890001086715256,
+                3.6890001086715256
+              ],
+              "translationDifferenceMetresMinP50Max": [
+                0.006311423966575085,
+                0.006311423966575085,
+                0.006311423966575085
+              ]
+            },
+            "inverse_matrix": {
+              "rotationDifferenceDegreesMinP50Max": [
+                179.3656356107136,
+                179.3656356107136,
+                179.3656356107136
+              ],
+              "translationDifferenceMetresMinP50Max": [
+                0.5189007331795199,
+                0.5189007331795199,
+                0.5189007331795199
+              ]
+            }
+          }
+        }
+      }
+    },
+    "dynamic": {
+      "selectedMessageCounts": {
+        "cloud": 1232,
+        "tf": 5889,
+        "tf_static": 5
+      },
+      "profileMatchesRecordedLidarImuTf": true,
+      "baseToLidarPath": [
+        "base_link",
+        "pelvis",
+        "waist_yaw_link",
+        "waist_pitch_link",
+        "torso_link",
+        "lidar_chest_front"
+      ],
+      "dynamicEdgesOnBaseToLidarPath": [
+        [
+          "pelvis",
+          "waist_yaw_link"
+        ],
+        [
+          "waist_yaw_link",
+          "waist_pitch_link"
+        ],
+        [
+          "waist_pitch_link",
+          "torso_link"
+        ]
+      ],
+      "staticOnlyBaseToLidarPath": false,
+      "maximumInterpolationGapMilliseconds": 50.0,
+      "queries": {
+        "header_is_scan_start": {
+          "bracketedQueries": 1222,
+          "uncoveredQueries": 10,
+          "uncoveredReasons": {
+            "outside_dynamic_tf_coverage": 10
+          },
+          "largestUsedInterpolationGapMilliseconds": 43.98975,
+          "maximumRotationFromFirstTfDegrees": 12.173426939369417,
+          "maximumTranslationFromFirstTfMetres": 0.034088030248305846,
+          "factoryConventionComparisonsNotCalibration": {
+            "literal_matrix": {
+              "rotationDifferenceDegreesMinP50Max": [
+                0.725457360468947,
+                3.6890001086715256,
+                13.036127297312673
+              ],
+              "translationDifferenceMetresMinP50Max": [
+                0.0002034674004916159,
+                0.006311423966575085,
+                0.03545205196338478
+              ]
+            },
+            "inverse_matrix": {
+              "rotationDifferenceDegreesMinP50Max": [
+                172.8379653019273,
+                179.2752192257048,
+                179.98701774845648
+              ],
+              "translationDifferenceMetresMinP50Max": [
+                0.5044736003393119,
+                0.5187212599562597,
+                0.5396035276341725
+              ]
+            }
+          }
+        },
+        "header_is_scan_end": {
+          "bracketedQueries": 1221,
+          "uncoveredQueries": 11,
+          "uncoveredReasons": {
+            "outside_dynamic_tf_coverage": 11
+          },
+          "largestUsedInterpolationGapMilliseconds": 43.98975,
+          "maximumRotationFromFirstTfDegrees": 12.093659465192722,
+          "maximumTranslationFromFirstTfMetres": 0.035617652016839925,
+          "factoryConventionComparisonsNotCalibration": {
+            "literal_matrix": {
+              "rotationDifferenceDegreesMinP50Max": [
+                0.7328416108336293,
+                3.6890001086715256,
+                12.965089529271552
+              ],
+              "translationDifferenceMetresMinP50Max": [
+                0.00018980476153190542,
+                0.006311423966575085,
+                0.03691889576689627
+              ]
+            },
+            "inverse_matrix": {
+              "rotationDifferenceDegreesMinP50Max": [
+                172.94753628297937,
+                179.29526131454904,
+                179.9854365095789
+              ],
+              "translationDifferenceMetresMinP50Max": [
+                0.5045357794226323,
+                0.5187212599562597,
+                0.5404505513307664
+              ]
+            }
+          }
+        }
+      }
+    }
+  },
+  "analysisVersions": {
+    "numpy": "2.5.4",
+    "scipy": "1.16.3",
+    "ruamel.yaml": "0.19.1",
+    "rosbags": "0.11.9"
+  },
+  "warningSemantics": {
+    "upstreamCommit": "1a197c999e4865f5cab7c9cd25474128413ebbca",
+    "sourceSha256": "b3e99b5d0541d80666a798da41517545451e087cfc8d0b7e10f2b233c1c0936c",
+    "minimumCorrectedSpeedMetresPerSecond": 0.1,
+    "cumulativeReportInterval": 64,
+    "strictBetterRatioThresholds": [
+      0.7,
+      0.4,
+      0.5
+    ],
+    "comparisonReference": "optimized_state_not_external_ground_truth",
+    "runs": {
+      "paced-static-start": {
+        "reportSha256": "110b978202a36fc35a719d296295c9e23caa0bb3cc499013bfaa13196516cca2",
+        "nativeLogSha256": "47d83f15be29b3ec8864825f3225877c5b1956f514e03fbc458028cd73680d8a",
+        "predictionWarningCount": 0,
+        "loggedCumulativeWindows": [],
+        "biasMagnitudeWarningCount": 0,
+        "roundedRatiosAreNotExactThresholdOrCalibrationTests": true
+      },
+      "paced-static-end": {
+        "reportSha256": "c278f1c7990900affcdce3e39c1ad64a2c72f58155f2c27cabe23f928c94ce44",
+        "nativeLogSha256": "ae64b1a05e8d17f799858b8d4a1f4afe6dc5877f32552abed5c0e605b34301a3",
+        "predictionWarningCount": 0,
+        "loggedCumulativeWindows": [],
+        "biasMagnitudeWarningCount": 0,
+        "roundedRatiosAreNotExactThresholdOrCalibrationTests": true
+      },
+      "paced-dynamic-start": {
+        "reportSha256": "38cc19bad980137d2a1b5a7c2ca714c9336ad1e876bbd22ccda1dd88d4ab4dda",
+        "nativeLogSha256": "7b7118a7d57605ea106677f43c0d9c39b873f8c3c2795c4824b72872f94a539e",
+        "predictionWarningCount": 0,
+        "loggedCumulativeWindows": [],
+        "biasMagnitudeWarningCount": 0,
+        "roundedRatiosAreNotExactThresholdOrCalibrationTests": true
+      },
+      "paced-dynamic-end": {
+        "reportSha256": "f887f208bdbd6efafc4b70dd3b0c435633eacf1aeb65b95770fcfba629a4e8b8",
+        "nativeLogSha256": "2e4d05fe6d69386814c5ab67848c8317b0176b2826f0d2a6f19535071973c0a0",
+        "predictionWarningCount": 0,
+        "loggedCumulativeWindows": [],
+        "biasMagnitudeWarningCount": 0,
+        "roundedRatiosAreNotExactThresholdOrCalibrationTests": true
+      },
+      "live-start": {
+        "reportSha256": "5523d2e1a3392c6ad5c480a18ce5f6fe49f92615057d7ba474f69f382c7379a0",
+        "nativeLogSha256": "0b39dffbd8a6c13b4699efbd67060cf84f433807f7d094f8f5db8ee0d6efec80",
+        "predictionWarningCount": 2,
+        "loggedCumulativeWindows": [
+          {
+            "cumulativeValidations": 64,
+            "roundedBetterRatiosRotationTranslationVelocity": [
+              0.8,
+              0.0,
+              0.02
+            ]
+          },
+          {
+            "cumulativeValidations": 128,
+            "roundedBetterRatiosRotationTranslationVelocity": [
+              0.83,
+              0.0,
+              0.01
+            ]
+          }
+        ],
+        "biasMagnitudeWarningCount": 0,
+        "roundedRatiosAreNotExactThresholdOrCalibrationTests": true
+      },
+      "live-end": {
+        "reportSha256": "124c7c4d1ac80c13eadb4700619893975b416c8c4c4a8e3be2292453059ac66a",
+        "nativeLogSha256": "74e369126b8fac9ab0b73703c4396eed62f5e0681fe10a65c405e0894c9425a4",
+        "predictionWarningCount": 2,
+        "loggedCumulativeWindows": [
+          {
+            "cumulativeValidations": 64,
+            "roundedBetterRatiosRotationTranslationVelocity": [
+              0.84,
+              0.0,
+              0.0
+            ]
+          },
+          {
+            "cumulativeValidations": 128,
+            "roundedBetterRatiosRotationTranslationVelocity": [
+              0.88,
+              0.0,
+              0.0
+            ]
+          }
+        ],
+        "biasMagnitudeWarningCount": 0,
+        "roundedRatiosAreNotExactThresholdOrCalibrationTests": true
+      }
+    }
+  },
+  "boundaries": {
+    "robotCalibrationValidated": false,
+    "timingHypothesisSelected": false,
+    "factoryValuesApplied": false,
+    "timeOffsetFitted": false,
+    "imuBiasSubtracted": false,
+    "groundTruthAvailable": false,
+    "navigationValidated": false,
+    "deploymentApproved": false,
+    "rosNodeStarted": false,
+    "motionCommandsSent": false,
+    "rawCalibrationPublished": false
+  }
+}

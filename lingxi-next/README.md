@@ -74,6 +74,11 @@ Both close cleanly; explicit stop discards and retired consumer results are
 counted separately. This short live observation is not calibration, geometry,
 long-run reliability, mapping, recovery or navigation acceptance.
 See [the actual Humble input checks](docs/SLAM_HUMBLE_LIVE.md).
+A subsequent read-only factory/recorded-TF audit confirms that this device's
+factory file does not contain the LiDAR IMU extrinsic, and that the
+base-to-LiDAR chain crosses dynamic waist joints. Timestamped interpolation
+is checked without extrapolation; no calibration or fixed transform is
+silently applied. See [the frame and warning audit](docs/SLAM_CALIBRATION_AUDIT.md).
 An independent full-recording range audit records returns beyond 5 raw-coordinate
 units. The roughly 5 m travel estimate is not calibration truth; travel,
 scan coverage and map accuracy are different quantities.
