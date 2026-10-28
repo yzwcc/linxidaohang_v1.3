@@ -68,6 +68,12 @@ All messages are accounted for, native calls have one nonproducer owner, and
 worker shutdown joins cleanly. This is paced bag input, not live DDS, mapping,
 localization recovery or navigation acceptance.
 See [the actual ARM64 worker checks](docs/SLAM_ARM64_WORKER.md).
+Two further fresh ARM64 processes now subscribe to actual Humble LiDAR/IMU
+inputs for 20 seconds each, with the frozen native engine and bounded worker.
+Both close cleanly; explicit stop discards and retired consumer results are
+counted separately. This short live observation is not calibration, geometry,
+long-run reliability, mapping, recovery or navigation acceptance.
+See [the actual Humble input checks](docs/SLAM_HUMBLE_LIVE.md).
 An independent full-recording range audit records returns beyond 5 raw-coordinate
 units. The roughly 5 m travel estimate is not calibration truth; travel,
 scan coverage and map accuracy are different quantities.

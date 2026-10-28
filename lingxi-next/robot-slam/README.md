@@ -36,8 +36,10 @@ that creating a ROS node produces zero network traffic.
 
 This is not a deployed subscriber or a production service. Actual ARM64 native
 worker execution has now been measured with four paced, original-recording
-trials; see `docs/SLAM_ARM64_WORKER.md`. Actual DDS behavior, long-running
-throughput and shutdown under unresponsive native code remain to be measured.
+trials; see `docs/SLAM_ARM64_WORKER.md`. Two additional 20-second processes
+now exercise actual Humble subscriptions and close cleanly; see
+`docs/SLAM_HUMBLE_LIVE.md`. Native warnings, calibration, long-running
+throughput and shutdown under unresponsive native code remain unresolved.
 Python cannot forcibly
 terminate a stuck native thread; process isolation/supervision is still needed
 before production. Queue age begins at the serialized callback, not the sensor

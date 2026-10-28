@@ -1,0 +1,312 @@
+{
+  "schemaVersion": 1,
+  "purpose": "arm64_actual_humble_passive_odometry",
+  "result": "actual_short_humble_subscriptions_verified_not_product_acceptance",
+  "replayManifestSha256": "20b8c6c42d1f2398102e47a9e83a5033c1bce21dbec3431367c5d51a4c03c493",
+  "parentWorkerManifestSha256": "8db94e8df1844438ee9b45cdd44f383968d9098533a691bc6b45355887c22ac5",
+  "coreBundleManifestSha256": "a4a0cea60ace957864f48b2b8bf726ee9f6e0594be8238cac36dbd11d024b733",
+  "sourceCommits": {
+    "gtsam": "3ad4b4c3cb28394c9597f48fa02dad361c8450e3",
+    "gtsam_points": "9d32e7dbecf6015560d84b4901d6b0a6f483ec46",
+    "glim": "1a197c999e4865f5cab7c9cd25474128413ebbca"
+  },
+  "coordinatorSourceSha256": "0e9097a46531fdf757602c8a674b49d155f97810d2429bafd9ebbe51f176521c",
+  "exporterSourceSha256": "e9aebca4d73988ae4e9a7161306525800f97c9fa133b740da21b3b5193fbcc63",
+  "rosInfrastructureMayPublishDiscoveryAndParameterEvents": true,
+  "boundaries": {
+    "motionCommandsSent": false,
+    "applicationPublishersCreated": false,
+    "tfPublished": false,
+    "mapPublished": false,
+    "globalMappingExecuted": false,
+    "mapSaved": false,
+    "mapActivated": false,
+    "modeOrInputSourceChanged": false,
+    "deployedServicesChanged": false,
+    "sensorToDdsLatencyValidated": false,
+    "timingHypothesisValidated": false,
+    "robotCalibrationValidated": false,
+    "geometryValidated": false,
+    "relocalizationValidated": false,
+    "voiceConcurrencyValidated": false,
+    "navigationValidated": false,
+    "deploymentApproved": false,
+    "rawDataPublished": false
+  },
+  "runs": {
+    "start": {
+      "timingHypothesis": "header_is_scan_start",
+      "target": {
+        "machine": "aarch64",
+        "python": "3.10.12",
+        "numpy": "1.26.1"
+      },
+      "requestedSeconds": 20.0,
+      "actualSessionWallSecondsIncludingCleanup": 20.036033420998137,
+      "reportSha256": "5523d2e1a3392c6ad5c480a18ce5f6fe49f92615057d7ba474f69f382c7379a0",
+      "ddsProfileSha256": "6bd06d226e4c7a5e72caf9cc44613ab26a469940f286dd887d5a2b1d81af2a0b",
+      "sourceSha256": {
+        "robot-slam/lingxi_slam/__init__.py": "9a59075191196952798a68b31564f2fc148727cbcfa59ae715657865894c4226",
+        "robot-slam/lingxi_slam/messages.py": "bb52d293b2d839ecb80bc51d0b5dcff17b533911b17c9ab462d86f255c1dc336",
+        "robot-slam/lingxi_slam/stream.py": "1fcca31c82dcec8a6969576c98c27e68582f0a6288b8482d8442c8703ff5d0bc",
+        "robot-slam/lingxi_slam/worker.py": "59beea9c8c9015dc1b24f09fc010ccb86f59eda469a0d9af990777c715ff5cea",
+        "robot-slam/lingxi_slam/passive_ros.py": "57647025f675440d5f2278e38482fbe13df9b2769a1f056607bb1864ab2544b4",
+        "tools/glim_live_session.py": "6fa7bb6bbdf8708e51443c5385f8e40eff7ea622a6c27326556de2b3f007a504"
+      },
+      "actualLoadedLibrariesSha256": {
+        "libgtsam.so.4": "fee5315024f5eaf4b7b432bc8ff2c9715c098fe6a3693d8177a39bc9a538620f",
+        "libglim.so": "3c70a22f4151c0c600f394bc65c1dff5c6d133566cb110866b869caeb9ae7f81",
+        "libodometry_estimation_cpu.so": "5f9507bf8c075b89f5c072d0d9d3e0f535de259c884d955f5ad9230bbd632c0d",
+        "libcephes-gtsam.so.1": "7e18a24d0795a956df312b33c0f2f437c7130e0cdeb5b596a50ed30b4d356e24",
+        "libmetis-gtsam.so": "844a86b408f2ed51445162f6aeb7979212e8aaae064ad59e0d3862ec6b96e400",
+        "libgtsam_points.so.1": "1b279b1d3ad4e252499167a6f9d16f17eec8e7ca634d7157fbd594692e2a54fb",
+        "liblingxi_glim_offline.so": "3b814b90d62162461b00e98f98ba29a46827d3b9fbb398b597c29ae5ac633b5e"
+      },
+      "observations": {
+        "cloud": {
+          "callbacks": 183,
+          "callbackSpanSeconds": 18.1983153540059,
+          "callbackArrivalHz": 10.000925715354049,
+          "maximumHeaderGapMilliseconds": 101.893,
+          "callbackSnapshotMillisecondsP50P95P99": [
+            0.2222319963038899,
+            0.33558380309841596,
+            0.8442489789740661
+          ]
+        },
+        "imu": {
+          "callbacks": 3656,
+          "callbackSpanSeconds": 18.273935641002026,
+          "callbackArrivalHz": 200.01164893013615,
+          "maximumHeaderGapMilliseconds": 15.75282,
+          "callbackSnapshotMillisecondsP50P95P99": [
+            0.093628499598708,
+            0.15852125034143683,
+            0.406119998297071
+          ]
+        },
+        "processedScans": 182,
+        "initializationScans": 31,
+        "estimatedPoses": 151,
+        "activeConsumerFrameResults": 182,
+        "retiredAtStopFrameResults": 0,
+        "firstPoseCloudCallbackBeginAfterObservationStartSeconds": 5.088000060997729,
+        "firstPoseResultAfterObservationStartSeconds": 5.157498390995897,
+        "frameResultAfterCallbackBeginMillisecondsP50P95P99": [
+          44.54998800429166,
+          70.88521789628429,
+          83.85784422047435
+        ],
+        "frameResultAfterCallbackBeginMillisecondsMaximum": 96.77635799744166,
+        "nativePreprocessAndOdometryMillisecondsP50P95P99": [
+          40.066074,
+          67.46606734999997,
+          80.92612817999998
+        ]
+      },
+      "nativeCalls": {
+        "create": 1,
+        "imu": 3642,
+        "frame": 182,
+        "close": 1
+      },
+      "worker": {
+        "counts": {
+          "acceptedImu": 3656,
+          "acceptedClouds": 183,
+          "completedMessages": 3839,
+          "discardedMessages": 0,
+          "rejectedMessages": 0,
+          "maximumQueuedMessages": 19,
+          "maximumQueuedClouds": 1,
+          "maximumQueuedPayloadBytes": 794112
+        },
+        "limits": {
+          "maximum_messages": 4096,
+          "maximum_clouds": 16,
+          "maximum_payload_bytes": 67108864,
+          "maximum_cloud_payload_bytes": 8388608,
+          "maximum_queue_age_seconds": 0.5,
+          "maximum_processing_seconds": 0.75,
+          "tick_seconds": 0.05,
+          "shutdown_seconds": 3.0
+        },
+        "maximumObservedQueueAgeSeconds": 0.09236149000207661,
+        "threadJoinedAndQueuesReleased": true,
+        "discardedMessagesAreExplicitSessionStopNotUnreportedLoss": 0,
+        "stream": {
+          "counts": {
+            "receivedImu": 3656,
+            "receivedClouds": 183,
+            "insertedImu": 3642,
+            "processedScans": 182,
+            "initializationScans": 31,
+            "estimatedPoses": 151,
+            "skippedBeforeImu": 1,
+            "skippedAfterImuAtEndOfInput": 0,
+            "discardedOnFailure": 0,
+            "maximumPendingImu": 22,
+            "maximumPendingClouds": 1,
+            "maximumPendingBytes": 794112
+          },
+          "limits": {
+            "maximum_pending_imu": 4096,
+            "maximum_pending_clouds": 32,
+            "maximum_pending_bytes": 67108864,
+            "maximum_points_per_cloud": 2000000,
+            "maximum_imu_gap_ns": 50000000,
+            "maximum_cloud_gap_ns": 500000000,
+            "initial_wait_seconds": 2.0,
+            "maximum_wait_seconds": 0.75,
+            "maximum_sensor_silence_seconds": 0.75
+          },
+          "allBuffersReleasedAtExplicitEndOfInput": true,
+          "maximumActualCallbackScanWaitSeconds": 0.0017852740056696348
+        }
+      },
+      "peakResidentMiB": 249.6640625,
+      "processCpuSeconds": 17.724259552,
+      "nativeWarningCounts": {
+        "imuPredictionNotGood": 2,
+        "imuExtrinsicOrBiasWarning": 2
+      }
+    },
+    "end": {
+      "timingHypothesis": "header_is_scan_end",
+      "target": {
+        "machine": "aarch64",
+        "python": "3.10.12",
+        "numpy": "1.26.1"
+      },
+      "requestedSeconds": 20.0,
+      "actualSessionWallSecondsIncludingCleanup": 20.064604897001118,
+      "reportSha256": "124c7c4d1ac80c13eadb4700619893975b416c8c4c4a8e3be2292453059ac66a",
+      "ddsProfileSha256": "6bd06d226e4c7a5e72caf9cc44613ab26a469940f286dd887d5a2b1d81af2a0b",
+      "sourceSha256": {
+        "robot-slam/lingxi_slam/__init__.py": "9a59075191196952798a68b31564f2fc148727cbcfa59ae715657865894c4226",
+        "robot-slam/lingxi_slam/messages.py": "bb52d293b2d839ecb80bc51d0b5dcff17b533911b17c9ab462d86f255c1dc336",
+        "robot-slam/lingxi_slam/stream.py": "1fcca31c82dcec8a6969576c98c27e68582f0a6288b8482d8442c8703ff5d0bc",
+        "robot-slam/lingxi_slam/worker.py": "59beea9c8c9015dc1b24f09fc010ccb86f59eda469a0d9af990777c715ff5cea",
+        "robot-slam/lingxi_slam/passive_ros.py": "57647025f675440d5f2278e38482fbe13df9b2769a1f056607bb1864ab2544b4",
+        "tools/glim_live_session.py": "6fa7bb6bbdf8708e51443c5385f8e40eff7ea622a6c27326556de2b3f007a504"
+      },
+      "actualLoadedLibrariesSha256": {
+        "libodometry_estimation_cpu.so": "5f9507bf8c075b89f5c072d0d9d3e0f535de259c884d955f5ad9230bbd632c0d",
+        "libmetis-gtsam.so": "844a86b408f2ed51445162f6aeb7979212e8aaae064ad59e0d3862ec6b96e400",
+        "libgtsam.so.4": "fee5315024f5eaf4b7b432bc8ff2c9715c098fe6a3693d8177a39bc9a538620f",
+        "libcephes-gtsam.so.1": "7e18a24d0795a956df312b33c0f2f437c7130e0cdeb5b596a50ed30b4d356e24",
+        "libglim.so": "3c70a22f4151c0c600f394bc65c1dff5c6d133566cb110866b869caeb9ae7f81",
+        "libgtsam_points.so.1": "1b279b1d3ad4e252499167a6f9d16f17eec8e7ca634d7157fbd594692e2a54fb",
+        "liblingxi_glim_offline.so": "3b814b90d62162461b00e98f98ba29a46827d3b9fbb398b597c29ae5ac633b5e"
+      },
+      "observations": {
+        "cloud": {
+          "callbacks": 197,
+          "callbackSpanSeconds": 19.596087138001167,
+          "callbackArrivalHz": 10.001996756786841,
+          "maximumHeaderGapMilliseconds": 114.997,
+          "callbackSnapshotMillisecondsP50P95P99": [
+            0.21765500423498452,
+            0.31938639731379226,
+            0.8535626428783846
+          ]
+        },
+        "imu": {
+          "callbacks": 3933,
+          "callbackSpanSeconds": 19.65457051499834,
+          "callbackArrivalHz": 200.05524908313328,
+          "maximumHeaderGapMilliseconds": 12.647855,
+          "callbackSnapshotMillisecondsP50P95P99": [
+            0.09199600026477128,
+            0.1491337970946915,
+            0.39201631851028323
+          ]
+        },
+        "processedScans": 195,
+        "initializationScans": 31,
+        "estimatedPoses": 164,
+        "activeConsumerFrameResults": 194,
+        "retiredAtStopFrameResults": 1,
+        "firstPoseCloudCallbackBeginAfterObservationStartSeconds": 3.8406122790038353,
+        "firstPoseResultAfterObservationStartSeconds": 3.916954681997595,
+        "frameResultAfterCallbackBeginMillisecondsP50P95P99": [
+          43.14191899902653,
+          69.03065440055798,
+          87.3571094570798
+        ],
+        "frameResultAfterCallbackBeginMillisecondsMaximum": 115.24554600327974,
+        "nativePreprocessAndOdometryMillisecondsP50P95P99": [
+          39.150647,
+          64.83814169999998,
+          73.68655614000004
+        ]
+      },
+      "nativeCalls": {
+        "create": 1,
+        "imu": 3912,
+        "frame": 195,
+        "close": 1
+      },
+      "worker": {
+        "counts": {
+          "acceptedImu": 3933,
+          "acceptedClouds": 197,
+          "completedMessages": 4128,
+          "discardedMessages": 2,
+          "rejectedMessages": 0,
+          "maximumQueuedMessages": 34,
+          "maximumQueuedClouds": 2,
+          "maximumQueuedPayloadBytes": 1585568
+        },
+        "limits": {
+          "maximum_messages": 4096,
+          "maximum_clouds": 16,
+          "maximum_payload_bytes": 67108864,
+          "maximum_cloud_payload_bytes": 8388608,
+          "maximum_queue_age_seconds": 0.5,
+          "maximum_processing_seconds": 0.75,
+          "tick_seconds": 0.05,
+          "shutdown_seconds": 3.0
+        },
+        "maximumObservedQueueAgeSeconds": 0.15331700100068701,
+        "threadJoinedAndQueuesReleased": true,
+        "discardedMessagesAreExplicitSessionStopNotUnreportedLoss": 2,
+        "stream": {
+          "counts": {
+            "receivedImu": 3931,
+            "receivedClouds": 197,
+            "insertedImu": 3912,
+            "processedScans": 195,
+            "initializationScans": 31,
+            "estimatedPoses": 164,
+            "skippedBeforeImu": 2,
+            "skippedAfterImuAtEndOfInput": 0,
+            "discardedOnFailure": 0,
+            "maximumPendingImu": 51,
+            "maximumPendingClouds": 1,
+            "maximumPendingBytes": 793952
+          },
+          "limits": {
+            "maximum_pending_imu": 4096,
+            "maximum_pending_clouds": 32,
+            "maximum_pending_bytes": 67108864,
+            "maximum_points_per_cloud": 2000000,
+            "maximum_imu_gap_ns": 50000000,
+            "maximum_cloud_gap_ns": 500000000,
+            "initial_wait_seconds": 2.0,
+            "maximum_wait_seconds": 0.75,
+            "maximum_sensor_silence_seconds": 0.75
+          },
+          "allBuffersReleasedAtExplicitEndOfInput": true,
+          "maximumActualCallbackScanWaitSeconds": 0.0
+        }
+      },
+      "peakResidentMiB": 254.578125,
+      "processCpuSeconds": 18.62256272,
+      "nativeWarningCounts": {
+        "imuPredictionNotGood": 2,
+        "imuExtrinsicOrBiasWarning": 2
+      }
+    }
+  }
+}
