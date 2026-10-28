@@ -42,6 +42,15 @@ and point counts repeated, with numerically close online trajectories, but
 the complete point arrays were not bit-identical. Neither timing hypothesis,
 map geometry nor a production thread configuration is accepted.
 See [the full-map control limits](docs/SLAM_CONTROLLED_MAPPING.md).
+Twelve additional complete-map controls on the actual ARM64 robot have now
+completed save and fresh-process reload. Across all 36 same-condition
+host/target pairs, partitions and counts matched; complete saved-point
+arrays were not bit-identical, but bidirectional nearest-neighbor differences
+were small.
+All 60 within/across-architecture geometry pairs were measured without
+sampling, ICP or scale fitting. This is repeatability, not truth accuracy or
+live-navigation acceptance.
+See [the ARM64 full-map controls](docs/SLAM_ARM64_CONTROLLED_MAPPING.md).
 An independent full-recording range audit records returns beyond 5 raw-coordinate
 units. The roughly 5 m travel estimate is not calibration truth; travel,
 scan coverage and map accuracy are different quantities.
