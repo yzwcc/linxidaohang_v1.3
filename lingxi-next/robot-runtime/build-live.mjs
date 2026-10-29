@@ -29,8 +29,10 @@ export async function files(directory, prefix = "") {
   return result;
 }
 
-export async function sourceHashes(project = root) {
+export async function sourceHashes(project = root, profile = "point") {
+  if (!["point", "mapping"].includes(profile)) throw new Error("explicit_runtime_build_profile_required");
   const names = [...metadataFiles];
+  if (profile === "mapping") names.push("robot-runtime/build-mapping.mjs");
   for (const directory of sourceDirectories) {
     names.push(...(await files(path.join(project, directory), directory)));
   }
@@ -51,18 +53,19 @@ export async function sourceHashes(project = root) {
   return result;
 }
 
-export async function buildLive(output) {
+export async function buildAssets(output, profile = "point") {
   output = path.resolve(output);
   const parent = path.dirname(output);
   if (await realpath(parent) !== parent || path.relative(root, output).split(path.sep)[0] !== ".local") {
     throw new Error("new_direct_local_live_build_directory_required");
   }
-  const sources = await sourceHashes();
+  const sources = await sourceHashes(root, profile);
   await mkdir(output, { mode: 0o700 });
   const esbuild = await import("esbuild");
   const vite = await import("vite");
   await esbuild.build({
-    absWorkingDir: root, entryPoints: ["robot-runtime/src/main.ts"], bundle: true,
+    absWorkingDir: root,
+    entryPoints: [profile === "mapping" ? "robot-runtime/src/mapping-main.ts" : "robot-runtime/src/main.ts"], bundle: true,
     platform: "node", target: "node22", format: "esm", packages: "external",
     outfile: path.join(output, "api/main.mjs"), logLevel: "warning",
   });
@@ -71,7 +74,7 @@ export async function buildLive(output) {
     mode: "production", logLevel: "warn",
     build: { outDir: path.join(output, "web"), emptyOutDir: false, sourcemap: false },
   });
-  if (JSON.stringify(await sourceHashes()) !== JSON.stringify(sources)) {
+  if (JSON.stringify(await sourceHashes(root, profile)) !== JSON.stringify(sources)) {
     throw new Error("live_build_sources_changed");
   }
   const inventory = {};
@@ -81,7 +84,8 @@ export async function buildLive(output) {
   }
   if (!inventory["api/main.mjs"] || !inventory["web/index.html"]) throw new Error("complete_live_assets_required");
   const manifest = {
-    schemaVersion: 1, purpose: "isolated_live_point_assets_not_target_acceptance",
+    schemaVersion: 1, purpose: profile === "mapping"
+      ? "isolated_managed_mapping_assets_not_target_acceptance" : "isolated_live_point_assets_not_target_acceptance",
     nodeBuildHostVersion: process.version, esbuildVersion: esbuild.version, viteVersion: vite.version,
     environmentFilesLoaded: false, customEnvironmentVariablesExposed: false,
     sourceSha256: sources, files: inventory,
@@ -90,6 +94,8 @@ export async function buildLive(output) {
     { flag: "wx", mode: 0o600 });
   return manifest;
 }
+
+export const buildLive = (output) => buildAssets(output, "point");
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try {

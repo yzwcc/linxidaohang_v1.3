@@ -29,14 +29,7 @@ def validate_output(output, config, immutable_files):
         raise ValueError("mapping_output_must_not_overlap_frozen_inputs")
 
 
-def main():
-    parser = argparse.ArgumentParser(description=__doc__)
-    for name in ("config", "output", "node", "api-bundle"):
-        parser.add_argument("--" + name, type=Path, required=True)
-    for name in ("node-sha256", "api-sha256"):
-        parser.add_argument("--" + name, required=True)
-    parser.add_argument("--seconds", type=int, default=300)
-    args = parser.parse_args()
+def run(args):
     config, _ = configuration(args.config)
     if "pointAdapter" not in config:
         raise ValueError("same_engine_mapping_point_output_required")
@@ -67,6 +60,16 @@ def main():
     result = owner.run(stop=stop, seconds=args.seconds,
                        on_listening=lambda status: print(json.dumps(status), flush=True))
     return 0 if result["result"] == "stopped" else 1
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    for name in ("config", "output", "node", "api-bundle"):
+        parser.add_argument("--" + name, type=Path, required=True)
+    for name in ("node-sha256", "api-sha256"):
+        parser.add_argument("--" + name, required=True)
+    parser.add_argument("--seconds", type=int, default=300)
+    return run(parser.parse_args())
 
 
 if __name__ == "__main__":

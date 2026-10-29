@@ -13,6 +13,8 @@ const WebSocket = createRequire(import.meta.url)("ws");
 const root = fileURLToPath(new URL("../", import.meta.url));
 const bundle = process.env.LINGXI_MAPPING_API_BUNDLE;
 const python = process.env.LINGXI_MAPPING_OWNER_PYTHON;
+const sourceRoot = process.env.LINGXI_MAPPING_SOURCE_ROOT;
+const webRoot = process.env.LINGXI_MAPPING_WEB_ROOT;
 const skip = process.platform !== "linux" || !bundle || !python || process.getuid() === 0
   ? "Explicit ordinary-user Linux Python and compiled managed API required" : false;
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -57,7 +59,9 @@ async function start(t, scenario = "healthy") {
   const child = spawn(python, [path.join(root, "tools/tests/fixtures/managed_mapping_child.py"),
     "owner", "--output", output, "--scenario", scenario, "--node", process.execPath, "--bundle", path.resolve(bundle),
     ...(tls ? ["--tls-key", key, "--tls-cert", certificate] : [])], {
-    cwd: root, env: { PATH: "/usr/bin:/bin", LANG: "C.UTF-8", PYTHONDONTWRITEBYTECODE: "1" },
+    cwd: root, env: { PATH: "/usr/bin:/bin", LANG: "C.UTF-8", PYTHONDONTWRITEBYTECODE: "1",
+      ...(sourceRoot ? { LINGXI_MAPPING_TEST_SOURCE_ROOT: path.resolve(sourceRoot) } : {}),
+      ...(webRoot ? { LINGXI_MAPPING_TEST_WEB_ROOT: path.resolve(webRoot) } : {}) },
     stdio: ["ignore", "pipe", "pipe"],
   });
   let status, stdout = "", stderr = "";
@@ -86,7 +90,10 @@ async function start(t, scenario = "healthy") {
     report: async () => JSON.parse(await readFile(path.join(output, "owner-report.json"), "utf8")),
     async ready() {
       for (let attempt = 0; attempt < 400; attempt += 1) {
-        if (status?.event === "listening") return status;
+        if (status?.event === "listening") {
+          assert.equal(status.sourceRoot, path.resolve(sourceRoot || root));
+          return status;
+        }
         if (child.exitCode !== null) assert.fail(`owner exited before listening: ${stderr}`);
         await sleep(25);
       }
@@ -118,7 +125,8 @@ async function client(runtime, t) {
       let data = "";
       response.setEncoding("utf8");
       response.on("data", (bytes) => { data += bytes; });
-      response.on("end", () => resolve({ status: response.statusCode, json: async () => JSON.parse(data) }));
+      response.on("end", () => resolve({ status: response.statusCode,
+        json: async () => JSON.parse(data), text: async () => data }));
       response.on("error", reject);
     });
     connection.on("error", reject);
@@ -157,7 +165,7 @@ async function client(runtime, t) {
     assert.equal(state.mappingControlReady, false);
     return { nativePid, session: state.mappingSession, socket };
   };
-  return { status, request, startMapping };
+  return { status, request, startMapping, page: (route) => send(`${base}${route}`, {}) };
 }
 
 test("dedicated API supports paired point streaming, save, replacement and discard under one owner", { skip }, async (t) => {
@@ -227,6 +235,15 @@ test("adopted native child ignoring EOF is killed within the cleanup budget and 
 
 test("production HTTPS console accepts paired mapping without vendor or demo dependencies", { skip }, async (t) => {
   const runtime = await start(t, "production-tls"), api = await client(runtime, t);
+  if (webRoot) {
+    const page = await api.page("/");
+    assert.equal(page.status, 200);
+    const html = await page.text();
+    assert.match(html, /<script[^>]+src="\/assets\//);
+    const asset = html.match(/<script[^>]+src="([^"]+)"/)?.[1];
+    assert.ok(asset);
+    assert.equal((await api.page(asset)).status, 200);
+  }
   const state = await (await api.request("state")).json();
   assert.equal(state.demoMode, false);
   assert.equal(state.mappingControlReady, true);

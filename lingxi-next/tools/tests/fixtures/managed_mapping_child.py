@@ -13,7 +13,9 @@ import threading
 import time
 
 
-ROOT = Path(__file__).resolve().parents[3]
+ROOT = Path(os.environ.get("LINGXI_MAPPING_TEST_SOURCE_ROOT",
+                           Path(__file__).resolve().parents[3])).resolve(strict=True)
+SOURCE_ENV = {"LINGXI_MAPPING_TEST_SOURCE_ROOT": str(ROOT)}
 sys.path[:0] = [str(ROOT / "robot-runtime/python"), str(ROOT / "robot-slam")]
 from lingxi_slam.process_protocol import HealthEmitter
 from mapping_owner import ManagedMappingOwner, MappingOwnerLimits
@@ -117,7 +119,7 @@ def service(args):
     manager = MappingManager(args.maps, lambda output: [
         sys.executable, "-B", str(Path(__file__).resolve()), "native",
         "--output", str(output), "--scenario", args.scenario,
-    ], {"PATH": "/usr/bin:/bin", "LANG": "C.UTF-8"}, points_enabled=True)
+    ], {"PATH": "/usr/bin:/bin", "LANG": "C.UTF-8", **SOURCE_ENV}, points_enabled=True)
     serve(args.socket, manager, parent_input=sys.stdin.buffer,
           status=lambda value: print(json.dumps(value), flush=True))
     return 0
@@ -130,7 +132,7 @@ def owner(args):
     runtime = ManagedMappingOwner(
         [sys.executable, "-B", str(Path(__file__).resolve()), "service", "--scenario", args.scenario],
         [args.node, args.bundle],
-        service_environment={"PATH": "/usr/bin:/bin", "LANG": "C.UTF-8"},
+        service_environment={"PATH": "/usr/bin:/bin", "LANG": "C.UTF-8", **SOURCE_ENV},
         api_environment={"PATH": "/usr/bin:/bin", "LANG": "C.UTF-8",
                          **({"LINGXI_PAIRING_CODE_SHA256": hashlib.sha256(
                              b"isolated-managed-mapping-test").hexdigest(), "LINGXI_HOST": "127.0.0.1",
@@ -138,12 +140,14 @@ def owner(args):
                                 if args.scenario == "production-tls" else {})}
                             if args.scenario.startswith("production-") else {"LINGXI_DEMO_MODE": "1"}),
                          "LINGXI_PORT": "-1" if args.scenario == "api-startup" else "0",
-                         "LINGXI_WEB_ROOT": str(args.output / "absent"),
+                         "LINGXI_WEB_ROOT": os.environ.get("LINGXI_MAPPING_TEST_WEB_ROOT",
+                                                          str(args.output / "absent")),
                          "LINGXI_DEMO_PAIRING_CODE": "isolated-managed-mapping-test"},
         output=args.output, limits=MappingOwnerLimits(service_stop_seconds=2., api_stop_seconds=2.))
     result = runtime.run(stop=stop, seconds=.25 if args.scenario == "duration" else 30.,
                          on_listening=lambda value: print(json.dumps({
                              **value, "apiPid": runtime.api.pid, "servicePid": runtime.service.pid,
+                             "sourceRoot": str(ROOT),
                          }), flush=True))
     return 0 if result["result"] == "stopped" else 1
 

@@ -25,7 +25,7 @@ def private_json(path, value):
         stream.write("\n")
 
 
-def prepare(args):
+def prepare(args, *, profile=bundle.LIVE):
     if sys.platform != "linux" or platform.machine() != "x86_64" or os.geteuid() == 0:
         raise ValueError("ordinary_linux_x64_live_preparation_required")
     build, dependencies = args.build.resolve(strict=True), args.consumer.resolve(strict=True)
@@ -34,7 +34,7 @@ def prepare(args):
             or any(output == path or output in path.parents or path in output.parents
                    for path in (build, dependencies, ROOT))):
         raise ValueError("new_private_live_preparation_outside_inputs_required")
-    built = bundle.verify_build(build, args.build_manifest_sha256)
+    built = bundle.verify_build(build, args.build_manifest_sha256, profile=profile)
     published = json.loads((ROOT / "docs/slam-point-consumer-preparation-evidence.json").read_text(encoding="utf-8"))
     if args.consumer_manifest_sha256 != published["manifestSha256"]:
         raise ValueError("same_frozen_consumer_dependency_manifest_required")
@@ -63,25 +63,25 @@ def prepare(args):
             copy(build / name, "references/build/" + name)
         copy(build / "build-manifest.json", "references/build/build-manifest.json")
         manifest = {
-            "schemaVersion": 1, "purpose": bundle.PURPOSE,
+            "schemaVersion": 1, "purpose": profile.purpose,
             "nodeVersion": frozen["nodeVersion"], "nodeBinarySha256": published["nodeBinarySha256"],
             "consumerManifestSha256": args.consumer_manifest_sha256,
             "buildManifestSha256": args.build_manifest_sha256, "packageLockSha256": frozen["packageLockSha256"],
             "sourceSha256": built["sourceSha256"], "installedPackages": frozen["installedPackages"],
             "files": bundle.inventory(stage), "boundaries": dict.fromkeys(bundle.BOUNDARIES, False),
         }
-        private_json(stage / bundle.MANIFEST, manifest)
-        digest = bundle.sha256(stage / bundle.MANIFEST)
-        bundle.verify_bundle(stage, digest)
-        bundle.write_archive(stage, output / ARCHIVE, manifest)
-        bundle.verify_archive(output / ARCHIVE, digest)
-        if (bundle.verify_build(build, args.build_manifest_sha256) != built
+        private_json(stage / profile.manifest, manifest)
+        digest = bundle.sha256(stage / profile.manifest)
+        bundle.verify_bundle(stage, digest, profile=profile)
+        bundle.write_archive(stage, output / profile.archive, manifest, profile=profile)
+        bundle.verify_archive(output / profile.archive, digest, profile=profile)
+        if (bundle.verify_build(build, args.build_manifest_sha256, profile=profile) != built
                 or consumer.verify_bundle(dependencies, args.consumer_manifest_sha256) != frozen
-                or bundle.verify_bundle(stage, digest) != manifest):
+                or bundle.verify_bundle(stage, digest, profile=profile) != manifest):
             raise ValueError("unchanged_live_preparation_inputs_required")
         report.update(
-            result="live_runtime_prepared_not_target_executed", manifestSha256=digest,
-            archiveSha256=bundle.sha256(output / ARCHIVE), archiveBytes=(output / ARCHIVE).stat().st_size,
+            result=profile.result_prefix + "_prepared_not_target_executed", manifestSha256=digest,
+            archiveSha256=bundle.sha256(output / profile.archive), archiveBytes=(output / profile.archive).stat().st_size,
             buildManifestSha256=args.build_manifest_sha256, consumerManifestSha256=args.consumer_manifest_sha256,
             sourceFiles=len(built["sourceSha256"]), bundleFiles=len(manifest["files"]) + 1,
             installedPackageCount=len(frozen["installedPackages"]),
@@ -94,15 +94,15 @@ def prepare(args):
     return report
 
 
-def evidence(preparation):
+def evidence(preparation, *, profile=bundle.LIVE):
     report = json.loads((preparation / "preparation-report.json").read_text(encoding="utf-8"))
-    manifest = bundle.verify_bundle(preparation / "bundle", report["manifestSha256"])
-    archive = preparation / ARCHIVE
+    manifest = bundle.verify_bundle(preparation / "bundle", report["manifestSha256"], profile=profile)
+    archive = preparation / profile.archive
     if (set(report) != {"schemaVersion", "result", "boundaries", "manifestSha256", "archiveSha256",
                        "archiveBytes", "buildManifestSha256", "consumerManifestSha256", "sourceFiles",
                        "bundleFiles", "installedPackageCount"}
             or type(report["schemaVersion"]) is not int or report["schemaVersion"] != 1
-            or report["result"] != "live_runtime_prepared_not_target_executed"
+            or report["result"] != profile.result_prefix + "_prepared_not_target_executed"
             or report["archiveSha256"] != bundle.sha256(archive)
             or type(report["archiveBytes"]) is not int or report["archiveBytes"] != archive.stat().st_size
             or report["buildManifestSha256"] != manifest["buildManifestSha256"]
@@ -114,7 +114,7 @@ def evidence(preparation):
             or report["boundaries"] != dict.fromkeys(bundle.BOUNDARIES, False)
             or any(value is not False for value in report["boundaries"].values())):
         raise ValueError("independently_verified_preparation_only_report_required")
-    bundle.verify_archive(archive, report["manifestSha256"])
+    bundle.verify_archive(archive, report["manifestSha256"], profile=profile)
     return {
         "schemaVersion": 1, "result": report["result"], "manifestSha256": report["manifestSha256"],
         "archiveSha256": report["archiveSha256"], "archiveBytes": report["archiveBytes"],
@@ -130,7 +130,7 @@ def evidence(preparation):
     }
 
 
-def main():
+def main(*, profile=bundle.LIVE):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("command", choices=("prepare", "verify", "extract"))
     for name in ("build", "consumer", "output", "preparation", "archive"):
@@ -142,13 +142,14 @@ def main():
     try:
         if args.command == "prepare":
             names = ("build", "consumer", "output", "build_manifest_sha256", "consumer_manifest_sha256")
-            function = lambda: prepare(args)
+            function = lambda: prepare(args, profile=profile)
         elif args.command == "verify":
             names = ("preparation", "output")
-            function = lambda: evidence(args.preparation.resolve(strict=True))
+            function = lambda: evidence(args.preparation.resolve(strict=True), profile=profile)
         else:
             names = ("archive", "output", "archive_sha256", "manifest_sha256")
-            function = lambda: bundle.extract(args.archive, args.output, args.archive_sha256, args.manifest_sha256)
+            function = lambda: bundle.extract(
+                args.archive, args.output, args.archive_sha256, args.manifest_sha256, profile=profile)
         if any(getattr(args, name) is None for name in names):
             raise ValueError("explicit_live_bundle_operation_inputs_required")
         result = function()

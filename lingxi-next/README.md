@@ -170,6 +170,11 @@ vendor SLAM prechecks, while rejecting business, voice and motion writes.
 Ten actual Linux process tests use synthetic native peers; this new owned
 combination has not run native GLIM or executed on ARM64. Existing releases,
 robot services and APKs remain unchanged.
+The dedicated mapping combination now also has an offline-prepared ARM64
+archive with verified extraction, packaged-source startup and HTTPS web asset
+delivery. Ten Linux x64 process cases run against its extracted sources,
+API, dependencies and console using synthetic native peers.
+See [the managed mapping package and remaining prerequisites](docs/SLAM_MANAGED_MAPPING_RUNTIME.md).
 An independent full-recording range audit records returns beyond 5 raw-coordinate
 units. The roughly 5 m travel estimate is not calibration truth; travel,
 scan coverage and map accuracy are different quantities.
@@ -214,7 +219,8 @@ The opt-in independent GLIM path now has recorded-data start/save/discard
 controls, same-engine corrected point display and a verified saved-point
 preview. A separate bounded commissioning launcher supports paired HTTPS
 control without vendor SLAM. It is not yet production live mapping or
-independent navigation; see `docs/SLAM_MAPPING_CONTROL.md`.
+independent navigation; see `docs/SLAM_MAPPING_CONTROL.md` and the separate
+source-bound package in `docs/SLAM_MANAGED_MAPPING_RUNTIME.md`.
 
 The production API requires a robot TLS key/certificate, a one-time pairing
 code hash, a restricted internal-agent token, and the local ROS 2 bridge. The

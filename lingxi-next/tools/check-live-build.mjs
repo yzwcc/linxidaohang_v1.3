@@ -50,3 +50,13 @@ test("Python caches are excluded but ordinary source changes alter their digest"
   await writeFile(path.join(root, "web/synthetic.txt"), "changed synthetic source");
   assert.notEqual((await sourceHashes(root))["web/synthetic.txt"], before["web/synthetic.txt"]);
 });
+
+test("mapping profile binds its dedicated builder and refuses unknown profiles", async (t) => {
+  const root = await project(t);
+  await assert.rejects(sourceHashes(root, "mapping"));
+  await writeFile(path.join(root, "robot-runtime/build-mapping.mjs"), "// Synthetic builder\n");
+  const mapping = await sourceHashes(root, "mapping"), point = await sourceHashes(root);
+  assert.equal(Object.keys(mapping).length, Object.keys(point).length + 1);
+  assert.ok(mapping["robot-runtime/build-mapping.mjs"]);
+  await assert.rejects(sourceHashes(root, "unconfigured"), /explicit_runtime_build_profile/);
+});

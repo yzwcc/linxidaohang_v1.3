@@ -147,8 +147,10 @@ allowlisted aggregates and source hashes.
 ## Next Mainline
 
 The bounded owner and dedicated API below now compose the service and shared
-mapping/point platform offline. Target validation and a verified ARM64 package
-for this combination are still outstanding. The existing live bundle remains
+mapping/point platform offline. A verified ARM64 commissioning archive is now
+prepared; target validation remains outstanding.
+See [the mapping package and extracted-source checks](SLAM_MANAGED_MAPPING_RUNTIME.md).
+The existing live bundle remains
 read-only and is not a managed mapping launcher.
 Base-frame alignment, calibration/timing validation, localization, long-session
 mapping/loop closure, independent navigation, voice concurrency and deployable
@@ -269,3 +271,9 @@ HTTPS behavior.
 These checks do not contact the powered-off robot or validate new ARM64
 execution, actual sensor input, new native geometry, acoustic interaction or
 Android behavior. Prior native/browser evidence above remains historical.
+
+The later source-bound package run loads the extracted service and owner
+sources as well as its compiled API, dependencies and web assets. All ten
+process cases pass with Linux x64 Node, including the packaged homepage and
+referenced JavaScript over verified HTTPS. This is an offline package check;
+it does not extend the prior native or ARM64 evidence.
