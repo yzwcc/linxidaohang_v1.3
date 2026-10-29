@@ -27,6 +27,7 @@ import { validatedLidarFrame } from "./lidar";
 import { measureVadToFirstAudio, summarizeVoiceSamples } from "./voice/diagnostics";
 import { SavedSlamMapCatalog } from "./slam-map-catalog";
 import { mappingGuard, UnixMappingBackend, type MappingBackend } from "./mapping-backend";
+import { MappingPointSource } from "./mapping-points";
 
 type ServerOptions = {
   adapter?: RobotAdapter;
@@ -104,6 +105,7 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
   const savedSlamDirectory = options.savedSlamDirectory ?? process.env.LINGXI_SAVED_SLAM_DIR;
   const slamCatalog = savedSlamDirectory ? new SavedSlamMapCatalog(savedSlamDirectory) : undefined;
   if (mappingBackend && !slamCatalog) throw new Error("independent_mapping_requires_saved_slam_directory");
+  const mappingPoints = mappingBackend ? new MappingPointSource(mappingBackend, savedSlamDirectory!) : undefined;
   const store = new JsonStateStore(options.stateDirectory ?? process.env.LINGXI_DATA_DIR ?? path.resolve("var/lib/lingxi-next"));
   const hash = options.pairingCodeHash ?? process.env.LINGXI_PAIRING_CODE_SHA256 ??
     (demoMode ? pairingCodeHash(process.env.LINGXI_DEMO_PAIRING_CODE ?? "lingxi-dev-only") : "");
@@ -758,14 +760,21 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
     void stateResponse().then(emitState).catch(() => undefined);
   }, 1500);
   let lidarPending = false;
+  app.addHook("onReady", async () => { mappingPoints?.start(); });
   const lidarTimer = setInterval(async () => {
     if (!lidarClients.size || lidarPending) return;
     lidarPending = true;
     let payload: string;
     try {
-      const source = options.lidarSource ?? adapter;
-      if (!source.getLidarFrame) throw new Error("雷达数据接口尚未配置");
-      payload = JSON.stringify({ type: "lidar", frame: validatedLidarFrame(await source.getLidarFrame()) });
+      if (mappingPoints) {
+        const event = mappingPoints.getPointEvent();
+        if (event.type === "lidar-unavailable") throw new Error("current_mapping_points_unavailable");
+        payload = JSON.stringify({ ...event, frame: validatedLidarFrame(event.frame) });
+      } else {
+        const source = options.lidarSource ?? adapter;
+        if (!source.getLidarFrame) throw new Error("雷达数据接口尚未配置");
+        payload = JSON.stringify({ type: "lidar", frame: validatedLidarFrame(await source.getLidarFrame()) });
+      }
     } catch {
       payload = JSON.stringify({ type: "lidar-unavailable", message: "没有新雷达数据，请检查雷达话题与桥接连接" });
     } finally { lidarPending = false; }
@@ -778,6 +787,7 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
   app.addHook("onClose", async () => {
     clearInterval(timer);
     clearInterval(lidarTimer);
+    await mappingPoints?.close();
     for (const client of lidarClients) client.close();
     lidarClients.clear();
     for (const event of events) event.close();

@@ -101,6 +101,10 @@ describe("latest-only visual point source", () => {
       const bytes = golden(); bytes[10] = id;
       expect(source.offer(bytes)).toBe(true);
       await expect(source.getLidarFrame()).rejects.toThrow();
+      expect(source.getPointEvent()).toMatchObject({
+        type: "slam-preview", inputMode: mode, coordinateUnits: "native-raw",
+        frame: { epoch: session, points: fixture.points },
+      });
     }
   });
   it("rejects duplicates and out-of-order fields without restoring old snapshots", async () => {

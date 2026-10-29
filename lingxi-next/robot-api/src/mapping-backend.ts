@@ -11,6 +11,7 @@ const stateSchema = z.object({
   completedMessages: z.number().int().nonnegative().safe().optional(),
   processedScans: z.number().int().nonnegative().safe().optional(),
   estimatedPoses: z.number().int().nonnegative().safe().optional(),
+  pointStream: z.object({ socket: z.string().regex(/^[a-f0-9]{32}\.points\.sock$/) }).strict().optional(),
 }).strict();
 export type MappingBackendState = z.infer<typeof stateSchema>;
 export interface MappingBackend {

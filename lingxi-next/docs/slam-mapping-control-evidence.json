@@ -1,1 +1,130 @@
-{"schemaVersion": 1, "date": "2026-10-29", "result": "recorded_native_service_api_save_discard_verified", "inputMode": "recorded", "machine": "x86_64", "rate": 1.0, "privateTrialReportSha256": "c70d24833104519d200416183e634c525d0a95b834143067368eaa8d723a80e5", "probeSha256": "e429c6269c75eb7ffe2381c4c682fbdee50e01a46201fe9f40a5ce88ee91aa10", "sourceSha256": {"robot-runtime/python/mapping_service.py": "60202814cb47597622f45942557f86465cdc1fa4a338a92443cdc7de8e0a9b59", "robot-runtime/python/controlled_mapping.py": "ef478d86563f69fe17a49ebeeaf26c5e547d4c6951e24c48aa01f91ef67b6977", "robot-slam/lingxi_slam/mapping_worker.py": "65942833c572236853d0987e7e1935f8d37f5064c4a01c80270fe8a4f63c3eb0", "robot-slam/lingxi_slam/mapping_session.py": "f1c720494bd517da5b8e1452207f136ce81ff96771f50926f4886160f7fdbb66", "robot-slam/lingxi_slam/mapping_input.py": "a34d3838b05236bd4cd60475b5c85f6db2c6487d6c2d8faf41fedb8b6b2f9385", "robot-slam/lingxi_slam/sensor_admission.py": "eafe810e053f5da92ea022dd66615c568deca4a5ca6143ff82e894a19c1e626d", "robot-api/src/mapping-backend.ts": "fe15ae3d9f67f3bc52d6728bc03fdb039862555d323847224c5367141eed97c6", "robot-api/src/server.ts": "16d237cbe6a1b6c908d2cf9b36805ed55ecb482142e0c99b7b2d4751feeb49d1", "robot-api/src/domain.ts": "45bde1648630f8aa4591478ba4114fdbcdb7e01ad19300869fee9e9ad91afe5e", "shared/contracts.ts": "ad8c59f2df7a8a3ac8e905fdb765f57b50d30c4cf2da7832fbfbd99966fc732e", "tools/check-mapping-control.ts": "afd73e52225b39f4bb4527a268e0907b3a2fcccd8dab2b0360c05757031e5e80", "tools/run_mapping_control_trial.py": "9d9c92c57a8d2b37644b403697cd2679efe11cf203dee5cea378a98a0a7d8161"}, "runs": [{"save": true, "completedMessages": 4144, "processedScans": 196, "estimatedPoses": 165, "counts": {"finalizedFrames": 165, "savedFrames": 165, "submaps": 1, "points": 2655}, "previewPoints": 2655}, {"save": false, "completedMessages": 4144, "processedScans": 196, "estimatedPoses": 165}], "children": [{"result": "discarded", "reportSha256": "08403d00bc492cab1a8bfe54815b57cec75ce736e1d4723a4cdf3a9b1cc5b200", "nativeCalls": {"create": 1, "imu": 3930, "frame": 196, "close": 1}}, {"result": "saved", "reportSha256": "7e29430f32da1f37a7d7ac5c3a7964c521524f1b151d166cfc0b7cbca58ae028", "nativeCalls": {"create": 1, "imu": 3930, "frame": 196, "close": 1}}], "roundTrip": {"pointCount": 2655, "maximumPointDisplacementRawUnits": 4.917699031766191e-07, "rmsPointDisplacementRawUnits": 1.649182388657261e-07, "predeclaredToleranceRawUnits": 0.0001, "samePointOrderCompared": true, "geometricAccuracyValidated": false}, "serviceExitCode": 0, "socketRemoved": true, "boundaries": {"robotContacted": false, "liveSensorsSubscribed": false, "motionCommandsSent": false, "targetArm64Validated": false, "geometricAccuracyValidated": false, "localizationReady": false, "navigationReady": false, "deploymentApproved": false}}
+{
+  "schemaVersion": 1,
+  "date": "2026-10-30",
+  "result": "recorded_native_service_api_save_discard_verified",
+  "inputMode": "recorded",
+  "machine": "x86_64",
+  "rate": 1,
+  "privateTrialReportSha256": "62de8abfddef5099309a37d61f3cf5081026fdf4c3c1ba641cbc68ad45afbcf4",
+  "probeSha256": "0e30790af621eff163db7c7c2b49d89ed6b5d5c8ca20d166ac01be05be17c0e7",
+  "sourceSha256": {
+    "robot-runtime/python/mapping_service.py": "35c3891707c5a3af5a42ccf0f458916a32fdc69878f05e92929c3976d2fab3ec",
+    "robot-runtime/python/controlled_mapping.py": "19596dcb368b60d1d036cfd09db0c9b079bfe1114c6f62c0425b67bb5bc9b352",
+    "robot-runtime/python/mapping_points.py": "f8e7bc00e9474ad452811ce4ba2b7b4cf9456298452dbcf73e6abfc6a1e963aa",
+    "robot-slam/lingxi_slam/mapping_worker.py": "65942833c572236853d0987e7e1935f8d37f5064c4a01c80270fe8a4f63c3eb0",
+    "robot-slam/lingxi_slam/mapping_session.py": "f1c720494bd517da5b8e1452207f136ce81ff96771f50926f4886160f7fdbb66",
+    "robot-slam/lingxi_slam/mapping_input.py": "a34d3838b05236bd4cd60475b5c85f6db2c6487d6c2d8faf41fedb8b6b2f9385",
+    "robot-slam/lingxi_slam/sensor_admission.py": "eafe810e053f5da92ea022dd66615c568deca4a5ca6143ff82e894a19c1e626d",
+    "robot-api/src/mapping-backend.ts": "12863d619ee789a84dbd3140fa0426a340158485390414307bc9e9e19392a668",
+    "robot-api/src/server.ts": "7cd6d89cb19818d3ff4dc45f8e12800a7e87ad2034faeb438f717afbaf9f3ebb",
+    "robot-api/src/domain.ts": "45bde1648630f8aa4591478ba4114fdbcdb7e01ad19300869fee9e9ad91afe5e",
+    "robot-api/src/mapping-points.ts": "fd2197878fc0ced2e23aac44807a9533b086b160a58fe4dd41b195143eb5a74c",
+    "robot-api/src/slam-points.ts": "73119d9f9271074b3bc1cf934f62539de9830def6d6474193d98ff151bea6003",
+    "robot-slam/lingxi_slam/point_data.py": "14444f89b917eb98b7edf4804acb45948babe20cd28214fa20734c08cddefc36",
+    "robot-slam/lingxi_slam/point_pipe.py": "c19c395dc7d3429d238bb870319b56defbbb3858ca70e025cbb03ea6733fb822",
+    "robot-slam/lingxi_slam/point_output.py": "4b501e2411fd6e54f6b22f954fe13ac222de8d43ad221d61aba5de102512ba81",
+    "shared/contracts.ts": "28a7968b7684ffbff9ca43822cc51a229f91e7de8400a77a831cd6df3c823c4e",
+    "tools/check-mapping-control.ts": "201ad8559be6f79c136dfa32446b08fbcf1bd674bff940331150702b8d164387",
+    "tools/run_mapping_control_trial.py": "d3b18d440316c696f3fe03538376edc5e5233293233819d3e3a4b9962e3e1755"
+  },
+  "runs": [
+    {
+      "save": true,
+      "completedMessages": 4144,
+      "processedScans": 196,
+      "estimatedPoses": 165,
+      "counts": {
+        "finalizedFrames": 165,
+        "savedFrames": 165,
+        "submaps": 1,
+        "points": 2655
+      },
+      "previewPoints": 2655,
+      "points": {
+        "uniqueFrames": 82,
+        "lastSequence": 164,
+        "lastStamp": 1019546.291186,
+        "maximumPoints": 7769
+      },
+      "browserReconnected": true,
+      "unavailableAfterStop": true
+    },
+    {
+      "save": false,
+      "completedMessages": 4144,
+      "processedScans": 196,
+      "estimatedPoses": 165,
+      "points": {
+        "uniqueFrames": 82,
+        "lastSequence": 164,
+        "lastStamp": 1019546.291186,
+        "maximumPoints": 7769
+      },
+      "browserReconnected": true,
+      "unavailableAfterStop": true
+    }
+  ],
+  "children": [
+    {
+      "result": "discarded",
+      "reportSha256": "82ed30ec2c936714d5c61f64ccafca77bad484918e1e469bf511b4e94e2a1a5f",
+      "nativeCalls": {
+        "create": 1,
+        "imu": 3930,
+        "frame": 196,
+        "close": 1
+      },
+      "points": {
+        "sent": 164,
+        "replaced": 0,
+        "failed": false,
+        "threadAlive": false
+      }
+    },
+    {
+      "result": "saved",
+      "reportSha256": "37e546cab4b02e4e23af37bcfad435db4cc3b05960230d5cb10c706966966f32",
+      "nativeCalls": {
+        "create": 1,
+        "imu": 3930,
+        "frame": 196,
+        "close": 1
+      },
+      "points": {
+        "sent": 164,
+        "replaced": 0,
+        "failed": false,
+        "threadAlive": false
+      }
+    }
+  ],
+  "pointStream": {
+    "pairedWebSocket": true,
+    "singleServerAcrossSessions": true,
+    "browserReconnects": 2,
+    "recordedProvenance": true,
+    "freshBoundedPoints": true,
+    "noDemoFallback": true,
+    "clearsAfterStop": true
+  },
+  "roundTrip": {
+    "pointCount": 2655,
+    "maximumPointDisplacementRawUnits": 4.917700371519592e-7,
+    "rmsPointDisplacementRawUnits": 1.6491823348047229e-7,
+    "predeclaredToleranceRawUnits": 0.0001,
+    "samePointOrderCompared": true,
+    "geometricAccuracyValidated": false
+  },
+  "serviceExitCode": 0,
+  "socketRemoved": true,
+  "boundaries": {
+    "robotContacted": false,
+    "liveSensorsSubscribed": false,
+    "motionCommandsSent": false,
+    "targetArm64Validated": false,
+    "geometricAccuracyValidated": false,
+    "localizationReady": false,
+    "navigationReady": false,
+    "deploymentApproved": false
+  }
+}

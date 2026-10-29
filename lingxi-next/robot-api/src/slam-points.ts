@@ -1,4 +1,4 @@
-import type { LidarFrame } from "../../shared/contracts";
+import type { LidarEvent, LidarFrame } from "../../shared/contracts";
 import type { Readable } from "node:stream";
 
 export type PointInputMode = "live" | "recorded" | "synthetic";
@@ -101,11 +101,11 @@ export class LatestSlamPointSource {
     }
   }
 
-  async getLidarFrame(): Promise<LidarFrame> {
+  private frame(): LidarFrame {
     const record = this.latest, now = this.clock();
-    if (this.closed || this.failed || this.inputMode !== "live" || !record ||
+    if (this.closed || this.failed || !record ||
         !Number.isFinite(now) || now - record.emittedAtSeconds < -0.05 || now - record.emittedAtSeconds > 2) {
-      throw new Error("fresh_live_slam_point_snapshot_required");
+      throw new Error("fresh_slam_point_snapshot_required");
     }
     return {
       sequence: record.nativeFrameId, epoch: this.session, source: "point-cloud",
@@ -114,6 +114,18 @@ export class LatestSlamPointSource {
       receivedAtMs: this.wallClock() - Math.max(0, now - record.emittedAtSeconds) * 1000,
       points: [...record.points],
       detail: "Corrected LiDAR odometry points; robot-base pose is not available.",
+    };
+  }
+
+  async getLidarFrame(): Promise<LidarFrame> {
+    if (this.inputMode !== "live") throw new Error("fresh_live_slam_point_snapshot_required");
+    return this.frame();
+  }
+
+  getPointEvent(): LidarEvent {
+    const frame = this.frame();
+    return this.inputMode === "live" ? { type: "lidar", frame } : {
+      type: "slam-preview", inputMode: this.inputMode, coordinateUnits: "native-raw", frame,
     };
   }
 

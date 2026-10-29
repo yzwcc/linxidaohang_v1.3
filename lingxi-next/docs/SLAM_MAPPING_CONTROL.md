@@ -1,7 +1,8 @@
 # Recorded Mapping Control Integration
 
-Date: 2026-10-29. This milestone connects recorded-data GLIM mapping to the
-paired management API and shared web UI. It is not live mapping, ARM64
+Date: 2026-10-30. This milestone connects recorded-data GLIM mapping and its
+same-engine corrected points to the persistent paired management API and
+shared web UI. It is not live mapping, ARM64
 acceptance, localization, independent navigation or a production deployment.
 The APK remains 0.1.19; it was not rebuilt in this milestone.
 
@@ -22,6 +23,19 @@ The APK remains 0.1.19; it was not rebuilt in this milestone.
   requires an independently validated catalog entry, not just a backend ACK.
 - The UI provides named save and explicit discard. The latter requires
   confirmation. Client deadlines cover the corresponding cleanup budgets.
+- A private same-UID Unix point socket follows the authoritative mapping
+  session. The API stays running across save, discard and replacement sessions;
+  browser reconnect does not restart the native consumer. Initial connection
+  may retry before the producer appears; an accepted stream never reconnects
+  within the same session after EOF or invalid data.
+- Saving and stopping hide points while the API continues draining the socket.
+  This keeps native finalization from failing because its visual consumer
+  disconnected. Idle, failure, EOF and stale data clear the browser's point
+  history. No demo or vendor LiDAR fallback is used when this backend is present.
+- Recorded points use the separate `slam-preview` event, explicit recorded
+  provenance and raw coordinate units. They cannot satisfy the live-only
+  point interface. They are odometry-corrected points, not a loop-closed global
+  map or a verified robot-base pose.
 - Recorded mode rejects navigation dispatch/resume, preset motions and
   LinkCraft playback. Explicit navigation stop remains available. Saved
   GLIM maps remain separate from AIMDK maps and are never auto-activated.
@@ -33,19 +47,20 @@ and rate 0.5 or 1.0. It never accepts executable paths or native configuration
 from HTTP clients. Start is currently enabled only in development/demo API
 mode. The production robot path is deliberately not enabled by these settings.
 
-The bounded diagnostic catalog is not long-term map retention. This service
-does not currently compose the mapping session with the separate live point
-producer. A demo LiDAR view is synthetic; it is not the native replay's
-point stream. The saved preview, however, is loaded from the verified map.
+The bounded diagnostic catalog is not long-term map retention. The recorded
+child now sends corrected points from the same GLIM instance that feeds its
+mapper. The saved preview is independently loaded from the verified map.
+Neither path claims live sensor acquisition.
 
-The recorded child now uses the shared close/drain lifecycle described in
+The recorded child uses the shared close/drain lifecycle described in
 `SLAM_MAPPING_INPUT.md`. The service/API native trial and aggregate were
-repeated for that revision. A separate same-engine mapping/point trial uses a
-synthetic subscription boundary with preserved recordings, not live DDS.
+repeated for this persistent point transport. The earlier same-engine
+mapping/point trial used a synthetic subscription boundary with preserved
+recordings, not live DDS; its historical aggregate remains unchanged.
 
 ## Native Result
 
-Two complete local trials passed. The final source-bound trial used Linux
+The final source-bound save/discard trial used Linux
 x86-64 and the existing pinned native libraries at 1x recorded arrival rate.
 No robot, ROS node, live sensor subscription or motion command was involved.
 
@@ -58,10 +73,16 @@ Both native instances were created/closed once on a single non-main thread,
 with no rejected/discarded callbacks and no remaining control/worker threads.
 The save produced 165 frames, one submap and 2,655 points. All points were
 available through the authenticated preview. Independent reload comparison
-maximum displacement was `4.917702644451365e-7` raw units, below the existing
+maximum displacement was `4.917700371519592e-7` raw units, below the existing
 `1e-4` serialization tolerance. This is not physical geometric accuracy.
 
-The paired API confirmed same-session save retry, stale-session rejection,
+Each child sent 164 corrected-point packets, with zero replacements, writer
+failures or surviving writer threads. The paired WebSocket observed 82 unique
+frames per session at its bounded display cadence, reconnected in each
+session and became unavailable after stop. One API instance served both
+native sessions without a demo point fallback.
+
+The paired API also confirmed same-session save retry, stale-session rejection,
 discard without another ready map, and unchanged AIMDK maps/active selection.
 The service exited with code zero and removed its socket.
 Original recordings, libraries and existing robot/vendor files were unchanged.
@@ -70,19 +91,21 @@ logs, private reports and session identities are excluded from Git.
 
 ## Checks
 
-- 187 Vitest tests pass; frontend/API/runtime type checks and production web
+- 196 Vitest tests in 17 files pass; frontend/API/runtime type checks and production web
   and API builds pass.
-- Windows tools regression: 795 tests, 405 pass and 390 explicit dependency/
-  platform skips before the additional evidence/socket cases.
-- Linux focused suites: 15 session, 10 controller and 10 manager/evidence tests
-  pass with the existing numerical environment. The manager suite includes
-  a real private Unix socket lifecycle. Windows runs that final suite with
-  nine passes and one explicit Linux socket skip.
-- `agent-browser` synthetic checks pass at 1440x900 and 844x390: named save,
-  saved-map visibility, confirmed discard and map preservation all work.
-  Point canvases are nonblank and neither viewport overflows horizontally;
-  landscape controls remain accessible by vertical scrolling. Screenshots
-  and fixture reports remain ignored, not native/hardware evidence.
+- Complete Linux Python tools regression: 823 tests, 819 passed and four
+  explicit dependency/platform skips. This includes private point socket,
+  service lifecycle and unchanged historical ARM64 evidence checks.
+- The compiled production frontend passes ten `agent-browser` stages against
+  an isolated HTTPS synthetic fixture using the production mapping point
+  consumer and private Unix socket. Desktop 1440x900 and landscape 844x390
+  show nonblank changing points with recorded provenance, stale clearing,
+  resume, WebSocket reconnect, named save, a replacement session, zoom, EOF
+  clearing and confirmed discard. The saved map remains visible afterward.
+  Neither viewport overflows horizontally; landscape controls remain
+  accessible by vertical scrolling. Browser errors are empty and local
+  storage contains only the robot address. Private reports/screenshots stay
+  ignored. See `slam-mapping-point-ui-synthetic-evidence.json`.
 - Actual native execution is separate from these synthetic fixtures.
 - A prior ARM64 evidence test now verifies revised API files at that run's
   immutable Git revision, rather than claiming later API code ran on ARM64.
@@ -96,8 +119,9 @@ allowlisted aggregates and source hashes.
 
 ## Next Mainline
 
-Compose live sensor acquisition, corrected-point display and explicit map
-save under the same owner, then validate the new composition on ARM64.
+Prepare the new ARM64 mapping/point composition offline, then validate it on
+target when available. Live sensor acquisition and explicit map save still
+need to be connected to these management controls under the same owner.
 Base-frame alignment, calibration/timing validation, localization, long-session
 mapping/loop closure, independent navigation, voice concurrency and deployable
 robot/APK packages remain outstanding. Map serialization never raises those

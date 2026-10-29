@@ -41,11 +41,13 @@ def configuration(file):
         raise ValueError("direct_bounded_local_mapping_configuration_required")
     value = json.loads(file.read_text(encoding="utf-8"))
     fields = {"inputMode", "work", "adapter", "mappingAdapter", "bundle", "reference", "hypothesis", "rate"}
-    if (type(value) is not dict or set(value) != fields or value["inputMode"] != "recorded"
+    if (type(value) is not dict or set(value) not in (fields, fields | {"pointAdapter"})
+            or value["inputMode"] != "recorded"
             or value["hypothesis"] not in ("header_is_scan_start", "header_is_scan_end")
             or type(value["rate"]) not in (int, float) or value["rate"] not in (.5, 1.)):
         raise ValueError("explicit_recorded_mapping_configuration_required")
-    for name in ("work", "adapter", "mappingAdapter", "bundle", "reference"):
+    for name in ("work", "adapter", "mappingAdapter", "bundle", "reference", *(
+            ("pointAdapter",) if "pointAdapter" in value else ())):
         entry = Path(value[name])
         if not entry.is_absolute() or entry.resolve(strict=True) != entry or not entry.is_dir():
             raise ValueError("direct_absolute_frozen_mapping_input_required")
@@ -55,14 +57,16 @@ def configuration(file):
 class MappingManager:
     """One slot, explicit session ownership and no native calls in request handlers."""
 
-    def __init__(self, maps, command_factory, environment, *, owner_factory=ProcessSupervisor):
+    def __init__(self, maps, command_factory, environment, *, owner_factory=ProcessSupervisor,
+                 points_enabled=False):
         self.maps = Path(maps)
         if (not self.maps.is_absolute() or self.maps.resolve(strict=True) != self.maps
-                or not self.maps.is_dir() or not callable(command_factory)):
+                or not self.maps.is_dir() or not callable(command_factory) or type(points_enabled) is not bool):
             raise ValueError("direct_existing_mapping_catalog_required")
         self.command_factory, self.environment, self.owner_factory = command_factory, environment, owner_factory
         self.lock, self.operation = threading.Lock(), threading.Lock()
         self.current, self.closed = None, False
+        self.points_enabled = points_enabled
 
     def state(self):
         with self.lock:
@@ -84,6 +88,8 @@ class MappingManager:
                 "cleanupComplete": state["cleanupComplete"],
                 "completedMessages": state["completedMessages"],
                 "processedScans": state["processedScans"], "estimatedPoses": state["estimatedPoses"],
+                **({"pointStream": {"socket": current["output"].name + ".points.sock"}}
+                   if self.points_enabled and phase in ("requested", "running") else {}),
             }
 
     def start(self):
@@ -280,11 +286,11 @@ def main():
     for name in ("config", "maps", "socket"):
         parser.add_argument("--" + name, type=Path, required=True)
     args = parser.parse_args()
-    _, environment = configuration(args.config)
+    config, environment = configuration(args.config)
     manager = MappingManager(args.maps, lambda output: [
         sys.executable, "-B", str(ROOT / "robot-runtime/python/controlled_mapping.py"),
         "--config", str(args.config), "--output", str(output),
-    ], environment)
+    ], environment, points_enabled="pointAdapter" in config)
     with MappingSocketServer(args.socket, manager) as server:
         def stop(*_):
             threading.Thread(target=server.shutdown, daemon=True).start()

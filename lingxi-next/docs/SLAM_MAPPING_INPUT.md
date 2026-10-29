@@ -78,10 +78,13 @@ and is not proof that this revision ran on ARM64.
 
 ## Remaining Mainline
 
-The persistent management API still needs a session-switching private point
-transport; its existing inherited point FD is single-session. The paired
-recorded mapping service does not yet expose this trial's point stream.
-A fresh ARM64 composition and onsite live validation are also outstanding.
+The subsequent 2026-10-30 milestone adds the persistent management API's
+session-switching private point transport and exposes corrected points from
+its recorded mapping child. Its actual native save/discard trial and separate
+synthetic HTTPS browser checks are documented in `SLAM_MAPPING_CONTROL.md`.
+The trial described above remains the earlier subscription-boundary check.
+A fresh ARM64 mapping/point composition, connection of live acquisition to
+management controls and onsite live validation are still outstanding.
 
 This does not remove the diagnostic native mapper's short-sequence/loop-travel
 restriction. Base-frame alignment, calibration/timing validation, long-session

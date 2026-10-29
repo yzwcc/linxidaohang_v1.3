@@ -443,7 +443,8 @@ class PublishedArm64ResultTests(unittest.TestCase):
         # Verify revised management files against that run's committed version,
         # not against later code that was never part of its hardware evidence.
         revised_management = {
-            "robot-api/src/domain.ts", "robot-api/src/server.ts", "shared/contracts.ts"}
+            "robot-api/src/domain.ts", "robot-api/src/server.ts",
+            "robot-api/src/slam-points.ts", "shared/contracts.ts"}
         revision = "dff9855896feaa44eb233f44aebcd52c8a9703a8"
         for name, expected in result["sourceSha256"].items():
             if name in revised_management:

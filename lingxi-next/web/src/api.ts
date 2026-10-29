@@ -212,7 +212,11 @@ export function openLidarEvents(
       if (closed || disconnected || socket !== current) return;
       try {
         const payload = JSON.parse(String(event.data)) as LidarEvent;
-        if (payload.type !== "lidar" && payload.type !== "lidar-unavailable") return;
+        if (payload.type !== "lidar" && payload.type !== "lidar-unavailable" && payload.type !== "slam-preview") return;
+        if (payload.type === "slam-preview" &&
+            (!["recorded", "synthetic"].includes(payload.inputMode) || payload.coordinateUnits !== "native-raw")) {
+          throw new Error("explicit_point_preview_provenance_required");
+        }
         scheduleLivenessCheck();
         onEvent(payload);
       } catch { disconnect(); }

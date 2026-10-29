@@ -124,6 +124,22 @@ describe("state WebSocket subscription", () => {
 });
 
 describe("LiDAR WebSocket subscription", () => {
+  it("delivers explicit recorded previews and rejects missing provenance", async () => {
+    useFakeBrowserTimers();
+    vi.stubGlobal("WebSocket", FakeWebSocket as unknown as typeof WebSocket);
+    const { openLidarEvents } = await import("../../web/src/api");
+    const onEvent = vi.fn(), onError = vi.fn();
+    const subscription = openLidarEvents(connection, onEvent, onError);
+    const socket = FakeWebSocket.instances[0];
+    socket.emit("open");
+    const preview = { type: "slam-preview", inputMode: "recorded", coordinateUnits: "native-raw", frame: {} };
+    socket.send("message", preview);
+    expect(onEvent).toHaveBeenCalledExactlyOnceWith(preview);
+    socket.send("message", { ...preview, inputMode: "live" });
+    expect(onError).toHaveBeenCalledOnce();
+    expect(onEvent).toHaveBeenCalledOnce();
+    subscription.close();
+  });
   it("reconnects once when error and close report the same disconnect", async () => {
     useFakeBrowserTimers();
     vi.stubGlobal("WebSocket", FakeWebSocket as unknown as typeof WebSocket);

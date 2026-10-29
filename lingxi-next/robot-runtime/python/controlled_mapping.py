@@ -35,7 +35,14 @@ def run(args, sink):
             ("work", "work"), ("adapter", "adapter"), ("mapping_adapter", "mappingAdapter"),
             ("bundle", "bundle"), ("reference", "reference"))},
         hypothesis=config["hypothesis"], rate=float(config["rate"]))
-    frozen = inputs(prepared)
+    points_enabled = "pointAdapter" in config
+    if points_enabled:
+        from run_glim_point_output_trial import integrity, loaded_extension, LIBRARY
+        from lingxi_slam.point_output import NativePointOutput, PointOutputNative
+        from mapping_points import MappingPointChannel
+        prepared.points = Path(config["pointAdapter"])
+    verify_inputs = (lambda: integrity(prepared)) if points_enabled else (lambda: inputs(prepared))
+    frozen = verify_inputs()
     mapping_library = verify_extension(prepared.mapping_adapter, prepared.work)
     types = get_typestore(Stores.ROS2_HUMBLE)
     for kind in ("Imu", "PointCloud2"):
@@ -46,6 +53,8 @@ def run(args, sink):
     emitter = HealthEmitter(sink, session)
     calls = dict.fromkeys(("create", "imu", "frame", "close"), 0)
     owners, main_thread = set(), threading.get_ident()
+    channels = []
+    point_channel = None
 
     def record(name):
         owner = threading.get_ident()
@@ -54,11 +63,43 @@ def run(args, sink):
         owners.add(owner)
         calls[name] += 1
 
-    def factory():
+    def native_factory():
         return OwnedNative(lambda: Native(
             prepared.adapter / "build/liblingxi_glim_offline.so", prepared.bundle / "config",
             prepared.work / "prefix/lib/libodometry_estimation_cpu.so"),
             record, lambda: actual_libraries(prepared.work, prepared.adapter, frozen["nativeLibrariesSha256"]))
+
+    def factory():
+        nonlocal point_channel
+        if not points_enabled:
+            return native_factory()
+        point_channel = MappingPointChannel(
+            args.output.parent / (args.output.name + ".points.sock"), stop.is_set)
+        channel = point_channel.output(session, "recorded")
+        channels.append(channel)
+        output = None
+
+        class PointNative(PointOutputNative):
+            def close(self):
+                try:
+                    return super().close()
+                finally:
+                    channel.close()
+
+        try:
+            output = NativePointOutput(prepared.points / "build" / LIBRARY)
+            result = PointNative(native_factory, output, channel)
+            try:
+                loaded_extension(prepared, frozen["pointExtensionLibrarySha256"])
+            except BaseException:
+                result.close()
+                raise
+            return result
+        except BaseException:
+            if output is not None and not output.closed:
+                output.close()
+            channel.close()
+            raise
 
     def reload_map(saved):
         log = saved.parent / (saved.name + ".private-reload.log")
@@ -87,7 +128,8 @@ def run(args, sink):
                 while not done.is_set():
                     state = controller.worker.snapshot()
                     emitter.emit(state)
-                    if state["state"] == "failed":
+                    if state["state"] == "failed" or any(channel.writer.failed for channel in channels):
+                        controller.cancel_save()
                         failed.set()
                         stop.set()
                     if selector.select(.05):
@@ -147,12 +189,12 @@ def run(args, sink):
             pending = next(iterator, None)
         if failed.is_set() or not command.received:
             raise RuntimeError("explicit_owned_mapping_stop_required")
-        if inputs(prepared) != frozen:
+        if verify_inputs() != frozen:
             raise RuntimeError("mapping_inputs_changed_before_stop")
         terminal = mapping.finish("requested_stop", save=bool(requested), name=requested.get("name"),
                                   cancelled=failed.is_set)
         if (terminal["phase"] != ("saved" if requested else "stopped") or failed.is_set()
-                or inputs(prepared) != frozen):
+                or verify_inputs() != frozen):
             raise RuntimeError("mapping_terminal_not_confirmed")
         report["result"] = "saved" if requested else "discarded"
     except BaseException as error:
@@ -164,6 +206,8 @@ def run(args, sink):
         if controller.worker.snapshot()["threadAlive"]:
             controller.cancel_save()
             controller.stop()
+        if point_channel is not None:
+            point_channel.close()
         done.set()
         if thread.ident is not None:
             thread.join(1.)
@@ -171,8 +215,15 @@ def run(args, sink):
         report.update(worker=state, controller=controller.snapshot(), nativeCalls=calls,
                       nativeOwnerIsSingleNonMainThread=len(owners) == 1,
                       controlThreadAlive=thread.is_alive())
+        if points_enabled:
+            report["points"] = [
+                {"sent": channel.writer.sent, "replaced": channel.writer.replaced,
+                 "failed": channel.writer.failed, "threadAlive": channel.writer.thread.is_alive()}
+                for channel in channels]
         if (thread.is_alive() or state["threadAlive"] or state["failure"]
                 or calls["create"] != 1 or calls["close"] != 1 or len(owners) != 1):
+            report["result"] = "failed"
+        if any(channel.writer.thread.is_alive() or channel.writer.failed for channel in channels):
             report["result"] = "failed"
         private_json(args.output.parent / (args.output.name + ".private-report.json"), report)
         if report["result"] == "failed":

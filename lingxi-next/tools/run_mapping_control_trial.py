@@ -17,9 +17,13 @@ from mapping_service import configuration, private_json
 
 SOURCE_NAMES = (
     "robot-runtime/python/mapping_service.py", "robot-runtime/python/controlled_mapping.py",
+    "robot-runtime/python/mapping_points.py",
     "robot-slam/lingxi_slam/mapping_worker.py", "robot-slam/lingxi_slam/mapping_session.py",
     "robot-slam/lingxi_slam/mapping_input.py", "robot-slam/lingxi_slam/sensor_admission.py",
     "robot-api/src/mapping-backend.ts", "robot-api/src/server.ts", "robot-api/src/domain.ts",
+    "robot-api/src/mapping-points.ts", "robot-api/src/slam-points.ts",
+    "robot-slam/lingxi_slam/point_data.py", "robot-slam/lingxi_slam/point_pipe.py",
+    "robot-slam/lingxi_slam/point_output.py",
     "shared/contracts.ts", "tools/check-mapping-control.ts", "tools/run_mapping_control_trial.py",
 )
 
@@ -34,12 +38,19 @@ def digest(path):
 
 def run(args):
     config, _ = configuration(args.config)
+    if args.point_adapter is not None:
+        entry = args.point_adapter
+        if not entry.is_absolute() or entry.resolve(strict=True) != entry or not entry.is_dir():
+            raise ValueError("direct_frozen_point_adapter_required")
+        config = {**config, "pointAdapter": str(entry)}
+    points_enabled = "pointAdapter" in config
     cache = (Path.home() / ".cache/lingxi-next").resolve(strict=True)
     if (sys.platform != "linux" or os.geteuid() == 0 or not args.output.is_absolute()
             or args.output.exists() or not args.output.resolve().is_relative_to(cache)
             or args.output.resolve() != args.output
             or any(args.output.is_relative_to(Path(config[key])) for key in
-                   ("work", "adapter", "mappingAdapter", "bundle", "reference"))):
+                   ("work", "adapter", "mappingAdapter", "bundle", "reference",
+                    *(("pointAdapter",) if points_enabled else ())))):
         raise ValueError("new_private_local_linux_mapping_trial_required")
     args.output.mkdir(mode=0o700)
     runtime = args.output / "runtime-source"
@@ -78,6 +89,7 @@ def run(args):
             with (args.output / "private-probe.log").open("xb") as probe_log:
                 result = subprocess.run([
                     str(args.node), str(probe), str(socket), str(maps), str(args.output), "4144",
+                    *(["points"] if points_enabled else []),
                 ], stdout=probe_log, stderr=probe_log, timeout=300, check=False)
             if result.returncode:
                 raise RuntimeError("recorded_mapping_api_probe_failed")
@@ -97,6 +109,12 @@ def run(args):
                     raise RuntimeError("complete_native_mapping_child_required")
                 children.append({"result": child["result"], "session": child["session"],
                                  "reportSha256": digest(child_file), "nativeCalls": child["nativeCalls"]})
+                if points_enabled:
+                    points = child.get("points", [])
+                    if (len(points) != 1 or points[0]["sent"] < 3
+                            or points[0]["failed"] or points[0]["threadAlive"]):
+                        raise RuntimeError("complete_native_point_writer_required")
+                    children[-1]["points"] = points[0]
             if len(children) != 2 or {child["result"] for child in children} != {"saved", "discarded"}:
                 raise RuntimeError("exact_save_and_discard_children_required")
             receipts = list(maps.glob("*/map-ready.json"))
@@ -111,6 +129,10 @@ def run(args):
                                         receipt["counts"]["points"])
             report.update(result=api["result"], sessions=api["sessions"], children=children,
                           roundTrip=comparison, apiReportSha256=digest(args.output / "private-api-report.json"))
+            if points_enabled:
+                if not api.get("pointStream") or not all(api["pointStream"].values()):
+                    raise RuntimeError("complete_paired_point_stream_probe_required")
+                report["pointStream"] = api["pointStream"]
             if report["sourceSha256"] != {name: digest(ROOT / name) for name in SOURCE_NAMES}:
                 report["result"] = "failed"
                 raise RuntimeError("mapping_control_sources_changed_during_trial")
@@ -136,15 +158,17 @@ def run(args):
 def public_evidence(report, trial):
     """Export only reviewed aggregate fields, not private reports, IDs, maps or paths."""
     return {
-        "schemaVersion": 1, "date": "2026-10-29", "result": report["result"],
+        "schemaVersion": 1, "date": "2026-10-30", "result": report["result"],
         "inputMode": "recorded", "machine": "x86_64", "rate": 1.,
         "privateTrialReportSha256": digest(trial / "private-trial-report.json"),
         "probeSha256": report["probeSha256"], "sourceSha256": report["sourceSha256"],
         "runs": [{key: entry[key] for key in (
-            "save", "completedMessages", "processedScans", "estimatedPoses", "counts", "previewPoints")
+            "save", "completedMessages", "processedScans", "estimatedPoses", "counts", "previewPoints",
+            "points", "browserReconnected", "unavailableAfterStop")
                   if key in entry} for entry in report["sessions"]],
-        "children": [{key: entry[key] for key in ("result", "reportSha256", "nativeCalls")}
+        "children": [{key: entry[key] for key in ("result", "reportSha256", "nativeCalls", "points") if key in entry}
                      for entry in report["children"]],
+        **({"pointStream": report["pointStream"]} if "pointStream" in report else {}),
         "roundTrip": report["roundTrip"], "serviceExitCode": report["serviceExitCode"],
         "socketRemoved": report["socketRemoved"],
         "boundaries": dict.fromkeys((
@@ -159,6 +183,7 @@ def main():
     for name in ("config", "output", "node", "probe"):
         parser.add_argument("--" + name, type=Path, required=True)
     parser.add_argument("--evidence", type=Path)
+    parser.add_argument("--point-adapter", type=Path)
     args = parser.parse_args()
     previous = os.umask(0o077)
     try:

@@ -38,6 +38,7 @@ export type LidarFrame = {
 
 export type LidarEvent =
   | { type: "lidar"; frame: LidarFrame }
+  | { type: "slam-preview"; inputMode: "recorded" | "synthetic"; coordinateUnits: "native-raw"; frame: LidarFrame }
   | { type: "lidar-unavailable"; message: string };
 
 export type RobotMap = {

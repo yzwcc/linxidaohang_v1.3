@@ -1,0 +1,164 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-30",
+  "result": "synthetic_mapping_point_browser_checks_passed",
+  "classification": "isolated_synthetic_ui_fixture",
+  "privateReportSha256": "6a7ed51df1f05fd3188fa93c98135fc27e739ab1d005c8db413881bc2011f121",
+  "stages": {
+    "idle": {
+      "viewport": [
+        1440,
+        900
+      ],
+      "canvas": [
+        713,
+        513
+      ],
+      "visiblePointPixels": 0,
+      "horizontalOverflow": false,
+      "recordedProvenance": true,
+      "syntheticBanner": true
+    },
+    "desktop": {
+      "viewport": [
+        1440,
+        900
+      ],
+      "canvas": [
+        713,
+        513
+      ],
+      "visiblePointPixels": 8146,
+      "horizontalOverflow": false,
+      "recordedProvenance": true,
+      "syntheticBanner": true
+    },
+    "stale": {
+      "viewport": [
+        1440,
+        900
+      ],
+      "canvas": [
+        713,
+        513
+      ],
+      "visiblePointPixels": 0,
+      "horizontalOverflow": false,
+      "recordedProvenance": true,
+      "syntheticBanner": true
+    },
+    "resumed": {
+      "viewport": [
+        1440,
+        900
+      ],
+      "canvas": [
+        713,
+        513
+      ],
+      "visiblePointPixels": 8062,
+      "horizontalOverflow": false,
+      "recordedProvenance": true,
+      "syntheticBanner": true
+    },
+    "reconnected": {
+      "viewport": [
+        1440,
+        900
+      ],
+      "canvas": [
+        713,
+        513
+      ],
+      "visiblePointPixels": 8066,
+      "horizontalOverflow": false,
+      "recordedProvenance": true,
+      "syntheticBanner": true
+    },
+    "savedCleared": {
+      "viewport": [
+        1440,
+        900
+      ],
+      "canvas": [
+        713,
+        513
+      ],
+      "visiblePointPixels": 0,
+      "horizontalOverflow": false,
+      "recordedProvenance": true,
+      "syntheticBanner": true
+    },
+    "landscape": {
+      "viewport": [
+        844,
+        390
+      ],
+      "canvas": [
+        452,
+        185
+      ],
+      "visiblePointPixels": 2130,
+      "horizontalOverflow": false,
+      "recordedProvenance": true,
+      "syntheticBanner": true
+    },
+    "zoom": {
+      "viewport": [
+        844,
+        390
+      ],
+      "canvas": [
+        452,
+        185
+      ],
+      "visiblePointPixels": 3437,
+      "horizontalOverflow": false,
+      "recordedProvenance": true,
+      "syntheticBanner": true
+    },
+    "eof": {
+      "viewport": [
+        844,
+        390
+      ],
+      "canvas": [
+        452,
+        185
+      ],
+      "visiblePointPixels": 0,
+      "horizontalOverflow": false,
+      "recordedProvenance": true,
+      "syntheticBanner": true
+    },
+    "discarded": {
+      "viewport": [
+        844,
+        390
+      ],
+      "canvas": [
+        452,
+        185
+      ],
+      "visiblePointPixels": 0,
+      "horizontalOverflow": false,
+      "recordedProvenance": true,
+      "syntheticBanner": true
+    }
+  },
+  "savedMapVisible": true,
+  "savedMapPreservedAfterDiscard": true,
+  "storageKeys": [
+    "lingxi.robotAddress"
+  ],
+  "browserErrors": [],
+  "boundaries": {
+    "robotContacted": false,
+    "nativeSlamExecuted": false,
+    "targetRenderingValidated": false,
+    "motionCommandsSent": false,
+    "androidApkValidated": false,
+    "localizationReady": false,
+    "navigationReady": false
+  }
+}

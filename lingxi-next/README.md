@@ -156,6 +156,13 @@ offline-prepared ARM64 runtime archive with identical independent builds,
 verified extraction and a read-only trial launcher. It has not run as a live
 ARM64 composition or changed the production backend.
 See [the live runtime preparation record](docs/SLAM_LIVE_RUNTIME_PREPARATION.md).
+Recorded mapping now also sends same-engine corrected points through a
+session-switching private socket to the persistent paired API. One Linux x64
+API instance completed native save and discard sessions with 164 point
+packets each; separate HTTPS synthetic browser checks passed desktop and
+landscape rendering, reconnect and stale/EOF clearing. These checks do not
+establish live acquisition, global-map coordinates or ARM64 acceptance of
+this new composition. See [the mapping controls and point integration](docs/SLAM_MAPPING_CONTROL.md).
 An independent full-recording range audit records returns beyond 5 raw-coordinate
 units. The roughly 5 m travel estimate is not calibration truth; travel,
 scan coverage and map accuracy are different quantities.
@@ -197,7 +204,8 @@ npm run build
 ## Robot runtime
 
 The opt-in independent GLIM path now has recorded-data start/save/discard
-controls and a verified saved-point preview. It is not yet production live
+controls, same-engine corrected point display and a verified saved-point
+preview. It is not yet production live
 mapping or independent navigation; see `docs/SLAM_MAPPING_CONTROL.md`.
 
 The production API requires a robot TLS key/certificate, a one-time pairing

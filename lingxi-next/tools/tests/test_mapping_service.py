@@ -101,6 +101,15 @@ class MappingControl(unittest.TestCase):
         self.assertEqual(2, len(self.owners))
         self.assertNotEqual(self.owners[0].output, self.owners[1].output)
 
+    def test_optional_points_follow_output_identity_and_stop_advertising_on_finish(self):
+        self.manager.points_enabled = True
+        started = self.manager.start()
+        owner = self.owners[0]
+        self.assertNotEqual(owner.session, owner.output.name)
+        self.assertEqual({"socket": owner.output.name + ".points.sock"}, started["pointStream"])
+        self.manager.finish(owner.session, save=False)
+        self.assertNotIn("pointStream", self.manager.state())
+
     def test_stale_session_and_invalid_names_do_not_stop_current_owner(self):
         self.manager.start()
         owner = self.owners[0]
@@ -216,6 +225,17 @@ class PublishedControlEvidence(unittest.TestCase):
         for item in result["runs"]:
             self.assertEqual(4144, item["completedMessages"])
         self.assertEqual(result["runs"][0]["counts"]["points"], result["runs"][0]["previewPoints"])
+        self.assertEqual("2026-10-30", result["date"])
+        self.assertEqual(2, result["pointStream"]["browserReconnects"])
+        self.assertTrue(all(result["pointStream"].values()))
+        for item in result["runs"]:
+            self.assertGreater(item["points"]["uniqueFrames"], 3)
+            self.assertGreater(item["points"]["maximumPoints"], 0)
+            self.assertTrue(item["browserReconnected"])
+            self.assertTrue(item["unavailableAfterStop"])
+        for child in result["children"]:
+            self.assertEqual({"sent": 164, "replaced": 0, "failed": False,
+                              "threadAlive": False}, child["points"])
         for name, expected in result["sourceSha256"].items():
             self.assertEqual(expected, hashlib.sha256((ROOT / name).read_bytes()).hexdigest(), name)
         text = json.dumps(result)
