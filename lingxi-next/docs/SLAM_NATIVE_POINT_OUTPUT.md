@@ -154,7 +154,9 @@ repeat exports of both final evidence files compare byte-for-byte equal.
 The supervised evidence SHA256 is
 `4be53848d08a5fc619f96d85fc00e79027631535867776b07226f1466a283bde`.
 
-ARM64 building/testing of this extension, sustained live throughput, a
-session-bound point-data channel, API/UI wiring, map transactions,
-calibration, loop closure, relocalization and navigation remain pending.
-Installer, APK, vendor services and existing maps are unchanged.
+Subsequent ARM64 cross-building and local point-transport component checks
+are described in `SLAM_POINT_DATA_CHANNEL.md`. ARM64 execution of this
+extension, supervised real-data point-channel composition, sustained live
+throughput, deployed API/UI wiring, map transactions, calibration, loop
+closure, relocalization and navigation remain pending. Installer, APK,
+vendor services and existing maps are unchanged.

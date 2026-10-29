@@ -63,3 +63,11 @@ one-times health-supervised recorded-input checks have completed; this is not
 live/ARM64 acceptance or a UI data source. Initial paced failures are preserved.
 The final extension has an exact five-function C ABI and Release build.
 See `docs/SLAM_NATIVE_POINT_OUTPUT.md` and its separate aggregate evidence.
+
+The extension has since cross-linked for ARM64 with host-only exported-ABI
+inspection, not target execution. `point_data.py` and `point_pipe.py` now
+provide a separate session-bound codec and bounded Linux point-pipe writer.
+An optional Node pipe source passes isolated API WebSocket tests without
+changing mapping/navigation readiness. It is not selected by normal startup
+and is not connected to the production supervisor or real sensors. See
+`docs/SLAM_POINT_DATA_CHANNEL.md` for executed checks and remaining work.

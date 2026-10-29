@@ -1,0 +1,81 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-29",
+  "result": "arm64_corrected_point_extension_linked_not_target_executed",
+  "privateBuildReportSha256": "4c89ec263e24392b7697df30d9d44dd8cd58ce7f8adea63215915104c498a4cd",
+  "inputs": {
+    "crossCoreBuildSha256": "ed478a4aadf134f398d5c7b267f48e33406d420ac4403ada3b87c86c1bd4a25f",
+    "nativeToolsBuildSha256": "7c0bd55fa3207c68a93969c84b00f08adf65be57105036585a7cc5c534442cd4",
+    "toolchainSha256": "22c8a1bff7d084f14a97cb1b22275c4567573846a222983a38964c64b8885c6f",
+    "sourceCommits": {
+      "gtsam": "3ad4b4c3cb28394c9597f48fa02dad361c8450e3",
+      "gtsam_points": "9d32e7dbecf6015560d84b4901d6b0a6f483ec46",
+      "glim": "1a197c999e4865f5cab7c9cd25474128413ebbca"
+    },
+    "referenceCoreLibrariesSha256": {
+      "libodometry_estimation_cpu.so": "5f9507bf8c075b89f5c072d0d9d3e0f535de259c884d955f5ad9230bbd632c0d",
+      "libcephes-gtsam.so.1": "7e18a24d0795a956df312b33c0f2f437c7130e0cdeb5b596a50ed30b4d356e24",
+      "libmetis-gtsam.so": "844a86b408f2ed51445162f6aeb7979212e8aaae064ad59e0d3862ec6b96e400",
+      "libgtsam.so.4": "fee5315024f5eaf4b7b432bc8ff2c9715c098fe6a3693d8177a39bc9a538620f",
+      "libgtsam_points.so.1": "1b279b1d3ad4e252499167a6f9d16f17eec8e7ca634d7157fbd594692e2a54fb",
+      "libglim.so": "3c70a22f4151c0c600f394bc65c1dff5c6d133566cb110866b869caeb9ae7f81"
+    },
+    "nativePointSourceSha256": {
+      "robot-slam/native-point-output/point_output.h": "b9bcb8f6a937bfc0df59ff54f4802a581c6df29820b9a7e31a184236be0d3b2f",
+      "robot-slam/native-point-output/point_output.cpp": "b563747a07964843a27b8160b69509ad9ab8e99556e03de0ba4887c082347b07",
+      "robot-slam/native-point-output/point_output_contract.cpp": "4b37ec7c125524076f33d41fb7566b713b35141449efcb2b35ff3779283667ba",
+      "robot-slam/native-point-output/CMakeLists.txt": "2efe69a776d107ffa32f5ec866665a106df6e420e35fedfb9e7f6bd0b807b483",
+      "robot-slam/native-point-output/exports.map": "2dfe4e67279bf1219f19a81a33162757f11c2e2004d4ff5470254e03e074d0ec",
+      "robot-slam/native-point-output/verify_exports.cmake": "92aa6b31a481733ea9fec9070eb1a55fc96bf325e900d3d76fde8afff7e631d7"
+    },
+    "builderSourceSha256": "1973620fba28317ef0f906fab5ec9327d34d369c34f1099e11ff2363f6f41d1f"
+  },
+  "buildType": "Release",
+  "stages": [
+    {
+      "name": "configure",
+      "exitCode": 0
+    },
+    {
+      "name": "build",
+      "exitCode": 0
+    },
+    {
+      "name": "exported_abi_only",
+      "exitCode": 0
+    }
+  ],
+  "artifacts": [
+    {
+      "file": "liblingxi_glim_point_output.so",
+      "machine": "AArch64",
+      "class": "ELF64",
+      "maxGlibcRequirement": "2.17",
+      "sha256": "f27ea3ad4718e418886acba7a3b7a068baf12773ceb386224687a15ebd18149c",
+      "maxGLIBCXXRequirement": "3.4.21",
+      "maxCXXABIRequirement": "1.3.9"
+    },
+    {
+      "file": "point_output_contract",
+      "machine": "AArch64",
+      "class": "ELF64",
+      "maxGlibcRequirement": "2.34",
+      "sha256": "dfca5dda2fb6524d4098f6b3a1502dd15595e02c0713073723fe7a15df598e90",
+      "maxGLIBCXXRequirement": "3.4.22",
+      "maxCXXABIRequirement": "1.3.9"
+    }
+  ],
+  "exportedCFunctions": [
+    "lingxi_points_close",
+    "lingxi_points_counts",
+    "lingxi_points_error",
+    "lingxi_points_open",
+    "lingxi_points_take"
+  ],
+  "hostAbiInspectionExecuted": true,
+  "nativeContractExecutionsOnTarget": 0,
+  "targetExecutionValidated": false,
+  "robotContacted": false,
+  "runtimePackageBuilt": false,
+  "deploymentApproved": false
+}

@@ -28,6 +28,7 @@ import { measureVadToFirstAudio, summarizeVoiceSamples } from "./voice/diagnosti
 
 type ServerOptions = {
   adapter?: RobotAdapter;
+  lidarSource?: { getLidarFrame: NonNullable<RobotAdapter["getLidarFrame"]> };
   pairingCodeHash?: string;
   stateDirectory?: string;
   internalAgentToken?: string;
@@ -720,8 +721,9 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
     lidarPending = true;
     let payload: string;
     try {
-      if (!adapter.getLidarFrame) throw new Error("雷达数据接口尚未配置");
-      payload = JSON.stringify({ type: "lidar", frame: validatedLidarFrame(await adapter.getLidarFrame()) });
+      const source = options.lidarSource ?? adapter;
+      if (!source.getLidarFrame) throw new Error("雷达数据接口尚未配置");
+      payload = JSON.stringify({ type: "lidar", frame: validatedLidarFrame(await source.getLidarFrame()) });
     } catch {
       payload = JSON.stringify({ type: "lidar-unavailable", message: "没有新雷达数据，请检查雷达话题与桥接连接" });
     } finally { lidarPending = false; }
