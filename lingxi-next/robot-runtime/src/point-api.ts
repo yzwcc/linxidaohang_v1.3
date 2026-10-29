@@ -55,6 +55,8 @@ export async function buildInheritedPointApi(
 }
 
 export async function startInheritedPointApi() {
+  const parentInput = process.env.LINGXI_POINT_PARENT_STDIN;
+  if (parentInput !== undefined && parentInput !== "1") throw new Error("explicit_point_parent_stdin_required");
   const demo = process.env.LINGXI_DEMO_MODE === "1";
   const key = process.env.LINGXI_TLS_KEY, certificate = process.env.LINGXI_TLS_CERT;
   const portText = process.env.LINGXI_PORT ?? (demo ? "3010" : "3000");
@@ -72,7 +74,18 @@ export async function startInheritedPointApi() {
   app.addHook("onClose", async () => {
     process.off("SIGINT", stop);
     process.off("SIGTERM", stop);
+    if (parentInput === "1") {
+      process.stdin.off("end", stop);
+      process.stdin.off("error", stop);
+      process.stdin.destroy();
+    }
   });
+  if (parentInput === "1") {
+    process.stdin.once("end", stop);
+    process.stdin.once("error", stop);
+    process.stdin.resume();
+    if (process.stdin.destroyed || process.stdin.readableEnded) stop();
+  }
   try {
     await app.listen({ host: demo ? "127.0.0.1" : process.env.LINGXI_HOST ?? "0.0.0.0", port: Number(portText) });
     const address = app.server.address();

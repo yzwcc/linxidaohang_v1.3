@@ -63,7 +63,8 @@ async function start(t, overrides = {}, regularInput = false) {
       LINGXI_SLAM_POINT_FD: "3", LINGXI_SLAM_SESSION: fixture.session,
       LINGXI_SLAM_INPUT_MODE: "live", ...overrides,
     },
-    stdio: ["ignore", "pipe", "pipe", regularInput ? input.fd : "pipe"],
+    stdio: [overrides.LINGXI_POINT_PARENT_STDIN === "1" ? "pipe" : "ignore",
+      "pipe", "pipe", regularInput ? input.fd : "pipe"],
   });
   let output = "", errors = "";
   child.stdout.on("data", (bytes) => { output = (output + bytes).slice(-16_384); });
@@ -192,6 +193,7 @@ for (const [name, environment, regularInput] of [
   ["non-socket inherited file", {}, true],
   ["invalid listen port", { LINGXI_PORT: "-1" }, false],
   ["production without TLS", { LINGXI_DEMO_MODE: "0" }, false],
+  ["invalid parent lifetime setting", { LINGXI_POINT_PARENT_STDIN: "yes" }, false],
 ]) {
   test(`${name} fails closed and exits naturally`, { skip }, async (t) => {
     const runtime = await start(t, environment, regularInput);
@@ -199,3 +201,14 @@ for (const [name, environment, regularInput] of [
     assert.equal(runtime.errors().trim(), "Lingxi Next inherited-point API startup failed.");
   });
 }
+
+test("closing the explicit parent's stdin closes the actual API without a signal", { skip }, async (t) => {
+  const runtime = await start(t, { LINGXI_POINT_PARENT_STDIN: "1" });
+  const { socket } = await paired(runtime);
+  t.after(() => socket.terminate());
+  const frame = message(socket, (value) => value.type === "lidar");
+  runtime.child.stdio[3].write(packet("live"));
+  await frame;
+  runtime.child.stdin.end();
+  assert.deepEqual(await deadline(runtime.exit, "natural parent-EOF exit"), { code: 0, signal: null });
+});

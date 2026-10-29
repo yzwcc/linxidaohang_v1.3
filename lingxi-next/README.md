@@ -146,6 +146,11 @@ A separate opt-in inherited-socket API entrypoint now has paired point delivery
 and natural-shutdown coverage in real Linux x64 Node processes. It does not
 launch SLAM, grant navigation readiness or change the default deployment.
 See [the point API ownership and verification boundary](docs/SLAM_POINT_RUNTIME.md).
+An opt-in bounded owner now composes a passive sensor child and this API over
+a PID/UID-checked private socket, with synthetic Linux tests for peer failure,
+parent death, startup timeout and natural shutdown. It has not executed as a
+live ARM64 composition and does not change default services or readiness.
+See [the live owner implementation boundary](docs/SLAM_LIVE_POINT_OWNER.md).
 An independent full-recording range audit records returns beyond 5 raw-coordinate
 units. The roughly 5 m travel estimate is not calibration truth; travel,
 scan coverage and map accuracy are different quantities.

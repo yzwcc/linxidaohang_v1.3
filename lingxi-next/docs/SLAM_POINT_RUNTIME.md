@@ -16,6 +16,11 @@ owned `SlamPointPipeSource`. It requires all three explicit settings:
 | `LINGXI_SLAM_SESSION` | 32 lowercase hexadecimal characters from the owner |
 | `LINGXI_SLAM_INPUT_MODE` | `live`, `recorded` or `synthetic`, with no default |
 
+An optional `LINGXI_POINT_PARENT_STDIN=1` closes the application when the
+owning parent's stdin pipe reaches EOF/error. Any other explicit value is
+rejected. The separate bounded process composition uses this setting;
+see `SLAM_LIVE_POINT_OWNER.md`. It is not enabled by default.
+
 Only a descriptor that the Linux kernel identifies as a socket is adopted.
 The descriptor must already be inherited from the local owner. A filename,
 FIFO, stdin, stdout, health stream or public point-upload endpoint is not a
@@ -88,5 +93,7 @@ The separate actual ARM64 recorded composition is documented in
 `SLAM_POINT_COMPOSITION_TARGET.md`. Its acceptance does not establish this new
 entrypoint's ARM64 execution, live DDS-to-screen delivery, display latency,
 sensor calibration, base alignment, map persistence, localization or navigation.
-Production parent ownership, sensor supervision, real web/Android rendering
-and end-to-end physical acceptance still need implementation and verification.
+A bounded local parent/sensor composition now has synthetic Linux process
+coverage; see `SLAM_LIVE_POINT_OWNER.md` for its exact limits. Real ARM64 live
+composition, web/Android rendering, production service recovery and end-to-end
+physical acceptance remain unverified.
