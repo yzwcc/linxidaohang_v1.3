@@ -16,6 +16,7 @@ class MappingWorker:
                 or not callable(mapping_factory)):
             raise ValueError("bounded_mapping_save_configuration_required")
         self.session, self.input_mode = session_id(session), input_mode
+        self.name = name
         self.output = Path(output)
         if self.output.exists() or self.output.is_symlink():
             raise ValueError("new_mapping_session_output_required")
@@ -24,11 +25,15 @@ class MappingWorker:
         self.phase_lock, self.stop_lock = threading.Lock(), threading.Lock()
 
         def factory():
-            self.native_session = MappingSession(
+            native_session = MappingSession(
                 native_factory, mapping_factory, self.decision, self.output,
-                name=name, session=session, input_mode=input_mode, can_save=self._can_save,
+                name=self.name, session=session, input_mode=input_mode, can_save=self._can_save,
                 inspect_map=inspect_map, reload_map=reload_map)
-            return self.native_session
+            # Initialization can overlap a stop-time rename; publish the latest name.
+            with self.phase_lock:
+                native_session.name = self.name
+                self.native_session = native_session
+            return native_session
 
         self.worker = SensorWorker(
             factory, profile, hypothesis,
@@ -63,13 +68,18 @@ class MappingWorker:
     def cancel_save(self):
         self.decision.discard()
 
-    def stop(self, *, save=False):
-        if type(save) is not bool:
+    def stop(self, *, save=False, name=None):
+        if (type(save) is not bool or name is not None and (
+                not save or type(name) is not str or not 1 <= len(name.strip()) <= 64)):
             raise ValueError("explicit_boolean_save_decision_required")
         with self.stop_lock:
             with self.phase_lock:
                 if self.phase in ("saved", "stopped"):
                     return self.snapshot_unlocked()
+                if name is not None:
+                    self.name = name.strip()
+                    if self.native_session is not None:
+                        self.native_session.name = self.name
                 self.phase = "saving" if save and self.phase == "mapping" else "stopping"
                 if self.phase == "saving":
                     self.decision.request_save()

@@ -64,7 +64,8 @@ export async function api<T>(
   headers.set("Authorization", `Bearer ${connection.token}`);
   if (init.body && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
   const response = await fetch(`${connection.baseUrl}${path}`, {
-    signal: AbortSignal.timeout(path.includes("stop-save") ? 130_000 : path.includes("activate") ? 35_000 : 10_000),
+    signal: AbortSignal.timeout(path.includes("stop-save") ? 130_000
+      : path.includes("stop-discard") ? 110_000 : path.includes("activate") ? 35_000 : 10_000),
     ...init, headers,
   });
   const body = await response.json().catch(() => ({}));

@@ -370,7 +370,7 @@ function Mapping({
     ["aimdk", "slam", "lidar"].every((id) => state.checks.some((item) => item.id === id && item.ready));
   const mappingLabel = {
     idle: "未启动",
-    requested: "等待 AIMDK 确认",
+    requested: state.mappingBackend ? "等待建图进程就绪" : "等待 AIMDK 确认",
     running: "采集中",
     saving: "等待保存确认",
     failed: "保存未确认",
@@ -384,7 +384,9 @@ function Mapping({
     event.preventDefault();
     setBusy(true);
     try {
-      await run("/api/v1/mapping/stop-save", { name: mapName }, "POST");
+      await run("/api/v1/mapping/stop-save", {
+        name: mapName, ...(state.mappingBackend ? { session: state.mappingSession } : {}),
+      }, "POST");
       setMapName("");
     } finally { setBusy(false); }
   }
@@ -394,7 +396,9 @@ function Mapping({
       <PageHeading title="实时建图" description="激光雷达实时扫描与 SLAM 建图" />
       <div className="notice warn" style={{ marginBottom: 14 }}>
         <AlertTriangle size={15} />
-        <span>移动机器人始终使用外置遥控器。停止建图时 AIMDK 会按地图名保存，并等待地图服务确认结果。</span>
+        <span>{state.mappingBackend
+          ? "录制数据建图联调；机器人运动接口不可用。地图保存后仍需验证标定、定位和导航。"
+          : "移动机器人始终使用外置遥控器。停止建图时 AIMDK 会按地图名保存，并等待地图服务确认结果。"}</span>
       </div>
       {state.actionStatus === "linkcraft-awaiting-operator" && (
         <div className="notice warn" style={{ marginBottom: 14 }}>
@@ -443,13 +447,22 @@ function Mapping({
                     <label htmlFor="map-name">保存地图名称</label>
                     <input id="map-name" value={mapName} onChange={(event) => setMapName(event.target.value)} maxLength={64} required placeholder="例如：一层展厅" />
                   </div>
-                  <button className="btn danger" disabled={busy || !mapName.trim()} type="submit"><Save size={13} />停止并保存</button>
+                  <button className="btn danger" disabled={busy || !mapName.trim() ||
+                    (state.mappingBackend && state.mappingStatus !== "running")} type="submit"><Save size={13} />停止并保存</button>
+                  {state.mappingBackend && <button className="btn" type="button" disabled={busy || !state.mappingSession ||
+                    state.mappingStatus === "saving"} onClick={() => {
+                    if (!window.confirm("放弃本次建图？本次采集不会保存为地图。")) return;
+                    setBusy(true);
+                    void run("/api/v1/mapping/stop-discard", { session: state.mappingSession })
+                      .finally(() => setBusy(false)).catch(() => undefined);
+                  }}><Square size={13} />停止并放弃</button>}
                 </form>
               )}
               {!canStart && !state.mapping && <span className="helper danger-text">接口检查未通过，开始采集已禁用。</span>}
             </div>
           </Section>
-          <div className="notice"><CircleHelp size={14} />建图和地图保存通过 AIMDK 本机接口执行；本页面没有底盘遥控能力。</div>
+          <div className="notice"><CircleHelp size={14} />{state.mappingBackend
+            ? "GLIM · 录制数据验证" : "AIMDK 本机建图 · 外置遥控器移动"}</div>
         </div>
       </div>
     </div>

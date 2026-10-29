@@ -33,6 +33,7 @@ class MappingController(unittest.TestCase):
                 parent.calls.append("create")
                 if parent.fail_create:
                     raise RuntimeError("synthetic_factory_failed")
+                self.name = kwargs["name"]
                 self.decision, self.can_save, self.receipt = args[2], kwargs["can_save"], None
 
             def imu(self, *args):
@@ -94,6 +95,47 @@ class MappingController(unittest.TestCase):
         self.assertEqual("stopped", result["phase"])
         self.assertFalse(self.controller.stop(save=True)["saved"])
         self.assertEqual(["create", "close"], self.calls)
+
+    def test_name_is_chosen_at_save_time(self):
+        self.start()
+        self.assertTrue(self.controller.stop(save=True, name="  Final synthetic map  ")["saved"])
+        self.assertEqual("Final synthetic map", self.controller.native_session.name)
+        self.controller.stop(save=True, name="Must not rename a completed map")
+        self.assertEqual("Final synthetic map", self.controller.native_session.name)
+
+    def test_rename_during_factory_initialization_is_not_lost(self):
+        original = module.MappingSession
+        entered, release = threading.Event(), threading.Event()
+
+        def delayed(*args, **kwargs):
+            entered.set()
+            if not release.wait(2):
+                raise RuntimeError("synthetic_factory_not_released")
+            return original(*args, **kwargs)
+
+        with patch.object(module, "MappingSession", delayed):
+            self.controller.start()
+            self.assertTrue(entered.wait(2))
+            result = []
+            stopper = threading.Thread(target=lambda: result.append(
+                self.controller.stop(save=True, name="Concurrent synthetic name")))
+            stopper.start()
+            deadline = time.monotonic() + 1
+            while self.controller.name != "Concurrent synthetic name" and time.monotonic() < deadline:
+                time.sleep(.002)
+            release.set()
+            stopper.join(3)
+            self.assertFalse(stopper.is_alive())
+            self.assertEqual("Concurrent synthetic name", self.controller.native_session.name)
+            self.assertEqual(1, len(result))
+
+    def test_invalid_save_names_do_not_stop_the_worker(self):
+        for name in ("", " " * 3, "x" * 65, 1):
+            with self.subTest(name=name), self.assertRaises(ValueError):
+                self.controller.stop(save=True, name=name)
+        with self.assertRaises(ValueError):
+            self.controller.stop(name="Discard cannot rename")
+        self.assertEqual("new", self.controller.snapshot()["phase"])
 
     def test_cancelled_save_cannot_be_requested_again(self):
         self.start()

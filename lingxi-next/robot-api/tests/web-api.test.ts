@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { RobotState } from "../../shared/contracts";
-import { openEvents, type Connection } from "../../web/src/api";
+import { api, openEvents, type Connection } from "../../web/src/api";
 
 class FakeWebSocket {
   static instances: FakeWebSocket[] = [];
@@ -47,8 +47,22 @@ function useFakeBrowserTimers() {
 
 afterEach(() => {
   vi.useRealTimers();
+  vi.restoreAllMocks();
   vi.unstubAllGlobals();
   FakeWebSocket.instances = [];
+});
+
+describe("mapping control request budgets", () => {
+  it.each([
+    ["/api/v1/mapping/stop-save", 130_000],
+    ["/api/v1/mapping/stop-discard", 110_000],
+    ["/api/v1/mapping/start", 10_000],
+  ])("keeps %s within its explicit completion budget", async (route, milliseconds) => {
+    const timeout = vi.spyOn(AbortSignal, "timeout");
+    vi.stubGlobal("fetch", vi.fn(async () => new Response('{"confirmed":true}')));
+    expect(await api(connection, String(route), { method: "POST" })).toEqual({ confirmed: true });
+    expect(timeout).toHaveBeenCalledExactlyOnceWith(milliseconds);
+  });
 });
 
 describe("state WebSocket subscription", () => {

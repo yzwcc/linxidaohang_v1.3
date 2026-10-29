@@ -69,5 +69,6 @@ local check report are ignored artifacts, not physical robot evidence.
 These fixtures are explicitly synthetic and are not native-loadable GLIM
 maps. The prior actual native save/reload evidence is unchanged; this change
 does not constitute a new ARM64, live sensor, Android APK or robot trial.
-The product/APK version remains 0.1.19. Live mapping lifecycle integration,
+The product/APK version remains 0.1.19. Subsequent recorded lifecycle controls
+are documented in `SLAM_MAPPING_CONTROL.md`. Live mapping lifecycle integration,
 long-session mapping/loop closure, localization and navigation remain open.

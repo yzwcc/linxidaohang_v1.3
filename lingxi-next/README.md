@@ -196,6 +196,10 @@ npm run build
 
 ## Robot runtime
 
+The opt-in independent GLIM path now has recorded-data start/save/discard
+controls and a verified saved-point preview. It is not yet production live
+mapping or independent navigation; see `docs/SLAM_MAPPING_CONTROL.md`.
+
 The production API requires a robot TLS key/certificate, a one-time pairing
 code hash, a restricted internal-agent token, and the local ROS 2 bridge. The
 bridge is configured with the topic names found by `ros2 topic list` on the

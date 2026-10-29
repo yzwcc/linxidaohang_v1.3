@@ -26,6 +26,7 @@ import { JsonStateStore } from "./store";
 import { validatedLidarFrame } from "./lidar";
 import { measureVadToFirstAudio, summarizeVoiceSamples } from "./voice/diagnostics";
 import { SavedSlamMapCatalog } from "./slam-map-catalog";
+import { mappingGuard, UnixMappingBackend, type MappingBackend } from "./mapping-backend";
 
 type ServerOptions = {
   adapter?: RobotAdapter;
@@ -39,6 +40,7 @@ type ServerOptions = {
   demoMode?: boolean;
   agentSpeaker?: SpeechOutput;
   savedSlamDirectory?: string;
+  mappingBackend?: MappingBackend;
 };
 
 const emptySnapshot: RobotSnapshot = {
@@ -95,9 +97,13 @@ class HttpAgentSpeaker implements SpeechOutput {
 
 export async function buildServer(options: ServerOptions = {}): Promise<FastifyInstance> {
   const demoMode = options.demoMode ?? process.env.LINGXI_DEMO_MODE === "1";
-  const adapter = options.adapter ?? (demoMode ? new DemoAdapter() : new AimdkAdapter(process.env.AIMDK_BRIDGE_URL));
+  const mappingBackend = options.mappingBackend ?? (process.env.LINGXI_MAPPING_SOCKET
+    ? new UnixMappingBackend(process.env.LINGXI_MAPPING_SOCKET) : undefined);
+  const baseAdapter = options.adapter ?? (demoMode ? new DemoAdapter() : new AimdkAdapter(process.env.AIMDK_BRIDGE_URL));
+  const adapter = mappingBackend ? mappingGuard(baseAdapter, mappingBackend) : baseAdapter;
   const savedSlamDirectory = options.savedSlamDirectory ?? process.env.LINGXI_SAVED_SLAM_DIR;
   const slamCatalog = savedSlamDirectory ? new SavedSlamMapCatalog(savedSlamDirectory) : undefined;
+  if (mappingBackend && !slamCatalog) throw new Error("independent_mapping_requires_saved_slam_directory");
   const store = new JsonStateStore(options.stateDirectory ?? process.env.LINGXI_DATA_DIR ?? path.resolve("var/lib/lingxi-next"));
   const hash = options.pairingCodeHash ?? process.env.LINGXI_PAIRING_CODE_SHA256 ??
     (demoMode ? pairingCodeHash(process.env.LINGXI_DEMO_PAIRING_CODE ?? "lingxi-dev-only") : "");
@@ -391,6 +397,7 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
     return method.call(adapter, map);
   });
   app.post("/api/v1/mapping/start", async (_request, reply) => {
+    if (mappingBackend && !demoMode) throw deny(409, "当前独立建图后端仅用于录制数据联调，尚未开放实机采集");
     const state = await stateResponse();
     if (state.actionBusy) throw deny(409, "机器人动作状态未解除，请先检查动作服务状态");
     if (jobs.hasActiveJob() || ["requested", "running", "paused"].includes(state.navigation.status)) {
@@ -404,14 +411,34 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
     emitState(await stateResponse());
     return reply.code(202).send({ accepted: true });
   });
-  app.post<{ Body: { name: string } }>("/api/v1/mapping/stop-save", async (request) => {
-    const name = request.body?.name?.trim();
-    if (!name || name.length > 64) throw deny(400, "地图名称长度必须为 1–64 个字符");
+  app.post<{ Body: unknown }>("/api/v1/mapping/stop-save", async (request) => {
+    const parsedName = z.object({ name: z.string().trim().min(1).max(64) }).safeParse(request.body);
+    if (!parsedName.success) throw deny(400, "地图名称长度必须为 1–64 个字符");
+    const name = parsedName.data.name;
+    if (mappingBackend) {
+      const identity = z.object({
+        name: z.string(), session: z.string().regex(/^[a-f0-9]{32}$/),
+      }).strict().safeParse(request.body);
+      if (!identity.success) throw deny(400, "独立建图操作需要当前会话标识");
+      const result = await mappingBackend.finish(identity.data.session, true, name);
+      const map = (await slamCatalog!.list()).find((item) => item.id === result.mapId);
+      if (!map || map.name !== name || map.inputMode !== "recorded") throw deny(503, "保存结果尚未通过地图目录校验");
+      emitState(await stateResponse());
+      return { savedSlamMap: map, confirmed: true };
+    }
     const map = await adapter.stopAndSaveMap(name);
     await store.putMap(map);
     await store.setActiveMap(map.id);
     emitState(await stateResponse());
     return { map, confirmed: true };
+  });
+  app.post("/api/v1/mapping/stop-discard", async (request) => {
+    if (!mappingBackend) throw deny(501, "当前建图后端尚未提供放弃接口");
+    const identity = z.object({ session: z.string().regex(/^[a-f0-9]{32}$/) }).strict().safeParse(request.body);
+    if (!identity.success) throw deny(400, "独立建图操作需要当前会话标识");
+    await mappingBackend.finish(identity.data.session, false);
+    emitState(await stateResponse());
+    return { confirmed: true, saved: false };
   });
 
   app.post<{ Body: unknown }>("/api/v1/points", async (request, reply) => {

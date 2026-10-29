@@ -1,10 +1,12 @@
 """Synthetic peers and read-only published aggregates; no robot or ARM execution."""
 import argparse
 from copy import deepcopy
+import hashlib
 import json
 import os
 from pathlib import Path, PurePosixPath
 import shlex
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -437,7 +439,19 @@ class PublishedArm64ResultTests(unittest.TestCase):
 
     def test_published_result_keeps_frozen_sources_and_excludes_private_payloads(self):
         result = self.result()
-        self.assertEqual(coordinator.binding.source_hashes(), result["sourceSha256"])
+        # This historical ARM64 run predates the optional mapping/catalog API.
+        # Verify revised management files against that run's committed version,
+        # not against later code that was never part of its hardware evidence.
+        revised_management = {
+            "robot-api/src/domain.ts", "robot-api/src/server.ts", "shared/contracts.ts"}
+        revision = "dff9855896feaa44eb233f44aebcd52c8a9703a8"
+        for name, expected in result["sourceSha256"].items():
+            if name in revised_management:
+                source = subprocess.check_output(
+                    ["git", "show", revision + ":lingxi-next/" + name], cwd=ROOT)
+            else:
+                source = (ROOT / name).read_bytes()
+            self.assertEqual(expected, hashlib.sha256(source).hexdigest(), name)
         self.assertEqual(coordinator.sha256(coordinator.__file__), result["coordinatorSha256"])
         self.assertEqual(coordinator.sha256(exporter.__file__), result["exporterSha256"])
         text = json.dumps(result)
