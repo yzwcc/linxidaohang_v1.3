@@ -40,9 +40,13 @@ trials; see `docs/SLAM_ARM64_WORKER.md`. Two additional 20-second processes
 now exercise actual Humble subscriptions and close cleanly; see
 `docs/SLAM_HUMBLE_LIVE.md`. Native warnings, calibration, long-running
 throughput and shutdown under unresponsive native code remain unresolved.
-Python cannot forcibly
-terminate a stuck native thread; process isolation/supervision is still needed
-before production. Queue age begins at the serialized callback, not the sensor
+Python cannot forcibly terminate a stuck native thread. `ProcessSupervisor`
+now provides external process ownership and bounded health IPC; a separate
+recorded-input composition has completed real x86 native lifecycles without
+altering this worker. See `docs/SLAM_SUPERVISED_NATIVE_REPLAY.md`. Target ARM64
+supervision, live composition and parent-service failure recovery remain
+unverified and are still required before production.
+Queue age begins at the serialized callback, not the sensor
 or DDS transport, and is not an end-to-end latency guarantee.
 The prior recorded-arrival trial does not model CPU queueing or prove real-time
 performance, calibration, ARM64 streaming, localization or navigation.

@@ -23,17 +23,30 @@ EXPECTED = {"records": 5, "counts": {"imu": 3, "cloud": 2}, "bytes": 123}
 
 
 def child_report():
+    timing = replay.ReplayTiming(EXPECTED["records"])
+    counts = {
+        "nativeCreateWall": 1, "nativeLibraryVerificationWall": 1, "nativeImuWall": 3,
+        "nativeFrameWall": 2, "nativeCloseWall": 1, "nativePreprocess": 2, "nativeOdometry": 2,
+        "producerReadWall": 6, "producerDecodeWall": 5, "producerOfferWall": 5,
+        "producerDispatchLateness": 5, "producerAdmissionLateness": 5,
+    }
+    for name, count in counts.items():
+        for _ in range(count):
+            timing.observe(name, .001)
     return {
         "stopReceived": True, "journalExhausted": True,
+        "timing": timing.snapshot(), "totalWallSeconds": 1., "processCpuSeconds": .1,
         "nativeOwnerIsSingleNonMainThread": True,
         "nativeCalls": {"create": 1, "close": 1, "imu": 3, "frame": 2},
         "worker": {
             "state": "stopped", "failure": None, "threadAlive": False,
+            "maximumObservedQueueAgeSeconds": .001,
             "queuedMessages": 0, "queuedPayloadBytes": 0, "inFlightMessages": 0,
             "counts": {"completedMessages": 5, "acceptedImu": 3, "acceptedClouds": 2,
                        "rejectedMessages": 0, "discardedMessages": 0},
             "stream": {
                 "state": "finished", "failure": None,
+                "maximumObservedScanWaitSeconds": .001,
                 "counts": {"insertedImu": 3, "processedScans": 2, "estimatedPoses": 2,
                            "receivedImu": 3, "receivedClouds": 2,
                            "skippedBeforeImu": 0, "skippedAfterImuAtEndOfInput": 0},
@@ -47,6 +60,110 @@ def stopped():
         "state": "stopped", "exitCode": 0, "processAlive": False, "monitorAlive": False,
         "forcedTermination": False, "cleanupComplete": True, "completedMessages": 5,
     }
+
+
+class ScalarReplayTiming(unittest.TestCase):
+    def test_only_bounded_records_known_channels_and_nonnegative_finite_scalars(self):
+        for count in (True, 0, -1, 20_001, 1.):
+            with self.subTest(count=count), self.assertRaises(ValueError):
+                replay.ReplayTiming(count)
+        with self.assertRaises(ValueError):
+            replay.ReplayTiming(1, clock=None)
+        timing = replay.ReplayTiming(1)
+        for name, value in (("pose", 1.), ([], 1.), ("nativeFrameWall", True),
+                            ("nativeFrameWall", -1.), ("nativeFrameWall", float("nan")),
+                            ("nativeFrameWall", float("inf")), ("nativeFrameWall", "PRIVATE_MARKER")):
+            with self.subTest(name=name, value=value), self.assertRaises(ValueError):
+                timing.observe(name, value)
+        timing.observe("nativeFrameWall", 0.)
+        timing.observe("nativeFrameWall", .1)
+        with self.assertRaises(ValueError):
+            timing.observe("nativeFrameWall", .2)
+
+    def test_nearest_rank_percentiles_are_explicit_and_empty_channels_are_not_fabricated(self):
+        timing = replay.ReplayTiming(3)
+        for value in (.01, .03, .02, .1):
+            timing.observe("producerAdmissionLateness", value)
+        summary = timing.snapshot()
+        self.assertEqual("nearest_rank", summary["percentiles"])
+        self.assertEqual(4, summary["maximumSamplesPerChannel"])
+        channel = summary["channels"]["producerAdmissionLateness"]
+        self.assertEqual(4, channel["count"])
+        self.assertAlmostEqual(.16, channel["totalSeconds"])
+        self.assertEqual((.01, .02, .1, .1), tuple(channel[key] for key in (
+            "minimumSeconds", "p50Seconds", "p95Seconds", "maximumSeconds")))
+        self.assertEqual(0, summary["channels"]["nativeFrameWall"]["count"])
+        self.assertIsNone(summary["channels"]["nativeFrameWall"]["p95Seconds"])
+
+    def test_calls_preserve_return_values_and_original_errors_and_measure_both(self):
+        timing = replay.ReplayTiming(2, clock=Mock(side_effect=(1., 1.01, 2., 2.03)))
+        value = object()
+        self.assertIs(value, timing.call("producerReadWall", lambda: value))
+        error = RuntimeError("synthetic")
+        with self.assertRaises(RuntimeError) as raised:
+            timing.call("producerReadWall", Mock(side_effect=error))
+        self.assertIs(error, raised.exception)
+        summary = timing.snapshot()["channels"]["producerReadWall"]
+        self.assertEqual(2, summary["count"])
+        self.assertAlmostEqual(.04, summary["totalSeconds"])
+
+    def test_native_wall_time_and_reported_algorithm_time_have_distinct_units(self):
+        ticks = iter(range(20))
+        timing = replay.ReplayTiming(3, clock=lambda: next(ticks) / 100.)
+        native, pose = Mock(), object()
+        native.frame.return_value = (pose, [1.5, 2.5, 10., 0.])
+        owner = replay.OwnedNative(lambda: native, lambda _: None, lambda: None, timing=timing)
+        owner.imu(1, 2, 3)
+        self.assertIs(native.frame.return_value, owner.frame(1, 2, 3))
+        owner.close()
+        owner.close()
+        channels = timing.snapshot()["channels"]
+        for name in ("nativeCreateWall", "nativeLibraryVerificationWall", "nativeImuWall",
+                     "nativeFrameWall", "nativeCloseWall"):
+            self.assertEqual(1, channels[name]["count"])
+            self.assertAlmostEqual(.01, channels[name]["maximumSeconds"])
+        self.assertAlmostEqual(.0015, channels["nativePreprocess"]["maximumSeconds"])
+        self.assertAlmostEqual(.0025, channels["nativeOdometry"]["maximumSeconds"])
+        native.close.assert_called_once()
+
+    def test_owner_threads_can_record_separate_bounded_channels_without_losing_samples(self):
+        timing = replay.ReplayTiming(100)
+        names = ("nativeImuWall", "producerReadWall")
+
+        def observe(name):
+            for _ in range(100):
+                timing.observe(name, .001)
+
+        threads = [threading.Thread(target=observe, args=(name,)) for name in names]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join(1.)
+            self.assertFalse(thread.is_alive())
+        for name in names:
+            channel = timing.snapshot()["channels"][name]
+            self.assertEqual(100, channel["count"])
+            self.assertAlmostEqual(.1, channel["totalSeconds"])
+
+    def test_complete_timing_rejects_counter_drift_and_unknown_fields(self):
+        replay.verified_timing(child_report(), EXPECTED)
+        changes = (
+            (("timing", "maximumSamplesPerChannel"), 999),
+            (("timing", "channels", "producerReadWall", "count"), 5),
+            (("timing", "channels", "nativeFrameWall", "count"), True),
+            (("timing", "channels", "nativeOdometry", "p95Seconds"), float("nan")),
+            (("timing", "channels", "nativeImuWall", "p95Seconds"), -1.),
+            (("timing", "channels", "producerOfferWall", "p95Seconds"), 10.),
+            (("timing", "privateMarker"), "PRIVATE_MARKER"),
+        )
+        for path, value in changes:
+            report = child_report()
+            cursor = report
+            for name in path[:-1]:
+                cursor = cursor[name]
+            cursor[path[-1]] = value
+            with self.subTest(path=path), self.assertRaises(ValueError):
+                replay.verified_timing(report, EXPECTED)
 
 
 class CompositionContracts(unittest.TestCase):
@@ -112,6 +229,9 @@ class CompositionContracts(unittest.TestCase):
             (("worker", "stream", "counts", "skippedBeforeImu"), 1),
             (("worker", "stream", "counts", "estimatedPoses"), 0),
             (("worker", "stream", "state"), "running"),
+            (("timing", "channels", "nativeFrameWall", "count"), 1),
+            (("totalWallSeconds",), float("inf")), (("processCpuSeconds",), "PRIVATE_MARKER"),
+            (("worker", "maximumObservedQueueAgeSeconds"), -1.),
         )
         for path, value in modifications:
             report = child_report()
@@ -255,6 +375,8 @@ class CompositionContracts(unittest.TestCase):
         self.assertEqual(2, result["streamCounts"]["processedScans"])
         self.assertEqual(.5, result["replayRate"])
         self.assertFalse(result["oneTimesReplayPerformanceValidated"])
+        self.assertEqual(6, result["replayTiming"]["channels"]["producerReadWall"]["count"])
+        self.assertEqual(.001, result["observedWorkerTiming"]["maximumQueueAgeSeconds"])
 
     def test_evidence_rejects_failure_session_change_and_readiness_claim(self):
         def failed(parent, child):

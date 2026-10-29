@@ -7,6 +7,7 @@ import argparse
 from dataclasses import asdict
 from importlib import metadata
 import json
+import math
 import os
 from pathlib import Path
 import platform
@@ -46,6 +47,101 @@ SOURCE_NAMES = (
     "robot-slam/lingxi_slam/process_protocol.py", "robot-slam/lingxi_slam/process_supervisor.py",
     "docs/slam-stream-input-evidence.json",
 )
+TIMING_CHANNELS = (
+    "nativeCreateWall", "nativeLibraryVerificationWall", "nativeImuWall", "nativeFrameWall",
+    "nativeCloseWall", "nativePreprocess", "nativeOdometry", "producerReadWall",
+    "producerDecodeWall", "producerOfferWall", "producerDispatchLateness", "producerAdmissionLateness",
+)
+TIMING_STATISTICS = ("count", "totalSeconds", "minimumSeconds", "p50Seconds", "p95Seconds", "maximumSeconds")
+
+
+class ReplayTiming:
+    """Bounded scalar observations only; no sensor values, poses or native output."""
+
+    def __init__(self, records, *, clock=time.monotonic):
+        if type(records) is not int or not 1 <= records <= 20_000 or not callable(clock):
+            raise ValueError("bounded_record_count_and_timing_clock_required")
+        self.maximum, self.clock = records + 1, clock
+        self.samples = {name: [] for name in TIMING_CHANNELS}
+        self.lock = threading.Lock()
+
+    def observe(self, name, seconds):
+        if (type(name) is not str or name not in self.samples or type(seconds) not in (int, float)
+                or not math.isfinite(seconds) or seconds < 0):
+            raise ValueError("known_finite_nonnegative_timing_required")
+        with self.lock:
+            if len(self.samples[name]) >= self.maximum:
+                raise ValueError("bounded_replay_timing_samples_required")
+            self.samples[name].append(seconds)
+
+    def call(self, name, function, *args):
+        started = self.clock()
+        try:
+            return function(*args)
+        finally:
+            self.observe(name, self.clock() - started)
+
+    def snapshot(self):
+        channels = {}
+        with self.lock:
+            for name, values in self.samples.items():
+                ordered = sorted(values)
+                count = len(ordered)
+                channels[name] = dict(zip(TIMING_STATISTICS, (
+                    count, math.fsum(ordered), ordered[0] if count else None,
+                    ordered[math.ceil(count * .5) - 1] if count else None,
+                    ordered[math.ceil(count * .95) - 1] if count else None,
+                    ordered[-1] if count else None,
+                )))
+        return {
+            "schemaVersion": 1, "clock": "time.monotonic", "percentiles": "nearest_rank",
+            "maximumSamplesPerChannel": self.maximum, "channels": channels,
+        }
+
+
+def verified_timing(report, expected):
+    timing, calls = report["timing"], report["nativeCalls"]
+    if (set(timing) != {"schemaVersion", "clock", "percentiles", "maximumSamplesPerChannel", "channels"}
+            or type(timing["schemaVersion"]) is not int or timing["schemaVersion"] != 1
+            or timing["clock"] != "time.monotonic" or timing["percentiles"] != "nearest_rank"
+            or type(timing["maximumSamplesPerChannel"]) is not int
+            or timing["maximumSamplesPerChannel"] != expected["records"] + 1
+            or set(timing["channels"]) != set(TIMING_CHANNELS)):
+        raise ValueError("exact_bounded_replay_timing_schema_required")
+    counts = {
+        "nativeCreateWall": 1, "nativeLibraryVerificationWall": 1, "nativeCloseWall": 1,
+        "nativeImuWall": calls["imu"], "nativeFrameWall": calls["frame"],
+        "nativePreprocess": calls["frame"], "nativeOdometry": calls["frame"],
+        "producerReadWall": expected["records"] + 1,
+        **dict.fromkeys(("producerDecodeWall", "producerOfferWall", "producerDispatchLateness",
+                        "producerAdmissionLateness"), expected["records"]),
+    }
+    channels = {}
+    for name in TIMING_CHANNELS:
+        channel = timing["channels"][name]
+        if (set(channel) != set(TIMING_STATISTICS) or type(channel["count"]) is not int
+                or not 0 < channel["count"] == counts[name] <= timing["maximumSamplesPerChannel"]
+                or any(type(channel[key]) not in (int, float) or not math.isfinite(channel[key])
+                       or channel[key] < 0 for key in TIMING_STATISTICS[1:])
+                or not channel["minimumSeconds"] <= channel["p50Seconds"] <= channel["p95Seconds"]
+                <= channel["maximumSeconds"] <= channel["totalSeconds"]):
+            raise ValueError("complete_finite_replay_timing_accounting_required")
+        channels[name] = {key: channel[key] for key in TIMING_STATISTICS}
+    return {**{key: timing[key] for key in (
+        "schemaVersion", "clock", "percentiles", "maximumSamplesPerChannel")}, "channels": channels}
+
+
+def observed_worker_timing(report):
+    values = {
+        "maximumQueueAgeSeconds": report["worker"]["maximumObservedQueueAgeSeconds"],
+        "maximumScanWaitSeconds": report["worker"]["stream"]["maximumObservedScanWaitSeconds"],
+        "childWallSeconds": report["totalWallSeconds"],
+        "childProcessCpuSeconds": report["processCpuSeconds"],
+    }
+    if any(type(value) not in (int, float) or not math.isfinite(value) or value < 0
+           for value in values.values()):
+        raise ValueError("finite_nonnegative_worker_timing_required")
+    return values
 
 
 def load(path):
@@ -141,29 +237,36 @@ def inputs(args):
 class OwnedNative:
     """Measurement wrapper only; no changes to preprocessing or native lifetime."""
 
-    def __init__(self, factory, record, loaded):
-        self.record, self.closed = record, False
+    def __init__(self, factory, record, loaded, *, timing=None):
+        self.record, self.closed, self.timing = record, False, timing
         record("create")
-        self.native = factory()
+        self.native = self.measured("nativeCreateWall", factory)
         try:
-            loaded()
+            self.measured("nativeLibraryVerificationWall", loaded)
         except BaseException:
             self.close()
             raise
 
     def imu(self, *args):
         self.record("imu")
-        return self.native.imu(*args)
+        return self.measured("nativeImuWall", self.native.imu, *args)
 
     def frame(self, *args):
         self.record("frame")
-        return self.native.frame(*args)
+        result = self.measured("nativeFrameWall", self.native.frame, *args)
+        if self.timing is not None:
+            self.timing.observe("nativePreprocess", float(result[1][0]) / 1000.)
+            self.timing.observe("nativeOdometry", float(result[1][1]) / 1000.)
+        return result
+
+    def measured(self, name, function, *args):
+        return function(*args) if self.timing is None else self.timing.call(name, function, *args)
 
     def close(self):
         if not self.closed:
             self.closed = True
             self.record("close")
-            return self.native.close()
+            return self.measured("nativeCloseWall", self.native.close)
 
 
 class StopPipe:
@@ -204,6 +307,8 @@ def complete_child(report, expected):
                 "processedScans", "skippedBeforeImu", "skippedAfterImuAtEndOfInput"))
             != expected["counts"]["cloud"]):
         raise ValueError("all_recorded_sensor_packets_accounted_for_required")
+    verified_timing(report, expected)
+    observed_worker_timing(report)
 
 
 def child(args, sink):
@@ -221,6 +326,7 @@ def child(args, sink):
     emitter = HealthEmitter(sink, session_id(os.environ.get("LINGXI_SLAM_SESSION")))
     print("supervised_replay_phase: verifying_frozen_inputs", file=sys.stderr, flush=True)
     integrity = inputs(args)
+    timing = ReplayTiming(integrity["journal"]["records"])
     faulthandler.cancel_dump_traceback_later()
     print("supervised_replay_phase: starting_native_worker", file=sys.stderr, flush=True)
     expected_environment = child_environment(args.work)
@@ -254,7 +360,7 @@ def child(args, sink):
         return OwnedNative(
             lambda: Native(args.adapter / "build/liblingxi_glim_offline.so", args.bundle / "config",
                            args.work / "prefix/lib/libodometry_estimation_cpu.so"), record,
-            verify_loaded,
+            verify_loaded, timing=timing,
         )
 
     profile = SensorProfile("lidar_chest_front", "lidar_imu_chest_front",
@@ -262,8 +368,9 @@ def child(args, sink):
     worker = SensorWorker(factory, profile, args.hypothesis)
     stop, failure = StopPipe(), None
     started, next_health, epoch = time.monotonic(), 0., None
+    cpu_started = time.process_time()
     iterator = records(args.reference / "private-callbacks.cdrjournal")
-    pending = next(iterator)
+    pending = timing.call("producerReadWall", next, iterator, None)
     first_elapsed = pending.elapsed_ns
     worker.start()
     try:
@@ -283,13 +390,17 @@ def child(args, sink):
                 if state["state"] == "running":
                     if epoch is None:
                         epoch = now
-                    if pending is not None and now >= epoch + (pending.elapsed_ns - first_elapsed) / 1e9 / args.rate:
+                    due = None if pending is None else epoch + (pending.elapsed_ns - first_elapsed) / 1e9 / args.rate
+                    if due is not None and now >= due:
+                        timing.observe("producerDispatchLateness", time.monotonic() - due)
                         msgtype = "sensor_msgs/msg/" + ("Imu" if pending.kind == "imu" else "PointCloud2")
-                        message = types.deserialize_cdr(pending.payload, msgtype)
+                        message = timing.call("producerDecodeWall", types.deserialize_cdr, pending.payload, msgtype)
                         offer = worker.offer_imu if pending.kind == "imu" else worker.offer_cloud
-                        if not offer(message):
+                        accepted = timing.call("producerOfferWall", offer, message)
+                        timing.observe("producerAdmissionLateness", time.monotonic() - due)
+                        if not accepted:
                             raise RuntimeError("recorded_callback_rejected")
-                        pending = next(iterator, None)
+                        pending = timing.call("producerReadWall", next, iterator, None)
                         report["journalExhausted"] = pending is None
                         continue
                 selector.select(.002)
@@ -300,7 +411,8 @@ def child(args, sink):
         report["worker"] = worker.stop()
         report.update(nativeCalls=calls, actualLoadedLibrariesSha256=loaded,
                       nativeOwnerIsSingleNonMainThread=len(owners) == 1 and main_thread not in owners,
-                      totalWallSeconds=time.monotonic() - started)
+                      totalWallSeconds=time.monotonic() - started,
+                      processCpuSeconds=time.process_time() - cpu_started, timing=timing.snapshot())
         try:
             if failure is not None:
                 raise RuntimeError("recorded_replay_interrupted")
@@ -455,6 +567,8 @@ def evidence(trial):
         "actualLoadedLibrariesSha256": result["actualLoadedLibrariesSha256"],
         "process": {key: value for key, value in process.items() if key != "session"},
         "nativeCalls": result["nativeCalls"],
+        "replayTiming": verified_timing(result, parent["inputIntegrity"]["journal"]),
+        "observedWorkerTiming": observed_worker_timing(result),
         "nativeOwnerIsSingleNonMainThread": result["nativeOwnerIsSingleNonMainThread"],
         "completedWorkerCounts": {key: result["worker"]["counts"][key] for key in (
             "acceptedImu", "acceptedClouds", "completedMessages", "discardedMessages", "rejectedMessages")},
