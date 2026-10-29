@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-29",
+  "inputClassification": "isolated_synthetic_ui_fixture",
+  "robotContacted": false,
+  "nativeSlamExecuted": false,
+  "targetRenderingValidated": false,
+  "physicalLatencyValidated": false,
+  "motionCommandsSent": false,
+  "result": "synthetic_browser_checks_passed_not_target_acceptance",
+  "sourceReport": ".local/point-ui-20261029-e/browser-evidence.json",
+  "pointsPerFrame": 1600,
+  "frameIntervalMs": 200,
+  "stagesPassed": 10,
+  "desktop": {
+    "viewport": [1440, 900],
+    "canvas": [713, 513],
+    "nonBackgroundPixels": 7930,
+    "nextFrameHashChanged": true,
+    "canvasVisible": true,
+    "horizontalOverflow": false,
+    "screenshotSha256": "6417bb2f4f22d62dbe30bf61160842bc00a648257f91e9bb936c0501f8031835"
+  },
+  "landscape": {
+    "viewport": [844, 390],
+    "canvas": [452, 185],
+    "nonBackgroundPixels": 2070,
+    "canvasVisible": true,
+    "horizontalOverflow": false,
+    "screenshotSha256": "c2b1d913a3c7e334ae4c0cf07898ab258669ff9fc8ce2cfdb779b9f82496c600"
+  },
+  "interactions": {
+    "fitPointSpanPx": 167,
+    "zoomPointSpanPx": 217,
+    "panPointCenterDeltaPx": 40,
+    "staleNonBackgroundPixels": 0,
+    "resumeNonBackgroundPixels": 2080,
+    "socketCountBeforeReconnect": 1,
+    "socketCountAfterReconnect": 2,
+    "reconnectNonBackgroundPixels": 2080,
+    "eofNonBackgroundPixels": 0
+  },
+  "storageKeys": ["lingxi.robotAddress"],
+  "browserErrors": [],
+  "fixtureTests": {
+    "linux": { "passed": 4, "skipped": 0 },
+    "windows": { "passed": 3, "skipped": 1 }
+  },
+  "excluded": [
+    "Actual sensor-to-screen latency",
+    "Actual ARM64 live runtime execution",
+    "Physical Android APK validation",
+    "Calibration, map accuracy and robot navigation"
+  ]
+}

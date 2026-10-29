@@ -142,10 +142,31 @@ skipped for unavailable platform/dependencies. The Linux run uses the existing
 geometry environment, clean pinned upstream checkout, explicit Linux x64
 Node and the verified recorded consumer.
 
+## Synthetic Browser Check
+
+The compiled API and web from the extracted runtime were exercised with
+`tools/fixtures/point-ui-server.mjs`, a Linux x64 loopback-only fixture sending
+1,600 explicitly synthetic XYZ points every 200 ms. It does not load GLIM,
+contact a robot or send motion commands. The production read-only API, pairing,
+point decoder, WebSocket and canvas renderer are used unchanged.
+
+`tools/check-point-ui-browser.mjs` completed ten stages: desktop rendering,
+changing frames, landscape rendering, zoom, fit, pan, stale clearing, resume,
+WebSocket reconnect and EOF clearing. Desktop 1440x900 and landscape 844x390
+had visible nonblank canvases and no horizontal overflow. Stale and EOF
+canvases were blank. Browser errors were empty; local storage contained only
+the robot address. See `slam-point-ui-synthetic-evidence.json`.
+
+The fixture tests pass four cases on Linux. Windows passes three and explicitly
+skips the Linux process case. Earlier expired previews and two failed
+test-tool attempts remain preserved privately and are not counted as passes.
+These checks establish synthetic browser delivery, not actual sensor timing,
+ARM64 execution, Android APK acceptance or physical navigation.
+
 ## Still Required
 
 An actual identity-checked ARM64 live trial, sensor-to-screen latency,
-desktop/Android rendering, native failure cleanup on target, calibration and
+real-sensor desktop/Android rendering, native failure cleanup on target, calibration and
 robot-base alignment remain unverified for this composition. Map transactions,
 loop closure, relocalization, independent navigation, voice concurrency and
 final product acceptance also remain open. No readiness flag is raised by
