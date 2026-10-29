@@ -1,0 +1,272 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-29",
+  "result": "arm64_recorded_native_supervision_closed_not_live_or_navigation_acceptance",
+  "privateCollectionReportSha256": "0ea807492b6d538dcce2ffcfb5e7e3194243c3d362840dcebc93d49e972f64f3",
+  "privateParentReportSha256": "9d40c4cbc0e1b286057fdbec677132c11c92fe1aa89353fbf95fa35ab0abbf59",
+  "privateChildReportSha256": "3f6b105ec920b171bd72d8097b04fb542bcf6c91183cd12db10e0dfb5c370ee1",
+  "privateNativeLogSha256": "559ab8c4a4e8e8a35dd677ef54147da9ac9cb040d5b58556da225118519906d2",
+  "coordinatorSha256": "39e9583e2a420cf1200a252ea67698e9368ed0c54ca9254053f65da49c8ee6cf",
+  "sourceSha256": {
+    "tools/run_glim_supervised_replay.py": "dffd120e021476dd1a681d7fa74cd6df01af2f25c809d57b697b45d887cb57f4",
+    "tools/slam_callback_journal.py": "3c9242f163b0c9265358085c6c59407973fa862592f2daea8151576ba7a9fe8b",
+    "tools/glim_trial_config.py": "761e93e856d57a80e96204c8b58a60e4ac067adc26611c4dc858196d6bc95833",
+    "tools/run_glim_stream_trial.py": "512ee896c05345de191d7793ac6c1602291d699125c07eeb0d44ff7ff4e2597a",
+    "tools/run_glim_offline_trial.py": "aa04dce703a0f121138318b6ee52ba999e47593d6ed2ccac7bd2c524c1cff683",
+    "tools/run_kiss_offline_trial.py": "ebe6d933005fa0821b50c0f91477e7a80a32ac1d174bf1040ec90d91e382a8aa",
+    "tools/build_slam_cpu_trial.py": "ce855ca6b45385d2b2eecf1462c04a55abd0e0c1e36a7955f5376b6d1351a7a9",
+    "tools/diagnose_slam_sensors.py": "0c9808ca472b6d7be7b3b118c05d83b13f5b975e76da1c732e08adf071e1b824",
+    "tools/export_glim_controlled_mapping.py": "0141b810faf4e2bae55bb42261102c7f9cea9b122536ca0ceb06574f927c42cb",
+    "tools/compare_glim_architectures.py": "b741d1a7f57894dee2fd9e87b47638f80221ae26bfc449239d2665f30c88d6aa",
+    "tools/glim_target_controlled_mapping.py": "07ab538ce92bce425be6da97a5d4e70d839b096dd455646745c78adb4b15de4b",
+    "tools/verify_slam_capture.py": "073c280e1791636e6ccd41c016ca50d56fa3a71078eb5ab1a4bfcc77e0259bad",
+    "tools/slam_bag_audit.py": "529f6eb0b6a5050e74d0c65c566d53893f5e989e0a1a6d889ba0d27bf7a7620b",
+    "tools/glim-replay/offline.cpp": "4a104e25a4eb28fc7c558d9ae8fb12bab03a478e48f499f55ff95d9667aa2b1c",
+    "tools/glim-replay/CMakeLists.txt": "53d285546e082a23975e9f7f709c68abd47f4cd12a3349eb6c14fb946d1d340b",
+    "robot-slam/lingxi_slam/__init__.py": "9a59075191196952798a68b31564f2fc148727cbcfa59ae715657865894c4226",
+    "robot-slam/lingxi_slam/messages.py": "bb52d293b2d839ecb80bc51d0b5dcff17b533911b17c9ab462d86f255c1dc336",
+    "robot-slam/lingxi_slam/worker.py": "59beea9c8c9015dc1b24f09fc010ccb86f59eda469a0d9af990777c715ff5cea",
+    "robot-slam/lingxi_slam/stream.py": "1fcca31c82dcec8a6969576c98c27e68582f0a6288b8482d8442c8703ff5d0bc",
+    "robot-slam/lingxi_slam/process_protocol.py": "6f324f17bd399cedb5c72e19b143a9d40dc23f84e5f6d9b059a00b315d53ad8d",
+    "robot-slam/lingxi_slam/process_supervisor.py": "a5b10ac6a03001a88eca918c13724a88df2a393595bc9e27e349666213b4b669",
+    "docs/slam-stream-input-evidence.json": "d4defa80f4e5d48ca0bc620965218103c89726cdde0e523531d14262468449cc",
+    "tools/glim_supervised_target.py": "339fb32891eeb0cfb88dc065fe8ecb3b2071e2920214b0ffb0f628190a00e36f",
+    "tools/glim_target_worker.py": "e45fbaa2e29fef1f9bccc7c395247185d8b1d1e31f84b738646da289e71ede01",
+    "tools/glim_target_replay.py": "20d0adf3f6e68b6c4d9a61b970be716ee5ead74d609918bd67edb4fcacc46d77",
+    "tools/slam_target_probe.py": "cc58ce591d955691e168cb62b68c970ab24fbc30043d1fccfe23ffafb9716978"
+  },
+  "sourceCommits": {
+    "gtsam": "3ad4b4c3cb28394c9597f48fa02dad361c8450e3",
+    "gtsam_points": "9d32e7dbecf6015560d84b4901d6b0a6f483ec46",
+    "glim": "1a197c999e4865f5cab7c9cd25474128413ebbca"
+  },
+  "host": {
+    "machine": "aarch64",
+    "versions": {
+      "python": "3.10.12",
+      "numpy": "1.26.1",
+      "decoder": "installed_humble_rclpy"
+    }
+  },
+  "inputJournal": {
+    "records": 4144,
+    "bytes": 157715530,
+    "counts": {
+      "imu": 3947,
+      "cloud": 197
+    },
+    "sha256": "492a5b33f04edfc85b5e5c18fbf5e9e0e5005b68480c6e3cfd191927d7d98bf8"
+  },
+  "configurationSha256": {
+    "UPSTREAM_LICENSE.txt": "e491c5c12eef41e3a5f673fa0b1942d575fbd1bbd8c4dfa73e4c9d464c4a9ba4",
+    "config.json": "75384262d7f747ecc62f4daf5c23819f9235079b01a4dc353f1f69873535c8a3",
+    "config_global_mapping_pose_graph.json": "ceb2a6e2e88ddbc79125f899e9397381b657e93e084a32900231c40a7b8b8765",
+    "config_logging.json": "471a97b149fa5523386d3b9551420f377340a32d158da28d164b637ff22d0e09",
+    "config_odometry_cpu.json": "b3f8fadd09067b2afd8e13e55731cbba323f623c86da74f44bbd04b700c819ea",
+    "config_preprocess.json": "96b0486ad6e961057d7ae8211c4d9f5e83a915c519b82dab1d5bfee5b416b9dd",
+    "config_ros.json": "959b83bd427439c22c03437d37d3ea95563f6bb91e6689d856d8dddf9680ca6b",
+    "config_sensors.json": "582ef55e2c7cb02d315738f4581fa6d642ea80a74d3e6c9a0d8115b2c95c0507",
+    "config_sub_mapping_passthrough.json": "78807724166f5096ced9fb3a19fc9cb9fcb0994209c9486f573337da99c0e6b8",
+    "trial-manifest.json": "1a39c0f550099d959c66038e46628df4326ab2ed32ef2c4963d60100581acd91"
+  },
+  "actualLoadedLibrariesSha256": {
+    "libodometry_estimation_cpu.so": "5f9507bf8c075b89f5c072d0d9d3e0f535de259c884d955f5ad9230bbd632c0d",
+    "libcephes-gtsam.so.1": "7e18a24d0795a956df312b33c0f2f437c7130e0cdeb5b596a50ed30b4d356e24",
+    "libmetis-gtsam.so": "844a86b408f2ed51445162f6aeb7979212e8aaae064ad59e0d3862ec6b96e400",
+    "libgtsam.so.4": "fee5315024f5eaf4b7b432bc8ff2c9715c098fe6a3693d8177a39bc9a538620f",
+    "libgtsam_points.so.1": "1b279b1d3ad4e252499167a6f9d16f17eec8e7ca634d7157fbd594692e2a54fb",
+    "libglim.so": "3c70a22f4151c0c600f394bc65c1dff5c6d133566cb110866b869caeb9ae7f81",
+    "liblingxi_glim_offline.so": "3b814b90d62162461b00e98f98ba29a46827d3b9fbb398b597c29ae5ac633b5e"
+  },
+  "process": {
+    "state": "stopped",
+    "failure": null,
+    "childFailure": null,
+    "workerState": "stopped",
+    "completedMessages": 4144,
+    "processedScans": 196,
+    "estimatedPoses": 165,
+    "healthEvents": 392,
+    "retiredHealthEvents": 2,
+    "exitCode": 0,
+    "processAlive": false,
+    "monitorAlive": false,
+    "forcedTermination": false,
+    "cleanupComplete": true,
+    "mappingReady": false,
+    "localizationReady": false,
+    "navigationReady": false
+  },
+  "nativeCalls": {
+    "create": 1,
+    "close": 1,
+    "imu": 3930,
+    "frame": 196
+  },
+  "nativeOwnerIsSingleNonMainThread": true,
+  "completedWorkerCounts": {
+    "acceptedImu": 3947,
+    "acceptedClouds": 197,
+    "completedMessages": 4144,
+    "discardedMessages": 0,
+    "rejectedMessages": 0
+  },
+  "streamCounts": {
+    "receivedImu": 3947,
+    "receivedClouds": 197,
+    "insertedImu": 3930,
+    "processedScans": 196,
+    "initializationScans": 31,
+    "estimatedPoses": 165,
+    "skippedBeforeImu": 1,
+    "skippedAfterImuAtEndOfInput": 0
+  },
+  "replayTiming": {
+    "schemaVersion": 1,
+    "clock": "time.monotonic",
+    "percentiles": "nearest_rank",
+    "maximumSamplesPerChannel": 4145,
+    "channels": {
+      "nativeCreateWall": {
+        "count": 1,
+        "totalSeconds": 0.03644924199988964,
+        "minimumSeconds": 0.03644924199988964,
+        "p50Seconds": 0.03644924199988964,
+        "p95Seconds": 0.03644924199988964,
+        "maximumSeconds": 0.03644924199988964
+      },
+      "nativeLibraryVerificationWall": {
+        "count": 1,
+        "totalSeconds": 0.10932932500008974,
+        "minimumSeconds": 0.10932932500008974,
+        "p50Seconds": 0.10932932500008974,
+        "p95Seconds": 0.10932932500008974,
+        "maximumSeconds": 0.10932932500008974
+      },
+      "nativeImuWall": {
+        "count": 3930,
+        "totalSeconds": 0.08098218002078283,
+        "minimumSeconds": 8.927999715524493e-06,
+        "p50Seconds": 1.1551000170584302e-05,
+        "p95Seconds": 8.12759999462287e-05,
+        "maximumSeconds": 0.001442119999865099
+      },
+      "nativeFrameWall": {
+        "count": 196,
+        "totalSeconds": 8.1605900690015,
+        "minimumSeconds": 0.02385738900011347,
+        "p50Seconds": 0.037491619999855175,
+        "p95Seconds": 0.06363417100010338,
+        "maximumSeconds": 0.09995078500014642
+      },
+      "nativeCloseWall": {
+        "count": 1,
+        "totalSeconds": 0.0017303320000792155,
+        "minimumSeconds": 0.0017303320000792155,
+        "p50Seconds": 0.0017303320000792155,
+        "p95Seconds": 0.0017303320000792155,
+        "maximumSeconds": 0.0017303320000792155
+      },
+      "nativePreprocess": {
+        "count": 196,
+        "totalSeconds": 2.79793549,
+        "minimumSeconds": 0.01299964,
+        "p50Seconds": 0.013794200999999999,
+        "p95Seconds": 0.015993431,
+        "maximumSeconds": 0.020509532
+      },
+      "nativeOdometry": {
+        "count": 196,
+        "totalSeconds": 5.153877043,
+        "minimumSeconds": 0.0068453609999999995,
+        "p50Seconds": 0.022563801,
+        "p95Seconds": 0.048466471,
+        "maximumSeconds": 0.084372816
+      },
+      "producerReadWall": {
+        "count": 4145,
+        "totalSeconds": 0.662292628009709,
+        "minimumSeconds": 1.3727999885304598e-05,
+        "p50Seconds": 5.449399986900971e-05,
+        "p95Seconds": 0.0004611969998222776,
+        "maximumSeconds": 0.005203665999943041
+      },
+      "producerDecodeWall": {
+        "count": 4144,
+        "totalSeconds": 1.435625098003129,
+        "minimumSeconds": 9.548399975756183e-05,
+        "p50Seconds": 0.000315123999826028,
+        "p95Seconds": 0.0006562620001204778,
+        "maximumSeconds": 0.02354227699970579
+      },
+      "producerOfferWall": {
+        "count": 4144,
+        "totalSeconds": 0.35000253300586337,
+        "minimumSeconds": 2.780700015136972e-05,
+        "p50Seconds": 7.129300001906813e-05,
+        "p95Seconds": 0.00020901600009892718,
+        "maximumSeconds": 0.0013520419997803401
+      },
+      "producerDispatchLateness": {
+        "count": 4144,
+        "totalSeconds": 5.568388555203455,
+        "minimumSeconds": 7.879800023147254e-05,
+        "p50Seconds": 0.0013044800002717238,
+        "p95Seconds": 0.00239428599979874,
+        "maximumSeconds": 0.02120365300015692
+      },
+      "producerAdmissionLateness": {
+        "count": 4144,
+        "totalSeconds": 7.460014178213896,
+        "minimumSeconds": 0.00024682299999767565,
+        "p50Seconds": 0.0017494849998911377,
+        "p95Seconds": 0.003048557000056462,
+        "maximumSeconds": 0.025810993000050075
+      }
+    }
+  },
+  "observedWorkerTiming": {
+    "maximumQueueAgeSeconds": 0.09942114199975549,
+    "maximumScanWaitSeconds": 0.0059586739998849225,
+    "childWallSeconds": 19.937064906999694,
+    "childProcessCpuSeconds": 16.701503776
+  },
+  "limits": {
+    "startup_seconds": 30.0,
+    "progress_seconds": 2.0,
+    "shutdown_seconds": 6.0,
+    "terminate_seconds": 1.0,
+    "kill_seconds": 1.0,
+    "tick_seconds": 0.05,
+    "maximum_event_bytes": 4096,
+    "maximum_events_per_tick": 32
+  },
+  "replayRate": 1.0,
+  "pacedRecordedInputNotLivePerformance": true,
+  "observations": {
+    "robotContactedForIsolatedCompute": true,
+    "arm64RecordedChildLifecycleClosed": true,
+    "fullRecordedCallbacksCompleted": true,
+    "actualNativeLibrariesMatchReference": true,
+    "uploadedAndStagedSourceBytesVerified": true
+  },
+  "acceptance": {
+    "liveDdsSupervisionValidated": false,
+    "oneTimesLivePerformanceValidated": false,
+    "pointOutputIntegrated": false,
+    "mappingReady": false,
+    "mapPersistenceValidated": false,
+    "localizationReady": false,
+    "navigationReady": false,
+    "timingHypothesisValidated": false,
+    "robotCalibrationValidated": false,
+    "geometryValidated": false,
+    "relocalizationValidated": false,
+    "systemdRecoveryValidated": false,
+    "voiceConcurrencyValidated": false,
+    "motionCommandsSent": false,
+    "vendorServicesChanged": false,
+    "deploymentApproved": false,
+    "rawDataPublished": false
+  }
+}

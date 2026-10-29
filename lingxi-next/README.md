@@ -108,9 +108,12 @@ see [the sanitized aggregate evidence](docs/slam-supervised-native-evidence.json
 Earlier startup/queue failures remain recorded, with no proven root cause.
 This is x86 recorded-input composition evidence, not production integration.
 The shared recorded session now has a separate opt-in ARM64/Humble binding.
-Its target execution is still pending onsite confirmation; the new shared loop
-has a fresh real x86 regression, not an inferred ARM64 pass.
-See [the target preparation boundary](docs/SLAM_SUPERVISED_TARGET_PREPARATION.md).
+After explicit onsite confirmation, its first actual ARM64 one-times recorded
+replay completed all 4,144 callbacks and closed its native instance and owned
+process group without forced termination. The original input and libraries
+remain unchanged; IMU prediction warnings and all product acceptance gaps remain.
+See [the preparation history](docs/SLAM_SUPERVISED_TARGET_PREPARATION.md) and
+[the actual supervised ARM64 record](docs/SLAM_SUPERVISED_ARM64.md).
 An independent full-recording range audit records returns beyond 5 raw-coordinate
 units. The roughly 5 m travel estimate is not calibration truth; travel,
 scan coverage and map accuracy are different quantities.

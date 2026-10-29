@@ -667,6 +667,17 @@ bag 时间轴回放未模拟 CPU 积压，不能当在线延迟或语音并发�
 当作 ARM64 或产品 readiness。详见 `SLAM_SUPERVISED_TARGET_PREPARATION.md`
 及电脑端聚合 `slam-supervised-portable-evidence.json`。
 
+### ARM64 监督回放实测
+
+后续在明确的静止、现场看护和急停条件确认后，首次在真实 ARM64 机器人
+执行相同监督会话。全部 4,144 次回调完成，197 帧点云、3,947 条 IMU，
+无拒收或丢弃；原生创建/关闭各一次，子进程及自有进程组正常回收。
+输入、原生库和配置未变，2 次 IMU prediction 告警仍保留。
+新增身份核验的源码上传协调器与独立聚合导出校验，不安装服务或发送运动。
+这不是地图输出、管理 API 接入、几何精度、定位或导航验收。
+实际范围见 `SLAM_SUPERVISED_ARM64.md` 与 `slam-supervised-arm64-evidence.json`；
+上面的准备段落保留其原提交时范围，不将先前的合成测试追认为实机证据。
+
 在机器人已加载正确 ROS 环境的独立进程中运行：
 
 ```sh
