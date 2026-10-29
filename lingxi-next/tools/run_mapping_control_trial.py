@@ -18,6 +18,7 @@ from mapping_service import configuration, private_json
 SOURCE_NAMES = (
     "robot-runtime/python/mapping_service.py", "robot-runtime/python/controlled_mapping.py",
     "robot-slam/lingxi_slam/mapping_worker.py", "robot-slam/lingxi_slam/mapping_session.py",
+    "robot-slam/lingxi_slam/mapping_input.py", "robot-slam/lingxi_slam/sensor_admission.py",
     "robot-api/src/mapping-backend.ts", "robot-api/src/server.ts", "robot-api/src/domain.ts",
     "shared/contracts.ts", "tools/check-mapping-control.ts", "tools/run_mapping_control_trial.py",
 )

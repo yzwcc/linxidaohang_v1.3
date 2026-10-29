@@ -17,6 +17,7 @@ from mapping_service import configuration, private_json
 
 def run(args, sink):
     from rosbags.typesys import Stores, get_typestore
+    from lingxi_slam.mapping_input import MappingInput
     from lingxi_slam.mapping_worker import MappingWorker
     from lingxi_slam.messages import SensorProfile
     from run_glim_mapping_trial import MappingLibrary, inventory_map, verify_extension
@@ -77,6 +78,7 @@ def run(args, sink):
         SensorProfile("lidar_chest_front", "lidar_imu_chest_front", "frame_relative_nanoseconds_hypothesis"),
         prepared.hypothesis, args.output, name="Pending map", session=session, input_mode="recorded",
         inspect_map=inventory_map, reload_map=reload_map)
+    mapping = MappingInput(controller)
 
     def control():
         try:
@@ -119,7 +121,7 @@ def run(args, sink):
         if pending is None:
             raise ValueError("nonempty_recorded_mapping_input_required")
         thread.start()
-        controller.start()
+        mapping.admission.start()
         epoch, origin = None, pending.elapsed_ns
         while not stop.is_set():
             state = controller.worker.snapshot()
@@ -139,7 +141,7 @@ def run(args, sink):
                 continue
             kind = "Imu" if pending.kind == "imu" else "PointCloud2"
             message = types.deserialize_cdr(pending.payload, "sensor_msgs/msg/" + kind)
-            offer = controller.offer_imu if pending.kind == "imu" else controller.offer_cloud
+            offer = mapping.admission.offer_imu if pending.kind == "imu" else mapping.admission.offer_cloud
             if not offer(message):
                 raise RuntimeError("mapping_recorded_callback_rejected")
             pending = next(iterator, None)
@@ -147,18 +149,8 @@ def run(args, sink):
             raise RuntimeError("explicit_owned_mapping_stop_required")
         if inputs(prepared) != frozen:
             raise RuntimeError("mapping_inputs_changed_before_stop")
-        # Stop admitting input, then drain accepted callbacks under the unchanged watchdog.
-        deadline = time.monotonic() + .5
-        while time.monotonic() < deadline:
-            state = controller.worker.snapshot()
-            if state["state"] == "failed":
-                raise RuntimeError("mapping_input_failed_before_save")
-            if not state["queuedMessages"] and not state["inFlightMessages"]:
-                break
-            time.sleep(.002)
-        else:
-            raise RuntimeError("mapping_input_drain_deadline")
-        terminal = controller.stop(save=bool(requested), name=requested.get("name"))
+        terminal = mapping.finish("requested_stop", save=bool(requested), name=requested.get("name"),
+                                  cancelled=failed.is_set)
         if (terminal["phase"] != ("saved" if requested else "stopped") or failed.is_set()
                 or inputs(prepared) != frozen):
             raise RuntimeError("mapping_terminal_not_confirmed")
@@ -167,6 +159,7 @@ def run(args, sink):
         report["errorType"] = type(error).__name__
         controller.cancel_save()
     finally:
+        mapping.admission.close()
         iterator.close()
         if controller.worker.snapshot()["threadAlive"]:
             controller.cancel_save()

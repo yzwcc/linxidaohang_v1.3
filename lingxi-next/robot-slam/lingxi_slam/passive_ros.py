@@ -23,12 +23,24 @@ class Topics:
             raise ValueError("distinct_cloud_and_imu_topics_required")
 
 
-def run_passive(worker, topics, seconds, *, stop_event=None):
-    """Run an isolated context/executor. Injected engine must not actuate."""
+def run_passive(worker, topics, seconds, *, stop_event=None, admission=None, on_input_closed=None):
+    """Run isolated subscriptions; optional finalization follows clean ROS teardown.
+
+    A mapping caller provides its own admission and completion callback. Failure
+    is reported to that callback as ``input_failed`` so it can discard, not save.
+    The worker is still stopped here even when the callback fails.
+    """
+    if admission is not None:
+        # Minimal passive-only diagnostic bundles do not use the mapping lifecycle.
+        from .sensor_admission import SensorAdmission
     if (not isinstance(worker, SensorWorker) or not isinstance(topics, Topics)
             or type(seconds) not in (int, float) or not math.isfinite(seconds) or not 0 < seconds <= 300
             or worker.snapshot()["state"] != "new"
-            or (stop_event is not None and not isinstance(stop_event, threading.Event))):
+            or (stop_event is not None and not isinstance(stop_event, threading.Event))
+            or (admission is None) != (on_input_closed is None)
+            or admission is not None and (
+                not isinstance(admission, SensorAdmission) or admission.worker is not worker
+                or admission.started or admission.closed or not callable(on_input_closed))):
         raise ValueError("new_worker_and_bounded_passive_session_required")
     if os.environ.get("ROS_DISTRO") != "humble":
         raise RuntimeError("explicit_sourced_humble_environment_required")
@@ -42,7 +54,8 @@ def run_passive(worker, topics, seconds, *, stop_event=None):
     context = Context()
     node = executor = None
     started = time.monotonic()
-    reason = "duration_reached"
+    reason, input_completed, finalization = "duration_reached", False, None
+    receiver = worker if admission is None else admission
     try:
         rclpy.init(args=[], context=context)
         node = rclpy.create_node(
@@ -52,8 +65,8 @@ def run_passive(worker, topics, seconds, *, stop_event=None):
         executor = SingleThreadedExecutor(context=context)
         executor.add_node(node)
         for message_type, topic, callback, depth in (
-            (PointCloud2, topics.cloud, worker.offer_cloud, 8),
-            (Imu, topics.imu, worker.offer_imu, 256),
+            (PointCloud2, topics.cloud, receiver.offer_cloud, 8),
+            (Imu, topics.imu, receiver.offer_imu, 256),
         ):
             qos = QoSProfile(
                 history=HistoryPolicy.KEEP_LAST, depth=depth,
@@ -61,7 +74,7 @@ def run_passive(worker, topics, seconds, *, stop_event=None):
             )
             node.create_subscription(message_type, topic, callback, qos)
         if stop_event is None or not stop_event.is_set():
-            worker.start()
+            receiver.start()
         while time.monotonic() - started < seconds:
             if stop_event is not None and stop_event.is_set():
                 reason = "requested_stop"
@@ -75,30 +88,49 @@ def run_passive(worker, topics, seconds, *, stop_event=None):
                 break
             executor.spin_once(timeout_sec=min(worker.limits.tick_seconds,
                                               max(0., seconds - (time.monotonic() - started))))
+        input_completed = True
     finally:
         # Attempt every cleanup even if an earlier ROS teardown fails.
         cleanup_failed = False
-        for cleanup in (
-            worker.stop,
+        if admission is not None:
+            admission.close()
+        cleanups = (() if admission is not None else (worker.stop,)) + (
             lambda: executor.shutdown(timeout_sec=1.) if executor is not None else True,
             lambda: node.destroy_node() if node is not None else None,
             context.try_shutdown,
-        ):
+        )
+        for cleanup in cleanups:
             try:
                 if cleanup() is False:
                     cleanup_failed = True
-            except Exception:
+            except BaseException:
                 cleanup_failed = True
+        if admission is not None:
+            try:
+                finalization = on_input_closed(
+                    reason if input_completed and not cleanup_failed else "input_failed")
+            except BaseException:
+                cleanup_failed = True
+            finally:
+                try:
+                    terminal = worker.stop()
+                    if terminal["threadAlive"] or terminal["failure"]:
+                        cleanup_failed = True
+                except BaseException:
+                    cleanup_failed = True
         if cleanup_failed:
             raise RuntimeError("passive_ros_cleanup_failed")
     summary = worker.snapshot()
     return {
-        "purpose": "passive_humble_sensor_session_not_mapping_or_navigation_acceptance",
+        "purpose": ("passive_humble_sensor_session_not_mapping_or_navigation_acceptance"
+                    if admission is None else "passive_humble_mapping_input_not_navigation_acceptance"),
         "stopReason": "worker_failed" if summary["state"] == "failed" else reason,
         "elapsedWallSecondsIncludingCleanup": time.monotonic() - started,
         "worker": summary,
-        "boundaries": {name: False for name in (
+        **({} if admission is None else {"inputFinalization": finalization}),
+        "boundaries": {**{name: False for name in (
             "motionCommandsSent", "tfPublished", "mapSaved", "mapActivated",
             "calibrationValidated", "relocalizationValidated", "navigationValidated", "deploymentApproved",
-        )},
+        )}, "mapSaved": bool(admission is not None and isinstance(finalization, dict)
+                            and finalization.get("saved") is True)},
     }

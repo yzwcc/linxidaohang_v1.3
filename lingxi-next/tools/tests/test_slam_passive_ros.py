@@ -16,6 +16,7 @@ if AVAILABLE:
     with patch.object(sys, "path", [str(ROOT / "robot-slam")] + sys.path):
         from lingxi_slam.messages import SensorProfile
         from lingxi_slam.passive_ros import Topics, run_passive
+        from lingxi_slam.sensor_admission import SensorAdmission
         from lingxi_slam.worker import SensorWorker
 
 
@@ -188,6 +189,61 @@ class PassiveHumble(unittest.TestCase):
     def test_stop_retires_native_before_ros_teardown(self):
         self.run_session()
         self.assertLess(self.calls.index("native_close"), self.calls.index("executor_shutdown"))
+
+    def mapping_session(self):
+        admission = SensorAdmission(self.worker)
+
+        def finalize(reason):
+            self.calls.append("finalize_" + reason)
+            self.assertTrue(admission.closed)
+            self.assertEqual("context_shutdown", self.calls[-2])
+            self.worker.stop()
+            return {"saved": False}
+
+        return run_passive(self.worker, self.topics, 1, stop_event=self.stop,
+                           admission=admission, on_input_closed=finalize)
+
+    def test_opt_in_finalization_follows_ros_teardown_and_closes_admission(self):
+        report = self.mapping_session()
+        self.assertEqual({"saved": False}, report["inputFinalization"])
+        self.assertIn("finalize_requested_stop", self.calls)
+        self.assertLess(self.calls.index("context_shutdown"), self.calls.index("native_close"))
+        self.assertFalse(report["worker"]["threadAlive"])
+
+    def test_opt_in_spin_failure_calls_failed_finalization_and_joins(self):
+        patch.dict(sys.modules, self.bindings(spin_error=True)).start()
+        with self.assertRaisesRegex(RuntimeError, "spin failure"):
+            self.mapping_session()
+        self.assertIn("finalize_input_failed", self.calls)
+        self.assertEqual(1, self.calls.count("native_close"))
+
+    def test_opt_in_teardown_failure_cannot_be_finalized_as_save(self):
+        patch.dict(sys.modules, self.bindings(destroy_error=True)).start()
+        with self.assertRaisesRegex(RuntimeError, "cleanup_failed"):
+            self.mapping_session()
+        self.assertIn("finalize_input_failed", self.calls)
+        self.assertEqual(1, self.calls.count("native_close"))
+
+    def test_failing_finalizer_does_not_leave_native_worker_alive(self):
+        admission = SensorAdmission(self.worker)
+
+        def failed(reason):
+            raise RuntimeError("synthetic_finalize_failure")
+
+        with self.assertRaisesRegex(RuntimeError, "cleanup_failed"):
+            run_passive(self.worker, self.topics, 1, stop_event=self.stop,
+                        admission=admission, on_input_closed=failed)
+        self.assertTrue(admission.closed)
+        self.assertFalse(self.worker.snapshot()["threadAlive"])
+        self.assertEqual(1, self.calls.count("native_close"))
+
+    def test_partial_or_foreign_lifecycle_is_rejected_before_ros(self):
+        admission = SensorAdmission(self.worker)
+        with self.assertRaises(ValueError):
+            run_passive(self.worker, self.topics, 1, admission=admission)
+        with self.assertRaises(ValueError):
+            run_passive(self.worker, self.topics, 1, on_input_closed=lambda reason: None)
+        self.assertEqual([], self.calls)
 
 
 class PassiveBoundaries(unittest.TestCase):

@@ -1,0 +1,175 @@
+{
+    "runs":  [
+                 {
+                     "schemaVersion":  1,
+                     "date":  "2026-10-29",
+                     "result":  "recorded_passive_boundary_mapping_points_verified",
+                     "inputMode":  "recorded",
+                     "machine":  "x86_64",
+                     "rate":  1.0,
+                     "saveRequested":  true,
+                     "sourceSha256":  {
+                                          "robot-slam/lingxi_slam/sensor_admission.py":  "eafe810e053f5da92ea022dd66615c568deca4a5ca6143ff82e894a19c1e626d",
+                                          "robot-slam/lingxi_slam/mapping_input.py":  "a34d3838b05236bd4cd60475b5c85f6db2c6487d6c2d8faf41fedb8b6b2f9385",
+                                          "robot-slam/lingxi_slam/passive_ros.py":  "11f3468e15b020e375b2ab7cd86ef2df01b3ff11ea262c822bbabb74485588de",
+                                          "robot-slam/lingxi_slam/mapping_worker.py":  "65942833c572236853d0987e7e1935f8d37f5064c4a01c80270fe8a4f63c3eb0",
+                                          "robot-slam/lingxi_slam/mapping_session.py":  "f1c720494bd517da5b8e1452207f136ce81ff96771f50926f4886160f7fdbb66",
+                                          "robot-slam/lingxi_slam/point_output.py":  "4b501e2411fd6e54f6b22f954fe13ac222de8d43ad221d61aba5de102512ba81",
+                                          "robot-slam/lingxi_slam/point_data.py":  "14444f89b917eb98b7edf4804acb45948babe20cd28214fa20734c08cddefc36",
+                                          "robot-slam/lingxi_slam/worker.py":  "59beea9c8c9015dc1b24f09fc010ccb86f59eda469a0d9af990777c715ff5cea",
+                                          "robot-slam/lingxi_slam/stream.py":  "1fcca31c82dcec8a6969576c98c27e68582f0a6288b8482d8442c8703ff5d0bc",
+                                          "robot-slam/lingxi_slam/messages.py":  "bb52d293b2d839ecb80bc51d0b5dcff17b533911b17c9ab462d86f255c1dc336",
+                                          "robot-runtime/python/replay_mapping.py":  "2a5c14e0abf6507ebf9f3f14f9f2d46f5cab29702fd000b8ed35470072efb64a",
+                                          "tools/run_mapping_input_trial.py":  "f9702f83af4bb93f6f7f5f1300019788453b2d034b50551164dbfac99d6cf237"
+                                      },
+                     "privateTrialReportSha256":  "715ee0b71d17c383a3c91e7cef51b2e9186f5a6815f1bf7a502e4a1277c6da0d",
+                     "completedMessages":  4144,
+                     "processedScans":  196,
+                     "estimatedPoses":  165,
+                     "points":  {
+                                    "packets":  164,
+                                    "copiedPoints":  1246242,
+                                    "copiedPointsPerPacketMinMax":  [
+                                                                        7539,
+                                                                        7779
+                                                                    ],
+                                    "firstNativeFrameId":  1,
+                                    "lastNativeFrameId":  164,
+                                    "nativeCounts":  {
+                                                         "callbacks":  165,
+                                                         "initializationSkips":  1,
+                                                         "copies":  164,
+                                                         "takes":  164,
+                                                         "discardedOnClose":  0
+                                                     },
+                                    "allPacketBytesSha256":  "6ea9d1a843f6dfb0ee17053a825ec6823811ee4dd3fc2a1e0505ac4ea6685eab",
+                                    "maximumRetainedPackets":  2,
+                                    "coordinateFrame":  "lingxi_glim_odom",
+                                    "poseFrame":  "lidar_not_robot_base",
+                                    "sourceFrame":  "IMU",
+                                    "kind":  "native_deskewed_corrected_odometry",
+                                    "initializationFrameExcluded":  true,
+                                    "globalMapOrLoopClosure":  false
+                                },
+                     "nativeCalls":  {
+                                         "create":  1,
+                                         "imu":  3930,
+                                         "frame":  196,
+                                         "close":  1
+                                     },
+                     "oneNonMainNativeOwner":  true,
+                     "syntheticRosCleanup":  [
+                                                 "executor_shutdown",
+                                                 "node_destroy",
+                                                 "context_shutdown"
+                                             ],
+                     "savedCounts":  {
+                                         "finalizedFrames":  165,
+                                         "submaps":  1,
+                                         "points":  2655,
+                                         "savedFrames":  165
+                                     },
+                     "roundTrip":  {
+                                       "pointCount":  2655,
+                                       "maximumPointDisplacementRawUnits":  4.9176997702725713E-07,
+                                       "rmsPointDisplacementRawUnits":  1.6491823058301122E-07,
+                                       "predeclaredToleranceRawUnits":  0.0001,
+                                       "samePointOrderCompared":  true,
+                                       "geometricAccuracyValidated":  false
+                                   },
+                     "workerThreadAlive":  false,
+                     "boundaries":  {
+                                        "robotContacted":  false,
+                                        "actualRosUsed":  false,
+                                        "liveSensorsSubscribed":  false,
+                                        "motionCommandsSent":  false,
+                                        "targetArm64Validated":  false,
+                                        "geometricAccuracyValidated":  false,
+                                        "localizationReady":  false,
+                                        "navigationReady":  false,
+                                        "persistentApiPointSwitchingValidated":  false,
+                                        "deploymentApproved":  false
+                                    }
+                 },
+                 {
+                     "schemaVersion":  1,
+                     "date":  "2026-10-29",
+                     "result":  "recorded_passive_boundary_mapping_points_verified",
+                     "inputMode":  "recorded",
+                     "machine":  "x86_64",
+                     "rate":  1.0,
+                     "saveRequested":  false,
+                     "sourceSha256":  {
+                                          "robot-slam/lingxi_slam/sensor_admission.py":  "eafe810e053f5da92ea022dd66615c568deca4a5ca6143ff82e894a19c1e626d",
+                                          "robot-slam/lingxi_slam/mapping_input.py":  "a34d3838b05236bd4cd60475b5c85f6db2c6487d6c2d8faf41fedb8b6b2f9385",
+                                          "robot-slam/lingxi_slam/passive_ros.py":  "11f3468e15b020e375b2ab7cd86ef2df01b3ff11ea262c822bbabb74485588de",
+                                          "robot-slam/lingxi_slam/mapping_worker.py":  "65942833c572236853d0987e7e1935f8d37f5064c4a01c80270fe8a4f63c3eb0",
+                                          "robot-slam/lingxi_slam/mapping_session.py":  "f1c720494bd517da5b8e1452207f136ce81ff96771f50926f4886160f7fdbb66",
+                                          "robot-slam/lingxi_slam/point_output.py":  "4b501e2411fd6e54f6b22f954fe13ac222de8d43ad221d61aba5de102512ba81",
+                                          "robot-slam/lingxi_slam/point_data.py":  "14444f89b917eb98b7edf4804acb45948babe20cd28214fa20734c08cddefc36",
+                                          "robot-slam/lingxi_slam/worker.py":  "59beea9c8c9015dc1b24f09fc010ccb86f59eda469a0d9af990777c715ff5cea",
+                                          "robot-slam/lingxi_slam/stream.py":  "1fcca31c82dcec8a6969576c98c27e68582f0a6288b8482d8442c8703ff5d0bc",
+                                          "robot-slam/lingxi_slam/messages.py":  "bb52d293b2d839ecb80bc51d0b5dcff17b533911b17c9ab462d86f255c1dc336",
+                                          "robot-runtime/python/replay_mapping.py":  "2a5c14e0abf6507ebf9f3f14f9f2d46f5cab29702fd000b8ed35470072efb64a",
+                                          "tools/run_mapping_input_trial.py":  "f9702f83af4bb93f6f7f5f1300019788453b2d034b50551164dbfac99d6cf237"
+                                      },
+                     "privateTrialReportSha256":  "bbfd95e0f3f9cec45fd974404e18ba438568392d9b4e1ffb9c8a42e2b982cba9",
+                     "completedMessages":  4144,
+                     "processedScans":  196,
+                     "estimatedPoses":  165,
+                     "points":  {
+                                    "packets":  164,
+                                    "copiedPoints":  1246242,
+                                    "copiedPointsPerPacketMinMax":  [
+                                                                        7539,
+                                                                        7779
+                                                                    ],
+                                    "firstNativeFrameId":  1,
+                                    "lastNativeFrameId":  164,
+                                    "nativeCounts":  {
+                                                         "callbacks":  165,
+                                                         "initializationSkips":  1,
+                                                         "copies":  164,
+                                                         "takes":  164,
+                                                         "discardedOnClose":  0
+                                                     },
+                                    "allPacketBytesSha256":  "bccd1e3471094c063bb8a31eeab8c05278e70376a22aec59386e2db10e7d09d4",
+                                    "maximumRetainedPackets":  2,
+                                    "coordinateFrame":  "lingxi_glim_odom",
+                                    "poseFrame":  "lidar_not_robot_base",
+                                    "sourceFrame":  "IMU",
+                                    "kind":  "native_deskewed_corrected_odometry",
+                                    "initializationFrameExcluded":  true,
+                                    "globalMapOrLoopClosure":  false
+                                },
+                     "nativeCalls":  {
+                                         "create":  1,
+                                         "imu":  3930,
+                                         "frame":  196,
+                                         "close":  1
+                                     },
+                     "oneNonMainNativeOwner":  true,
+                     "syntheticRosCleanup":  [
+                                                 "executor_shutdown",
+                                                 "node_destroy",
+                                                 "context_shutdown"
+                                             ],
+                     "savedCounts":  null,
+                     "roundTrip":  null,
+                     "workerThreadAlive":  false,
+                     "boundaries":  {
+                                        "robotContacted":  false,
+                                        "actualRosUsed":  false,
+                                        "liveSensorsSubscribed":  false,
+                                        "motionCommandsSent":  false,
+                                        "targetArm64Validated":  false,
+                                        "geometricAccuracyValidated":  false,
+                                        "localizationReady":  false,
+                                        "navigationReady":  false,
+                                        "persistentApiPointSwitchingValidated":  false,
+                                        "deploymentApproved":  false
+                                    }
+                 }
+             ],
+    "schemaVersion":  1
+}

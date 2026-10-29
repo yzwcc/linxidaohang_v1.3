@@ -38,6 +38,11 @@ does not currently compose the mapping session with the separate live point
 producer. A demo LiDAR view is synthetic; it is not the native replay's
 point stream. The saved preview, however, is loaded from the verified map.
 
+The recorded child now uses the shared close/drain lifecycle described in
+`SLAM_MAPPING_INPUT.md`. The service/API native trial and aggregate were
+repeated for that revision. A separate same-engine mapping/point trial uses a
+synthetic subscription boundary with preserved recordings, not live DDS.
+
 ## Native Result
 
 Two complete local trials passed. The final source-bound trial used Linux
