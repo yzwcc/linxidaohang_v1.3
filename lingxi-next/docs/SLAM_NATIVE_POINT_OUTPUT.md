@@ -156,7 +156,12 @@ The supervised evidence SHA256 is
 
 Subsequent ARM64 cross-building and local point-transport component checks
 are described in `SLAM_POINT_DATA_CHANNEL.md`. ARM64 execution of this
-extension, supervised real-data point-channel composition, sustained live
-throughput, deployed API/UI wiring, map transactions, calibration, loop
-closure, relocalization and navigation remain pending. Installer, APK,
-vendor services and existing maps are unchanged.
+extension, sustained live throughput, deployed API/UI wiring, map transactions,
+calibration, loop closure, relocalization and navigation remain pending.
+Installer, APK, vendor services and existing maps are unchanged.
+
+The separate x86 supervised recorded-data point-channel composition has since
+completed with matching native/Node content digests and natural process exit.
+Its isolated API rejects recorded input as live and grants no readiness.
+See `SLAM_RECORDED_POINT_CHANNEL.md`; this is not live point rendering or
+target ARM64 point-channel acceptance.

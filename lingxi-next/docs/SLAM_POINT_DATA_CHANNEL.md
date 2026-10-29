@@ -6,6 +6,13 @@ writer, Node pipe receiver and optional management-API source now pass local
 isolated tests. This is not a deployed live SLAM channel or a navigation
 backend. Product/APK version remains 0.1.19.
 
+A subsequent x86 recorded-input composition now connects the unchanged
+supervised native worker to a separate Node point consumer and an isolated
+paired API. All 164 packets match their producer content digest, both
+processes exit naturally, and recorded points remain rejected as live input.
+See `SLAM_RECORDED_POINT_CHANNEL.md` for the actual result, preserved first
+failure and independent evidence. It does not validate live/UI/ARM64 use.
+
 ## ARM64 Build Evidence
 
 `tools/build_glim_point_arm64.py` reuses the frozen ARM64 core, checking its
@@ -137,10 +144,12 @@ the real worker's health stdout. The real supervised worker must retain its
 separate health channel. Native point output, pipe components and API source
 have not yet executed together with real sensors or on ARM64.
 
-Next steps are an isolated supervised recorded-input composition with a
-dedicated point FD and lifecycle failure tests, followed by target loading
-and recorded-data validation under current confirmed onsite conditions.
-Only then should live composition and UI acceptance be attempted.
+The isolated supervised recorded-input composition and lifecycle tests are
+now described in `SLAM_RECORDED_POINT_CHANNEL.md`. That diagnostic uses its
+own private Unix stream FD; it is not production supervisor FD wiring.
+Next are actual ARM64 extension loading/contracts and target recorded-data
+validation under currently confirmed onsite conditions. Live composition
+and UI acceptance remain separate later checks.
 
 Factory-calibration discrepancies, IMU-noise/prediction warnings, sustained
 throughput, global map transactions, loop closure, relocalization, base-frame

@@ -114,6 +114,13 @@ process group without forced termination. The original input and libraries
 remain unchanged; IMU prediction warnings and all product acceptance gaps remain.
 See [the preparation history](docs/SLAM_SUPERVISED_TARGET_PREPARATION.md) and
 [the actual supervised ARM64 record](docs/SLAM_SUPERVISED_ARM64.md).
+A separate corrected-point extension and bounded transport now also complete
+an x86 supervised recorded-input trial into a separate Node consumer and an
+isolated paired API. All 164 packets match their producer content digest,
+both processes exit naturally, and recorded points remain rejected as live
+data without granting mapping/navigation readiness. This does not deploy an
+independent backend or validate live rendering or the ARM64 point channel.
+See [the recorded point-channel evidence](docs/SLAM_RECORDED_POINT_CHANNEL.md).
 An independent full-recording range audit records returns beyond 5 raw-coordinate
 units. The roughly 5 m travel estimate is not calibration truth; travel,
 scan coverage and map accuracy are different quantities.
