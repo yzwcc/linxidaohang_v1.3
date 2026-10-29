@@ -1,0 +1,9 @@
+{
+  global:
+    lingxi_points_error;
+    lingxi_points_open;
+    lingxi_points_take;
+    lingxi_points_counts;
+    lingxi_points_close;
+  local: *;
+};

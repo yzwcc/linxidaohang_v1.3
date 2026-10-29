@@ -44,8 +44,9 @@ Python cannot forcibly terminate a stuck native thread. `ProcessSupervisor`
 now provides external process ownership and bounded health IPC; a separate
 recorded-input composition has completed real x86 native lifecycles without
 altering this worker. See `docs/SLAM_SUPERVISED_NATIVE_REPLAY.md`. Target ARM64
-supervision, live composition and parent-service failure recovery remain
-unverified and are still required before production.
+recorded-input supervision has since completed; see
+`docs/SLAM_SUPERVISED_ARM64.md`. Live composition and parent-service failure
+recovery remain unverified and are still required before production.
 Queue age begins at the serialized callback, not the sensor
 or DDS transport, and is not an end-to-end latency guarantee.
 The prior recorded-arrival trial does not model CPU queueing or prove real-time
@@ -55,3 +56,10 @@ See `docs/SLAM_STREAM_INPUT.md` for actual-recording checks. Existing AIMDK
 services, installers and release artifacts remain unchanged.
 See `docs/SLAM_PASSIVE_WORKER.md` for worker limits and the message-equivalence
 check. No module auto-loads a native library or activates a robot backend.
+
+`point_output.py` adds an opt-in decorator and separately built native callback
+extension for bounded corrected LiDAR-point copies. Its x86 logical-clock and
+one-times health-supervised recorded-input checks have completed; this is not
+live/ARM64 acceptance or a UI data source. Initial paced failures are preserved.
+The final extension has an exact five-function C ABI and Release build.
+See `docs/SLAM_NATIVE_POINT_OUTPUT.md` and its separate aggregate evidence.
