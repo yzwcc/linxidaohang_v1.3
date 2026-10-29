@@ -35,6 +35,8 @@ export async function buildInheritedPointApi(
   options: ApiOptions = {},
   operations: PointSocketOperations = nativeSocket,
 ) {
+  const readOnly = environment.LINGXI_POINT_READ_ONLY;
+  if (readOnly !== undefined && readOnly !== "1") throw new Error("explicit_point_read_only_setting_required");
   const configuration = pointSocketConfiguration(environment);
   if (operations.platform !== "linux" || !operations.isSocket(configuration.fd)) {
     throw new Error("inherited_linux_point_stream_socket_required");
@@ -44,6 +46,15 @@ export async function buildInheritedPointApi(
   );
   try {
     const app = await buildServer({ ...options, lidarSource: source });
+    if (readOnly === "1") {
+      app.addHook("onRequest", async (request, reply) => {
+        const session = request.method === "POST" &&
+          ["/api/v1/session/pair", "/api/v1/session/revoke"].includes(request.routeOptions.url ?? "");
+        if (!session && !["GET", "HEAD", "OPTIONS"].includes(request.method)) {
+          return reply.code(403).send({ message: "isolated_point_runtime_read_only" });
+        }
+      });
+    }
     // Release the owned input before waiting for HTTP/WebSocket shutdown.
     app.addHook("preClose", async () => { source.close(); });
     app.addHook("onClose", async () => { source.close(); });

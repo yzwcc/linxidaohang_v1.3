@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "result": "live_runtime_prepared_not_target_executed",
+  "manifestSha256": "7f33db2277eef8d38dbd3d9e8700eb0282af25e48ee3a7fd26ef386fac3887b2",
+  "archiveSha256": "df741b3d6917532049411576f8e0110d726c0fdaeda46a4bae155ec58a908cf3",
+  "archiveBytes": 54004306,
+  "buildManifestSha256": "5d7b9e84002c4883568a65e4a73d323ab5c761318e4b96f7c031d768f395307a",
+  "consumerManifestSha256": "e35d411cf7cde7b8bca4b76717accaf2a137ca5512c2f1fe8fcf3f6f1a106521",
+  "nodeBinarySha256": "7e48183361053f039294fbbc3ba586722fe756bf296d6cb8195356d10819cd16",
+  "nodeVersionPrepared": "22.23.4",
+  "packageLockSha256": "9c49e9ed55c0f6c9d2a1ad257a5f39f1125b31c31a5a882ecf30fae148cf40ba",
+  "sourceFiles": 139,
+  "bundleFiles": 7715,
+  "installedPackageCount": 95,
+  "allArchiveMemberBytesVerified": true,
+  "runtimeSourceSha256": {
+    "robot-runtime/build-live.mjs": "6a06c9d6c54fa15d2e3492fe3b89a7378b33b177ce16f8ad56dd258736d544fe",
+    "robot-runtime/python/launch_live_bundle.py": "48c3e22f46588a56641ff65d2f3803d21a9b4353a72cbbef92035a6bac16d9b3",
+    "robot-runtime/python/live_bundle.py": "4e59459b7c1abd76407768fde38701dcd63a7ddf1730f8d3e156aa85cd4cbce1",
+    "robot-runtime/python/live_child.py": "21083e6b0cae122f0a6ac6d84cdab8a6620d3464d7fb9b70ffbb803c994cb98d",
+    "robot-runtime/python/live_points.py": "8b5d369382de9d4aaf3d29becd07374ef962bc41c12fdaeddafa199c1d265e48",
+    "robot-runtime/python/point_owner.py": "af45907d371cda55b13ed56b305a7dcf34f4d7f23cf18795e57e65632cbfce04",
+    "robot-runtime/python/prepare_live_bundle.py": "1e3e8ed7cc68d00ae7ec074dd7b6455e906050f4c3394a65400260d14ae9bf23",
+    "robot-runtime/src/main.ts": "0fa9cf41537356299dd9e2443549612646a0a017c3343771387c7de3a9dfa025",
+    "robot-runtime/src/point-api.ts": "46867da5676acf80d68636f6220e99fb5f030aff914a80bdd59efaaf50b6a4fc"
+  },
+  "boundaries": {
+    "robotContacted": false,
+    "arm64RuntimeExecuted": false,
+    "sensorsSubscribed": false,
+    "motionCommandsSent": false,
+    "servicesChanged": false,
+    "liveRenderingValidated": false,
+    "mappingReady": false,
+    "localizationReady": false,
+    "navigationReady": false,
+    "productAccepted": false
+  }
+}

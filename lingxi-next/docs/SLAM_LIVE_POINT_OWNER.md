@@ -51,7 +51,9 @@ SHA256 values, verified frozen bundles and production TLS/pairing settings.
 Arbitrary environment variables and demo mode are not inherited.
 
 This is an operator template, not a deployable package or completed robot
-test. Supply approved paths/hashes and private HTTPS configuration outside
+test. The later offline archive and read-only launcher are documented in
+`SLAM_LIVE_RUNTIME_PREPARATION.md`; neither establishes live target acceptance.
+Supply approved paths/hashes and private HTTPS configuration outside
 source control. Do not put credentials in commands. Use a free isolated port
 and fresh output directory, not an existing service. Actual sensor execution
 requires fresh onsite stationary/supervision/emergency-stop confirmation;

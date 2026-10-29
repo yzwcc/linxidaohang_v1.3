@@ -151,6 +151,11 @@ a PID/UID-checked private socket, with synthetic Linux tests for peer failure,
 parent death, startup timeout and natural shutdown. It has not executed as a
 live ARM64 composition and does not change default services or readiness.
 See [the live owner implementation boundary](docs/SLAM_LIVE_POINT_OWNER.md).
+The owner, inherited HTTPS API and compiled web console now also have an
+offline-prepared ARM64 runtime archive with identical independent builds,
+verified extraction and a read-only trial launcher. It has not run as a live
+ARM64 composition or changed the production backend.
+See [the live runtime preparation record](docs/SLAM_LIVE_RUNTIME_PREPARATION.md).
 An independent full-recording range audit records returns beyond 5 raw-coordinate
 units. The roughly 5 m travel estimate is not calibration truth; travel,
 scan coverage and map accuracy are different quantities.

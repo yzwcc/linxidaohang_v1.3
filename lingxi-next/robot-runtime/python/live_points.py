@@ -61,6 +61,7 @@ def run(args):
     for name in (
         "LINGXI_TLS_KEY", "LINGXI_TLS_CERT", "LINGXI_PAIRING_CODE_SHA256", "LINGXI_HOST", "LINGXI_PORT",
         "LINGXI_DATA_DIR", "LINGXI_WEB_ROOT", "AIMDK_BRIDGE_URL", "LINGXI_AGENT_URL", "LINGXI_AGENT_INTERNAL_TOKEN",
+        "LINGXI_POINT_READ_ONLY",
     ):
         if name in os.environ:
             api_environment[name] = os.environ[name]

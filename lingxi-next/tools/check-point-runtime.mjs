@@ -194,6 +194,7 @@ for (const [name, environment, regularInput] of [
   ["invalid listen port", { LINGXI_PORT: "-1" }, false],
   ["production without TLS", { LINGXI_DEMO_MODE: "0" }, false],
   ["invalid parent lifetime setting", { LINGXI_POINT_PARENT_STDIN: "yes" }, false],
+  ["invalid read-only setting", { LINGXI_POINT_READ_ONLY: "yes" }, false],
 ]) {
   test(`${name} fails closed and exits naturally`, { skip }, async (t) => {
     const runtime = await start(t, environment, regularInput);
@@ -211,4 +212,25 @@ test("closing the explicit parent's stdin closes the actual API without a signal
   await frame;
   runtime.child.stdin.end();
   assert.deepEqual(await deadline(runtime.exit, "natural parent-EOF exit"), { code: 0, signal: null });
+});
+
+test("actual isolated read-only API keeps paired point access and rejects control changes", { skip }, async (t) => {
+  const runtime = await start(t, { LINGXI_POINT_READ_ONLY: "1" });
+  const { socket } = await paired(runtime);
+  t.after(() => socket.terminate());
+  const url = await runtime.listening();
+  const pair = await fetch(`${url}/api/v1/session/pair`, {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ pairingCode: "isolated-synthetic-point-runtime" }),
+  });
+  const { token } = await pair.json();
+  const control = await fetch(`${url}/api/v1/mapping/start`, {
+    method: "POST", headers: { authorization: `Bearer ${token}` },
+  });
+  assert.equal(control.status, 403);
+  const frame = message(socket, (value) => value.type === "lidar");
+  runtime.child.stdio[3].write(packet("live"));
+  await frame;
+  runtime.child.kill("SIGTERM");
+  assert.deepEqual(await deadline(runtime.exit, "natural read-only API exit"), { code: 0, signal: null });
 });

@@ -42,6 +42,13 @@ describe("explicit inherited point API startup configuration", () => {
       if (platform === "win32") expect(operations.isSocket).not.toHaveBeenCalled();
     }
   });
+
+  it("rejects an invalid explicit read-only setting before opening point input", async () => {
+    const operations = { platform: "linux", isSocket: () => true, open: vi.fn(() => new PassThrough()) };
+    await expect(buildInheritedPointApi({ ...environment(), LINGXI_POINT_READ_ONLY: "yes" }, {}, operations))
+      .rejects.toThrow("read_only");
+    expect(operations.open).not.toHaveBeenCalled();
+  });
 });
 
 describe("owned point socket to existing paired API", () => {
@@ -53,7 +60,7 @@ describe("owned point socket to existing paired API", () => {
     vi.unstubAllEnvs();
   });
 
-  async function prepare(mode = "live") {
+  async function prepare(mode = "live", readOnly = false) {
     directory = await mkdtemp(path.join(tmpdir(), "lingxi-inherited-point-"));
     pipe = new PassThrough();
     const adapter = new DemoAdapter(), snapshot = await adapter.getSnapshot();
@@ -61,14 +68,16 @@ describe("owned point socket to existing paired API", () => {
     snapshot.checks = snapshot.checks.map((check) => ({ ...check, ready: false }));
     vi.spyOn(adapter, "getSnapshot").mockResolvedValue(snapshot);
     const nativeLidar = vi.spyOn(adapter, "getLidarFrame");
-    app = await buildInheritedPointApi(environment(mode), {
+    app = await buildInheritedPointApi({
+      ...environment(mode), ...(readOnly ? { LINGXI_POINT_READ_ONLY: "1" } : {}),
+    }, {
       adapter, demoMode: true, stateDirectory: directory, staticDirectory: path.join(directory, "no-static"),
       pairingCodeHash: pairingCodeHash("isolated-point-runtime-test"),
     }, { platform: "linux", isSocket: () => true, open: () => pipe! });
     const pair = await app.inject({
       method: "POST", url: "/api/v1/session/pair", payload: { pairingCode: "isolated-point-runtime-test" },
     });
-    return { nativeLidar, token: pair.json().token as string };
+    return { adapter, nativeLidar, token: pair.json().token as string };
   }
 
   async function nextMessage(socket: Awaited<ReturnType<FastifyInstance["injectWS"]>>) {
@@ -120,6 +129,25 @@ describe("owned point socket to existing paired API", () => {
     expect(pipe!.destroyed).toBe(true);
     await app!.close();
     expect(pipe!.destroyed).toBe(true);
+  });
+
+  it("isolated read-only mode permits pairing and reading but never dispatches mutation routes", async () => {
+    const { token, adapter } = await prepare("live", true);
+    const headers = { authorization: `Bearer ${token}` };
+    const map = vi.spyOn(adapter, "startMapping");
+    expect((await app!.inject({ url: "/api/v1/state", headers })).statusCode).toBe(200);
+    for (const [method, url] of [
+      ["POST", "/api/v1/mapping/start"], ["POST", "/api/v1/navigation/point"],
+      ["POST", "/api/v1/navigation/control"], ["POST", "/api/v1/agent/events"],
+      ["PUT", "/api/v1/settings/ai"], ["PUT", "/api/v1/points/synthetic"],
+      ["DELETE", "/api/v1/tours/synthetic"],
+    ] as const) {
+      const response = await app!.inject({ method, url, headers });
+      expect(response.statusCode).toBe(403);
+      expect(response.json().message).toBe("isolated_point_runtime_read_only");
+    }
+    expect(map).not.toHaveBeenCalled();
+    expect((await app!.inject({ method: "POST", url: "/api/v1/session/revoke", headers })).statusCode).toBe(204);
   });
 
   it("closes adopted input when API construction fails", async () => {
