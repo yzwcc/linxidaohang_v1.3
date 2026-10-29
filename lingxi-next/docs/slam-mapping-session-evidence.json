@@ -1,0 +1,63 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-29",
+  "inputClassification": "recorded_real_sensor_callback_journal",
+  "result": "native_mapping_worker_save_reload_and_discard_verified",
+  "robotContacted": false,
+  "rosNodeStarted": false,
+  "liveSensorsSubscribed": false,
+  "motionCommandsSent": false,
+  "targetArm64Validated": false,
+  "geometricAccuracyValidated": false,
+  "localizationReady": false,
+  "navigationReady": false,
+  "sourceSha256": {
+    "robot-slam/lingxi_slam/mapping_session.py": "f1c720494bd517da5b8e1452207f136ce81ff96771f50926f4886160f7fdbb66",
+    "robot-slam/lingxi_slam/mapping_worker.py": "eb4126a4dacb6d988b0ab6919c3a644e42a4b30002ae322ad232673024db6c40",
+    "robot-runtime/python/replay_mapping.py": "2a5c14e0abf6507ebf9f3f14f9f2d46f5cab29702fd000b8ed35470072efb64a"
+  },
+  "saveReportSha256": "763543a06d9eb780cdbf947779c2d3f7f94f87b6677c9420302f9f277d94de97",
+  "discardReportSha256": "ed3d66c329054fe9caffcaba08b484bd2a574d87307936ad05ba911bff6a6a23",
+  "reloadReportSha256": "ec94368f47d1bc9e8332a0ace2f150c27944be9ccd50f8e81f8ad9a5ad4ce22f",
+  "mappingLibrarySha256": "b4c2885ef76f7975f91387dcaed05d25468e52bb2f782650d03dec2ce881d20a",
+  "journalSha256": "492a5b33f04edfc85b5e5c18fbf5e9e0e5005b68480c6e3cfd191927d7d98bf8",
+  "eachRun": {
+    "replayRate": 1,
+    "completedMessages": 4144,
+    "acceptedImu": 3947,
+    "acceptedClouds": 197,
+    "rejectedMessages": 0,
+    "discardedMessages": 0,
+    "nativeCalls": { "create": 1, "imu": 3930, "frame": 196, "close": 1 },
+    "initializationScans": 31,
+    "estimatedPoses": 165,
+    "skippedBeforeImu": 1,
+    "nativeOwnerIsSingleNonMainThread": true,
+    "workerThreadAliveAfterStop": false
+  },
+  "save": {
+    "finalizedFrames": 165,
+    "submaps": 1,
+    "points": 2655,
+    "savedFrames": 165,
+    "fileCount": 12,
+    "totalBytes": 549482,
+    "artifactInventorySha256": "6bb7eac23b78770fa35a611cd3d2dacdf35d19ffc36449731cbcaee93fd4e4af",
+    "freshProcessReloadPassed": true,
+    "samePointOrderCompared": true,
+    "mapUnchangedDuringReload": true,
+    "maximumPointDisplacementRawUnits": 4.91769829766834e-7,
+    "predeclaredToleranceRawUnits": 1e-4,
+    "maximumObservedQueueAgeSeconds": 0.0739935040000006
+  },
+  "discard": {
+    "mapCreated": false,
+    "receiptCreated": false,
+    "maximumObservedQueueAgeSeconds": 0.11593304299999829
+  },
+  "earlierFailuresRetained": {
+    "saveA": { "completedMessages": 117, "failure": "callback_queue_age_exceeded", "mapCreated": false },
+    "saveB": { "completedMessages": 117, "failure": "callback_queue_age_exceeded", "mapCreated": false },
+    "lowLevelCauseEstablished": false
+  }
+}

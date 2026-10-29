@@ -33,8 +33,12 @@ class MappingSaveLifecycle(unittest.TestCase):
 
     def make(self, can_save=None):
         test = self
+        native_created = [False]
 
         class Native:
+            def __init__(self):
+                native_created[0] = True
+
             def imu(self, *args):
                 test.calls.append("imu")
                 if test.failure == "imu":
@@ -52,6 +56,9 @@ class MappingSaveLifecycle(unittest.TestCase):
                 return 2
 
         class Mapping:
+            def __init__(self):
+                test.assertTrue(native_created[0], "initialize odometry before loading its mapping extension")
+
             def call(self, name, *args):
                 test.calls.append(name)
                 if test.failure == name:
@@ -83,7 +90,7 @@ class MappingSaveLifecycle(unittest.TestCase):
                                "predeclaredToleranceRawUnits": 1e-4},
             }
 
-        return MappingSession(Native, Mapping(), self.decision, self.output,
+        return MappingSession(Native, Mapping, self.decision, self.output,
                               name="Synthetic test map", session=SESSION, input_mode="synthetic",
                               can_save=can_save or (lambda: self.healthy),
                               inspect_map=inspect, reload_map=reload)

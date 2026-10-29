@@ -54,25 +54,26 @@ def _digest(path):
 class MappingSession:
     """Decorate an engine with once-only flush, shutdown, independent reload and receipt.
 
-    ``mapping`` is the existing MappingLibrary. ``inspect_map`` is its existing
+    ``mapping_factory`` creates the existing MappingLibrary after odometry.
+    ``inspect_map`` is its existing
     inventory validator; ``reload_map`` must run the existing loader in a fresh
     process and return its report. Native methods, verification and cleanup all
     run on the creating worker thread. Callers must budget separately for save.
     """
 
-    def __init__(self, native_factory, mapping, decision, output, *, name, session,
+    def __init__(self, native_factory, mapping_factory, decision, output, *, name, session,
                  input_mode, can_save, inspect_map, reload_map):
         if (not isinstance(decision, SaveDecision) or not isinstance(name, str)
                 or not 1 <= len(name.strip()) <= 64
                 or input_mode not in ("live", "recorded", "synthetic")
                 or not all(callable(value) for value in
-                           (native_factory, can_save, inspect_map, reload_map, getattr(mapping, "call", None)))):
+                           (native_factory, mapping_factory, can_save, inspect_map, reload_map))):
             raise ValueError("explicit_mapping_save_configuration_required")
         self.session = session_id(session)
         self.output, self.name, self.input_mode = Path(output), name.strip(), input_mode
         self.output.mkdir(mode=0o700)
         self.owner, self.closed, self.failed = threading.get_ident(), False, False
-        self.mapping, self.decision = mapping, decision
+        self.mapping, self.decision = None, decision
         self.can_save, self.inspect_map, self.reload_map = can_save, inspect_map, reload_map
         self.receipt, self.remaining, self.close_error = None, None, None
         try:
@@ -82,11 +83,13 @@ class MappingSession:
             decision.finish()
             raise
         try:
-            mapping.call("open")
+            self.mapping = mapping_factory()
+            self.mapping.call("open")
         except BaseException:
             decision.discard()
             try:
-                mapping.call("shutdown")
+                if self.mapping is not None:
+                    self.mapping.call("shutdown")
             finally:
                 try:
                     self.native.close()

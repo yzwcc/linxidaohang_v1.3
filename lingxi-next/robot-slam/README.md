@@ -88,4 +88,13 @@ native mapper's loop-travel restriction is unchanged.
 The 15 synthetic lifecycle checks pass on Linux, including actual
 `SensorWorker` save and failed-input composition with a fake native engine.
 Windows passes 13 and explicitly skips the two NumPy-dependent worker cases.
-This new component has not yet executed the real native mapping library.
+The subsequent real-library composition is documented in
+`docs/SLAM_MAPPING_SESSION.md`.
+
+`mapping_worker.MappingWorker` connects that lifecycle to the existing bounded
+sensor worker. It has explicit save/discard control, revocable save intent,
+single-session ownership and a separate bounded save shutdown budget. The
+odometry engine is initialized before loading the mapping extension, matching
+the original native diagnostic's order. Two new Linux x64 recorded runs now
+exercise actual native save/reload and plain discard; neither uses ROS or a
+robot connection. The live owner, API and APK still do not select this backend.
