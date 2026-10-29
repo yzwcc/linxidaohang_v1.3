@@ -653,6 +653,20 @@ bag 时间轴回放未模拟 CPU 积压，不能当在线延迟或语音并发�
 新增脱敏聚合见 `slam-supervised-native-evidence.json`。
 详见 `SLAM_SUPERVISED_NATIVE_REPLAY.md` 的验证记录与未验收项。
 
+### ARM64 监督组合准备
+
+将电脑端验证过的会话循环与平台绑定分离，新增独立 ARM64/Humble
+录制回放入口，保留相同的工作线程、健康 IPC、完整计数及退出确认。
+目标入口必须明确确认现场条件；使用原 bundle/core 和完整 live 参考，
+不初始化 ROS 或 DDS，不提供移动或地图激活接口。
+
+新的共用循环在电脑端新进程 h 中完成 4,144 次回调原速回放并正常回收。
+最终工具检查 Linux 558 项全通过，Windows 253 通过、305 明确跳过。
+**ARM64 入口没有在机器人执行，也未接入管理 API。**
+目标端实际库加载、解码器和监督生命周期仍需验证，不能把本地合成检查
+当作 ARM64 或产品 readiness。详见 `SLAM_SUPERVISED_TARGET_PREPARATION.md`
+及电脑端聚合 `slam-supervised-portable-evidence.json`。
+
 在机器人已加载正确 ROS 环境的独立进程中运行：
 
 ```sh

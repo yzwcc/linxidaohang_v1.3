@@ -107,6 +107,10 @@ A further one-times run adds bounded producer/native timing observations;
 see [the sanitized aggregate evidence](docs/slam-supervised-native-evidence.json).
 Earlier startup/queue failures remain recorded, with no proven root cause.
 This is x86 recorded-input composition evidence, not production integration.
+The shared recorded session now has a separate opt-in ARM64/Humble binding.
+Its target execution is still pending onsite confirmation; the new shared loop
+has a fresh real x86 regression, not an inferred ARM64 pass.
+See [the target preparation boundary](docs/SLAM_SUPERVISED_TARGET_PREPARATION.md).
 An independent full-recording range audit records returns beyond 5 raw-coordinate
 units. The roughly 5 m travel estimate is not calibration truth; travel,
 scan coverage and map accuracy are different quantities.

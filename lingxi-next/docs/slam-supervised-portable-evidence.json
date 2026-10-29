@@ -1,0 +1,257 @@
+{
+  "schemaVersion": 1,
+  "result": "native_recorded_worker_supervision_closed_not_mapping_or_navigation_acceptance",
+  "date": "2026-10-29",
+  "privateParentReportSha256": "516cccfb9e3d144f9b16cc4a0ce4511261409189f10bf4259a6372e543c4ebfe",
+  "privateChildReportSha256": "0d158eaf0bb876e272379ec6d8fd61af8985902cc1f385a610ebc7dd3c88f10a",
+  "sourceSha256": {
+    "tools/run_glim_supervised_replay.py": "dffd120e021476dd1a681d7fa74cd6df01af2f25c809d57b697b45d887cb57f4",
+    "tools/slam_callback_journal.py": "3c9242f163b0c9265358085c6c59407973fa862592f2daea8151576ba7a9fe8b",
+    "tools/glim_trial_config.py": "761e93e856d57a80e96204c8b58a60e4ac067adc26611c4dc858196d6bc95833",
+    "tools/run_glim_stream_trial.py": "512ee896c05345de191d7793ac6c1602291d699125c07eeb0d44ff7ff4e2597a",
+    "tools/run_glim_offline_trial.py": "aa04dce703a0f121138318b6ee52ba999e47593d6ed2ccac7bd2c524c1cff683",
+    "tools/run_kiss_offline_trial.py": "ebe6d933005fa0821b50c0f91477e7a80a32ac1d174bf1040ec90d91e382a8aa",
+    "tools/build_slam_cpu_trial.py": "ce855ca6b45385d2b2eecf1462c04a55abd0e0c1e36a7955f5376b6d1351a7a9",
+    "tools/diagnose_slam_sensors.py": "0c9808ca472b6d7be7b3b118c05d83b13f5b975e76da1c732e08adf071e1b824",
+    "tools/export_glim_controlled_mapping.py": "0141b810faf4e2bae55bb42261102c7f9cea9b122536ca0ceb06574f927c42cb",
+    "tools/compare_glim_architectures.py": "b741d1a7f57894dee2fd9e87b47638f80221ae26bfc449239d2665f30c88d6aa",
+    "tools/glim_target_controlled_mapping.py": "07ab538ce92bce425be6da97a5d4e70d839b096dd455646745c78adb4b15de4b",
+    "tools/verify_slam_capture.py": "073c280e1791636e6ccd41c016ca50d56fa3a71078eb5ab1a4bfcc77e0259bad",
+    "tools/slam_bag_audit.py": "529f6eb0b6a5050e74d0c65c566d53893f5e989e0a1a6d889ba0d27bf7a7620b",
+    "tools/glim-replay/offline.cpp": "4a104e25a4eb28fc7c558d9ae8fb12bab03a478e48f499f55ff95d9667aa2b1c",
+    "tools/glim-replay/CMakeLists.txt": "53d285546e082a23975e9f7f709c68abd47f4cd12a3349eb6c14fb946d1d340b",
+    "robot-slam/lingxi_slam/__init__.py": "9a59075191196952798a68b31564f2fc148727cbcfa59ae715657865894c4226",
+    "robot-slam/lingxi_slam/messages.py": "bb52d293b2d839ecb80bc51d0b5dcff17b533911b17c9ab462d86f255c1dc336",
+    "robot-slam/lingxi_slam/worker.py": "59beea9c8c9015dc1b24f09fc010ccb86f59eda469a0d9af990777c715ff5cea",
+    "robot-slam/lingxi_slam/stream.py": "1fcca31c82dcec8a6969576c98c27e68582f0a6288b8482d8442c8703ff5d0bc",
+    "robot-slam/lingxi_slam/process_protocol.py": "6f324f17bd399cedb5c72e19b143a9d40dc23f84e5f6d9b059a00b315d53ad8d",
+    "robot-slam/lingxi_slam/process_supervisor.py": "a5b10ac6a03001a88eca918c13724a88df2a393595bc9e27e349666213b4b669",
+    "docs/slam-stream-input-evidence.json": "d4defa80f4e5d48ca0bc620965218103c89726cdde0e523531d14262468449cc"
+  },
+  "sourceCommits": {
+    "gtsam": "3ad4b4c3cb28394c9597f48fa02dad361c8450e3",
+    "gtsam_points": "9d32e7dbecf6015560d84b4901d6b0a6f483ec46",
+    "glim": "1a197c999e4865f5cab7c9cd25474128413ebbca"
+  },
+  "host": {
+    "machine": "x86_64",
+    "versions": {
+      "numpy": "2.5.4",
+      "rosbags": "0.11.9"
+    }
+  },
+  "inputJournal": {
+    "records": 4144,
+    "counts": {
+      "cloud": 197,
+      "imu": 3947
+    },
+    "bytes": 157715530,
+    "sha256": "492a5b33f04edfc85b5e5c18fbf5e9e0e5005b68480c6e3cfd191927d7d98bf8"
+  },
+  "configurationSha256": {
+    "UPSTREAM_LICENSE.txt": "e491c5c12eef41e3a5f673fa0b1942d575fbd1bbd8c4dfa73e4c9d464c4a9ba4",
+    "config.json": "75384262d7f747ecc62f4daf5c23819f9235079b01a4dc353f1f69873535c8a3",
+    "config_global_mapping_pose_graph.json": "ceb2a6e2e88ddbc79125f899e9397381b657e93e084a32900231c40a7b8b8765",
+    "config_logging.json": "471a97b149fa5523386d3b9551420f377340a32d158da28d164b637ff22d0e09",
+    "config_odometry_cpu.json": "b3f8fadd09067b2afd8e13e55731cbba323f623c86da74f44bbd04b700c819ea",
+    "config_preprocess.json": "96b0486ad6e961057d7ae8211c4d9f5e83a915c519b82dab1d5bfee5b416b9dd",
+    "config_ros.json": "959b83bd427439c22c03437d37d3ea95563f6bb91e6689d856d8dddf9680ca6b",
+    "config_sensors.json": "582ef55e2c7cb02d315738f4581fa6d642ea80a74d3e6c9a0d8115b2c95c0507",
+    "config_sub_mapping_passthrough.json": "78807724166f5096ced9fb3a19fc9cb9fcb0994209c9486f573337da99c0e6b8",
+    "trial-manifest.json": "1a39c0f550099d959c66038e46628df4326ab2ed32ef2c4963d60100581acd91"
+  },
+  "actualLoadedLibrariesSha256": {
+    "libgtsam.so.4.3a0": "a04a785a5dae6737bed3246d6fa3d380824a36979311c97e2698bc460a420ddf",
+    "libgtsam_points.so.1.2.2": "b3ad18f233148fb0a4d0ff84f25199138da247357b878684619bdf214bb7e695",
+    "libcephes-gtsam.so.1.0.0": "865de51290543bbef9aaeffc4f025c575fbe76ac48e91ee09346e44b8df6b1ba",
+    "libglim.so": "6c554c6a48119eb9d2ce9d595076c64de581070f50c60438e85108bc9ebedb47",
+    "libmetis-gtsam.so": "27d1eafe1948d539734637a685b0459411b56b6b575d443a328ed06742810571",
+    "liblingxi_glim_offline.so": "d88b2ce24c70dde901e33747bd622238172729ce0dfaff74b37da0e0a0d78b8d",
+    "libodometry_estimation_cpu.so": "dc5ed040f36e8a83fd0207e5307894d95b1062f659e182db0e03cac8d02316ca"
+  },
+  "process": {
+    "state": "stopped",
+    "failure": null,
+    "childFailure": null,
+    "workerState": "stopped",
+    "completedMessages": 4144,
+    "processedScans": 196,
+    "estimatedPoses": 165,
+    "healthEvents": 393,
+    "retiredHealthEvents": 1,
+    "exitCode": 0,
+    "processAlive": false,
+    "monitorAlive": false,
+    "forcedTermination": false,
+    "cleanupComplete": true,
+    "mappingReady": false,
+    "localizationReady": false,
+    "navigationReady": false
+  },
+  "nativeCalls": {
+    "create": 1,
+    "imu": 3930,
+    "frame": 196,
+    "close": 1
+  },
+  "replayTiming": {
+    "schemaVersion": 1,
+    "clock": "time.monotonic",
+    "percentiles": "nearest_rank",
+    "maximumSamplesPerChannel": 4145,
+    "channels": {
+      "nativeCreateWall": {
+        "count": 1,
+        "totalSeconds": 0.019298256999995544,
+        "minimumSeconds": 0.019298256999995544,
+        "p50Seconds": 0.019298256999995544,
+        "p95Seconds": 0.019298256999995544,
+        "maximumSeconds": 0.019298256999995544
+      },
+      "nativeLibraryVerificationWall": {
+        "count": 1,
+        "totalSeconds": 0.13965828899999622,
+        "minimumSeconds": 0.13965828899999622,
+        "p50Seconds": 0.13965828899999622,
+        "p95Seconds": 0.13965828899999622,
+        "maximumSeconds": 0.13965828899999622
+      },
+      "nativeImuWall": {
+        "count": 3930,
+        "totalSeconds": 0.03736789699996734,
+        "minimumSeconds": 4.769999996767638e-06,
+        "p50Seconds": 6.012000000055195e-06,
+        "p95Seconds": 4.288000000229886e-05,
+        "maximumSeconds": 0.00023776700000155415
+      },
+      "nativeFrameWall": {
+        "count": 196,
+        "totalSeconds": 5.583425130000016,
+        "minimumSeconds": 0.020834923000002448,
+        "p50Seconds": 0.02696118699999772,
+        "p95Seconds": 0.037136308000000895,
+        "maximumSeconds": 0.0734308880000043
+      },
+      "nativeCloseWall": {
+        "count": 1,
+        "totalSeconds": 0.0017569259999987707,
+        "minimumSeconds": 0.0017569259999987707,
+        "p50Seconds": 0.0017569259999987707,
+        "p95Seconds": 0.0017569259999987707,
+        "maximumSeconds": 0.0017569259999987707
+      },
+      "nativePreprocess": {
+        "count": 196,
+        "totalSeconds": 1.325969228,
+        "minimumSeconds": 0.006190019999999999,
+        "p50Seconds": 0.006666272,
+        "p95Seconds": 0.007427591999999999,
+        "maximumSeconds": 0.008968618
+      },
+      "nativeOdometry": {
+        "count": 196,
+        "totalSeconds": 2.174701608,
+        "minimumSeconds": 0.003137422,
+        "p50Seconds": 0.009542232,
+        "p95Seconds": 0.019098965,
+        "maximumSeconds": 0.054658536
+      },
+      "producerReadWall": {
+        "count": 4145,
+        "totalSeconds": 0.30768401399994616,
+        "minimumSeconds": 3.5549999992667836e-06,
+        "p50Seconds": 1.835299999441986e-05,
+        "p95Seconds": 0.0002227180000033968,
+        "maximumSeconds": 0.0015340899999998214
+      },
+      "producerDecodeWall": {
+        "count": 4144,
+        "totalSeconds": 0.1460789410001695,
+        "minimumSeconds": 7.555999999908636e-06,
+        "p50Seconds": 3.0471000002307846e-05,
+        "p95Seconds": 8.100800000221398e-05,
+        "maximumSeconds": 0.0004830540000000383
+      },
+      "producerOfferWall": {
+        "count": 4144,
+        "totalSeconds": 0.1574445910001927,
+        "minimumSeconds": 6.491999997138009e-06,
+        "p50Seconds": 3.3820999995270995e-05,
+        "p95Seconds": 9.999499999935324e-05,
+        "maximumSeconds": 0.0007326130000038233
+      },
+      "producerDispatchLateness": {
+        "count": 4144,
+        "totalSeconds": 4.793791995001456,
+        "minimumSeconds": 1.2110000000120635e-05,
+        "p50Seconds": 0.0011512090000067587,
+        "p95Seconds": 0.0021621630000012715,
+        "maximumSeconds": 0.0030162440000012225
+      },
+      "producerAdmissionLateness": {
+        "count": 4144,
+        "totalSeconds": 5.133148951001758,
+        "minimumSeconds": 4.753300000004401e-05,
+        "p50Seconds": 0.001229743000003225,
+        "p95Seconds": 0.002250108999994893,
+        "maximumSeconds": 0.003113503999998102
+      }
+    }
+  },
+  "observedWorkerTiming": {
+    "maximumQueueAgeSeconds": 0.07167643199999674,
+    "maximumScanWaitSeconds": 0.004861580000003585,
+    "childWallSeconds": 19.969376882,
+    "childProcessCpuSeconds": 11.508370289
+  },
+  "nativeOwnerIsSingleNonMainThread": true,
+  "completedWorkerCounts": {
+    "acceptedImu": 3947,
+    "acceptedClouds": 197,
+    "completedMessages": 4144,
+    "discardedMessages": 0,
+    "rejectedMessages": 0
+  },
+  "streamCounts": {
+    "receivedImu": 3947,
+    "receivedClouds": 197,
+    "insertedImu": 3930,
+    "processedScans": 196,
+    "estimatedPoses": 165,
+    "skippedBeforeImu": 1,
+    "skippedAfterImuAtEndOfInput": 0
+  },
+  "limits": {
+    "startup_seconds": 30.0,
+    "progress_seconds": 2.0,
+    "shutdown_seconds": 6.0,
+    "terminate_seconds": 1.0,
+    "kill_seconds": 1.0,
+    "tick_seconds": 0.05,
+    "maximum_event_bytes": 4096,
+    "maximum_events_per_tick": 32
+  },
+  "boundaries": {
+    "robotContacted": false,
+    "rosNodeStarted": false,
+    "liveSensorsSubscribed": false,
+    "motionCommandsSent": false,
+    "servicesChanged": false,
+    "mapSaved": false,
+    "mapActivated": false,
+    "timingHypothesisValidated": false,
+    "robotCalibrationValidated": false,
+    "geometryValidated": false,
+    "relocalizationValidated": false,
+    "targetArm64SupervisionValidated": false,
+    "systemdRecoveryValidated": false,
+    "voiceConcurrencyValidated": false,
+    "navigationValidated": false,
+    "deploymentApproved": false,
+    "rawDataPublished": false
+  },
+  "replayRate": 1.0,
+  "pacedRecordedInputNotLivePerformance": true,
+  "oneTimesReplayPerformanceValidated": false
+}

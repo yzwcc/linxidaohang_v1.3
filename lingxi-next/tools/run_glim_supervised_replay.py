@@ -317,16 +317,11 @@ def child(args, sink):
     faulthandler.dump_traceback_later(10., repeat=True, file=sys.stderr)
     import numpy as np
     from rosbags.typesys import Stores, get_typestore
-    from lingxi_slam.messages import SensorProfile
-    from lingxi_slam.worker import SensorWorker
     from run_glim_offline_trial import Native
     from run_glim_stream_trial import actual_libraries
-    from slam_callback_journal import records
 
-    emitter = HealthEmitter(sink, session_id(os.environ.get("LINGXI_SLAM_SESSION")))
     print("supervised_replay_phase: verifying_frozen_inputs", file=sys.stderr, flush=True)
     integrity = inputs(args)
-    timing = ReplayTiming(integrity["journal"]["records"])
     faulthandler.cancel_dump_traceback_later()
     print("supervised_replay_phase: starting_native_worker", file=sys.stderr, flush=True)
     expected_environment = child_environment(args.work)
@@ -336,10 +331,39 @@ def child(args, sink):
     # Compile both CDR decoders before the worker's real-time input watchdog starts.
     for kind in ("sensor_msgs/msg/Imu", "sensor_msgs/msg/PointCloud2"):
         types.get_msgdef(kind)
+
+    def verify_loaded():
+        loaded = actual_libraries(args.work, args.adapter, integrity["nativeLibrariesSha256"])
+        baseline = load(ROOT / "docs/slam-stream-input-evidence.json")["runs"]["static-start"]
+        if loaded != baseline["actualLoadedLibrariesSha256"]:
+            raise ValueError("complete_previously_observed_loaded_library_set_required")
+        return loaded
+
+    def decode(kind, payload):
+        return types.deserialize_cdr(payload, "sensor_msgs/msg/" + ("Imu" if kind == "imu" else "PointCloud2"))
+
+    return recorded_child(
+        args, sink, integrity=integrity,
+        native_factory=lambda: Native(args.adapter / "build/liblingxi_glim_offline.so", args.bundle / "config",
+                                      args.work / "prefix/lib/libodometry_estimation_cpu.so"),
+        verify_loaded=verify_loaded, decode=decode, verify_inputs=lambda: inputs(args),
+        versions={"numpy": np.__version__, "rosbags": metadata.version("rosbags")},
+    )
+
+
+def recorded_child(args, sink, *, integrity, native_factory, verify_loaded, decode, verify_inputs, versions):
+    """Shared native lifecycle; platform-specific code supplies verified bindings."""
+    from lingxi_slam.messages import SensorProfile
+    from lingxi_slam.worker import SensorWorker
+    from slam_callback_journal import records
+
+    replay_rate(args.rate)
+    timing = ReplayTiming(integrity["journal"]["records"])
+    emitter = HealthEmitter(sink, session_id(os.environ.get("LINGXI_SLAM_SESSION")))
     calls = dict.fromkeys(("create", "imu", "frame", "close"), 0)
     owners, main_thread, loaded = set(), threading.get_ident(), {}
     report = {"result": "running", "session": emitter.session, "pid": os.getpid(),
-              "machine": platform.machine(), "versions": {"numpy": np.__version__, "rosbags": metadata.version("rosbags")},
+              "machine": platform.machine(), "versions": versions,
               "inputIntegrity": integrity, "replayRate": args.rate,
               "journalExhausted": False, "stopReceived": False}
 
@@ -350,18 +374,11 @@ def child(args, sink):
         owners.add(owner)
         calls[name] += 1
 
-    def verify_loaded():
-        loaded.update(actual_libraries(args.work, args.adapter, integrity["nativeLibrariesSha256"]))
-        baseline = load(ROOT / "docs/slam-stream-input-evidence.json")["runs"]["static-start"]
-        if loaded != baseline["actualLoadedLibrariesSha256"]:
-            raise ValueError("complete_previously_observed_loaded_library_set_required")
+    def checked_loaded():
+        loaded.update(verify_loaded())
 
     def factory():
-        return OwnedNative(
-            lambda: Native(args.adapter / "build/liblingxi_glim_offline.so", args.bundle / "config",
-                           args.work / "prefix/lib/libodometry_estimation_cpu.so"), record,
-            verify_loaded, timing=timing,
-        )
+        return OwnedNative(native_factory, record, checked_loaded, timing=timing)
 
     profile = SensorProfile("lidar_chest_front", "lidar_imu_chest_front",
                             "frame_relative_nanoseconds_hypothesis")
@@ -393,8 +410,7 @@ def child(args, sink):
                     due = None if pending is None else epoch + (pending.elapsed_ns - first_elapsed) / 1e9 / args.rate
                     if due is not None and now >= due:
                         timing.observe("producerDispatchLateness", time.monotonic() - due)
-                        msgtype = "sensor_msgs/msg/" + ("Imu" if pending.kind == "imu" else "PointCloud2")
-                        message = timing.call("producerDecodeWall", types.deserialize_cdr, pending.payload, msgtype)
+                        message = timing.call("producerDecodeWall", decode, pending.kind, pending.payload)
                         offer = worker.offer_imu if pending.kind == "imu" else worker.offer_cloud
                         accepted = timing.call("producerOfferWall", offer, message)
                         timing.observe("producerAdmissionLateness", time.monotonic() - due)
@@ -417,7 +433,7 @@ def child(args, sink):
             if failure is not None:
                 raise RuntimeError("recorded_replay_interrupted")
             complete_child(report, integrity["journal"])
-            if inputs(args) != integrity:
+            if verify_inputs() != integrity:
                 raise ValueError("frozen_replay_inputs_changed")
             report["result"] = CHILD_RESULT
         except BaseException as error:
