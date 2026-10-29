@@ -150,6 +150,9 @@ own private Unix stream FD; it is not production supervisor FD wiring.
 Next are actual ARM64 extension loading/contracts and target recorded-data
 validation under currently confirmed onsite conditions. Live composition
 and UI acceptance remain separate later checks.
+The small isolated loading/contract bundle is now prepared but not target
+executed; see `SLAM_POINT_ARM64_PREPARATION.md` for its manifest identity,
+local checks and current onsite gate.
 
 Factory-calibration discrepancies, IMU-noise/prediction warnings, sustained
 throughput, global map transactions, loop closure, relocalization, base-frame
