@@ -136,7 +136,16 @@ The subsequent LAN composition collector and independent verifier are now
 implemented, and the real prepared consumer archive has been successfully
 unpacked and reverified offline without running ARM64 code.
 See [the target composition collection boundary](docs/SLAM_POINT_COMPOSITION_TARGET.md).
-Actual recorded ARM64 producer/consumer execution is still pending.
+After current onsite confirmation, the actual recorded ARM64 composition
+also completed all 4,144 callbacks and delivered 164 identical-content point
+packets to its prepared ARM64 Node consumer. Both owned processes exited
+naturally; two independent aggregate exports match byte-for-byte. Recorded
+data stayed unavailable as live points, and readiness stayed false.
+This does not validate live DDS-to-screen delivery or independent navigation.
+A separate opt-in inherited-socket API entrypoint now has paired point delivery
+and natural-shutdown coverage in real Linux x64 Node processes. It does not
+launch SLAM, grant navigation readiness or change the default deployment.
+See [the point API ownership and verification boundary](docs/SLAM_POINT_RUNTIME.md).
 An independent full-recording range audit records returns beyond 5 raw-coordinate
 units. The roughly 5 m travel estimate is not calibration truth; travel,
 scan coverage and map accuracy are different quantities.

@@ -1,0 +1,4 @@
+{
+  "extends": "./tsconfig.api.json",
+  "include": ["robot-runtime/src/**/*.ts", "shared/contracts.ts"]
+}

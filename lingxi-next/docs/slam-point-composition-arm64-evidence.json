@@ -1,0 +1,342 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-29",
+  "result": "arm64_recorded_point_channel_closed_not_live_ui_or_navigation_acceptance",
+  "inputMode": "recorded",
+  "coordinatorSha256": "c0b4ad9bb77e51644ef1baa09fae163caf0580292ca0ca70a3d9bc31b4b2123a",
+  "exporterSha256": "15a50b21ad70ee8757ca12dbe94bfde837e7a7cb335adcc0ad6162b4c2be20b8",
+  "privateCollectionReportSha256": "b37432123f6202ec8015f1187a7859248f7f9fcf365824592b42d2fa54411aee",
+  "privateReportsSha256": {
+    "report.json": "86d103e5692151f82b88be53788d1272264746ef47eee25eddf67da3e221d567",
+    "child-report.json": "78a694bd07eac9306ac21d2c9aa202fa88cdc12552b5ae295312805319892af6",
+    "point-report.json": "6c05baf5884515033a4329493b452f68ca8db61a44ae5391472d0aa7b0321161",
+    "consumer-report.json": "093d83ab9adb8823fbc62b5d731e7f9c733138879e7215fd8769d62e6c50bf0b",
+    "private-child.log": "6e18b350e303a732b020d11b82098ef106cc3254356c29592f9480d794b7e5cd",
+    "private-consumer.log": "434844e5b49e9cc1b4099eea6cb866b3766842a6e4e77f3170bbba9d11b65fbb"
+  },
+  "sourceSha256": {
+    "docs/slam-native-point-pipe-evidence.json": "4eb6356d68186c4ee04b010a5cd56383cad857511a762ed760c8f6eecb053a94",
+    "docs/slam-point-arm64-target-evidence.json": "83311c9c80d6f9e8829ca739fff1230cea08e9ce3815ecfeb210607ac7815af0",
+    "docs/slam-stream-input-evidence.json": "d4defa80f4e5d48ca0bc620965218103c89726cdde0e523531d14262468449cc",
+    "package-lock.json": "9c49e9ed55c0f6c9d2a1ad257a5f39f1125b31c31a5a882ecf30fae148cf40ba",
+    "robot-api/src/adapters/aimdk.ts": "68a82e2c8323df79abcbc5004c61264a7539d837471ae09d1a114c74e50d0aba",
+    "robot-api/src/adapters/demo.ts": "1d4d093c4057bc8ca73694889bd8ce163f7452d63d0bf0a0d73547dc9ad4da2b",
+    "robot-api/src/auth.ts": "3792b8cc0ff430ad38ca4ab28af245f1504946b55fd320a9de8c3f036b640f92",
+    "robot-api/src/domain.ts": "40fb48c4bbeb94f3d181f57bce21dfd96e72bcbcd62397273a82aebf88005576",
+    "robot-api/src/index.ts": "21887e4b51980445ac848614afc1bc6cd8f8dde4012ffd9e86c887af074f67d7",
+    "robot-api/src/jobs.ts": "0b3064bd6a01285348b29271d01e98e4b06cd47469e7aa43376039de29f83079",
+    "robot-api/src/lidar.ts": "63cdf232de13addd361da7921734889f0913ced62b8d549f8b86da96d39b5136",
+    "robot-api/src/server.ts": "523f704836aa201d54f35b8729f59112c360f9be1bf4439ee268a0b222ef90fd",
+    "robot-api/src/slam-points.ts": "193dc26d37481de297537ff2868f1a82b88e76b6c0b8f449b84ac01908cca4a3",
+    "robot-api/src/store.ts": "9b2bfe57a787af12cf897aa3c6f7496c2997d4bdbbed796a9dbf45f3eac8ac8e",
+    "robot-api/src/voice/answerer.ts": "0bc759e09748d7374b933653b86958312624990ab4be49e1ded2591505667d82",
+    "robot-api/src/voice/diagnostics.ts": "e7832eac5459e13ae8cb8670749c680834ee733c0e18becbd1f946c8203aae84",
+    "robot-api/src/voice/router.ts": "74862da4b87cac71f0760bab7a9f081cff7d9f24d8f9f5a9b39cf83b6b49af19",
+    "robot-slam/lingxi_slam/__init__.py": "9a59075191196952798a68b31564f2fc148727cbcfa59ae715657865894c4226",
+    "robot-slam/lingxi_slam/messages.py": "bb52d293b2d839ecb80bc51d0b5dcff17b533911b17c9ab462d86f255c1dc336",
+    "robot-slam/lingxi_slam/point_data.py": "14444f89b917eb98b7edf4804acb45948babe20cd28214fa20734c08cddefc36",
+    "robot-slam/lingxi_slam/point_output.py": "4b501e2411fd6e54f6b22f954fe13ac222de8d43ad221d61aba5de102512ba81",
+    "robot-slam/lingxi_slam/point_pipe.py": "c19c395dc7d3429d238bb870319b56defbbb3858ca70e025cbb03ea6733fb822",
+    "robot-slam/lingxi_slam/process_protocol.py": "6f324f17bd399cedb5c72e19b143a9d40dc23f84e5f6d9b059a00b315d53ad8d",
+    "robot-slam/lingxi_slam/process_supervisor.py": "a5b10ac6a03001a88eca918c13724a88df2a393595bc9e27e349666213b4b669",
+    "robot-slam/lingxi_slam/stream.py": "1fcca31c82dcec8a6969576c98c27e68582f0a6288b8482d8442c8703ff5d0bc",
+    "robot-slam/lingxi_slam/worker.py": "59beea9c8c9015dc1b24f09fc010ccb86f59eda469a0d9af990777c715ff5cea",
+    "robot-slam/native-point-output/CMakeLists.txt": "2efe69a776d107ffa32f5ec866665a106df6e420e35fedfb9e7f6bd0b807b483",
+    "robot-slam/native-point-output/exports.map": "2dfe4e67279bf1219f19a81a33162757f11c2e2004d4ff5470254e03e074d0ec",
+    "robot-slam/native-point-output/point_output.cpp": "b563747a07964843a27b8160b69509ad9ab8e99556e03de0ba4887c082347b07",
+    "robot-slam/native-point-output/point_output.h": "b9bcb8f6a937bfc0df59ff54f4802a581c6df29820b9a7e31a184236be0d3b2f",
+    "robot-slam/native-point-output/point_output_contract.cpp": "4b37ec7c125524076f33d41fb7566b713b35141449efcb2b35ff3779283667ba",
+    "robot-slam/native-point-output/verify_exports.cmake": "92aa6b31a481733ea9fec9070eb1a55fc96bf325e900d3d76fde8afff7e631d7",
+    "shared/contracts.ts": "847c67426bbe9af55551433a7f9ad8b2ad7aedb5d9a4635fa4b4ba37ebc5a499",
+    "tools/build_slam_cpu_trial.py": "ce855ca6b45385d2b2eecf1462c04a55abd0e0c1e36a7955f5376b6d1351a7a9",
+    "tools/compare_glim_architectures.py": "b741d1a7f57894dee2fd9e87b47638f80221ae26bfc449239d2665f30c88d6aa",
+    "tools/diagnose_slam_sensors.py": "0c9808ca472b6d7be7b3b118c05d83b13f5b975e76da1c732e08adf071e1b824",
+    "tools/export_glim_controlled_mapping.py": "0141b810faf4e2bae55bb42261102c7f9cea9b122536ca0ceb06574f927c42cb",
+    "tools/glim-replay/CMakeLists.txt": "53d285546e082a23975e9f7f709c68abd47f4cd12a3349eb6c14fb946d1d340b",
+    "tools/glim-replay/offline.cpp": "4a104e25a4eb28fc7c558d9ae8fb12bab03a478e48f499f55ff95d9667aa2b1c",
+    "tools/glim_matched_session.py": "20245c70053635ccf804a67122f31d1af33edc6a99b8b221a2009a7e9409aa02",
+    "tools/glim_point_supervised_target.py": "9b974d44d52c1f3b87a8ddbb74d8990a818e4a7bf459e396eed5e7cdcabd2063",
+    "tools/glim_supervised_target.py": "339fb32891eeb0cfb88dc065fe8ecb3b2071e2920214b0ffb0f628190a00e36f",
+    "tools/glim_target_controlled_mapping.py": "07ab538ce92bce425be6da97a5d4e70d839b096dd455646745c78adb4b15de4b",
+    "tools/glim_target_replay.py": "20d0adf3f6e68b6c4d9a61b970be716ee5ead74d609918bd67edb4fcacc46d77",
+    "tools/glim_target_worker.py": "e45fbaa2e29fef1f9bccc7c395247185d8b1d1e31f84b738646da289e71ede01",
+    "tools/glim_trial_config.py": "761e93e856d57a80e96204c8b58a60e4ac067adc26611c4dc858196d6bc95833",
+    "tools/prepare_glim_point_consumer.py": "42e4b2c1658bb2a71a1f25fbe9dfa613b1c743f0aa625566443fba07c28122ba",
+    "tools/run_glim_offline_trial.py": "aa04dce703a0f121138318b6ee52ba999e47593d6ed2ccac7bd2c524c1cff683",
+    "tools/run_glim_point_output_trial.py": "c33b2cc6be2236114e5cb050355243535c49e8694f9c7c33f2e1bc8a82e4c7d2",
+    "tools/run_glim_point_pipe_trial.py": "9ec8732fd402795816aa3ca2a34c50f6281dba6ad1629cc6775955bdcb69d103",
+    "tools/run_glim_stream_trial.py": "512ee896c05345de191d7793ac6c1602291d699125c07eeb0d44ff7ff4e2597a",
+    "tools/run_glim_supervised_replay.py": "dffd120e021476dd1a681d7fa74cd6df01af2f25c809d57b697b45d887cb57f4",
+    "tools/run_kiss_offline_trial.py": "ebe6d933005fa0821b50c0f91477e7a80a32ac1d174bf1040ec90d91e382a8aa",
+    "tools/slam-point-api-consumer.ts": "8e801ee0b79247e4a4109cf85496d9391883305e8d365eb51c181a2e1c5f13f2",
+    "tools/slam_bag_audit.py": "529f6eb0b6a5050e74d0c65c566d53893f5e989e0a1a6d889ba0d27bf7a7620b",
+    "tools/slam_callback_journal.py": "3c9242f163b0c9265358085c6c59407973fa862592f2daea8151576ba7a9fe8b",
+    "tools/slam_target_probe.py": "cc58ce591d955691e168cb62b68c970ab24fbc30043d1fccfe23ffafb9716978",
+    "tools/verify_slam_capture.py": "073c280e1791636e6ccd41c016ca50d56fa3a71078eb5ab1a4bfcc77e0259bad"
+  },
+  "preparedManifestSha256": "e35d411cf7cde7b8bca4b76717accaf2a137ca5512c2f1fe8fcf3f6f1a106521",
+  "preparedArchiveSha256": "c76883e3b10d5df921311012f2b918cd5ae09e0fa082051c84991b4c7197778d",
+  "nodeBinarySha256": "7e48183361053f039294fbbc3ba586722fe756bf296d6cb8195356d10819cd16",
+  "consumerBundleSha256": "48139c57a6c7996fe101f13e9b9c9276e3201de8b3009c3e38bb89c06a6f209f",
+  "actualLoadedLibrariesSha256": {
+    "libodometry_estimation_cpu.so": "5f9507bf8c075b89f5c072d0d9d3e0f535de259c884d955f5ad9230bbd632c0d",
+    "liblingxi_glim_offline.so": "3b814b90d62162461b00e98f98ba29a46827d3b9fbb398b597c29ae5ac633b5e",
+    "libcephes-gtsam.so.1": "7e18a24d0795a956df312b33c0f2f437c7130e0cdeb5b596a50ed30b4d356e24",
+    "libgtsam.so.4": "fee5315024f5eaf4b7b432bc8ff2c9715c098fe6a3693d8177a39bc9a538620f",
+    "libgtsam_points.so.1": "1b279b1d3ad4e252499167a6f9d16f17eec8e7ca634d7157fbd594692e2a54fb",
+    "libmetis-gtsam.so": "844a86b408f2ed51445162f6aeb7979212e8aaae064ad59e0d3862ec6b96e400",
+    "libglim.so": "3c70a22f4151c0c600f394bc65c1dff5c6d133566cb110866b869caeb9ae7f81"
+  },
+  "actualLoadedExtensionSha256": {
+    "liblingxi_glim_point_output.so": "f27ea3ad4718e418886acba7a3b7a068baf12773ceb386224687a15ebd18149c"
+  },
+  "host": {
+    "machine": "aarch64",
+    "node": "v22.23.4",
+    "versions": {
+      "python": "3.10.12",
+      "numpy": "1.26.1",
+      "decoder": "installed_humble_rclpy"
+    }
+  },
+  "inputJournal": {
+    "records": 4144,
+    "bytes": 157715530,
+    "sha256": "492a5b33f04edfc85b5e5c18fbf5e9e0e5005b68480c6e3cfd191927d7d98bf8",
+    "counts": {
+      "imu": 3947,
+      "cloud": 197
+    }
+  },
+  "process": {
+    "state": "stopped",
+    "failure": null,
+    "childFailure": null,
+    "workerState": "stopped",
+    "completedMessages": 4144,
+    "processedScans": 196,
+    "estimatedPoses": 165,
+    "healthEvents": 395,
+    "retiredHealthEvents": 1,
+    "exitCode": 0,
+    "processAlive": false,
+    "monitorAlive": false,
+    "forcedTermination": false,
+    "mappingReady": false,
+    "localizationReady": false,
+    "navigationReady": false,
+    "cleanupComplete": true
+  },
+  "consumerProcess": {
+    "exitCode": 0,
+    "forcedTermination": false,
+    "processAlive": false
+  },
+  "nativeCalls": {
+    "create": 1,
+    "imu": 3930,
+    "frame": 196,
+    "close": 1
+  },
+  "completedWorkerCounts": {
+    "acceptedImu": 3947,
+    "acceptedClouds": 197,
+    "completedMessages": 4144,
+    "discardedMessages": 0,
+    "rejectedMessages": 0
+  },
+  "streamCounts": {
+    "receivedImu": 3947,
+    "receivedClouds": 197,
+    "insertedImu": 3930,
+    "processedScans": 196,
+    "initializationScans": 31,
+    "estimatedPoses": 165,
+    "skippedBeforeImu": 1,
+    "skippedAfterImuAtEndOfInput": 0
+  },
+  "points": {
+    "packets": 164,
+    "copiedPoints": 1246242,
+    "copiedPointsPerPacketMinMax": [
+      7539,
+      7779
+    ],
+    "firstNativeFrameId": 1,
+    "lastNativeFrameId": 164,
+    "allPacketBytesSha256": "04ebd0038beb8eeb9f9acae0e166fcea7fc651607eb8c65a448f073cd1305cde",
+    "maximumRetainedPackets": 2,
+    "coordinateFrame": "lingxi_glim_odom",
+    "poseFrame": "lidar_not_robot_base",
+    "sourceFrame": "IMU",
+    "kind": "native_deskewed_corrected_odometry",
+    "initializationFrameExcluded": true,
+    "globalMapOrLoopClosure": false,
+    "nativeCounts": {
+      "callbacks": 165,
+      "initializationSkips": 1,
+      "copies": 164,
+      "takes": 164,
+      "discardedOnClose": 0
+    }
+  },
+  "writer": {
+    "sent": 164,
+    "replaced": 0,
+    "failed": false,
+    "threadAlive": false
+  },
+  "consumerPoints": {
+    "records": 164,
+    "copiedPoints": 1246242,
+    "retired": 0,
+    "firstNativeFrameId": 1,
+    "lastNativeFrameId": 164,
+    "allPacketBytesSha256": "04ebd0038beb8eeb9f9acae0e166fcea7fc651607eb8c65a448f073cd1305cde",
+    "inputMode": "recorded"
+  },
+  "api": {
+    "pairedWebSocketChecked": true,
+    "recordedInputRejectedAsLive": true,
+    "beforeAndAfterEofUnavailable": true,
+    "readinessUnchanged": true,
+    "robotCommandsSent": false,
+    "tcpListenerStarted": false
+  },
+  "replayTiming": {
+    "schemaVersion": 1,
+    "clock": "time.monotonic",
+    "percentiles": "nearest_rank",
+    "maximumSamplesPerChannel": 4145,
+    "channels": {
+      "nativeCreateWall": {
+        "count": 1,
+        "totalSeconds": 0.0394793830018898,
+        "minimumSeconds": 0.0394793830018898,
+        "p50Seconds": 0.0394793830018898,
+        "p95Seconds": 0.0394793830018898,
+        "maximumSeconds": 0.0394793830018898
+      },
+      "nativeLibraryVerificationWall": {
+        "count": 1,
+        "totalSeconds": 0.21004602500033798,
+        "minimumSeconds": 0.21004602500033798,
+        "p50Seconds": 0.21004602500033798,
+        "p95Seconds": 0.21004602500033798,
+        "maximumSeconds": 0.21004602500033798
+      },
+      "nativeImuWall": {
+        "count": 3930,
+        "totalSeconds": 0.07404107202455634,
+        "minimumSeconds": 1.0559000656940043e-05,
+        "p50Seconds": 1.2415999663062394e-05,
+        "p95Seconds": 8.761299977777526e-05,
+        "maximumSeconds": 0.0007012519999989308
+      },
+      "nativeFrameWall": {
+        "count": 196,
+        "totalSeconds": 8.153055831957317,
+        "minimumSeconds": 0.02172535900172079,
+        "p50Seconds": 0.03753763799977605,
+        "p95Seconds": 0.06579329899977893,
+        "maximumSeconds": 0.09727128699887544
+      },
+      "nativeCloseWall": {
+        "count": 1,
+        "totalSeconds": 0.0020856449991697446,
+        "minimumSeconds": 0.0020856449991697446,
+        "p50Seconds": 0.0020856449991697446,
+        "p95Seconds": 0.0020856449991697446,
+        "maximumSeconds": 0.0020856449991697446
+      },
+      "nativePreprocess": {
+        "count": 196,
+        "totalSeconds": 2.720218345,
+        "minimumSeconds": 0.012968186,
+        "p50Seconds": 0.013485618000000001,
+        "p95Seconds": 0.015378018,
+        "maximumSeconds": 0.016547895
+      },
+      "nativeOdometry": {
+        "count": 196,
+        "totalSeconds": 5.011375287,
+        "minimumSeconds": 0.008074659999999999,
+        "p50Seconds": 0.021311154,
+        "p95Seconds": 0.049567118,
+        "maximumSeconds": 0.082743708
+      },
+      "producerReadWall": {
+        "count": 4145,
+        "totalSeconds": 0.587301458017464,
+        "minimumSeconds": 1.4494999049929902e-05,
+        "p50Seconds": 5.481399784912355e-05,
+        "p95Seconds": 0.0005180910011404194,
+        "maximumSeconds": 0.002249703997222241
+      },
+      "producerDecodeWall": {
+        "count": 4144,
+        "totalSeconds": 1.356234528007917,
+        "minimumSeconds": 9.580400001141243e-05,
+        "p50Seconds": 0.0003190600000380073,
+        "p95Seconds": 0.0004986690000805538,
+        "maximumSeconds": 0.010341323999455199
+      },
+      "producerOfferWall": {
+        "count": 4144,
+        "totalSeconds": 0.34069350099525764,
+        "minimumSeconds": 2.726299862843007e-05,
+        "p50Seconds": 7.385299977613613e-05,
+        "p95Seconds": 0.00018706400078372099,
+        "maximumSeconds": 0.0008520950032107066
+      },
+      "producerDispatchLateness": {
+        "count": 4144,
+        "totalSeconds": 5.334590432765253,
+        "minimumSeconds": 0.00010072199802380055,
+        "p50Seconds": 0.0012664809983107261,
+        "p95Seconds": 0.0022994009996182285,
+        "maximumSeconds": 0.009716453001601622
+      },
+      "producerAdmissionLateness": {
+        "count": 4144,
+        "totalSeconds": 7.142095998649893,
+        "minimumSeconds": 0.00027185699946130626,
+        "p50Seconds": 0.0016844979982124642,
+        "p95Seconds": 0.0028380510011629667,
+        "maximumSeconds": 0.010806234000483528
+      }
+    }
+  },
+  "observedWorkerTiming": {
+    "maximumQueueAgeSeconds": 0.09574328499729745,
+    "maximumScanWaitSeconds": 0.005258701999991899,
+    "childWallSeconds": 20.02979946599953,
+    "childProcessCpuSeconds": 16.773897984
+  },
+  "replayRate": 1.0,
+  "pacedRecordedInputNotLivePerformance": true,
+  "timingHypothesisRequestedNotValidated": "header_is_scan_start",
+  "observations": {
+    "identityCheckedRobotContacted": true,
+    "samePreparedArm64NodeExecuted": true,
+    "uploadedAndStagedSourceBytesVerified": true,
+    "allPacketContentDigestsMatched": true,
+    "bothOwnedProcessesExitedNaturally": true,
+    "recordedPointsRejectedAsLive": true
+  },
+  "acceptance": {
+    "livePointChannelValidated": false,
+    "webOrAndroidRenderingValidated": false,
+    "pointDisplayLatencyValidated": false,
+    "mappingReady": false,
+    "mapPersistenceValidated": false,
+    "calibrationValidated": false,
+    "localizationReady": false,
+    "navigationReady": false,
+    "motionCommandsSent": false,
+    "vendorServicesChanged": false,
+    "deploymentApproved": false,
+    "rawDataPublished": false,
+    "productAccepted": false
+  }
+}

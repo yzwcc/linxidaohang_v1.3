@@ -1,6 +1,7 @@
 node_modules/
 dist/
 robot-api/dist/
+robot-runtime/dist/
 var/
 .env
 *.key

@@ -3,7 +3,9 @@
 Date: 2026-10-29. The ARM64/Humble recorded-point binding and its separate
 Node consumer runtime are now prepared offline. **Neither the new ARM64 Node
 binary nor this target producer/consumer composition has executed on the
-robot.** The product and APK remain 0.1.19; no robot contact, sensor capture,
+robot during this preparation.** The later actual recorded execution and
+independent result are in `SLAM_POINT_COMPOSITION_TARGET.md`.
+The product and APK remain 0.1.19; no robot contact, sensor capture,
 ROS initialization, motion, service installation or vendor-map change occurred
 in this preparation.
 
@@ -76,15 +78,15 @@ the frozen native core, replay adapter, worker, stream or configuration.
   required before input checks; a command-line flag alone is not evidence
   of those conditions.
 
-These are implemented requirements, not claims of target execution. The
+These were implemented requirements, not claims of target execution. The
 binding is not an installer or an SSH upload/collection coordinator. Target
 transfer, extraction, current identity checks, an external execution deadline
-and independent collected-result verification still need integration before
-the actual ARM64 composition can be accepted.
+and independent collected-result verification were still required at the
+end of this preparation.
 
-Those follow-up tools have since been implemented and the actual archive
-was extracted/reverified offline; see `SLAM_POINT_COMPOSITION_TARGET.md`.
-No target composition execution is claimed by that implementation.
+Those follow-up tools and the later actual target run are documented in
+`SLAM_POINT_COMPOSITION_TARGET.md`. Neither outcome is inferred from this
+preparation-only evidence.
 
 ## Local Verification
 

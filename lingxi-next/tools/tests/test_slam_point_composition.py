@@ -1,4 +1,4 @@
-"""Synthetic archives/reports and in-memory SSH peers; no robot or ARM execution."""
+"""Synthetic peers and read-only published aggregates; no robot or ARM execution."""
 import argparse
 from copy import deepcopy
 import json
@@ -406,6 +406,43 @@ class EvidenceTests(unittest.TestCase):
         (self.directory / "private-consumer.log").write_bytes(b"changed synthetic log")
         with self.assertRaises(ValueError):
             self.evidence()
+
+
+class PublishedArm64ResultTests(unittest.TestCase):
+    def result(self):
+        return coordinator.binding.shared.load(ROOT / "docs/slam-point-composition-arm64-evidence.json")
+
+    def test_recorded_result_has_complete_delivery_normal_cleanup_and_no_live_acceptance(self):
+        result = self.result()
+        self.assertEqual(coordinator.binding.RESULT, result["result"])
+        self.assertEqual("recorded", result["inputMode"])
+        self.assertEqual("aarch64", result["host"]["machine"])
+        self.assertEqual("v22.23.4", result["host"]["node"])
+        self.assertEqual(4144, result["inputJournal"]["records"])
+        self.assertEqual(4144, result["completedWorkerCounts"]["completedMessages"])
+        self.assertEqual(164, result["points"]["packets"])
+        self.assertEqual(result["points"]["packets"], result["consumerPoints"]["records"])
+        self.assertEqual(1246242, result["points"]["copiedPoints"])
+        self.assertEqual(result["points"]["copiedPoints"], result["consumerPoints"]["copiedPoints"])
+        self.assertEqual(result["points"]["allPacketBytesSha256"], result["consumerPoints"]["allPacketBytesSha256"])
+        self.assertEqual({"sent": 164, "replaced": 0, "failed": False, "threadAlive": False}, result["writer"])
+        for section in ("process", "consumerProcess"):
+            self.assertEqual(0, result[section]["exitCode"])
+            self.assertIs(False, result[section]["processAlive"])
+            self.assertIs(False, result[section]["forcedTermination"])
+        self.assertTrue(all(result["observations"].values()))
+        self.assertFalse(any(result["acceptance"].values()))
+        self.assertIs(True, result["api"]["recordedInputRejectedAsLive"])
+        self.assertIs(True, result["api"]["readinessUnchanged"])
+
+    def test_published_result_keeps_frozen_sources_and_excludes_private_payloads(self):
+        result = self.result()
+        self.assertEqual(coordinator.binding.source_hashes(), result["sourceSha256"])
+        self.assertEqual(coordinator.sha256(coordinator.__file__), result["coordinatorSha256"])
+        self.assertEqual(coordinator.sha256(exporter.__file__), result["exporterSha256"])
+        text = json.dumps(result)
+        for private in ('"/home/', '"/mnt/', '"session":', '"worldLidarPose":', '"points": [', "10.201.", "192.168."):
+            self.assertNotIn(private, text)
 
 
 if __name__ == "__main__":
