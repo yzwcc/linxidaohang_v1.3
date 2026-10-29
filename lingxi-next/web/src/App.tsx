@@ -37,6 +37,7 @@ import type {
   OccupancyGrid,
   PublicSettings,
   RobotState,
+  SavedSlamPointPreview,
   TourStep,
   TourTask,
 } from "../../shared/contracts";
@@ -466,9 +467,24 @@ function Maps({
 }) {
   const [selected, setSelected] = useState<MapPoint | null>(null);
   const [mapGrid, setMapGrid] = useState<OccupancyGrid>();
+  const [savedPreview, setSavedPreview] = useState<SavedSlamPointPreview>();
+  const [previewId, setPreviewId] = useState("");
+  const [previewBusy, setPreviewBusy] = useState(false);
   const [pointName, setPointName] = useState("");
   const [coordinates, setCoordinates] = useState({ x: "0", y: "0", yaw: "0" });
   const activeMap = state.maps.find((map) => map.id === state.activeMapId);
+
+  useEffect(() => {
+    setSavedPreview(undefined);
+    if (!previewId) { setPreviewBusy(false); return; }
+    let cancelled = false;
+    setPreviewBusy(true);
+    void run(`/api/v1/slam/maps/${encodeURIComponent(previewId)}/points`, undefined, "GET")
+      .then((result) => { if (!cancelled) setSavedPreview(result as SavedSlamPointPreview); })
+      .catch(() => undefined)
+      .finally(() => { if (!cancelled) setPreviewBusy(false); });
+    return () => { cancelled = true; };
+  }, [previewId, run]);
 
   useEffect(() => {
     if (!activeMap) {
@@ -510,6 +526,27 @@ function Maps({
       <PageHeading title="地图管理" description="地图切换、点位编辑与起始位姿" actions={<button className="btn" onClick={refresh}><RefreshCw size={13} />刷新</button>} />
       <div className="content-grid two">
         <div className="stack">
+          {state.savedSlamCatalogStatus && (
+            <Section title="独立 SLAM 地图" icon={Radio}>
+              {state.savedSlamCatalogStatus === "unavailable" ? <div className="empty">地图目录暂不可用</div> : (
+                <table className="table">
+                  <thead><tr><th>地图名称</th><th>来源</th><th>点数</th><th /></tr></thead>
+                  <tbody>
+                    {state.savedSlamMaps?.map((map) => (
+                      <tr key={map.id}>
+                        <td><strong>{map.name}</strong><div className="muted">定位待验证</div></td>
+                        <td>{({ live: "现场采集", recorded: "录制回放", synthetic: "合成测试" })[map.inputMode]}</td>
+                        <td className="mono">{map.counts.points.toLocaleString()}</td>
+                        <td><button className="btn icon small" title={`查看 ${map.name} 点云`} disabled={previewBusy}
+                          onClick={() => setPreviewId(map.id)}><Map size={14} /></button></td>
+                      </tr>
+                    ))}
+                    {!state.savedSlamMaps?.length && <tr><td colSpan={4} className="empty">暂无通过保存校验的地图</td></tr>}
+                  </tbody>
+                </table>
+              )}
+            </Section>
+          )}
           <Section title="地图列表" icon={Map}>
             <table className="table">
               <thead><tr><th>地图名称</th><th>地图 ID</th><th>状态</th><th /></tr></thead>
@@ -561,7 +598,12 @@ function Maps({
             <div className="helper" style={{ marginTop: 8 }}>定位前确认机器人实际位置与所填坐标、朝向一致。</div>
           </Section>
         </div>
-        <Section title="地图与点位" icon={Compass}>
+        <Section title={previewId ? `点云 · ${state.savedSlamMaps?.find((map) => map.id === previewId)?.name ?? "已保存地图"}` : "地图与点位"} icon={Compass}
+          actions={previewId ? <button className="btn icon small" title="返回导航地图" onClick={() => setPreviewId("")}><X size={14} /></button> : undefined}>
+          {previewId ? (
+            savedPreview ? <><LidarCanvas key={previewId} preview={savedPreview} /><div className="helper" style={{ marginTop: 10 }}>GLIM 原始坐标单位；标定、定位和导航尚未验证。</div></>
+              : <div className="empty" role="status">{previewBusy ? "正在读取点云" : "点云不可用，请刷新后重试"}</div>
+          ) : <>
           <MapCanvas
             grid={mapGrid ?? (activeMap?.active ? state.mapGrid : undefined)}
             pose={state.pose}
@@ -576,6 +618,7 @@ function Maps({
           <div className="helper" style={{ marginTop: 10 }}>
             {activeMap?.mapId ? `AIMDK map_id ${activeMap.mapId}` : "地图 ID 由 AIMDK 查询确认"}
           </div>
+          </>}
         </Section>
       </div>
       {selected && (

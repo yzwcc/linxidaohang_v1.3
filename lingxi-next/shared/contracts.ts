@@ -51,6 +51,28 @@ export type RobotMap = {
   createdAt?: string;
 };
 
+export type SavedSlamMap = {
+  id: string;
+  name: string;
+  source: "glim";
+  inputMode: "live" | "recorded" | "synthetic";
+  counts: { finalizedFrames: number; savedFrames: number; submaps: number; points: number };
+  freshProcessReloadPassed: true;
+  coordinateUnits: "native-raw";
+  localizationReady: false;
+  navigationReady: false;
+  geometricAccuracyValidated: false;
+};
+
+export type SavedSlamPointPreview = {
+  mapId: string;
+  inputMode: SavedSlamMap["inputMode"];
+  coordinateUnits: "native-raw";
+  totalPoints: number;
+  sampled: boolean;
+  points: number[];
+};
+
 export type MapPoint = {
   id: string;
   mapId: string;
@@ -104,6 +126,8 @@ export type RobotState = {
   navigation: NavigationState;
   mapGrid?: OccupancyGrid;
   maps: RobotMap[];
+  savedSlamMaps?: SavedSlamMap[];
+  savedSlamCatalogStatus?: "ready" | "unavailable";
   points: MapPoint[];
   tours: TourTask[];
   selectedTourId?: string;

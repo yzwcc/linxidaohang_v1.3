@@ -25,6 +25,7 @@ import { VoiceRouter } from "./voice/router";
 import { JsonStateStore } from "./store";
 import { validatedLidarFrame } from "./lidar";
 import { measureVadToFirstAudio, summarizeVoiceSamples } from "./voice/diagnostics";
+import { SavedSlamMapCatalog } from "./slam-map-catalog";
 
 type ServerOptions = {
   adapter?: RobotAdapter;
@@ -37,6 +38,7 @@ type ServerOptions = {
   staticDirectory?: string;
   demoMode?: boolean;
   agentSpeaker?: SpeechOutput;
+  savedSlamDirectory?: string;
 };
 
 const emptySnapshot: RobotSnapshot = {
@@ -94,6 +96,8 @@ class HttpAgentSpeaker implements SpeechOutput {
 export async function buildServer(options: ServerOptions = {}): Promise<FastifyInstance> {
   const demoMode = options.demoMode ?? process.env.LINGXI_DEMO_MODE === "1";
   const adapter = options.adapter ?? (demoMode ? new DemoAdapter() : new AimdkAdapter(process.env.AIMDK_BRIDGE_URL));
+  const savedSlamDirectory = options.savedSlamDirectory ?? process.env.LINGXI_SAVED_SLAM_DIR;
+  const slamCatalog = savedSlamDirectory ? new SavedSlamMapCatalog(savedSlamDirectory) : undefined;
   const store = new JsonStateStore(options.stateDirectory ?? process.env.LINGXI_DATA_DIR ?? path.resolve("var/lib/lingxi-next"));
   const hash = options.pairingCodeHash ?? process.env.LINGXI_PAIRING_CODE_SHA256 ??
     (demoMode ? pairingCodeHash(process.env.LINGXI_DEMO_PAIRING_CODE ?? "lingxi-dev-only") : "");
@@ -230,10 +234,12 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
   }
 
   async function stateResponse(): Promise<RobotState> {
-    let [db, snapshot, discovered] = await Promise.all([
+    let [db, snapshot, discovered, savedSlam] = await Promise.all([
       store.read(),
       runtimeSnapshot(),
       adapter.listMaps().catch(() => []),
+      slamCatalog ? slamCatalog.list().then((maps) => ({ maps, status: "ready" as const }))
+        .catch(() => ({ maps: [], status: "unavailable" as const })) : undefined,
     ]);
     // Register native map references on first use, so an already active AIMDK
     // map can receive points without forcing an unnecessary relocalization.
@@ -263,6 +269,7 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
       robotName: db.robotName,
       demoMode: adapter.demoMode,
       maps,
+      ...(savedSlam ? { savedSlamMaps: savedSlam.maps, savedSlamCatalogStatus: savedSlam.status } : {}),
       points: db.points,
       tours: db.tours,
       activeMapId: selected,
@@ -339,6 +346,14 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
   });
 
   app.get("/api/v1/maps", async () => ({ maps: (await stateResponse()).maps }));
+  app.get("/api/v1/slam/maps", async () => {
+    if (!slamCatalog) throw deny(503, "独立 SLAM 地图目录尚未配置");
+    return { maps: await slamCatalog.list() };
+  });
+  app.get<{ Params: { id: string } }>("/api/v1/slam/maps/:id/points", async (request) => {
+    if (!slamCatalog) throw deny(503, "独立 SLAM 地图目录尚未配置");
+    return slamCatalog.preview(request.params.id);
+  });
   app.post<{ Params: { id: string }; Body?: { initialPose?: { x: number; y: number; yaw: number } } }>(
     "/api/v1/maps/:id/activate",
     async (request) => {

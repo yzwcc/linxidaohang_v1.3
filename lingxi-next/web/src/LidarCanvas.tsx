@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { Maximize, Minus, Plus, Trash2 } from "lucide-react";
-import type { LidarFrame } from "../../shared/contracts";
+import type { LidarFrame, SavedSlamPointPreview } from "../../shared/contracts";
 import { openLidarEvents, type Connection } from "./api";
 import { appendScan, lidarBounds, type ScanHistory } from "./lidar-view";
 
-export default function LidarCanvas({ connection }: { connection: Connection }) {
+type Props = { connection: Connection; preview?: never } | { preview: SavedSlamPointPreview; connection?: never };
+
+export default function LidarCanvas({ connection, preview }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const historyRef = useRef<ScanHistory>({ key: "", frames: [] });
   const [frame, setFrame] = useState<LidarFrame>();
@@ -18,6 +20,17 @@ export default function LidarCanvas({ connection }: { connection: Connection }) 
   const contextKey = useRef("");
 
   useEffect(() => {
+    if (preview) {
+      setFrame({
+        sequence: 1, epoch: preview.mapId, source: "point-cloud", frameId: "GLIM",
+        sensorFrame: "saved-map", fixedFrame: true, stampMs: 0, receivedAtMs: 0, points: preview.points,
+      });
+      setNotice("");
+      return;
+    }
+    if (!connection) return;
+    setFrame(undefined);
+    setNotice("等待激光雷达扫描数据");
     let previous: LidarFrame | undefined, lastReceived = 0;
     const unavailable = (message: string) => { setFrame(undefined); setNotice(message); };
     const subscription = openLidarEvents(connection, (event) => {
@@ -32,7 +45,7 @@ export default function LidarCanvas({ connection }: { connection: Connection }) 
       if (lastReceived && performance.now() - lastReceived > 2000) unavailable("扫描数据已中断");
     }, 250);
     return () => { subscription.close(); clearInterval(freshness); };
-  }, [connection]);
+  }, [connection, preview]);
 
   useEffect(() => {
     if (!canvasRef.current) return;
@@ -102,8 +115,8 @@ export default function LidarCanvas({ connection }: { connection: Connection }) 
     const bar = metres * scale;
     ctx.strokeStyle = "#526371"; ctx.fillStyle = "#526371"; ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(18, rect.height - 20); ctx.lineTo(18 + bar, rect.height - 20); ctx.stroke();
-    ctx.font = "11px sans-serif"; ctx.fillText(`${metres} m`, 18, rect.height - 27);
-  }, [frame, accumulate, zoom, pan, revision]);
+    ctx.font = "11px sans-serif"; ctx.fillText(`${metres} ${preview ? "raw" : "m"}`, 18, rect.height - 27);
+  }, [frame, accumulate, zoom, pan, revision, preview]);
 
   function clearHistory() {
     historyRef.current = { key: "", frames: [] }; boundsRef.current = undefined;
@@ -112,7 +125,7 @@ export default function LidarCanvas({ connection }: { connection: Connection }) 
 
   return <div className="lidar-view">
     <div className="map-canvas-wrap lidar-canvas-wrap">
-      <canvas ref={canvasRef} aria-label="激光雷达实时扫描点云" onPointerDown={(event) => {
+      <canvas ref={canvasRef} aria-label={preview ? "已保存 SLAM 地图点云" : "激光雷达实时扫描点云"} onPointerDown={(event) => {
         drag.current = { x: event.clientX, y: event.clientY }; event.currentTarget.setPointerCapture(event.pointerId);
       }} onPointerMove={(event) => {
         if (!drag.current || !event.buttons) return;
@@ -124,17 +137,18 @@ export default function LidarCanvas({ connection }: { connection: Connection }) 
         <button className="btn icon" title="放大扫描视图" onClick={() => setZoom((value) => Math.min(8, value * 1.3))}><Plus size={16} /></button>
         <button className="btn icon" title="缩小扫描视图" onClick={() => setZoom((value) => Math.max(0.5, value / 1.3))}><Minus size={16} /></button>
         <button className="btn icon" title="适应扫描范围" onClick={() => { boundsRef.current = undefined; setZoom(1); setPan({ x: 0, y: 0 }); setRevision((value) => value + 1); }}><Maximize size={16} /></button>
-        <button className="btn icon" title="清除累计点迹" onClick={clearHistory}><Trash2 size={16} /></button>
+        {!preview && <button className="btn icon" title="清除累计点迹" onClick={clearHistory}><Trash2 size={16} /></button>}
       </div>
       {notice && <span className="map-empty-label" role="status">{notice}</span>}
     </div>
     <div className="lidar-footer">
-      <span className="tag">{frame ? `${Math.floor(frame.points.length / 3).toLocaleString()} 点 / 帧` : "等待扫描"}</span>
+      <span className="tag">{frame ? `${Math.floor(frame.points.length / 3).toLocaleString()} 点${preview ? "" : " / 帧"}` : "等待扫描"}</span>
       {frame && <span className="tag mono">{frame.frameId}</span>}
-      {frame && <span className="tag">{frame.source === "point-cloud" ? "PointCloud2" : "LaserScan"}</span>}
-      <label className="inline" title="保留近15秒扫描点迹"><input type="checkbox" checked={accumulate} onChange={(event) => { clearHistory(); setAccumulate(event.target.checked); }} />累计点迹</label>
+      {frame && <span className="tag">{preview ? "已保存点云" : frame.source === "point-cloud" ? "PointCloud2" : "LaserScan"}</span>}
+      {preview?.sampled && <span className="tag">抽样预览 / 共 {preview.totalPoints.toLocaleString()} 点</span>}
+      {!preview && <label className="inline" title="保留近15秒扫描点迹"><input type="checkbox" checked={accumulate} onChange={(event) => { clearHistory(); setAccumulate(event.target.checked); }} />累计点迹</label>}
     </div>
     {frame && !frame.fixedFrame && <div className="helper lidar-detail" role="status">{frame.detail ?? "当前为雷达坐标，点迹不累计"}</div>}
-    {frame?.fixedFrame && !frame.robotPose && <div className="helper lidar-detail">机器人位姿变换不可用</div>}
+    {!preview && frame?.fixedFrame && !frame.robotPose && <div className="helper lidar-detail">机器人位姿变换不可用</div>}
   </div>;
 }

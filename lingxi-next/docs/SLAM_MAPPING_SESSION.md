@@ -64,7 +64,9 @@ for unavailable platform/dependencies. Actual native runs are separate evidence.
 
 The current native mapper retains its short-sequence loop-travel restriction;
 these runs do not establish loop closure or general long-session mapping.
-Live owner/API integration, saved-map management, target ARM64 save/reload,
+The read-only saved-map catalog and paired point preview are now connected
+to management; see `SLAM_SAVED_MAP_CATALOG.md`. Live start/save owner/API
+integration, target ARM64 save/reload,
 base alignment, localization, navigation, voice concurrency and final packages
 remain open. No readiness flag is raised by map serialization.
 
