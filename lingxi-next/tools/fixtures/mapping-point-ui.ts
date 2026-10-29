@@ -23,6 +23,8 @@ async function main() {
   assert(Number.isInteger(seconds) && seconds >= 30 && seconds <= 900);
   const cache = await realpath(path.join(os.homedir(), ".cache/lingxi-next"));
   assert.equal(path.dirname(root), cache);
+  assert(Buffer.byteLength(path.join(root, "maps", "0".repeat(32) + ".points.sock")) < 100,
+    "Use a shorter fixture directory for the private mapping point socket");
   await mkdir(root, { mode: 0o700 });
   const key = path.join(root, "synthetic-key.pem"), certificate = path.join(root, "synthetic-cert.pem");
   const generated = spawnSync("/usr/bin/openssl", ["req", "-x509", "-newkey", "rsa:2048", "-nodes",

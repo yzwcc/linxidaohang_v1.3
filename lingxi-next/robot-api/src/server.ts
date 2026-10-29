@@ -8,7 +8,7 @@ import path from "node:path";
 import { timingSafeEqual } from "node:crypto";
 import type { TLSSocket } from "node:tls";
 import { z } from "zod";
-import type { MapPoint, RobotMap, RobotState, TourTask, VoiceDiagnostics, VoiceEvent, VoiceReply } from "../../shared/contracts";
+import type { LidarEvent, MapPoint, RobotMap, RobotState, TourTask, VoiceDiagnostics, VoiceEvent, VoiceReply } from "../../shared/contracts";
 import { extractBearer, pairingCodeHash, SessionManager, websocketBearer } from "./auth";
 import { AimdkAdapter } from "./adapters/aimdk";
 import { DemoAdapter } from "./adapters/demo";
@@ -31,7 +31,10 @@ import { MappingPointSource } from "./mapping-points";
 
 type ServerOptions = {
   adapter?: RobotAdapter;
-  lidarSource?: { getLidarFrame: NonNullable<RobotAdapter["getLidarFrame"]> };
+  lidarSource?: {
+    getLidarFrame: NonNullable<RobotAdapter["getLidarFrame"]>;
+    getPointEvent?: () => LidarEvent;
+  };
   pairingCodeHash?: string;
   stateDirectory?: string;
   internalAgentToken?: string;
@@ -422,9 +425,11 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
         name: z.string(), session: z.string().regex(/^[a-f0-9]{32}$/),
       }).strict().safeParse(request.body);
       if (!identity.success) throw deny(400, "独立建图操作需要当前会话标识");
+      const current = await mappingBackend.state();
+      if (current.session !== identity.data.session) throw deny(409, "建图会话状态已变化，请刷新后确认");
       const result = await mappingBackend.finish(identity.data.session, true, name);
       const map = (await slamCatalog!.list()).find((item) => item.id === result.mapId);
-      if (!map || map.name !== name || map.inputMode !== "recorded") throw deny(503, "保存结果尚未通过地图目录校验");
+      if (!map || map.name !== name || map.inputMode !== current.inputMode) throw deny(503, "保存结果尚未通过地图目录校验");
       emitState(await stateResponse());
       return { savedSlamMap: map, confirmed: true };
     }
@@ -766,9 +771,13 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
     lidarPending = true;
     let payload: string;
     try {
-      if (mappingPoints) {
-        const event = mappingPoints.getPointEvent();
+      const pointSource = mappingPoints ?? (options.lidarSource?.getPointEvent ? options.lidarSource : undefined);
+      if (pointSource?.getPointEvent) {
+        const event = pointSource.getPointEvent();
         if (event.type === "lidar-unavailable") throw new Error("current_mapping_points_unavailable");
+        if (!mappingPoints && event.type === "slam-preview" && event.inputMode !== "live") {
+          throw new Error("inherited_point_input_must_be_live");
+        }
         payload = JSON.stringify({ ...event, frame: validatedLidarFrame(event.frame) });
       } else {
         const source = options.lidarSource ?? adapter;

@@ -31,14 +31,14 @@ export type LidarFrame = {
   fixedFrame: boolean;
   stampMs: number;
   receivedAtMs: number;
-  points: number[]; // Flat XYZ coordinates in frameId, in metres.
+  points: number[]; // Flat XYZ in frameId; lidar events use metres, SLAM previews use native raw units.
   robotPose?: RobotPose;
   detail?: string;
 };
 
 export type LidarEvent =
   | { type: "lidar"; frame: LidarFrame }
-  | { type: "slam-preview"; inputMode: "recorded" | "synthetic"; coordinateUnits: "native-raw"; frame: LidarFrame }
+  | { type: "slam-preview"; inputMode: "live" | "recorded" | "synthetic"; coordinateUnits: "native-raw"; frame: LidarFrame }
   | { type: "lidar-unavailable"; message: string };
 
 export type RobotMap = {
@@ -121,7 +121,7 @@ export type RobotState = {
   mapping: boolean;
   mappingStatus?: "idle" | "requested" | "running" | "saving" | "failed";
   mappingBackend?: "glim";
-  mappingInputMode?: "recorded";
+  mappingInputMode?: "live" | "recorded";
   mappingSession?: string;
   actionBusy?: boolean;
   actionStatus?: "dispatching" | "preset-motion" | "linkcraft-awaiting-operator" | "uncertain";

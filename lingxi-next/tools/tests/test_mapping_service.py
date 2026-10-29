@@ -4,6 +4,7 @@ import json
 import os
 from pathlib import Path
 import socket
+import subprocess
 import sys
 import tempfile
 import threading
@@ -30,6 +31,7 @@ class MappingControl(unittest.TestCase):
                 self.process, self.stops = None, 0
                 self.state, self.cleaned = "new", False
                 self.save_receipt, self.start_error, self.terminal_error = True, False, False
+                self.input_mode = "recorded"
                 self.entered, self.release = threading.Event(), threading.Event()
                 self.release.set()
                 parent.owners.append(self)
@@ -59,7 +61,7 @@ class MappingControl(unittest.TestCase):
                     value = json.loads(intent.read_text())
                     self.output.mkdir(exist_ok=True)
                     (self.output / "map-ready.json").write_text(json.dumps({
-                        **value, "inputMode": "recorded", "freshProcessReloadPassed": True,
+                        **value, "inputMode": self.input_mode, "freshProcessReloadPassed": True,
                         "navigationReady": False, "localizationReady": False,
                         "geometricAccuracyValidated": False,
                     }))
@@ -100,6 +102,19 @@ class MappingControl(unittest.TestCase):
         self.manager.start()
         self.assertEqual(2, len(self.owners))
         self.assertNotEqual(self.owners[0].output, self.owners[1].output)
+
+    def test_live_session_requires_a_live_receipt(self):
+        self.manager.input_mode = "live"
+        self.assertEqual("live", self.manager.state()["inputMode"])
+        self.manager.start()
+        self.assertEqual("live", self.manager.state()["inputMode"])
+        owner = self.owners[-1]
+        self.assert_code("mapping_save_unconfirmed", lambda: self.manager.finish(
+            owner.session, save=True, name="Wrong input mode"))
+        self.manager.start()
+        owner = self.owners[-1]
+        owner.input_mode = "live"
+        self.assertTrue(self.manager.finish(owner.session, save=True, name="Live map")["saved"])
 
     def test_optional_points_follow_output_identity_and_stop_advertising_on_finish(self):
         self.manager.points_enabled = True
@@ -214,7 +229,7 @@ class MappingControl(unittest.TestCase):
 
 
 class PublishedControlEvidence(unittest.TestCase):
-    def test_native_service_evidence_keeps_current_sources_and_explicit_boundaries(self):
+    def test_native_service_evidence_keeps_historical_sources_and_explicit_boundaries(self):
         result = json.loads((ROOT / "docs/slam-mapping-control-evidence.json").read_text())
         self.assertEqual("recorded_native_service_api_save_discard_verified", result["result"])
         self.assertEqual("recorded", result["inputMode"])
@@ -237,7 +252,10 @@ class PublishedControlEvidence(unittest.TestCase):
             self.assertEqual({"sent": 164, "replaced": 0, "failed": False,
                               "threadAlive": False}, child["points"])
         for name, expected in result["sourceSha256"].items():
-            self.assertEqual(expected, hashlib.sha256((ROOT / name).read_bytes()).hexdigest(), name)
+            source = subprocess.check_output([
+                "git", "show", "24b220cb53e490f2638b575c514a40e13f1a30bf:lingxi-next/" + name,
+            ], cwd=ROOT)
+            self.assertEqual(expected, hashlib.sha256(source).hexdigest(), name)
         text = json.dumps(result)
         for private in ('"/home/', '"/mnt/', '"session":', '"password":', '"points": ['):
             self.assertNotIn(private, text)

@@ -1,9 +1,11 @@
-# Recorded Mapping Control Integration
+# Managed Mapping Control Integration
 
-Date: 2026-10-30. This milestone connects recorded-data GLIM mapping and its
-same-engine corrected points to the persistent paired management API and
-shared web UI. It is not live mapping, ARM64
-acceptance, localization, independent navigation or a production deployment.
+Date: 2026-10-30. This milestone connects GLIM mapping and its same-engine
+corrected points to the persistent paired management API and shared web UI.
+The shared platform prepares x86 recorded input and ARM64 Humble recorded/live
+input. Actual native execution in this milestone used recorded data on x86-64.
+It is not live mapping acceptance, ARM64 acceptance, localization, independent
+navigation or a production deployment.
 The APK remains 0.1.19; it was not rebuilt in this milestone.
 
 ## Implemented
@@ -32,25 +34,36 @@ The APK remains 0.1.19; it was not rebuilt in this milestone.
   This keeps native finalization from failing because its visual consumer
   disconnected. Idle, failure, EOF and stale data clear the browser's point
   history. No demo or vendor LiDAR fallback is used when this backend is present.
-- Recorded points use the separate `slam-preview` event, explicit recorded
-  provenance and raw coordinate units. They cannot satisfy the live-only
-  point interface. They are odometry-corrected points, not a loop-closed global
-  map or a verified robot-base pose.
-- Recorded mode rejects navigation dispatch/resume, preset motions and
+- All native SLAM points use the separate `slam-preview` event with explicit
+  live/recorded input provenance and `coordinateUnits: native-raw`. Live input
+  alone does not establish metres or a calibrated robot-base pose. Genuine
+  vendor LiDAR events retain their metre contract. The UI labels native
+  coordinates as uncalibrated. These are odometry-corrected points, not a
+  loop-closed global map.
+- Independent mapping mode rejects navigation dispatch/resume, preset motions and
   LinkCraft playback. Explicit navigation stop remains available. Saved
   GLIM maps remain separate from AIMDK maps and are never auto-activated.
+- `mapping_platform.py` centralizes verified environment, decoder, native
+  libraries and independent reload. ARM64 bindings check the existing
+  odometry/core/mapper/point manifests and actual loaded libraries; they require
+  ordinary-user Linux AArch64 Python 3.10. The new combination has not run on
+  ARM64. Input loss, parent pipe loss or changed frozen inputs revoke saving.
 
 The optional API settings are `LINGXI_MAPPING_SOCKET` and
 `LINGXI_SAVED_SLAM_DIR`; both are required together. The service requires an
-explicit local config with `inputMode: recorded`, existing frozen inputs,
-and rate 0.5 or 1.0. It never accepts executable paths or native configuration
-from HTTP clients. Start is currently enabled only in development/demo API
-mode. The production robot path is deliberately not enabled by these settings.
+explicit local config and existing frozen inputs. Recorded input accepts only
+rate 0.5 or 1.0. The prepared ARM64 `platform: arm64-humble` config selects
+recorded or passive live input; live sessions are bounded to 5-300 seconds.
+HTTP clients cannot supply executable paths or native configuration.
+Start is currently enabled only in development/demo API mode. The production
+robot path is deliberately not enabled by these settings.
 
 The bounded diagnostic catalog is not long-term map retention. The recorded
 child now sends corrected points from the same GLIM instance that feeds its
 mapper. The saved preview is independently loaded from the verified map.
-Neither path claims live sensor acquisition.
+Recorded runs do not claim live sensor acquisition. The prepared live branch
+uses the existing passive subscription and the same explicit finish path;
+unexpected input closure cannot create a ready map.
 
 The recorded child uses the shared close/drain lifecycle described in
 `SLAM_MAPPING_INPUT.md`. The service/API native trial and aggregate were
@@ -73,7 +86,7 @@ Both native instances were created/closed once on a single non-main thread,
 with no rejected/discarded callbacks and no remaining control/worker threads.
 The save produced 165 frames, one submap and 2,655 points. All points were
 available through the authenticated preview. Independent reload comparison
-maximum displacement was `4.917700371519592e-7` raw units, below the existing
+maximum displacement was `4.917703308982532e-7` raw units, below the existing
 `1e-4` serialization tolerance. This is not physical geometric accuracy.
 
 Each child sent 164 corrected-point packets, with zero replacements, writer
@@ -86,16 +99,22 @@ The paired API also confirmed same-session save retry, stale-session rejection,
 discard without another ready map, and unchanged AIMDK maps/active selection.
 The service exited with code zero and removed its socket.
 Original recordings, libraries and existing robot/vendor files were unchanged.
-Aggregate evidence is in `slam-mapping-control-evidence.json`; maps, recordings,
-logs, private reports and session identities are excluded from Git.
+Aggregate evidence for the shared platform run is in
+`slam-mapping-platform-control-evidence.json`; its 19 source hashes match the
+tested sources. The earlier `slam-mapping-control-evidence.json` is retained
+as historical evidence. Maps, recordings, logs, private reports and session
+identities are excluded from Git.
 
 ## Checks
 
-- 196 Vitest tests in 17 files pass; frontend/API/runtime type checks and production web
+- 204 Vitest tests in 17 files pass; frontend/API/runtime type checks and production web
   and API builds pass.
-- Complete Linux Python tools regression: 823 tests, 819 passed and four
+- Complete Linux Python tools regression: 836 tests, 832 passed and four
   explicit dependency/platform skips. This includes private point socket,
-  service lifecycle and unchanged historical ARM64 evidence checks.
+  shared platform configuration, save revocation, service lifecycle and
+  unchanged historical ARM64 evidence checks.
+- Actual Linux process checks pass: eight owner cases and twelve inherited
+  API cases. These use synthetic peers, not robot sensor acquisition.
 - The compiled production frontend passes ten `agent-browser` stages against
   an isolated HTTPS synthetic fixture using the production mapping point
   consumer and private Unix socket. Desktop 1440x900 and landscape 844x390
@@ -105,7 +124,11 @@ logs, private reports and session identities are excluded from Git.
   Neither viewport overflows horizontally; landscape controls remain
   accessible by vertical scrolling. Browser errors are empty and local
   storage contains only the robot address. Private reports/screenshots stay
-  ignored. See `slam-mapping-point-ui-synthetic-evidence.json`.
+  ignored. The latest private report is
+  `.local/mapping-point-ui-20261030-platform-b/report.json`; the earlier
+  published `slam-mapping-point-ui-synthetic-evidence.json` is unchanged.
+- The live/raw synthetic browser fixture also passes ten stages with explicit
+  raw-coordinate provenance. Neither browser fixture is Android acceptance.
 - Actual native execution is separate from these synthetic fixtures.
 - A prior ARM64 evidence test now verifies revised API files at that run's
   immutable Git revision, rather than claiming later API code ran on ARM64.
@@ -119,9 +142,10 @@ allowlisted aggregates and source hashes.
 
 ## Next Mainline
 
-Prepare the new ARM64 mapping/point composition offline, then validate it on
-target when available. Live sensor acquisition and explicit map save still
-need to be connected to these management controls under the same owner.
+Compose the prepared shared ARM64 mapping/point platform, persistent API and
+management service under one owner, then validate it on target when available.
+The service currently lacks owner-stdin lifetime linkage; the existing live
+bundle remains read-only and is not a managed mapping launcher.
 Base-frame alignment, calibration/timing validation, localization, long-session
 mapping/loop closure, independent navigation, voice concurrency and deployable
 robot/APK packages remain outstanding. Map serialization never raises those

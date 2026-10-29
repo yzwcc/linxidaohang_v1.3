@@ -124,7 +124,7 @@ export class LatestSlamPointSource {
 
   getPointEvent(): LidarEvent {
     const frame = this.frame();
-    return this.inputMode === "live" ? { type: "lidar", frame } : {
+    return {
       type: "slam-preview", inputMode: this.inputMode, coordinateUnits: "native-raw", frame,
     };
   }

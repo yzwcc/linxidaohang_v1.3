@@ -16,6 +16,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(ROOT / "robot-slam"), str(ROOT / "tools")]
 from lingxi_slam.process_protocol import session_id
 from lingxi_slam.process_supervisor import ProcessLimits, ProcessSupervisor
+from mapping_platform import configuration
 
 
 class ControlError(Exception):
@@ -33,46 +34,27 @@ def private_json(path, value):
         os.fsync(stream.fileno())
 
 
-def configuration(file):
-    from run_glim_supervised_replay import child_environment
-
-    file = Path(file)
-    if not file.is_absolute() or file.is_symlink() or file.stat().st_size > 4096:
-        raise ValueError("direct_bounded_local_mapping_configuration_required")
-    value = json.loads(file.read_text(encoding="utf-8"))
-    fields = {"inputMode", "work", "adapter", "mappingAdapter", "bundle", "reference", "hypothesis", "rate"}
-    if (type(value) is not dict or set(value) not in (fields, fields | {"pointAdapter"})
-            or value["inputMode"] != "recorded"
-            or value["hypothesis"] not in ("header_is_scan_start", "header_is_scan_end")
-            or type(value["rate"]) not in (int, float) or value["rate"] not in (.5, 1.)):
-        raise ValueError("explicit_recorded_mapping_configuration_required")
-    for name in ("work", "adapter", "mappingAdapter", "bundle", "reference", *(
-            ("pointAdapter",) if "pointAdapter" in value else ())):
-        entry = Path(value[name])
-        if not entry.is_absolute() or entry.resolve(strict=True) != entry or not entry.is_dir():
-            raise ValueError("direct_absolute_frozen_mapping_input_required")
-    return value, child_environment(Path(value["work"]))
-
-
 class MappingManager:
     """One slot, explicit session ownership and no native calls in request handlers."""
 
     def __init__(self, maps, command_factory, environment, *, owner_factory=ProcessSupervisor,
-                 points_enabled=False):
+                 points_enabled=False, input_mode="recorded"):
         self.maps = Path(maps)
         if (not self.maps.is_absolute() or self.maps.resolve(strict=True) != self.maps
-                or not self.maps.is_dir() or not callable(command_factory) or type(points_enabled) is not bool):
+                or not self.maps.is_dir() or not callable(command_factory) or type(points_enabled) is not bool
+                or input_mode not in ("recorded", "live")):
             raise ValueError("direct_existing_mapping_catalog_required")
         self.command_factory, self.environment, self.owner_factory = command_factory, environment, owner_factory
         self.lock, self.operation = threading.Lock(), threading.Lock()
         self.current, self.closed = None, False
         self.points_enabled = points_enabled
+        self.input_mode = input_mode
 
     def state(self):
         with self.lock:
             current = self.current
             if current is None:
-                return {"backend": "glim", "inputMode": "recorded", "phase": "idle",
+                return {"backend": "glim", "inputMode": self.input_mode, "phase": "idle",
                         "session": None, "mapping": False, "cleanupComplete": True}
             state = current["owner"].snapshot()
             phase = current["phase"]
@@ -81,7 +63,7 @@ class MappingManager:
             elif phase == "requested" and state["state"] == "running":
                 phase = "running"
             return {
-                "backend": "glim", "inputMode": "recorded", "session": state["session"],
+                "backend": "glim", "inputMode": self.input_mode, "session": state["session"],
                 "phase": phase,
                 "mapping": phase in ("requested", "running", "saving", "stopping")
                 or not state["cleanupComplete"] and state["state"] in ("stopped", "failed"),
@@ -165,7 +147,7 @@ class MappingManager:
                 receipt = json.loads(receipt_file.read_text(encoding="utf-8"))
                 if (type(receipt) is not dict
                         or receipt.get("session") != session or receipt.get("name") != name.strip()
-                        or receipt.get("inputMode") != "recorded"
+                        or receipt.get("inputMode") != self.input_mode
                         or receipt.get("freshProcessReloadPassed") is not True
                         or any(receipt.get(key) is not False for key in
                                ("navigationReady", "localizationReady", "geometricAccuracyValidated"))):
@@ -290,7 +272,7 @@ def main():
     manager = MappingManager(args.maps, lambda output: [
         sys.executable, "-B", str(ROOT / "robot-runtime/python/controlled_mapping.py"),
         "--config", str(args.config), "--output", str(output),
-    ], environment, points_enabled="pointAdapter" in config)
+    ], environment, points_enabled="pointAdapter" in config, input_mode=config["inputMode"])
     with MappingSocketServer(args.socket, manager) as server:
         def stop(*_):
             threading.Thread(target=server.shutdown, daemon=True).start()

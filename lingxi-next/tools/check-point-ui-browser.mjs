@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
+import { closeSync, openSync, readFileSync, unlinkSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { pairingCode } from "./fixtures/point-ui-server.mjs";
@@ -24,12 +25,29 @@ const browserArgs = ["--session", session, "--allowed-domains", "127.0.0.1,local
 const browser = process.env.LINGXI_POINT_BROWSER_BIN ?? "agent-browser";
 if (process.platform === "win32") assert.ok(path.isAbsolute(browser), "explicit native browser CLI path required");
 const run = (...args) => {
-  const result = JSON.parse(execFileSync(browser, [...browserArgs, ...args],
-    { encoding: "utf8", timeout: 40_000, maxBuffer: 4 * 1024 * 1024 }));
+  // A newly launched Windows daemon can inherit pipes beyond the CLI's exit.
+  const stdoutPath = path.join(output, "cli-stdout.tmp");
+  const stderrPath = path.join(output, "cli-stderr.tmp");
+  const stdout = openSync(stdoutPath, "w", 0o600), stderr = openSync(stderrPath, "w", 0o600);
+  let command;
+  try {
+    command = spawnSync(browser, [...browserArgs, ...args], {
+      stdio: ["ignore", stdout, stderr], timeout: 40_000, windowsHide: true,
+    });
+  } finally {
+    closeSync(stdout);
+    closeSync(stderr);
+  }
+  const text = readFileSync(stdoutPath, "utf8"), error = readFileSync(stderrPath, "utf8");
+  unlinkSync(stdoutPath);
+  unlinkSync(stderrPath);
+  assert.ifError(command.error);
+  assert.equal(command.status, 0, error || text);
+  const result = JSON.parse(text);
   assert.equal(result.success, true, JSON.stringify(result.error));
   return result.data;
 };
-const evaluate = (expression) => run("eval", expression).result;
+const evaluate = (expression) => run("eval", "-b", Buffer.from(expression).toString("base64")).result;
 const wait = (condition) => run("wait", "--fn", condition);
 const command = async (name) => {
   const result = await fetch(`${controlUrl}/${name}`, { method: "POST", signal: AbortSignal.timeout(3000) });
@@ -63,6 +81,8 @@ function metrics() {
     canvasVisible: rect.top >= 0 && rect.bottom <= innerHeight,
     horizontalOverflow: document.documentElement.scrollWidth > innerWidth,
     footer: document.querySelector(".lidar-footer").innerText,
+    label: c.getAttribute("aria-label"),
+    rawScaleDrawn: window.__pointUi.rawScaleDrawn,
     syntheticBanner: Boolean(document.querySelector(".demo-banner")),
     socketCount: window.__pointUi.sockets.length, frames: window.__pointUi.frames,
   };
@@ -73,7 +93,13 @@ async function capture(name, present) {
   assert.equal(value.syntheticBanner, true);
   assert.equal(value.horizontalOverflow, false);
   assert.equal(value.canvasVisible, true);
-  if (present) assert.ok(value.nonBackground > 100, name);
+  if (present) {
+    assert.ok(value.nonBackground > 100, name);
+    assert.equal(value.label, "激光雷达实时扫描点云");
+    assert.ok(value.footer.includes("实时 SLAM"), name);
+    assert.ok(value.footer.includes("原始坐标 / 未标定"), name);
+    assert.equal(value.rawScaleDrawn, true);
+  }
   else assert.equal(value.nonBackground, 0, name);
   evidence.stages[name] = value;
   const filename = path.join(output, name + ".png");
@@ -94,7 +120,12 @@ try {
   wait("Boolean(document.querySelector('.demo-banner'))");
   evaluate(`(() => {
     window.__pointMetric = ${metrics.toString()};
-    window.__pointUi = { sockets: [], frames: 0 };
+    window.__pointUi = { sockets: [], frames: 0, rawScaleDrawn: false };
+    const fillText = CanvasRenderingContext2D.prototype.fillText;
+    CanvasRenderingContext2D.prototype.fillText = function(text, ...args) {
+      if (typeof text === 'string' && text.endsWith(' raw')) window.__pointUi.rawScaleDrawn = true;
+      return fillText.call(this, text, ...args);
+    };
     const WS = window.WebSocket;
     window.WebSocket = class extends WS {
       constructor(...args) {
@@ -102,7 +133,9 @@ try {
         if (String(args[0]).endsWith('/api/v1/lidar/events')) {
           window.__pointUi.sockets.push(this);
           this.addEventListener('message', event => {
-            if (JSON.parse(event.data).type === 'lidar') window.__pointUi.frames++;
+            const value = JSON.parse(event.data);
+            if (value.type === 'slam-preview' && value.inputMode === 'live' &&
+                value.coordinateUnits === 'native-raw') window.__pointUi.frames++;
           });
         }
       }
@@ -157,5 +190,6 @@ try {
   throw error;
 } finally {
   await writeFile(path.join(output, "browser-evidence.json"), JSON.stringify(evidence, null, 2) + "\n", { flag: "wx" });
+  try { run("close"); } catch { /* The fixture has an independent expiry. */ }
 }
 console.log(JSON.stringify({ result: evidence.result, stages: Object.keys(evidence.stages).length }));

@@ -58,7 +58,8 @@ describe("isolated point pipe to paired API WebSocket", () => {
       });
       const message = await next();
       expect(message).toMatchObject({
-        type: "lidar", frame: { source: "point-cloud", epoch: fixture.session, points: fixture.points },
+        type: "slam-preview", inputMode: "live", coordinateUnits: "native-raw",
+        frame: { source: "point-cloud", epoch: fixture.session, points: fixture.points },
       });
       expect(message.frame?.robotPose).toBeUndefined();
       expect(message.frame?.cells).toBeUndefined();

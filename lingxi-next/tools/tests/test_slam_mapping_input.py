@@ -9,10 +9,12 @@ import tempfile
 import threading
 import time
 import unittest
+from types import SimpleNamespace
 
 
 ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT / "robot-slam"))
+sys.path[:0] = [str(ROOT / "robot-slam"), str(ROOT / "robot-runtime/python")]
+from controlled_mapping import finish_input
 AVAILABLE = importlib.util.find_spec("numpy") is not None
 if AVAILABLE:
     import numpy as np
@@ -199,6 +201,53 @@ class MappingInputContracts(unittest.TestCase):
         self.assertEqual(1, self.calls.count("native_close"))
         self.assertEqual(1, self.calls.count("point_close"))
         self.assertNotIn("mapper_finish", self.calls)
+
+    def test_managed_live_input_save_requires_owned_stop_and_unchanged_inputs(self):
+        self.start()
+        terminal = finish_input(
+            self.input, "requested_stop", SimpleNamespace(received=True),
+            {"name": "Managed live map"}, threading.Event(), lambda: {"frozen": True}, {"frozen": True})
+        self.assertEqual("saved", terminal["phase"])
+        self.assertEqual(3, self.frames)
+        self.assertEqual(1, self.reloads)
+        self.assertEqual("Managed live map", json.loads(
+            (self.output / "map-ready.json").read_text())["name"])
+
+    def test_managed_input_loss_never_saves_even_with_a_pending_save_request(self):
+        self.start()
+        with self.assertRaisesRegex(RuntimeError, "explicit_owned_mapping_stop_required"):
+            finish_input(self.input, "input_failed", SimpleNamespace(received=True),
+                         {"name": "Must not save"}, threading.Event(), lambda: {}, {})
+        self.assertNotIn("mapper_finish", self.calls)
+        self.assertFalse((self.output / "map-ready.json").exists())
+        self.assertFalse(self.controller.worker.snapshot()["threadAlive"])
+
+    def test_managed_duration_expiry_never_saves(self):
+        self.start()
+        with self.assertRaisesRegex(RuntimeError, "explicit_owned_mapping_stop_required"):
+            finish_input(self.input, "duration_reached", SimpleNamespace(received=False),
+                         {"name": "Must not save"}, threading.Event(), lambda: {}, {})
+        self.assertNotIn("mapper_finish", self.calls)
+        self.assertFalse((self.output / "map-ready.json").exists())
+
+    def test_managed_changed_platform_rejects_save(self):
+        self.start()
+        with self.assertRaisesRegex(RuntimeError, "mapping_inputs_changed_before_stop"):
+            finish_input(self.input, "requested_stop", SimpleNamespace(received=True),
+                         {"name": "Must not save"}, threading.Event(), lambda: {"changed": True}, {})
+        self.controller.stop()
+        self.assertNotIn("mapper_finish", self.calls)
+        self.assertFalse((self.output / "map-ready.json").exists())
+
+    def test_managed_parent_loss_revokes_a_pending_save(self):
+        self.start()
+        failed = threading.Event()
+        failed.set()
+        with self.assertRaisesRegex(RuntimeError, "explicit_owned_mapping_stop_required"):
+            finish_input(self.input, "requested_stop", SimpleNamespace(received=True),
+                         {"name": "Must not save"}, failed, lambda: {}, {})
+        self.assertNotIn("mapper_finish", self.calls)
+        self.assertFalse((self.output / "map-ready.json").exists())
 
     def test_cancel_during_independent_reload_cannot_publish(self):
         self.on_reload = self.controller.cancel_save

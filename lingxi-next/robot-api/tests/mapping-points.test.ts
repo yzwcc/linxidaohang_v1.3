@@ -4,18 +4,19 @@ import { PassThrough } from "node:stream";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { MappingPointSource } from "../src/mapping-points";
 import type { MappingBackend, MappingBackendState } from "../src/mapping-backend";
+import type { PointInputMode } from "../src/slam-points";
 
 const fixture = JSON.parse(readFileSync("shared/fixtures/slam-point-v1.synthetic.json", "utf8"));
 const first = fixture.session as string, second = "f".repeat(32);
 const name = "a".repeat(32) + ".points.sock";
 const directory = path.resolve("synthetic-private-mapping");
-const running = (session = first): MappingBackendState => ({
-  backend: "glim", inputMode: "recorded", phase: "running", session, mapping: true,
+const running = (session = first, mode: PointInputMode = "recorded"): MappingBackendState => ({
+  backend: "glim", inputMode: mode, phase: "running", session, mapping: true,
   cleanupComplete: false, pointStream: { socket: name },
 });
-function bytes(session = first, id = 1) {
+function bytes(session = first, id = 1, mode: PointInputMode = "recorded") {
   const payload = Buffer.from(fixture.hex as string, "hex");
-  payload[10] = 2;
+  payload[10] = mode === "live" ? 1 : 2;
   Buffer.from(session, "hex").copy(payload, 48);
   payload.writeBigUInt64LE(BigInt(id), 24);
   payload.writeDoubleLE(1000 + id, 32);
@@ -26,9 +27,9 @@ describe("persistent mapping point consumer with isolated protocol fixtures", ()
   let source: MappingPointSource | undefined;
   afterEach(async () => { await source?.close(); vi.useRealTimers(); });
 
-  async function start(connect = vi.fn(async () => new PassThrough())) {
+  async function start(connect = vi.fn(async () => new PassThrough()), mode: PointInputMode = "recorded") {
     vi.useFakeTimers();
-    let state = running();
+    let state = running(first, mode);
     let unavailable = false;
     const backend = { state: vi.fn(async () => {
       if (unavailable) throw new Error("synthetic unavailable backend");
@@ -65,6 +66,43 @@ describe("persistent mapping point consumer with isolated protocol fixtures", ()
     pipes[1].write(bytes(second));
     expect(source!.getPointEvent()).toMatchObject({ frame: { epoch: second, sequence: 1 } });
     expect(context.connect).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps live provenance and raw units across recorded-to-live replacement sessions", async () => {
+    const pipes: PassThrough[] = [];
+    const context = await start(vi.fn(async () => {
+      const pipe = new PassThrough(); pipes.push(pipe); return pipe;
+    }));
+    pipes[0].write(bytes());
+    expect(source!.getPointEvent()).toMatchObject({ type: "slam-preview", inputMode: "recorded" });
+    context.state(running(second, "live"));
+    await vi.advanceTimersByTimeAsync(100);
+    expect(pipes[0].destroyed).toBe(true);
+    expect(() => source!.getPointEvent()).toThrow();
+    pipes[1].write(bytes(second, 1, "live"));
+    expect(source!.getPointEvent()).toMatchObject({
+      type: "slam-preview", inputMode: "live", coordinateUnits: "native-raw", frame: { epoch: second },
+    });
+    context.state({ ...running(second, "live"), phase: "saving", pointStream: undefined });
+    await vi.advanceTimersByTimeAsync(100);
+    expect(() => source!.getPointEvent()).toThrow();
+    expect(pipes[1].destroyed).toBe(false);
+    pipes[1].write(bytes(second, 2, "live"));
+    context.state({ ...running(second, "live"), phase: "idle", mapping: false,
+      cleanupComplete: true, pointStream: undefined });
+    await vi.advanceTimersByTimeAsync(100);
+    expect(pipes[1].destroyed).toBe(true);
+  });
+
+  it("rejects recorded packets in a live-only session", async () => {
+    const pipe = new PassThrough(), connect = vi.fn(async () => pipe);
+    await start(connect, "live");
+    pipe.write(bytes(first, 1, "live"));
+    expect(source!.getPointEvent()).toMatchObject({ inputMode: "live" });
+    pipe.write(bytes(first, 2, "recorded"));
+    await vi.advanceTimersByTimeAsync(300);
+    expect(() => source!.getPointEvent()).toThrow();
+    expect(connect).toHaveBeenCalledOnce();
   });
 
   it.each(["end", "malformed", "old-session", "wrong-mode"])("does not reconnect or display after %s", async (kind) => {

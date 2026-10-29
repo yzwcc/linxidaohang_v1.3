@@ -96,7 +96,9 @@ describe("owned point socket to existing paired API", () => {
     try {
       pipe!.write(packet(1));
       const result = await nextMessage(socket);
-      expect(result).toMatchObject({ type: "lidar", frame: { points: fixture.points } });
+      expect(result).toMatchObject({
+        type: "slam-preview", inputMode: "live", coordinateUnits: "native-raw", frame: { points: fixture.points },
+      });
       expect(result.frame?.robotPose).toBeUndefined();
       expect(result.frame?.cells).toBeUndefined();
       expect(nativeLidar).not.toHaveBeenCalled();

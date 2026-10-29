@@ -11,6 +11,7 @@ export default function LidarCanvas({ connection, preview }: Props) {
   const historyRef = useRef<ScanHistory>({ key: "", frames: [] });
   const [frame, setFrame] = useState<LidarFrame>();
   const [inputMode, setInputMode] = useState<"live" | "recorded" | "synthetic">("live");
+  const [coordinateUnits, setCoordinateUnits] = useState<"metres" | "native-raw">("metres");
   const [notice, setNotice] = useState("等待激光雷达扫描数据");
   const [accumulate, setAccumulate] = useState(true);
   const [zoom, setZoom] = useState(1);
@@ -45,6 +46,7 @@ export default function LidarCanvas({ connection, preview }: Props) {
           (event.frame.sequence <= previous.sequence || event.frame.stampMs < previous.stampMs)) return;
       previous = event.frame; lastReceived = performance.now();
       setInputMode(event.type === "slam-preview" ? event.inputMode : "live");
+      setCoordinateUnits(event.type === "slam-preview" ? event.coordinateUnits : "metres");
       setFrame(event.frame);
       setNotice("");
     }, () => unavailable("扫描连接中断，正在重连"));
@@ -116,14 +118,14 @@ export default function LidarCanvas({ connection, preview }: Props) {
       ctx.fillStyle = "#286d9b"; ctx.beginPath(); ctx.moveTo(18, 0); ctx.lineTo(-7, -7); ctx.lineTo(-3, 0); ctx.lineTo(-7, 7); ctx.closePath(); ctx.fill();
       ctx.restore();
     }
-    const targetMetres = 90 / scale;
-    const unit = 10 ** Math.floor(Math.log10(targetMetres));
-    const metres = (targetMetres / unit >= 5 ? 5 : targetMetres / unit >= 2 ? 2 : 1) * unit;
-    const bar = metres * scale;
+    const targetUnits = 90 / scale;
+    const unit = 10 ** Math.floor(Math.log10(targetUnits));
+    const distance = (targetUnits / unit >= 5 ? 5 : targetUnits / unit >= 2 ? 2 : 1) * unit;
+    const bar = distance * scale;
     ctx.strokeStyle = "#526371"; ctx.fillStyle = "#526371"; ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(18, rect.height - 20); ctx.lineTo(18 + bar, rect.height - 20); ctx.stroke();
-    ctx.font = "11px sans-serif"; ctx.fillText(`${metres} ${preview || inputMode !== "live" ? "raw" : "m"}`, 18, rect.height - 27);
-  }, [frame, accumulate, zoom, pan, revision, preview, inputMode]);
+    ctx.font = "11px sans-serif"; ctx.fillText(`${distance} ${preview || coordinateUnits === "native-raw" ? "raw" : "m"}`, 18, rect.height - 27);
+  }, [frame, accumulate, zoom, pan, revision, preview, coordinateUnits]);
 
   function clearHistory() {
     historyRef.current = { key: "", frames: [] }; boundsRef.current = undefined;
@@ -151,7 +153,8 @@ export default function LidarCanvas({ connection, preview }: Props) {
     <div className="lidar-footer">
       <span className="tag">{frame ? `${Math.floor(frame.points.length / 3).toLocaleString()} 点${preview ? "" : " / 帧"}` : "等待扫描"}</span>
       {frame && <span className="tag mono">{frame.frameId}</span>}
-      {frame && <span className="tag">{preview ? "已保存点云" : inputMode === "recorded" ? "录制数据验证" : inputMode === "synthetic" ? "合成测试" : frame.source === "point-cloud" ? "PointCloud2" : "LaserScan"}</span>}
+      {frame && <span className="tag">{preview ? "已保存点云" : inputMode === "recorded" ? "录制数据验证" : inputMode === "synthetic" ? "合成测试" : coordinateUnits === "native-raw" ? "实时 SLAM" : frame.source === "point-cloud" ? "PointCloud2" : "LaserScan"}</span>}
+      {frame && (preview || coordinateUnits === "native-raw") && <span className="tag">原始坐标 / 未标定</span>}
       {preview?.sampled && <span className="tag">抽样预览 / 共 {preview.totalPoints.toLocaleString()} 点</span>}
       {!preview && <label className="inline" title="保留近15秒扫描点迹"><input type="checkbox" checked={accumulate} onChange={(event) => { clearHistory(); setAccumulate(event.target.checked); }} />累计点迹</label>}
     </div>

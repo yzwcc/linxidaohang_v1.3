@@ -137,9 +137,12 @@ test("real inherited socket serves paired points, rejects stale/EOF data and shu
   const { socket, state } = await paired(runtime);
   t.after(() => socket.terminate());
   const before = await state();
-  const frame = message(socket, (value) => value.type === "lidar");
+  const frame = message(socket, (value) => value.type === "slam-preview");
   runtime.child.stdio[3].write(packet("live"));
-  const delivered = (await frame).frame;
+  const event = await frame;
+  assert.equal(event.inputMode, "live");
+  assert.equal(event.coordinateUnits, "native-raw");
+  const delivered = event.frame;
   assert.deepEqual(delivered.points, fixture.points);
   assert.equal(delivered.source, "point-cloud");
   assert.equal(delivered.robotPose, undefined);
@@ -150,7 +153,7 @@ test("real inherited socket serves paired points, rejects stale/EOF data and shu
   assert.deepEqual(after.checks, before.checks);
   assert.deepEqual(after.navigation, before.navigation);
   assert.equal(after.mapping, before.mapping);
-  const freshAgain = message(socket, (value) => value.type === "lidar" && value.frame.sequence === 2);
+  const freshAgain = message(socket, (value) => value.type === "slam-preview" && value.frame.sequence === 2);
   runtime.child.stdio[3].write(packet("live", 2));
   await freshAgain;
   const unavailable = message(socket, (value) => value.type === "lidar-unavailable");
@@ -166,7 +169,9 @@ for (const mode of ["recorded", "synthetic"]) {
     const { socket } = await paired(runtime);
     t.after(() => socket.terminate());
     let liveFrames = 0;
-    socket.on("message", (bytes) => { if (JSON.parse(bytes.toString()).type === "lidar") liveFrames += 1; });
+    socket.on("message", (bytes) => {
+      if (["lidar", "slam-preview"].includes(JSON.parse(bytes.toString()).type)) liveFrames += 1;
+    });
     const unavailable = message(socket, (value) => value.type === "lidar-unavailable");
     runtime.child.stdio[3].end(packet(mode));
     await unavailable;
@@ -207,7 +212,8 @@ test("closing the explicit parent's stdin closes the actual API without a signal
   const runtime = await start(t, { LINGXI_POINT_PARENT_STDIN: "1" });
   const { socket } = await paired(runtime);
   t.after(() => socket.terminate());
-  const frame = message(socket, (value) => value.type === "lidar");
+  const frame = message(socket, (value) => value.type === "slam-preview" &&
+    value.inputMode === "live" && value.coordinateUnits === "native-raw");
   runtime.child.stdio[3].write(packet("live"));
   await frame;
   runtime.child.stdin.end();
@@ -228,7 +234,8 @@ test("actual isolated read-only API keeps paired point access and rejects contro
     method: "POST", headers: { authorization: `Bearer ${token}` },
   });
   assert.equal(control.status, 403);
-  const frame = message(socket, (value) => value.type === "lidar");
+  const frame = message(socket, (value) => value.type === "slam-preview" &&
+    value.inputMode === "live" && value.coordinateUnits === "native-raw");
   runtime.child.stdio[3].write(packet("live"));
   await frame;
   runtime.child.kill("SIGTERM");

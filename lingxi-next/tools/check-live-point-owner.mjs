@@ -104,12 +104,14 @@ async function point(runtime, t) {
   const frame = new Promise((resolve) => {
     receive = (bytes) => {
       const value = JSON.parse(bytes);
-      if (value.type === "lidar") resolve(value);
+      if (value.type === "slam-preview") resolve(value);
     };
     socket.on("message", receive);
   });
   const delivered = await bounded(frame).finally(() => socket.off("message", receive));
-  assert.equal(delivered.type, "lidar");
+  assert.equal(delivered.type, "slam-preview");
+  assert.equal(delivered.inputMode, "live");
+  assert.equal(delivered.coordinateUnits, "native-raw");
   assert.equal(delivered.frame.source, "point-cloud");
   assert.equal(delivered.frame.robotPose, undefined);
   return status;

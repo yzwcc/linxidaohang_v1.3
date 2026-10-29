@@ -5,7 +5,7 @@ import type { RobotAdapter, RobotSnapshot } from "./domain";
 
 const session = z.string().regex(/^[a-f0-9]{32}$/);
 const stateSchema = z.object({
-  backend: z.literal("glim"), inputMode: z.literal("recorded"),
+  backend: z.literal("glim"), inputMode: z.enum(["recorded", "live"]),
   phase: z.enum(["idle", "requested", "running", "saving", "stopping", "failed"]),
   session: session.nullable(), mapping: z.boolean(), cleanupComplete: z.boolean(),
   completedMessages: z.number().int().nonnegative().safe().optional(),
@@ -92,7 +92,7 @@ export class UnixMappingBackend implements MappingBackend {
 }
 
 export function mappingGuard(adapter: RobotAdapter, backend: MappingBackend): RobotAdapter {
-  const rejectMotion = async () => { throw new Error("录制建图验证模式不接受机器人运动或资源播放"); };
+  const rejectMotion = async () => { throw new Error("独立建图验证模式不接受机器人运动或资源播放"); };
   return {
     demoMode: adapter.demoMode,
     async getSnapshot(): Promise<RobotSnapshot> {
@@ -108,8 +108,8 @@ export function mappingGuard(adapter: RobotAdapter, backend: MappingBackend): Ro
         motionPresets: [], linkcraftResources: [],
         checks: original.checks.map((check) => check.id === "slam" ? {
           ...check, ready: mapping.phase !== "failed" || mapping.cleanupComplete,
-          detail: "独立 GLIM · 录制数据验证",
-        } : check.id === "navigation" ? { ...check, ready: false, detail: "录制验证模式，不允许导航" } : check),
+          detail: mapping.inputMode === "live" ? "独立 GLIM · 实时采集验证" : "独立 GLIM · 录制数据验证",
+        } : check.id === "navigation" ? { ...check, ready: false, detail: "独立建图验证期间不允许导航" } : check),
       };
     },
     listMaps: () => adapter.listMaps(),

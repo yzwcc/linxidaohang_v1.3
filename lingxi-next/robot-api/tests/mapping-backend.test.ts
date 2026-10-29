@@ -38,7 +38,7 @@ describe("independent recorded mapping controls", () => {
       finish: vi.fn(async (session, save, name) => {
         if (session !== state.session) throw Object.assign(new Error("Session changed"), { statusCode: 409 });
         if (save) {
-          const fixture = await savedSlamFixture(maps, { session, inputMode: "recorded" });
+          const fixture = await savedSlamFixture(maps, { session, inputMode: state.inputMode });
           await writeFile(fixture.ready, JSON.stringify({ ...fixture.receipt, name }));
         }
         state = { ...idle, session };
@@ -121,6 +121,46 @@ describe("independent recorded mapping controls", () => {
     });
     expect(result.statusCode).toBe(503);
     expect(result.json()).not.toHaveProperty("confirmed");
+  });
+
+  it("validates live save receipts against the authoritative session mode", async () => {
+    state = { ...idle, inputMode: "live", phase: "running", mapping: true, session: identity };
+    const snapshot = await mappingGuard(adapter, backend).getSnapshot();
+    expect(snapshot.mappingInputMode).toBe("live");
+    expect(snapshot.checks.find((check) => check.id === "slam")?.detail).toContain("实时采集");
+    const result = await app!.inject({
+      method: "POST", url: "/api/v1/mapping/stop-save", headers: headers(),
+      payload: { session: identity, name: "Live control map" },
+    });
+    expect(result.statusCode).toBe(200);
+    expect(result.json()).toMatchObject({
+      confirmed: true, savedSlamMap: { inputMode: "live", navigationReady: false, localizationReady: false },
+    });
+  });
+
+  it("rejects a recorded receipt for a live session", async () => {
+    state = { ...idle, inputMode: "live", phase: "running", mapping: true, session: identity };
+    vi.mocked(backend.finish).mockImplementation(async (session, save, name) => {
+      const fixture = await savedSlamFixture(maps, { session, inputMode: "recorded" });
+      await writeFile(fixture.ready, JSON.stringify({ ...fixture.receipt, name }));
+      return { session, saved: save, confirmed: true, mapId: `slam-${session}` };
+    });
+    const result = await app!.inject({
+      method: "POST", url: "/api/v1/mapping/stop-save", headers: headers(),
+      payload: { session: identity, name: "Wrong input" },
+    });
+    expect(result.statusCode).toBe(503);
+    expect(result.json()).not.toHaveProperty("confirmed");
+  });
+
+  it("rejects a stale save before finalizing the current session", async () => {
+    await backend.start();
+    const result = await app!.inject({
+      method: "POST", url: "/api/v1/mapping/stop-save", headers: headers(),
+      payload: { session: "0".repeat(32), name: "Stale map" },
+    });
+    expect(result.statusCode).toBe(409);
+    expect(backend.finish).not.toHaveBeenCalled();
   });
 
   it.each([
