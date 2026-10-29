@@ -123,6 +123,7 @@ export type RobotState = {
   mappingBackend?: "glim";
   mappingInputMode?: "live" | "recorded";
   mappingSession?: string;
+  mappingControlReady?: boolean;
   actionBusy?: boolean;
   actionStatus?: "dispatching" | "preset-motion" | "linkcraft-awaiting-operator" | "uncertain";
   activeMapId?: string;

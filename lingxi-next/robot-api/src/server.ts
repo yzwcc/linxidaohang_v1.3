@@ -26,7 +26,7 @@ import { JsonStateStore } from "./store";
 import { validatedLidarFrame } from "./lidar";
 import { measureVadToFirstAudio, summarizeVoiceSamples } from "./voice/diagnostics";
 import { SavedSlamMapCatalog } from "./slam-map-catalog";
-import { mappingGuard, UnixMappingBackend, type MappingBackend } from "./mapping-backend";
+import { mappingConsoleAdapter, mappingGuard, UnixMappingBackend, type MappingBackend } from "./mapping-backend";
 import { MappingPointSource } from "./mapping-points";
 
 type ServerOptions = {
@@ -45,6 +45,7 @@ type ServerOptions = {
   agentSpeaker?: SpeechOutput;
   savedSlamDirectory?: string;
   mappingBackend?: MappingBackend;
+  mappingConsole?: boolean;
 };
 
 const emptySnapshot: RobotSnapshot = {
@@ -103,8 +104,13 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
   const demoMode = options.demoMode ?? process.env.LINGXI_DEMO_MODE === "1";
   const mappingBackend = options.mappingBackend ?? (process.env.LINGXI_MAPPING_SOCKET
     ? new UnixMappingBackend(process.env.LINGXI_MAPPING_SOCKET) : undefined);
-  const baseAdapter = options.adapter ?? (demoMode ? new DemoAdapter() : new AimdkAdapter(process.env.AIMDK_BRIDGE_URL));
-  const adapter = mappingBackend ? mappingGuard(baseAdapter, mappingBackend) : baseAdapter;
+  const mappingConsole = options.mappingConsole === true;
+  if (mappingConsole && (!mappingBackend || options.adapter || options.lidarSource)) {
+    throw new Error("isolated_mapping_console_requires_own_backend_without_robot_adapter");
+  }
+  const baseAdapter = mappingConsole ? mappingConsoleAdapter() :
+    options.adapter ?? (demoMode ? new DemoAdapter() : new AimdkAdapter(process.env.AIMDK_BRIDGE_URL));
+  const adapter = mappingBackend ? mappingGuard(baseAdapter, mappingBackend, mappingConsole) : baseAdapter;
   const savedSlamDirectory = options.savedSlamDirectory ?? process.env.LINGXI_SAVED_SLAM_DIR;
   const slamCatalog = savedSlamDirectory ? new SavedSlamMapCatalog(savedSlamDirectory) : undefined;
   if (mappingBackend && !slamCatalog) throw new Error("independent_mapping_requires_saved_slam_directory");
@@ -181,7 +187,7 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
   });
   await app.register(websocket);
 
-  if (demoMode) await seedDemoData(store);
+  if (demoMode && !mappingConsole) await seedDemoData(store);
 
   function secureRequest(request: FastifyRequest): boolean {
     if ((request.raw.socket as TLSSocket).encrypted === true) return true;
@@ -213,10 +219,23 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
     }
     requireSession(request);
   });
+  if (mappingConsole) {
+    app.addHook("onRequest", async (request, reply) => {
+      const route = request.routeOptions.url ?? "";
+      const allowed = request.method === "POST" && [
+        "/api/v1/session/pair", "/api/v1/session/revoke",
+        "/api/v1/mapping/start", "/api/v1/mapping/stop-save", "/api/v1/mapping/stop-discard",
+      ].includes(route);
+      if (!allowed && !["GET", "HEAD", "OPTIONS"].includes(request.method)) {
+        return reply.code(403).send({ message: "独立建图控制台仅允许建图和配对操作" });
+      }
+    });
+  }
 
   async function runtimeSnapshot(): Promise<RobotSnapshot> {
     try {
       const snapshot = await adapter.getSnapshot();
+      if (mappingConsole) return snapshot;
       if (demoMode) return snapshot;
       const agent = await fetch(`${process.env.LINGXI_AGENT_URL ?? "http://127.0.0.1:18180"}/health`, {
         headers: { Authorization: `Bearer ${agentToken}` }, signal: AbortSignal.timeout(500),
@@ -402,13 +421,16 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
     return method.call(adapter, map);
   });
   app.post("/api/v1/mapping/start", async (_request, reply) => {
-    if (mappingBackend && !demoMode) throw deny(409, "当前独立建图后端仅用于录制数据联调，尚未开放实机采集");
+    if (mappingBackend && !demoMode && !mappingConsole) {
+      throw deny(409, "独立建图需要专用联调入口");
+    }
     const state = await stateResponse();
     if (state.actionBusy) throw deny(409, "机器人动作状态未解除，请先检查动作服务状态");
     if (jobs.hasActiveJob() || ["requested", "running", "paused"].includes(state.navigation.status)) {
       throw deny(409, "请先停止导航或讲解任务，再开始建图");
     }
-    const required = new Set(["aimdk", "slam", "lidar"]);
+    if (mappingConsole && !state.mappingControlReady) throw deny(409, "建图服务未就绪或上一会话尚未结束");
+    const required = new Set(mappingConsole ? [] : ["aimdk", "slam", "lidar"]);
     const failures = state.checks.filter((item) => required.has(item.id) && !item.ready);
     if (failures.length) throw deny(409, `建图预检未通过：${failures.map((item) => item.label).join("、")}`);
     if (state.mapping) throw deny(409, "建图已在进行");

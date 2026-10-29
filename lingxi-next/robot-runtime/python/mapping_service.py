@@ -263,22 +263,53 @@ class MappingRequest(socketserver.StreamRequestHandler):
             pass
 
 
+def serve(endpoint, manager, *, parent_input=None, status=None):
+    """EOF revokes save permission before waiting for the serving loop to exit."""
+    with MappingSocketServer(endpoint, manager) as server:
+        stopping = threading.Event()
+
+        def stop(*_):
+            if stopping.is_set():
+                return
+            stopping.set()
+
+            def cleanup():
+                try:
+                    manager.close()
+                finally:
+                    server.shutdown()
+            threading.Thread(target=cleanup, name="mapping-service-stop", daemon=True).start()
+
+        previous = {value: signal.signal(value, stop) for value in (signal.SIGTERM, signal.SIGINT)}
+        if parent_input is not None:
+            def watch():
+                try:
+                    parent_input.read(1)
+                finally:
+                    stop()
+            threading.Thread(target=watch, name="mapping-service-parent", daemon=True).start()
+        try:
+            if status is not None:
+                status({"service": "lingxi-mapping", "event": "listening"})
+            server.serve_forever(poll_interval=.1)
+        finally:
+            for value, handler in previous.items():
+                signal.signal(value, handler)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     for name in ("config", "maps", "socket"):
         parser.add_argument("--" + name, type=Path, required=True)
+    parser.add_argument("--parent-stdin", action="store_true")
     args = parser.parse_args()
     config, environment = configuration(args.config)
     manager = MappingManager(args.maps, lambda output: [
         sys.executable, "-B", str(ROOT / "robot-runtime/python/controlled_mapping.py"),
         "--config", str(args.config), "--output", str(output),
     ], environment, points_enabled="pointAdapter" in config, input_mode=config["inputMode"])
-    with MappingSocketServer(args.socket, manager) as server:
-        def stop(*_):
-            threading.Thread(target=server.shutdown, daemon=True).start()
-        signal.signal(signal.SIGTERM, stop)
-        signal.signal(signal.SIGINT, stop)
-        server.serve_forever(poll_interval=.1)
+    serve(args.socket, manager, parent_input=sys.stdin.buffer if args.parent_stdin else None,
+          status=(lambda value: print(json.dumps(value), flush=True)) if args.parent_stdin else None)
 
 
 if __name__ == "__main__":

@@ -22,6 +22,32 @@ export interface MappingBackend {
   }>;
 }
 
+/** No vendor, voice or cloud client is constructed by the isolated console. */
+export function mappingConsoleAdapter(): RobotAdapter {
+  const unavailable = async (): Promise<never> => { throw new Error("独立建图控制台未接入此功能"); };
+  return {
+    demoMode: false,
+    getSnapshot: async () => ({
+      connected: true, mapping: false, actionBusy: false,
+      checks: [
+        { id: "aimdk", label: "AIMDK", ready: false, detail: "独立建图未调用厂商控制接口" },
+        { id: "slam", label: "SLAM", ready: false, detail: "等待建图服务" },
+        { id: "lidar", label: "激光雷达", ready: false, detail: "采集启动后检查实时输入" },
+        { id: "odom", label: "里程计", ready: false, detail: "底盘坐标尚未标定" },
+        { id: "navigation", label: "导航", ready: false, detail: "定位与导航尚未验收" },
+        { id: "linksoul", label: "灵心", ready: false, detail: "独立建图未接入语音" },
+      ],
+      navigation: { status: "idle", detail: "独立建图控制台" },
+      motionPresets: [], expressions: [], linkcraftResources: [], updatedAt: new Date().toISOString(),
+    }),
+    listMaps: async () => [],
+    startMapping: unavailable, stopAndSaveMap: unavailable, getStoredMapGrid: unavailable,
+    activateMap: unavailable, startNavigation: unavailable, controlNavigation: unavailable,
+    startPresetMotion: unavailable, waitPresetMotion: unavailable, playExpression: unavailable,
+    executeLinkcraftResource: unavailable, confirmActionsIdle: unavailable,
+  };
+}
+
 export class UnixMappingBackend implements MappingBackend {
   constructor(private readonly socket: string) {
     if (process.platform !== "linux" || !path.isAbsolute(socket) || Buffer.byteLength(socket) >= 100) {
@@ -91,7 +117,7 @@ export class UnixMappingBackend implements MappingBackend {
   }
 }
 
-export function mappingGuard(adapter: RobotAdapter, backend: MappingBackend): RobotAdapter {
+export function mappingGuard(adapter: RobotAdapter, backend: MappingBackend, consoleMode = false): RobotAdapter {
   const rejectMotion = async () => { throw new Error("独立建图验证模式不接受机器人运动或资源播放"); };
   return {
     demoMode: adapter.demoMode,
@@ -105,6 +131,8 @@ export function mappingGuard(adapter: RobotAdapter, backend: MappingBackend): Ro
         ...original, mapping: mapping.mapping,
         mappingStatus: mapping.phase === "stopping" ? "saving" : mapping.phase,
         mappingBackend: "glim", mappingInputMode: mapping.inputMode, mappingSession: mapping.session ?? undefined,
+        ...(consoleMode ? { mappingControlReady: !mapping.mapping && mapping.cleanupComplete &&
+          ["idle", "failed"].includes(mapping.phase) } : {}),
         motionPresets: [], linkcraftResources: [],
         checks: original.checks.map((check) => check.id === "slam" ? {
           ...check, ready: mapping.phase !== "failed" || mapping.cleanupComplete,

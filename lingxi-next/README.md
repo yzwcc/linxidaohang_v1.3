@@ -163,6 +163,13 @@ packets each; separate HTTPS synthetic browser checks passed desktop and
 landscape rendering, reconnect and stale/EOF clearing. These checks do not
 establish live acquisition, global-map coordinates or ARM64 acceptance of
 this new composition. See [the mapping controls and point integration](docs/SLAM_MAPPING_CONTROL.md).
+A dedicated commissioning launcher now owns the mapping service, persistent
+API and adopted native children with parent-pipe lifetime linkage and bounded
+cleanup. Its paired HTTPS console can start/save/discard independently of
+vendor SLAM prechecks, while rejecting business, voice and motion writes.
+Ten actual Linux process tests use synthetic native peers; this new owned
+combination has not run native GLIM or executed on ARM64. Existing releases,
+robot services and APKs remain unchanged.
 An independent full-recording range audit records returns beyond 5 raw-coordinate
 units. The roughly 5 m travel estimate is not calibration truth; travel,
 scan coverage and map accuracy are different quantities.
@@ -205,8 +212,9 @@ npm run build
 
 The opt-in independent GLIM path now has recorded-data start/save/discard
 controls, same-engine corrected point display and a verified saved-point
-preview. It is not yet production live
-mapping or independent navigation; see `docs/SLAM_MAPPING_CONTROL.md`.
+preview. A separate bounded commissioning launcher supports paired HTTPS
+control without vendor SLAM. It is not yet production live mapping or
+independent navigation; see `docs/SLAM_MAPPING_CONTROL.md`.
 
 The production API requires a robot TLS key/certificate, a one-time pairing
 code hash, a restricted internal-agent token, and the local ROS 2 bridge. The

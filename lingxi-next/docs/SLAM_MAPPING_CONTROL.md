@@ -1,6 +1,6 @@
 # Managed Mapping Control Integration
 
-Date: 2026-10-30. This milestone connects GLIM mapping and its same-engine
+Date: 2026-10-30. This integration connects GLIM mapping and its same-engine
 corrected points to the persistent paired management API and shared web UI.
 The shared platform prepares x86 recorded input and ARM64 Humble recorded/live
 input. Actual native execution in this milestone used recorded data on x86-64.
@@ -55,8 +55,10 @@ explicit local config and existing frozen inputs. Recorded input accepts only
 rate 0.5 or 1.0. The prepared ARM64 `platform: arm64-humble` config selects
 recorded or passive live input; live sessions are bounded to 5-300 seconds.
 HTTP clients cannot supply executable paths or native configuration.
-Start is currently enabled only in development/demo API mode. The production
-robot path is deliberately not enabled by these settings.
+The ordinary production API does not enable start through these settings.
+The separate commissioning entrypoint described below accepts paired HTTPS
+mapping without constructing an AIMDK adapter or checking cloud availability.
+It does not change the installed product entrypoint or its backend.
 
 The bounded diagnostic catalog is not long-term map retention. The recorded
 child now sends corrected points from the same GLIM instance that feeds its
@@ -71,7 +73,7 @@ repeated for this persistent point transport. The earlier same-engine
 mapping/point trial used a synthetic subscription boundary with preserved
 recordings, not live DDS; its historical aggregate remains unchanged.
 
-## Native Result
+## Historical Native Result
 
 The final source-bound save/discard trial used Linux
 x86-64 and the existing pinned native libraries at 1x recorded arrival rate.
@@ -100,12 +102,14 @@ discard without another ready map, and unchanged AIMDK maps/active selection.
 The service exited with code zero and removed its socket.
 Original recordings, libraries and existing robot/vendor files were unchanged.
 Aggregate evidence for the shared platform run is in
-`slam-mapping-platform-control-evidence.json`; its 19 source hashes match the
-tested sources. The earlier `slam-mapping-control-evidence.json` is retained
-as historical evidence. Maps, recordings, logs, private reports and session
-identities are excluded from Git.
+`slam-mapping-platform-control-evidence.json`; its 19 source hashes identify
+the tested revision `acff6d6abafec3e428172b8060e48e7d68b7853b`.
+The current service/API changes did not run that native trial again.
+The earlier `slam-mapping-control-evidence.json` is also retained as historical
+evidence. Maps, recordings, logs, private reports and session identities are
+excluded from Git.
 
-## Checks
+## Historical Checks
 
 - 204 Vitest tests in 17 files pass; frontend/API/runtime type checks and production web
   and API builds pass.
@@ -142,11 +146,126 @@ allowlisted aggregates and source hashes.
 
 ## Next Mainline
 
-Compose the prepared shared ARM64 mapping/point platform, persistent API and
-management service under one owner, then validate it on target when available.
-The service currently lacks owner-stdin lifetime linkage; the existing live
-bundle remains read-only and is not a managed mapping launcher.
+The bounded owner and dedicated API below now compose the service and shared
+mapping/point platform offline. Target validation and a verified ARM64 package
+for this combination are still outstanding. The existing live bundle remains
+read-only and is not a managed mapping launcher.
 Base-frame alignment, calibration/timing validation, localization, long-session
 mapping/loop closure, independent navigation, voice concurrency and deployable
 robot/APK packages remain outstanding. Map serialization never raises those
 readiness flags.
+
+## Dedicated Commissioning Runtime
+
+`managed_mapping.py` launches the mapping service and the compiled
+`robot-runtime/dist/mapping-main.mjs` under one ordinary-user Linux owner.
+It never discovers a robot, installs a service or replaces vendor files.
+The new output directory and its maps are private (0700); process logs and
+the final owner report are private (0600). Frozen inputs, runtime files and
+configuration cannot overlap that new directory. The Unix socket length
+limit also applies to the full absolute output path; use a short private path.
+
+The service announces its listening socket before the owner launches the API.
+`mappingControlReady` describes whether a new session can start; it does not
+assert that sensors, calibration or navigation are ready. The native child's
+existing input checks and deadlines still apply after start. This bypasses
+unavailable vendor SLAM prechecks only in the dedicated console.
+
+This console accepts only pairing, session revocation and mapping
+start/save/discard writes. Map previews and state reads remain authenticated.
+Navigation, business edits, motion/resource playback, credentials and Agent
+callbacks are rejected before their handlers run. It creates no demo maps,
+points or tours, and makes no vendor or cloud health requests.
+
+The owner caps the listening period at 5-3600 seconds (default 300), then
+closes the service's parent pipe. The service revokes saving and finishes its
+native child before the API closes, allowing the API to keep draining points
+during finalization. Child subreaping covers a service crash that leaves a
+native process in a separate process group. Startup failure, peer exit or
+signals initiate cleanup; timeout cleanup escalates to TERM/KILL and records
+forced termination as failure. Abrupt owner death closes both private parent
+pipes. Existing accepted maps stay separate from AIMDK maps.
+
+The listening deadline excludes bounded shutdown. Default limits allow
+110 seconds for the service, up to another 110 seconds for adopted children,
+5 seconds for the API and short signal escalation intervals. The report's
+`mappingReady`, `localizationReady` and `navigationReady` stay false; they
+are acceptance flags, not a substitute for console availability.
+
+Build on the development machine:
+
+```sh
+npm run build
+npm run build:mapping-runtime
+```
+
+The launcher requires existing frozen platform inputs, an explicit local
+configuration accepted by `mapping_platform.py`, a SHA256-verified Linux Node
+22 executable and compiled API, and matching production dependencies. On the
+robot the ARM64 binding additionally requires installed Humble Python 3.10,
+the verified native libraries/manifests and the preserved source/evidence
+layout. A compiled JavaScript file alone is not a deployable runtime.
+
+Commissioning invocation after preparing those inputs in an isolated Linux
+directory (paths and hashes below are placeholders):
+
+```sh
+export LINGXI_TLS_KEY=/private/tls/server.key
+export LINGXI_TLS_CERT=/private/tls/server.crt
+export LINGXI_PAIRING_CODE_SHA256=REPLACE_WITH_PAIRING_CODE_SHA256
+export LINGXI_HOST=127.0.0.1
+export LINGXI_PORT=3000
+export LINGXI_WEB_ROOT=/private/runtime/web
+python3 -B /private/runtime/robot-runtime/python/managed_mapping.py \
+  --config /private/config/mapping.json \
+  --output /private/mrun \
+  --node /private/runtime/bin/node \
+  --node-sha256 REPLACE_WITH_NODE_SHA256 \
+  --api-bundle /private/runtime/robot-runtime/dist/mapping-main.mjs \
+  --api-sha256 REPLACE_WITH_API_SHA256 \
+  --seconds 300
+```
+
+For a future LAN trial select the intended bind address and provision a
+certificate trusted by clients for that address. This example binds loopback.
+The launcher forwards only TLS, pairing hash, host, port and web-root options;
+inherited demo mode, internal Agent credentials, point descriptors, library
+injection and Node options do not enter its children. Missing TLS/pairing
+configuration or changed runtime hashes fail before process launch. Secrets
+and production certificates are not included in source or bundles.
+
+## Current Offline Checks
+
+- 214 Vitest tests in 18 files pass, including independent readiness, unavailable
+  backend refusal, no vendor/cloud calls and rejected business writes.
+  Frontend/API/runtime type checks, web build and dedicated API bundle pass.
+- Ten actual Linux process cases pass using the compiled API and real
+  service/manager/owner boundaries: save/discard and replacement, API crash,
+  service crash, owner SIGKILL, forced adopted-child cleanup, production HTTPS,
+  startup failures, missing TLS and duration expiry.
+  The HTTPS/WSS test verifies its isolated certificate as a CA; verification
+  is not disabled. Synthetic native protocol peers and synthetic map files
+  are used here. The fixture's reload receipt is simulated; its map is not a
+  native-loadable GLIM map.
+- Python launcher checks cover output separation, finite deadlines, explicit
+  production TLS/pairing, runtime hash mismatch and environment allowlisting:
+  all five pass on Windows and Linux. The full Linux regression before the
+  final two launcher cases passed 835 of 839 tests with four explicit skips.
+
+Reproduce the process cases as an ordinary Linux user with Node 22, Python 3,
+OpenSSL and installed Node dependencies:
+
+```sh
+LINGXI_MAPPING_API_BUNDLE=/absolute/runtime/dist/mapping-main.mjs \
+LINGXI_MAPPING_OWNER_PYTHON=/usr/bin/python3 \
+npm run test:mapping-runtime
+python3 -B -m unittest discover -s tools/tests -p test_managed_mapping.py
+```
+
+The process test skips explicitly on Windows, as root or without either input
+environment variable. A skipped process suite does not establish cleanup or
+HTTPS behavior.
+
+These checks do not contact the powered-off robot or validate new ARM64
+execution, actual sensor input, new native geometry, acoustic interaction or
+Android behavior. Prior native/browser evidence above remains historical.

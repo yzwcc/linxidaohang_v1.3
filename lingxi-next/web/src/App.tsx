@@ -367,7 +367,8 @@ function Mapping({
   const activeMap = state.maps.find((map) => map.id === state.activeMapId);
   const canStart = !navigationBusy(state) &&
     !state.actionBusy &&
-    ["aimdk", "slam", "lidar"].every((id) => state.checks.some((item) => item.id === id && item.ready));
+    (state.mappingControlReady ?? ["aimdk", "slam", "lidar"]
+      .every((id) => state.checks.some((item) => item.id === id && item.ready)));
   const mappingLabel = {
     idle: "未启动",
     requested: state.mappingBackend ? "等待建图进程就绪" : "等待 AIMDK 确认",
