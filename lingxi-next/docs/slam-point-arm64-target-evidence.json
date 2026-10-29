@@ -1,0 +1,170 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-29",
+  "result": "arm64_point_extension_loaded_and_synthetic_contracts_closed_not_recorded_or_live_acceptance",
+  "inputClassification": "isolated_synthetic_contracts",
+  "privateCollectionReportSha256": "2e06f4b0605688b10e0ae8c11774ad1709d920a5769d7ebf82085b455afc31b1",
+  "privateProbeReportSha256": "c9d163e4387dccabf01262985cd1685f4e59c003a274c8863c29cca3932e1b00",
+  "privateCommandOutputSha256": "96a6f2486bdf731826cec13e74002abc7de94977d91ee6bd73e6dd521e987053",
+  "privateContractLogsSha256": {
+    "copy": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "overflow": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "invalid_frame": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "wrong_thread": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "wrong_api_thread": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "invalid_stamp": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "invalid_points": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "invalid_pose": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "missing_points": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "skipped_id": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "pending_close": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "coordinatorSha256": "e9b9a93a5c111c8b07c000df7611e6cd6c6f17c133723635609f5be6f6c758f4",
+  "bundleManifestSha256": "06c021f7c12591f68b49ef4883636e3f58268d0b849b3f721bcf19663c168285",
+  "coreManifestSha256": "a4a0cea60ace957864f48b2b8bf726ee9f6e0594be8238cac36dbd11d024b733",
+  "sourceCommits": {
+    "gtsam": "3ad4b4c3cb28394c9597f48fa02dad361c8450e3",
+    "gtsam_points": "9d32e7dbecf6015560d84b4901d6b0a6f483ec46",
+    "glim": "1a197c999e4865f5cab7c9cd25474128413ebbca"
+  },
+  "host": {
+    "machine": "aarch64",
+    "python": "3.10.12",
+    "libc": [
+      "glibc",
+      "2.35"
+    ]
+  },
+  "actualLoadedLibrariesSha256": {
+    "liblingxi_glim_point_output.so": "f27ea3ad4718e418886acba7a3b7a068baf12773ceb386224687a15ebd18149c",
+    "libcephes-gtsam.so.1": "7e18a24d0795a956df312b33c0f2f437c7130e0cdeb5b596a50ed30b4d356e24",
+    "libmetis-gtsam.so": "844a86b408f2ed51445162f6aeb7979212e8aaae064ad59e0d3862ec6b96e400",
+    "libgtsam.so.4": "fee5315024f5eaf4b7b432bc8ff2c9715c098fe6a3693d8177a39bc9a538620f",
+    "libgtsam_points.so.1": "1b279b1d3ad4e252499167a6f9d16f17eec8e7ca634d7157fbd594692e2a54fb",
+    "libglim.so": "3c70a22f4151c0c600f394bc65c1dff5c6d133566cb110866b869caeb9ae7f81",
+    "libodometry_estimation_cpu.so": "5f9507bf8c075b89f5c072d0d9d3e0f535de259c884d955f5ad9230bbd632c0d"
+  },
+  "emptyAbi": {
+    "open": 1,
+    "close": 1,
+    "callbacks": 0,
+    "copiedPackets": 0
+  },
+  "nativeContractExecutionsOnTarget": 11,
+  "stages": [
+    {
+      "scenario": "copy",
+      "exitCode": 0,
+      "forcedTermination": false,
+      "processAlive": false,
+      "timedOut": false
+    },
+    {
+      "scenario": "overflow",
+      "exitCode": 0,
+      "forcedTermination": false,
+      "processAlive": false,
+      "timedOut": false
+    },
+    {
+      "scenario": "invalid_frame",
+      "exitCode": 0,
+      "forcedTermination": false,
+      "processAlive": false,
+      "timedOut": false
+    },
+    {
+      "scenario": "wrong_thread",
+      "exitCode": 0,
+      "forcedTermination": false,
+      "processAlive": false,
+      "timedOut": false
+    },
+    {
+      "scenario": "wrong_api_thread",
+      "exitCode": 0,
+      "forcedTermination": false,
+      "processAlive": false,
+      "timedOut": false
+    },
+    {
+      "scenario": "invalid_stamp",
+      "exitCode": 0,
+      "forcedTermination": false,
+      "processAlive": false,
+      "timedOut": false
+    },
+    {
+      "scenario": "invalid_points",
+      "exitCode": 0,
+      "forcedTermination": false,
+      "processAlive": false,
+      "timedOut": false
+    },
+    {
+      "scenario": "invalid_pose",
+      "exitCode": 0,
+      "forcedTermination": false,
+      "processAlive": false,
+      "timedOut": false
+    },
+    {
+      "scenario": "missing_points",
+      "exitCode": 0,
+      "forcedTermination": false,
+      "processAlive": false,
+      "timedOut": false
+    },
+    {
+      "scenario": "skipped_id",
+      "exitCode": 0,
+      "forcedTermination": false,
+      "processAlive": false,
+      "timedOut": false
+    },
+    {
+      "scenario": "pending_close",
+      "exitCode": 0,
+      "forcedTermination": false,
+      "processAlive": false,
+      "timedOut": false
+    }
+  ],
+  "observations": {
+    "identityCheckedRobotContacted": true,
+    "uploadedFilesIndividuallyVerified": 5,
+    "connectionClosed": true,
+    "inputsReverifiedByTarget": true,
+    "productNodePresentAtExpectedPath": false,
+    "systemNodePresentAtExpectedPath": false,
+    "nodeRuntimeExecutedOrValidated": false
+  },
+  "boundaries": {
+    "rosStarted": false,
+    "sensorsSubscribed": false,
+    "motionCommandsSent": false,
+    "servicesChanged": false,
+    "recordedDataProcessed": false,
+    "livePointChannelValidated": false,
+    "mappingReady": false,
+    "localizationReady": false,
+    "navigationReady": false,
+    "runtimePackageBuilt": false,
+    "deploymentApproved": false,
+    "rawDataPublished": false
+  },
+  "acceptance": {
+    "recordedArm64PointChannelValidated": false,
+    "liveArm64PointChannelValidated": false,
+    "webPointRenderingValidated": false,
+    "androidPointRenderingValidated": false,
+    "pointDisplayLatencyValidated": false,
+    "calibrationValidated": false,
+    "mapPersistenceValidated": false,
+    "loopClosureValidated": false,
+    "relocalizationValidated": false,
+    "baseAlignmentValidated": false,
+    "independentNavigationValidated": false,
+    "productAccepted": false
+  }
+}

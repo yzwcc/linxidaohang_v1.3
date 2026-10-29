@@ -121,8 +121,11 @@ both processes exit naturally, and recorded points remain rejected as live
 data without granting mapping/navigation readiness. This does not deploy an
 independent backend or validate live rendering or the ARM64 point channel.
 See [the recorded point-channel evidence](docs/SLAM_RECORDED_POINT_CHANNEL.md).
-The separate ARM64 extension-loading/native-contract bundle is prepared but
-has not run on the robot; see [its target gate](docs/SLAM_POINT_ARM64_PREPARATION.md).
+The separate extension has now loaded on the identity-checked ARM64 robot;
+all 11 synthetic native contracts exit normally without ROS or sensors.
+See [the preparation history](docs/SLAM_POINT_ARM64_PREPARATION.md) and
+[actual target loading evidence](docs/SLAM_POINT_ARM64_TARGET.md).
+This does not validate the ARM64 recorded/live point channel or UI rendering.
 An independent full-recording range audit records returns beyond 5 raw-coordinate
 units. The roughly 5 m travel estimate is not calibration truth; travel,
 scan coverage and map accuracy are different quantities.

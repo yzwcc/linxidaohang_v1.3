@@ -147,16 +147,16 @@ have not yet executed together with real sensors or on ARM64.
 The isolated supervised recorded-input composition and lifecycle tests are
 now described in `SLAM_RECORDED_POINT_CHANNEL.md`. That diagnostic uses its
 own private Unix stream FD; it is not production supervisor FD wiring.
-Next are actual ARM64 extension loading/contracts and target recorded-data
-validation under currently confirmed onsite conditions. Live composition
-and UI acceptance remain separate later checks.
-The small isolated loading/contract bundle is now prepared but not target
-executed; see `SLAM_POINT_ARM64_PREPARATION.md` for its manifest identity,
-local checks and current onsite gate.
+The later isolated loading/contract bundle is documented in
+`SLAM_POINT_ARM64_PREPARATION.md`. It subsequently passed actual target
+loading and all 11 native synthetic contracts after fresh onsite confirmation;
+see `SLAM_POINT_ARM64_TARGET.md`. Target recorded-data point-channel
+validation, live composition and UI acceptance remain separate later checks.
 
 Factory-calibration discrepancies, IMU-noise/prediction warnings, sustained
 throughput, global map transactions, loop closure, relocalization, base-frame
 alignment and the independent navigation backend remain unresolved. Frozen
 GLIM core/adapter/worker/stream/configuration, vendor services/maps, installers
-and Android artifacts are unchanged by this milestone. No robot contact,
-deployment, new sensor capture or motion occurred.
+and Android artifacts are unchanged by this original component milestone.
+No robot contact, deployment, new sensor capture or motion occurred during
+that component phase; later isolated target contact is documented separately.

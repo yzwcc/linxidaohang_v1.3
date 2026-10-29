@@ -149,8 +149,9 @@ rtk proxy python tools/export_glim_point_pipe_evidence.py \
 
 ## Remaining Work
 
-The cross-built point extension still needs actual ARM64 loading/contracts,
-then a recorded point-channel composition on that target. Production sensor
+The separate cross-built point extension now passes actual ARM64 loading and
+11 synthetic native contracts; see `SLAM_POINT_ARM64_TARGET.md`. The recorded
+point-channel composition on that target remains unvalidated. Production sensor
 supervision, FD ownership/startup configuration, real-sensor point output,
 web/Android rendering and measured sensor-to-screen latency remain pending.
 Calibration/noise/prediction warnings, map transactions, loop closure,

@@ -1,9 +1,11 @@
 # ARM64 Point Extension Validation Preparation
 
-Date: 2026-10-29. A small isolated target-validation bundle is prepared from
-the already cross-built point extension. **It has not been uploaded to or
-executed on the robot.** No ARM64 native-contract success, recorded point
-channel, live rendering or navigation is claimed by this preparation.
+Preparation date: 2026-10-29. A small isolated target-validation bundle was
+prepared from the already cross-built point extension. **At preparation time
+it had not been uploaded to or executed on the robot.** No ARM64 native-contract
+success, recorded point channel, live rendering or navigation is claimed by
+this preparation. The subsequent actual loading/11-contract execution is
+documented separately in `SLAM_POINT_ARM64_TARGET.md`.
 The product, Android APK, original SDK/services/maps and frozen GLIM code
 remain unchanged.
 
@@ -126,10 +128,12 @@ rtk proxy python tools/prepare_glim_point_target.py \
 
 ## Next Gate
 
-Current onsite confirmation and identity-checked target inspection remain
-required before uploading and executing this diagnostic. After actual
-extension loading/contracts pass, prepare and execute the separate
-ARM64/Humble recorded point-channel composition. Live sensor composition,
+The subsequent identity-checked target loading/contracts completed after
+fresh onsite confirmation; see `SLAM_POINT_ARM64_TARGET.md`. The prepared
+bundle itself remains unchanged. Every future target execution still requires
+current onsite conditions; the previous message is not reusable authorization.
+Next prepare and execute the separate ARM64/Humble recorded point-channel
+composition. Live sensor composition,
 UI rendering/latency, calibration, mapping transactions, loop closure,
 relocalization, base alignment, independent navigation and product acceptance
 remain outstanding.
