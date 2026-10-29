@@ -154,6 +154,9 @@ The separate cross-built point extension now passes actual ARM64 loading and
 point-channel composition on that target remains unvalidated. Production sensor
 supervision, FD ownership/startup configuration, real-sensor point output,
 web/Android rendering and measured sensor-to-screen latency remain pending.
+The subsequent ARM64/Humble binding and standalone consumer preparation,
+including x64 Node 22 process controls, are documented separately in
+`SLAM_POINT_CONSUMER_PREPARATION.md`; that preparation is not target execution.
 Calibration/noise/prediction warnings, map transactions, loop closure,
 relocalization, base alignment, independent navigation and end-to-end voice
 acceptance remain unresolved. Existing vendor services/maps, installers and

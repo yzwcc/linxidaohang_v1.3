@@ -126,6 +126,12 @@ all 11 synthetic native contracts exit normally without ROS or sensors.
 See [the preparation history](docs/SLAM_POINT_ARM64_PREPARATION.md) and
 [actual target loading evidence](docs/SLAM_POINT_ARM64_TARGET.md).
 This does not validate the ARM64 recorded/live point channel or UI rendering.
+The installed-Humble recorded-point binding and a standalone pinned ARM64
+Node consumer have since been prepared offline. Two independent packages
+and their aggregate exports are byte-identical; an x64 Node 22 control passes
+all four consumer process tests. No ARM64 Node or target point-channel
+composition has executed in this preparation.
+See [the consumer preparation and remaining target gate](docs/SLAM_POINT_CONSUMER_PREPARATION.md).
 An independent full-recording range audit records returns beyond 5 raw-coordinate
 units. The roughly 5 m travel estimate is not calibration truth; travel,
 scan coverage and map accuracy are different quantities.

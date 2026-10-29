@@ -113,6 +113,10 @@ the already verified decoder and worker, separate health/point channels and
 explicit recorded classification. Its producer/consumer content comparison
 and normal shutdown still need actual target execution.
 
+That subsequent offline preparation is now complete; see
+`SLAM_POINT_CONSUMER_PREPARATION.md`. The separate Node runtime remains
+unexecuted on ARM64, and the target composition is still unvalidated.
+
 Live supervision, web/Android point rendering, sensor-to-screen latency,
 calibration/prediction warnings, global map transactions, loop closure,
 relocalization, base alignment, independent navigation and final voice/product
