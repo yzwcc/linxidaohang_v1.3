@@ -71,3 +71,21 @@ An optional Node pipe source passes isolated API WebSocket tests without
 changing mapping/navigation readiness. It is not selected by normal startup
 and is not connected to the production supervisor or real sensors. See
 `docs/SLAM_POINT_DATA_CHANNEL.md` for executed checks and remaining work.
+
+`mapping_session.MappingSession` adds explicit-save lifecycle composition for
+the existing mapping ABI. Plain stop, revoked save or unhealthy input only
+close owned native components. Saving closes odometry once, flushes the map,
+shuts down mapping callbacks, checks inventory and requires the existing
+loader in a separate process before atomically publishing `map-ready.json`.
+Incomplete output stays private without a ready receipt. Input classification
+is retained; a saved map never becomes localization/navigation-ready merely
+because it round-trips. Synthetic lifecycle tests cover this component.
+It is not yet selected by the live owner, API or APK. Its caller must provide
+the verified mapping library, existing inventory/reload helpers, worker-health
+predicate and a separate save/shutdown time budget; the current short-sequence
+native mapper's loop-travel restriction is unchanged.
+
+The 15 synthetic lifecycle checks pass on Linux, including actual
+`SensorWorker` save and failed-input composition with a fake native engine.
+Windows passes 13 and explicitly skips the two NumPy-dependent worker cases.
+This new component has not yet executed the real native mapping library.

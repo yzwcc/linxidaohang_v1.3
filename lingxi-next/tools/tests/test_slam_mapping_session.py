@@ -1,0 +1,265 @@
+"""Synthetic lifecycle checks, not native mapping or robot acceptance."""
+import hashlib
+import importlib.util
+import json
+import os
+from pathlib import Path
+import sys
+import tempfile
+import threading
+import time
+import unittest
+
+
+ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "robot-slam"))
+from lingxi_slam.mapping_session import MappingSession, SaveDecision
+
+
+SESSION = "bbaaccdd00112233445566778899aabb"
+HAS_NUMPY = importlib.util.find_spec("numpy") is not None
+
+
+class MappingSaveLifecycle(unittest.TestCase):
+    def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temporary.cleanup)
+        self.output = Path(self.temporary.name) / "new-map"
+        self.calls, self.decision = [], SaveDecision()
+        self.healthy, self.failure, self.mutate_on_reload = True, None, False
+        self.reload_pid = os.getpid() + 1
+        self.on_reload = lambda: None
+        self.frame_result = None
+
+    def make(self, can_save=None):
+        test = self
+
+        class Native:
+            def imu(self, *args):
+                test.calls.append("imu")
+                if test.failure == "imu":
+                    raise RuntimeError("synthetic_imu_failure")
+                return args
+
+            def frame(self, *args):
+                test.calls.append("frame")
+                return test.frame_result(args) if test.frame_result is not None else args
+
+            def close(self):
+                test.calls.append("native-close")
+                if test.failure == "native-close":
+                    raise RuntimeError("synthetic_close_failure")
+                return 2
+
+        class Mapping:
+            def call(self, name, *args):
+                test.calls.append(name)
+                if test.failure == name:
+                    raise RuntimeError("synthetic_mapping_failure")
+                if name == "finish":
+                    folder = Path(os.fsdecode(args[0]))
+                    folder.mkdir()
+                    (folder / "synthetic-map.bin").write_bytes(b"explicitly synthetic map")
+                    Path(os.fsdecode(args[1])).write_bytes(b"\0" * 3 * 24)
+                    for index, value in enumerate((2, 1, 3, 2, 50, 0)):
+                        args[2][index] = value
+
+        def inspect(folder):
+            content = (folder / "synthetic-map.bin").read_bytes()
+            return {"num_submaps": 1, "num_all_frames": 2,
+                    "artifactInventorySha256": hashlib.sha256(content).hexdigest()}
+
+        def reload(folder):
+            self.calls.append("reload")
+            if self.failure == "reload":
+                raise RuntimeError("synthetic_reload_failure")
+            if self.mutate_on_reload:
+                (folder / "map/synthetic-map.bin").write_bytes(b"changed synthetic map")
+            self.on_reload()
+            return {
+                "pid": self.reload_pid, "loadedSubmaps": 1,
+                "comparison": {"pointCount": 3, "samePointOrderCompared": True,
+                               "maximumPointDisplacementRawUnits": 0.,
+                               "predeclaredToleranceRawUnits": 1e-4},
+            }
+
+        return MappingSession(Native, Mapping(), self.decision, self.output,
+                              name="Synthetic test map", session=SESSION, input_mode="synthetic",
+                              can_save=can_save or (lambda: self.healthy),
+                              inspect_map=inspect, reload_map=reload)
+
+    def test_explicit_save_flushes_closes_reloads_then_publishes_once(self):
+        session = self.make()
+        self.assertEqual((1,), session.imu(1))
+        self.assertEqual((2,), session.frame(2))
+        self.assertTrue(self.decision.request_save())
+        self.assertEqual(2, session.close())
+        self.assertEqual(2, session.close())
+        self.assertEqual(["open", "imu", "frame", "native-close", "finish", "shutdown", "reload"], self.calls)
+        saved = json.loads((self.output / "map-ready.json").read_text())
+        self.assertEqual(session.receipt, saved)
+        self.assertEqual("synthetic", saved["inputMode"])
+        self.assertFalse(saved["navigationReady"])
+        self.assertFalse(saved["localizationReady"])
+        self.assertFalse(self.decision.request_save())
+
+    def test_plain_stop_never_saves_or_reloads(self):
+        session = self.make()
+        session.close()
+        self.assertEqual(["open", "native-close", "shutdown"], self.calls)
+        self.assertFalse((self.output / "map-ready.json").exists())
+        self.assertFalse(self.decision.request_save())
+
+    def test_discard_revokes_pending_save(self):
+        session = self.make()
+        self.decision.request_save()
+        self.decision.discard()
+        session.close()
+        self.assertNotIn("finish", self.calls)
+        self.assertFalse(self.decision.request_save())
+
+    def test_failed_worker_health_does_not_save(self):
+        session = self.make()
+        self.decision.request_save()
+        self.healthy = False
+        session.close()
+        self.assertNotIn("finish", self.calls)
+
+    def test_native_input_failure_revokes_save_but_still_cleans_up(self):
+        session = self.make()
+        self.decision.request_save()
+        self.failure = "imu"
+        with self.assertRaisesRegex(RuntimeError, "synthetic_imu"):
+            session.imu(1)
+        session.close()
+        self.assertEqual(["open", "imu", "native-close", "shutdown"], self.calls)
+
+    def test_every_save_failure_leaves_no_ready_map_and_shutdown_runs_once(self):
+        for failure in ("native-close", "finish", "shutdown", "reload"):
+            with self.subTest(failure=failure):
+                self.output = Path(self.temporary.name) / failure
+                self.calls, self.failure, self.decision = [], None, SaveDecision()
+                session = self.make()
+                self.failure = failure
+                self.decision.request_save()
+                with self.assertRaises(RuntimeError):
+                    session.close()
+                self.assertEqual(1, self.calls.count("shutdown"))
+                self.assertFalse((self.output / "map-ready.json").exists())
+                with self.assertRaisesRegex(RuntimeError, "previously_failed"):
+                    session.close()
+                self.assertFalse(self.decision.request_save())
+
+    def test_open_failure_closes_both_owned_components(self):
+        self.failure = "open"
+        with self.assertRaises(RuntimeError):
+            self.make()
+        self.assertEqual(["open", "shutdown", "native-close"], self.calls)
+
+    def test_reload_in_same_process_is_not_fresh_process_verification(self):
+        session = self.make()
+        self.reload_pid = os.getpid()
+        self.decision.request_save()
+        with self.assertRaisesRegex(ValueError, "independent_unchanged"):
+            session.close()
+        self.assertFalse((self.output / "map-ready.json").exists())
+
+    def test_map_changed_during_reload_is_not_published(self):
+        session = self.make()
+        self.mutate_on_reload = True
+        self.decision.request_save()
+        with self.assertRaisesRegex(ValueError, "independent_unchanged"):
+            session.close()
+        self.assertFalse((self.output / "map-ready.json").exists())
+
+    def test_save_revoked_during_reload_is_not_published(self):
+        session = self.make()
+        self.on_reload = self.decision.discard
+        self.decision.request_save()
+        session.close()
+        self.assertIn("reload", self.calls)
+        self.assertIsNone(session.receipt)
+        self.assertFalse((self.output / "map-ready.json").exists())
+
+    def test_worker_health_lost_during_reload_is_not_published(self):
+        session = self.make()
+        self.on_reload = lambda: setattr(self, "healthy", False)
+        self.decision.request_save()
+        session.close()
+        self.assertIsNone(session.receipt)
+        self.assertFalse((self.output / "map-ready.json").exists())
+
+    def test_native_methods_stay_on_creating_thread(self):
+        session = self.make()
+        failures = []
+        def wrong_thread():
+            for call in (lambda: session.frame(1), session.close):
+                try:
+                    call()
+                except RuntimeError:
+                    failures.append(True)
+        thread = threading.Thread(target=wrong_thread)
+        thread.start()
+        thread.join()
+        self.assertEqual([True, True], failures)
+        session.close()
+        self.assertEqual(["open", "native-close", "shutdown"], self.calls)
+
+    def test_existing_map_output_is_preserved(self):
+        self.output.mkdir()
+        sentinel = self.output / "original"
+        sentinel.write_text("preserved")
+        with self.assertRaises(FileExistsError):
+            self.make()
+        self.assertEqual("preserved", sentinel.read_text())
+        self.assertEqual([], self.calls)
+
+    @unittest.skipUnless(HAS_NUMPY, "requires existing isolated NumPy environment")
+    def test_existing_worker_saves_on_its_native_owner_thread(self):
+        self.run_worker_case(fail_input=False)
+
+    @unittest.skipUnless(HAS_NUMPY, "requires existing isolated NumPy environment")
+    def test_existing_worker_input_failure_prevents_pending_save(self):
+        self.run_worker_case(fail_input=True)
+
+    def run_worker_case(self, *, fail_input):
+        import numpy as np
+        from lingxi_slam.messages import SensorProfile
+        from lingxi_slam.worker import SensorWorker, WorkerLimits
+        from test_slam_worker import cloud, imu
+
+        def healthy():
+            status = worker.snapshot()
+            return status["state"] == "stopping" and status["failure"] is None
+
+        self.frame_result = lambda args: (np.eye(4), np.array([1., 2., len(args[1]), 0.]))
+        worker = SensorWorker(lambda: self.make(can_save=healthy),
+                              SensorProfile("synthetic_cloud", "synthetic_imu",
+                                            "frame_relative_nanoseconds_hypothesis"),
+                              "header_is_scan_start", limits=WorkerLimits(shutdown_seconds=5.))
+        self.addCleanup(worker.stop)
+        worker.start()
+        deadline = time.monotonic() + 2
+        while worker.snapshot()["state"] == "starting" and time.monotonic() < deadline:
+            time.sleep(.005)
+        self.assertEqual("running", worker.snapshot()["state"])
+        self.decision.request_save()
+        if fail_input:
+            self.assertFalse(worker.offer_imu(imu(-1)))
+        else:
+            for milliseconds in range(0, 101, 5):
+                self.assertTrue(worker.offer_imu(imu(milliseconds)))
+            self.assertTrue(worker.offer_cloud(cloud(40)))
+            self.assertTrue(worker.offer_cloud(cloud(70)))
+            deadline = time.monotonic() + 2
+            while worker.snapshot()["counts"]["completedMessages"] < 23 and time.monotonic() < deadline:
+                time.sleep(.005)
+            self.assertEqual(23, worker.snapshot()["counts"]["completedMessages"])
+        status = worker.stop()
+        self.assertFalse(status["threadAlive"])
+        self.assertEqual("failed" if fail_input else "stopped", status["state"])
+        self.assertEqual(not fail_input, (self.output / "map-ready.json").exists())
+
+
+if __name__ == "__main__":
+    unittest.main()
