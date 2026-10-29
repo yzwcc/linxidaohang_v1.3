@@ -132,6 +132,11 @@ and their aggregate exports are byte-identical; an x64 Node 22 control passes
 all four consumer process tests. No ARM64 Node or target point-channel
 composition has executed in this preparation.
 See [the consumer preparation and remaining target gate](docs/SLAM_POINT_CONSUMER_PREPARATION.md).
+The subsequent LAN composition collector and independent verifier are now
+implemented, and the real prepared consumer archive has been successfully
+unpacked and reverified offline without running ARM64 code.
+See [the target composition collection boundary](docs/SLAM_POINT_COMPOSITION_TARGET.md).
+Actual recorded ARM64 producer/consumer execution is still pending.
 An independent full-recording range audit records returns beyond 5 raw-coordinate
 units. The roughly 5 m travel estimate is not calibration truth; travel,
 scan coverage and map accuracy are different quantities.

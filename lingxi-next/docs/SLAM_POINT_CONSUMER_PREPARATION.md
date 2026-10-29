@@ -82,6 +82,10 @@ transfer, extraction, current identity checks, an external execution deadline
 and independent collected-result verification still need integration before
 the actual ARM64 composition can be accepted.
 
+Those follow-up tools have since been implemented and the actual archive
+was extracted/reverified offline; see `SLAM_POINT_COMPOSITION_TARGET.md`.
+No target composition execution is claimed by that implementation.
+
 ## Local Verification
 
 The 26 new tests use synthetic nonexecutable ARM64 headers, package fixtures,
