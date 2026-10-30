@@ -175,6 +175,14 @@ archive with verified extraction, packaged-source startup and HTTPS web asset
 delivery. Ten Linux x64 process cases run against its extracted sources,
 API, dependencies and console using synthetic native peers.
 See [the managed mapping package and remaining prerequisites](docs/SLAM_MANAGED_MAPPING_RUNTIME.md).
+Seeded scan-to-map registration and session-bound tracking now also run over
+all 164 corrected-point packets from one complete preserved recording, under
+the existing native process supervisor. Two positive controls track after three
+confirmations; a distant seed is rejected on its first frame and stays lost.
+This x64 diagnostic reuses a recorded initial pose and possibly mapping input;
+it is not independent accuracy, confirmed walking coverage, ARM64 performance
+or navigation acceptance.
+See [the complete recorded localization boundary](docs/SLAM_RECORDED_LOCALIZATION.md).
 An independent full-recording range audit records returns beyond 5 raw-coordinate
 units. The roughly 5 m travel estimate is not calibration truth; travel,
 scan coverage and map accuracy are different quantities.

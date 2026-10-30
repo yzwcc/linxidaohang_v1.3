@@ -1,0 +1,643 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-30",
+  "result": "complete_recorded_localization_diagnostic_not_independent_accuracy_or_navigation",
+  "privateReportsSha256": {
+    "report.json": "017903774f6b54ea2bf8aca374376b93fd76dfce068846bf7667832f9838139b",
+    "child-report.json": "1ff0c0838d9e51232ec36bf5a398619460e5382790e021d69cdc53ee611289f9",
+    "point-report.json": "d08a64854ace39457d6dc778e797016a8d9ca7b63bda2eb83395ee8b6623eec8",
+    "tracking-report.json": "af2f6ef7b13938b9412c983a756f69beab378e7a6cbc2cae9e7cddc622afc111"
+  },
+  "sourceSha256": {
+    "tools/run_recorded_localization_trial.py": "9220d7b2b9f7424c860845cf1ecfaa745e7ab45e9de260651cbf2d9f2b876a52",
+    "tools/run_seeded_localization_trial.py": "0c5459600375f6d48248bb195b774c5410bc15dfc7500153a690e6b596676c32",
+    "robot-slam/lingxi_slam/seeded_localization.py": "563bebbe0710ba07b96e4721d12b033443e0a317834b117c0b2697fe003f8a8f",
+    "robot-slam/lingxi_slam/localization_tracking.py": "c4b99640f0c9380bcc44f0daa0b1f2c37b760ba2559cf5f636483ec253444611",
+    "robot-slam/lingxi_slam/point_data.py": "14444f89b917eb98b7edf4804acb45948babe20cd28214fa20734c08cddefc36",
+    "robot-slam/lingxi_slam/point_output.py": "4b501e2411fd6e54f6b22f954fe13ac222de8d43ad221d61aba5de102512ba81"
+  },
+  "frozenSourceSha256": {
+    "tools/run_glim_supervised_replay.py": "dffd120e021476dd1a681d7fa74cd6df01af2f25c809d57b697b45d887cb57f4",
+    "tools/slam_callback_journal.py": "3c9242f163b0c9265358085c6c59407973fa862592f2daea8151576ba7a9fe8b",
+    "tools/glim_trial_config.py": "761e93e856d57a80e96204c8b58a60e4ac067adc26611c4dc858196d6bc95833",
+    "tools/run_glim_stream_trial.py": "512ee896c05345de191d7793ac6c1602291d699125c07eeb0d44ff7ff4e2597a",
+    "tools/run_glim_offline_trial.py": "aa04dce703a0f121138318b6ee52ba999e47593d6ed2ccac7bd2c524c1cff683",
+    "tools/run_kiss_offline_trial.py": "ebe6d933005fa0821b50c0f91477e7a80a32ac1d174bf1040ec90d91e382a8aa",
+    "tools/build_slam_cpu_trial.py": "ce855ca6b45385d2b2eecf1462c04a55abd0e0c1e36a7955f5376b6d1351a7a9",
+    "tools/diagnose_slam_sensors.py": "0c9808ca472b6d7be7b3b118c05d83b13f5b975e76da1c732e08adf071e1b824",
+    "tools/export_glim_controlled_mapping.py": "0141b810faf4e2bae55bb42261102c7f9cea9b122536ca0ceb06574f927c42cb",
+    "tools/compare_glim_architectures.py": "b741d1a7f57894dee2fd9e87b47638f80221ae26bfc449239d2665f30c88d6aa",
+    "tools/glim_target_controlled_mapping.py": "07ab538ce92bce425be6da97a5d4e70d839b096dd455646745c78adb4b15de4b",
+    "tools/verify_slam_capture.py": "073c280e1791636e6ccd41c016ca50d56fa3a71078eb5ab1a4bfcc77e0259bad",
+    "tools/slam_bag_audit.py": "529f6eb0b6a5050e74d0c65c566d53893f5e989e0a1a6d889ba0d27bf7a7620b",
+    "tools/glim-replay/offline.cpp": "4a104e25a4eb28fc7c558d9ae8fb12bab03a478e48f499f55ff95d9667aa2b1c",
+    "tools/glim-replay/CMakeLists.txt": "53d285546e082a23975e9f7f709c68abd47f4cd12a3349eb6c14fb946d1d340b",
+    "robot-slam/lingxi_slam/__init__.py": "9a59075191196952798a68b31564f2fc148727cbcfa59ae715657865894c4226",
+    "robot-slam/lingxi_slam/messages.py": "bb52d293b2d839ecb80bc51d0b5dcff17b533911b17c9ab462d86f255c1dc336",
+    "robot-slam/lingxi_slam/worker.py": "59beea9c8c9015dc1b24f09fc010ccb86f59eda469a0d9af990777c715ff5cea",
+    "robot-slam/lingxi_slam/stream.py": "1fcca31c82dcec8a6969576c98c27e68582f0a6288b8482d8442c8703ff5d0bc",
+    "robot-slam/lingxi_slam/process_protocol.py": "6f324f17bd399cedb5c72e19b143a9d40dc23f84e5f6d9b059a00b315d53ad8d",
+    "robot-slam/lingxi_slam/process_supervisor.py": "a5b10ac6a03001a88eca918c13724a88df2a393595bc9e27e349666213b4b669",
+    "docs/slam-stream-input-evidence.json": "d4defa80f4e5d48ca0bc620965218103c89726cdde0e523531d14262468449cc"
+  },
+  "pointSourceSha256": {
+    "robot-slam/native-point-output/point_output.h": "b9bcb8f6a937bfc0df59ff54f4802a581c6df29820b9a7e31a184236be0d3b2f",
+    "robot-slam/native-point-output/point_output.cpp": "b563747a07964843a27b8160b69509ad9ab8e99556e03de0ba4887c082347b07",
+    "robot-slam/native-point-output/point_output_contract.cpp": "4b37ec7c125524076f33d41fb7566b713b35141449efcb2b35ff3779283667ba",
+    "robot-slam/native-point-output/CMakeLists.txt": "2efe69a776d107ffa32f5ec866665a106df6e420e35fedfb9e7f6bd0b807b483",
+    "robot-slam/native-point-output/exports.map": "2dfe4e67279bf1219f19a81a33162757f11c2e2004d4ff5470254e03e074d0ec",
+    "robot-slam/native-point-output/verify_exports.cmake": "92aa6b31a481733ea9fec9070eb1a55fc96bf325e900d3d76fde8afff7e631d7",
+    "robot-slam/lingxi_slam/point_output.py": "4b501e2411fd6e54f6b22f954fe13ac222de8d43ad221d61aba5de102512ba81",
+    "tools/run_glim_point_output_trial.py": "c33b2cc6be2236114e5cb050355243535c49e8694f9c7c33f2e1bc8a82e4c7d2",
+    "tools/glim_matched_session.py": "20245c70053635ccf804a67122f31d1af33edc6a99b8b221a2009a7e9409aa02"
+  },
+  "sourceCommits": {
+    "gtsam": "3ad4b4c3cb28394c9597f48fa02dad361c8450e3",
+    "gtsam_points": "9d32e7dbecf6015560d84b4901d6b0a6f483ec46",
+    "glim": "1a197c999e4865f5cab7c9cd25474128413ebbca"
+  },
+  "host": {
+    "machine": "x86_64",
+    "versions": {
+      "numpy": "2.5.4",
+      "scipy": "1.16.3",
+      "small-gicp": "1.0.1",
+      "rosbags": "0.11.9"
+    }
+  },
+  "savedMap": {
+    "receiptSha256": "f6bf5c1494f3782a3659c5767e29d7c32202ab228b5baefedbe91cd6b6f5e3b2",
+    "pointsSha256": "29b23992701af021acd3695b45d66bd6747b1e68e36776f5bda5d3a6b46d0210"
+  },
+  "seedReference": {
+    "sampleSha256": "1c404fe4420d774bc8eb2e0f69a443c73c244bb92a348a44a4b1c09d293c91a7",
+    "frameId": 1,
+    "copiedPoints": 7606
+  },
+  "configurationSha256": {
+    "UPSTREAM_LICENSE.txt": "e491c5c12eef41e3a5f673fa0b1942d575fbd1bbd8c4dfa73e4c9d464c4a9ba4",
+    "config.json": "75384262d7f747ecc62f4daf5c23819f9235079b01a4dc353f1f69873535c8a3",
+    "config_global_mapping_pose_graph.json": "ceb2a6e2e88ddbc79125f899e9397381b657e93e084a32900231c40a7b8b8765",
+    "config_logging.json": "471a97b149fa5523386d3b9551420f377340a32d158da28d164b637ff22d0e09",
+    "config_odometry_cpu.json": "b3f8fadd09067b2afd8e13e55731cbba323f623c86da74f44bbd04b700c819ea",
+    "config_preprocess.json": "96b0486ad6e961057d7ae8211c4d9f5e83a915c519b82dab1d5bfee5b416b9dd",
+    "config_ros.json": "959b83bd427439c22c03437d37d3ea95563f6bb91e6689d856d8dddf9680ca6b",
+    "config_sensors.json": "582ef55e2c7cb02d315738f4581fa6d642ea80a74d3e6c9a0d8115b2c95c0507",
+    "config_sub_mapping_passthrough.json": "78807724166f5096ced9fb3a19fc9cb9fcb0994209c9486f573337da99c0e6b8",
+    "trial-manifest.json": "1a39c0f550099d959c66038e46628df4326ab2ed32ef2c4963d60100581acd91"
+  },
+  "registrationConfigRawUnitsNotPhysicalAcceptance": {
+    "voxel_raw": 0.2,
+    "correspondence_raw": 1.0,
+    "maximum_inlier_rms_raw": 0.25,
+    "maximum_inlier_p95_raw": 0.45,
+    "minimum_overlap": 0.6,
+    "maximum_seed_translation_raw": 2.0,
+    "maximum_seed_rotation_radians": 0.5235987755982988,
+    "minimum_geometry_ratio": 0.001,
+    "minimum_native_information_ratio": 1e-06,
+    "minimum_points": 64,
+    "maximum_map_points": 2000000,
+    "maximum_scan_points": 100000,
+    "maximum_iterations": 40
+  },
+  "smallGicpExtensionSha256": "f99991b4334e24791fb2ff52f89c80513b5107bd35a146ded4230b660e3d2ded",
+  "actualLoadedLibrariesSha256": {
+    "libgtsam.so.4.3a0": "a04a785a5dae6737bed3246d6fa3d380824a36979311c97e2698bc460a420ddf",
+    "libgtsam_points.so.1.2.2": "b3ad18f233148fb0a4d0ff84f25199138da247357b878684619bdf214bb7e695",
+    "liblingxi_glim_offline.so": "d88b2ce24c70dde901e33747bd622238172729ce0dfaff74b37da0e0a0d78b8d",
+    "libcephes-gtsam.so.1.0.0": "865de51290543bbef9aaeffc4f025c575fbe76ac48e91ee09346e44b8df6b1ba",
+    "libmetis-gtsam.so": "27d1eafe1948d539734637a685b0459411b56b6b575d443a328ed06742810571",
+    "libglim.so": "6c554c6a48119eb9d2ce9d595076c64de581070f50c60438e85108bc9ebedb47",
+    "libodometry_estimation_cpu.so": "dc5ed040f36e8a83fd0207e5307894d95b1062f659e182db0e03cac8d02316ca"
+  },
+  "inputJournal": {
+    "records": 4144,
+    "counts": {
+      "cloud": 197,
+      "imu": 3947
+    },
+    "bytes": 157715530,
+    "sha256": "492a5b33f04edfc85b5e5c18fbf5e9e0e5005b68480c6e3cfd191927d7d98bf8"
+  },
+  "process": {
+    "state": "stopped",
+    "failure": null,
+    "childFailure": null,
+    "workerState": "stopped",
+    "completedMessages": 4144,
+    "processedScans": 196,
+    "estimatedPoses": 165,
+    "healthEvents": 391,
+    "retiredHealthEvents": 2,
+    "exitCode": 0,
+    "processAlive": false,
+    "monitorAlive": false,
+    "forcedTermination": false,
+    "cleanupComplete": true,
+    "mappingReady": false,
+    "localizationReady": false,
+    "navigationReady": false
+  },
+  "points": {
+    "packets": 164,
+    "copiedPoints": 1246242,
+    "copiedPointsPerPacketMinMax": [
+      7539,
+      7779
+    ],
+    "nativeCounts": {
+      "callbacks": 165,
+      "initializationSkips": 1,
+      "copies": 164,
+      "takes": 164,
+      "discardedOnClose": 0
+    },
+    "allPacketBytesSha256": "a49292f14cd467fdae7bdd04447145bc8ae93738f71def03b4e666aec4763593",
+    "maximumRetainedPackets": 2,
+    "initializationFrameExcluded": true
+  },
+  "tracking": {
+    "packets": 164,
+    "seedAttemptsPerControl": 1,
+    "automaticReseeding": false,
+    "inputMode": "recorded",
+    "poseFrame": "lidar_not_robot_base",
+    "controls": [
+      {
+        "seedKind": "recorded_pose_reuse",
+        "observedPackets": 164,
+        "stateCounts": {
+          "acquiring": 2,
+          "tracking": 162
+        },
+        "firstTrackingFrame": 3,
+        "firstLostFrame": null,
+        "firstLossReason": null,
+        "lastObservation": {
+          "state": "tracking",
+          "generation": 1,
+          "consecutiveMatches": 3,
+          "lastMatchedFrame": 164,
+          "reason": "diagnostic_quality_only",
+          "hasDiagnosticPose": true,
+          "localizationReady": false,
+          "navigationReady": false
+        },
+        "atNativeClose": {
+          "state": "tracking",
+          "generation": 1,
+          "consecutiveMatches": 3,
+          "lastMatchedFrame": 164,
+          "reason": "diagnostic_quality_only",
+          "hasDiagnosticPose": true,
+          "localizationReady": false,
+          "navigationReady": false
+        },
+        "afterExplicitStop": {
+          "state": "stopped",
+          "generation": 2,
+          "consecutiveMatches": 0,
+          "lastMatchedFrame": 164,
+          "reason": "explicit_stop",
+          "hasDiagnosticPose": false,
+          "localizationReady": false,
+          "navigationReady": false
+        },
+        "registration": {
+          "calls": 164,
+          "accepted": 164,
+          "rejected": 0,
+          "rejectionReasons": {},
+          "metrics": {
+            "milliseconds": {
+              "count": 164,
+              "minimum": 11.68270300000529,
+              "p50": 12.98683200000994,
+              "p95": 14.802712000005158,
+              "maximum": 24.75438800000518
+            },
+            "overlap": {
+              "count": 164,
+              "minimum": 1.0,
+              "p50": 1.0,
+              "p95": 1.0,
+              "maximum": 1.0
+            },
+            "inlierRmsRaw": {
+              "count": 164,
+              "minimum": 0.11104974265051894,
+              "p50": 0.11255522751251994,
+              "p95": 0.1137098398436447,
+              "maximum": 0.11451927257612445
+            },
+            "inlierP95Raw": {
+              "count": 164,
+              "minimum": 0.1834490274819057,
+              "p50": 0.18629198321775475,
+              "p95": 0.18795062250952677,
+              "maximum": 0.1891288456295192
+            },
+            "seedTranslationCorrectionRaw": {
+              "count": 164,
+              "minimum": 0.0009884461182179003,
+              "p50": 0.005473446599135055,
+              "p95": 0.010355380299811352,
+              "maximum": 0.013511423781191575
+            },
+            "seedRotationCorrectionRadians": {
+              "count": 164,
+              "minimum": 0.0001809942298216316,
+              "p50": 0.000949901909636529,
+              "p95": 0.002213195048958626,
+              "maximum": 0.0033845548856110716
+            },
+            "geometryInformationRatio": {
+              "count": 164,
+              "minimum": 0.23752202246193743,
+              "p50": 0.2457860477643839,
+              "p95": 0.250464497431968,
+              "maximum": 0.2544304608349091
+            },
+            "nativeInformationRatio": {
+              "count": 164,
+              "minimum": 0.03535147004194988,
+              "p50": 0.038768940953674134,
+              "p95": 0.04063368715462855,
+              "maximum": 0.04198978130578155
+            }
+          }
+        }
+      },
+      {
+        "seedKind": "controlled_perturbation",
+        "observedPackets": 164,
+        "stateCounts": {
+          "acquiring": 2,
+          "tracking": 162
+        },
+        "firstTrackingFrame": 3,
+        "firstLostFrame": null,
+        "firstLossReason": null,
+        "lastObservation": {
+          "state": "tracking",
+          "generation": 1,
+          "consecutiveMatches": 3,
+          "lastMatchedFrame": 164,
+          "reason": "diagnostic_quality_only",
+          "hasDiagnosticPose": true,
+          "localizationReady": false,
+          "navigationReady": false
+        },
+        "atNativeClose": {
+          "state": "tracking",
+          "generation": 1,
+          "consecutiveMatches": 3,
+          "lastMatchedFrame": 164,
+          "reason": "diagnostic_quality_only",
+          "hasDiagnosticPose": true,
+          "localizationReady": false,
+          "navigationReady": false
+        },
+        "afterExplicitStop": {
+          "state": "stopped",
+          "generation": 2,
+          "consecutiveMatches": 0,
+          "lastMatchedFrame": 164,
+          "reason": "explicit_stop",
+          "hasDiagnosticPose": false,
+          "localizationReady": false,
+          "navigationReady": false
+        },
+        "registration": {
+          "calls": 164,
+          "accepted": 164,
+          "rejected": 0,
+          "rejectionReasons": {},
+          "metrics": {
+            "milliseconds": {
+              "count": 164,
+              "minimum": 11.005087999990337,
+              "p50": 12.774174000000471,
+              "p95": 14.364509000003522,
+              "maximum": 17.3555690000029
+            },
+            "overlap": {
+              "count": 164,
+              "minimum": 1.0,
+              "p50": 1.0,
+              "p95": 1.0,
+              "maximum": 1.0
+            },
+            "inlierRmsRaw": {
+              "count": 164,
+              "minimum": 0.11104974265051898,
+              "p50": 0.11255522751251995,
+              "p95": 0.11370983984364477,
+              "maximum": 0.11451927257612447
+            },
+            "inlierP95Raw": {
+              "count": 164,
+              "minimum": 0.18344902748190406,
+              "p50": 0.1862919832177548,
+              "p95": 0.18795062250952674,
+              "maximum": 0.18912884562952414
+            },
+            "seedTranslationCorrectionRaw": {
+              "count": 164,
+              "minimum": 0.0009884461182180038,
+              "p50": 0.005473446599134509,
+              "p95": 0.010719464104074225,
+              "maximum": 0.2667241308812103
+            },
+            "seedRotationCorrectionRadians": {
+              "count": 164,
+              "minimum": 0.0001809942273680218,
+              "p50": 0.0009499019094027737,
+              "p95": 0.002216221938203631,
+              "maximum": 0.08679880572483838
+            },
+            "geometryInformationRatio": {
+              "count": 164,
+              "minimum": 0.23752202246193696,
+              "p50": 0.24578604776438354,
+              "p95": 0.2504644974319679,
+              "maximum": 0.2544304608349084
+            },
+            "nativeInformationRatio": {
+              "count": 164,
+              "minimum": 0.03535147004194989,
+              "p50": 0.03876894095367425,
+              "p95": 0.04063368715462863,
+              "maximum": 0.04198978130578188
+            }
+          }
+        }
+      },
+      {
+        "seedKind": "remote_seed_negative_control",
+        "observedPackets": 164,
+        "stateCounts": {
+          "lost": 164
+        },
+        "firstTrackingFrame": null,
+        "firstLostFrame": 1,
+        "firstLossReason": "scan_map_registration_rejected",
+        "lastObservation": {
+          "state": "lost",
+          "generation": 1,
+          "consecutiveMatches": 0,
+          "lastMatchedFrame": 0,
+          "reason": "scan_map_registration_rejected",
+          "hasDiagnosticPose": false,
+          "localizationReady": false,
+          "navigationReady": false
+        },
+        "atNativeClose": {
+          "state": "lost",
+          "generation": 1,
+          "consecutiveMatches": 0,
+          "lastMatchedFrame": 0,
+          "reason": "scan_map_registration_rejected",
+          "hasDiagnosticPose": false,
+          "localizationReady": false,
+          "navigationReady": false
+        },
+        "afterExplicitStop": {
+          "state": "stopped",
+          "generation": 2,
+          "consecutiveMatches": 0,
+          "lastMatchedFrame": 0,
+          "reason": "explicit_stop",
+          "hasDiagnosticPose": false,
+          "localizationReady": false,
+          "navigationReady": false
+        },
+        "registration": {
+          "calls": 1,
+          "accepted": 0,
+          "rejected": 1,
+          "rejectionReasons": {
+            "native_not_converged_or_insufficient_inliers": 1,
+            "insufficient_scan_map_overlap": 1,
+            "excessive_scan_map_residual": 1,
+            "degenerate_registration_geometry": 1
+          },
+          "metrics": {
+            "milliseconds": {
+              "count": 1,
+              "minimum": 20.28508799999429,
+              "p50": 20.28508799999429,
+              "p95": 20.28508799999429,
+              "maximum": 20.28508799999429
+            },
+            "overlap": {
+              "count": 1,
+              "minimum": 0.0,
+              "p50": 0.0,
+              "p95": 0.0,
+              "maximum": 0.0
+            },
+            "inlierRmsRaw": {
+              "count": 0,
+              "minimum": null,
+              "p50": null,
+              "p95": null,
+              "maximum": null
+            },
+            "inlierP95Raw": {
+              "count": 0,
+              "minimum": null,
+              "p50": null,
+              "p95": null,
+              "maximum": null
+            },
+            "seedTranslationCorrectionRaw": {
+              "count": 1,
+              "minimum": 0.0,
+              "p50": 0.0,
+              "p95": 0.0,
+              "maximum": 0.0
+            },
+            "seedRotationCorrectionRadians": {
+              "count": 1,
+              "minimum": 0.0,
+              "p50": 0.0,
+              "p95": 0.0,
+              "maximum": 0.0
+            },
+            "geometryInformationRatio": {
+              "count": 1,
+              "minimum": 0.0,
+              "p50": 0.0,
+              "p95": 0.0,
+              "maximum": 0.0
+            },
+            "nativeInformationRatio": {
+              "count": 1,
+              "minimum": 0.0,
+              "p50": 0.0,
+              "p95": 0.0,
+              "maximum": 0.0
+            }
+          }
+        }
+      }
+    ]
+  },
+  "limits": {
+    "startup_seconds": 30.0,
+    "progress_seconds": 2.0,
+    "shutdown_seconds": 6.0,
+    "terminate_seconds": 1.0,
+    "kill_seconds": 1.0,
+    "tick_seconds": 0.05,
+    "maximum_event_bytes": 4096,
+    "maximum_events_per_tick": 32
+  },
+  "nativeCalls": {
+    "create": 1,
+    "imu": 3930,
+    "frame": 196,
+    "close": 1
+  },
+  "replayTiming": {
+    "schemaVersion": 1,
+    "clock": "time.monotonic",
+    "percentiles": "nearest_rank",
+    "maximumSamplesPerChannel": 4145,
+    "channels": {
+      "nativeCreateWall": {
+        "count": 1,
+        "totalSeconds": 0.03757500800000457,
+        "minimumSeconds": 0.03757500800000457,
+        "p50Seconds": 0.03757500800000457,
+        "p95Seconds": 0.03757500800000457,
+        "maximumSeconds": 0.03757500800000457
+      },
+      "nativeLibraryVerificationWall": {
+        "count": 1,
+        "totalSeconds": 0.15982725499999617,
+        "minimumSeconds": 0.15982725499999617,
+        "p50Seconds": 0.15982725499999617,
+        "p95Seconds": 0.15982725499999617,
+        "maximumSeconds": 0.15982725499999617
+      },
+      "nativeImuWall": {
+        "count": 3930,
+        "totalSeconds": 0.03897883900027921,
+        "minimumSeconds": 5.0350000009302676e-06,
+        "p50Seconds": 6.2010000050349845e-06,
+        "p95Seconds": 4.763100000104714e-05,
+        "maximumSeconds": 0.00012441399999829628
+      },
+      "nativeFrameWall": {
+        "count": 196,
+        "totalSeconds": 10.300700409999962,
+        "minimumSeconds": 0.019616931000001614,
+        "p50Seconds": 0.05434164599999747,
+        "p95Seconds": 0.0601452859999938,
+        "maximumSeconds": 0.08889502799999605
+      },
+      "nativeCloseWall": {
+        "count": 1,
+        "totalSeconds": 0.0009497230000050649,
+        "minimumSeconds": 0.0009497230000050649,
+        "p50Seconds": 0.0009497230000050649,
+        "p95Seconds": 0.0009497230000050649,
+        "maximumSeconds": 0.0009497230000050649
+      },
+      "nativePreprocess": {
+        "count": 196,
+        "totalSeconds": 1.369941629,
+        "minimumSeconds": 0.006388976,
+        "p50Seconds": 0.006838807,
+        "p95Seconds": 0.008128954,
+        "maximumSeconds": 0.008679441999999999
+      },
+      "nativeOdometry": {
+        "count": 196,
+        "totalSeconds": 2.273314376,
+        "minimumSeconds": 0.003000916,
+        "p50Seconds": 0.00996932,
+        "p95Seconds": 0.021003696000000002,
+        "maximumSeconds": 0.053990091
+      },
+      "producerReadWall": {
+        "count": 4145,
+        "totalSeconds": 0.3352516169996278,
+        "minimumSeconds": 3.620000001092194e-06,
+        "p50Seconds": 2.582300000142368e-05,
+        "p95Seconds": 0.00033812399999533227,
+        "maximumSeconds": 0.0024760169999922255
+      },
+      "producerDecodeWall": {
+        "count": 4144,
+        "totalSeconds": 0.18704989899967472,
+        "minimumSeconds": 7.345000000213986e-06,
+        "p50Seconds": 4.020999999454489e-05,
+        "p95Seconds": 9.115400000325735e-05,
+        "maximumSeconds": 0.0009050350000023855
+      },
+      "producerOfferWall": {
+        "count": 4144,
+        "totalSeconds": 0.16394066299989163,
+        "minimumSeconds": 6.454000001099303e-06,
+        "p50Seconds": 3.333700000496265e-05,
+        "p95Seconds": 0.00010168800000087685,
+        "maximumSeconds": 0.0005152359999982536
+      },
+      "producerDispatchLateness": {
+        "count": 4144,
+        "totalSeconds": 6.68585136797509,
+        "minimumSeconds": 2.39489999955822e-05,
+        "p50Seconds": 0.0012720439999895916,
+        "p95Seconds": 0.005550564000003533,
+        "maximumSeconds": 0.014946134999988203
+      },
+      "producerAdmissionLateness": {
+        "count": 4144,
+        "totalSeconds": 7.077528470974713,
+        "minimumSeconds": 4.519699999150362e-05,
+        "p50Seconds": 0.0013820199999940996,
+        "p95Seconds": 0.005615602999995417,
+        "maximumSeconds": 0.015022003999987987
+      }
+    }
+  },
+  "observedWorkerTiming": {
+    "maximumQueueAgeSeconds": 0.08954851800000085,
+    "maximumScanWaitSeconds": 0.006717618999999786,
+    "childWallSeconds": 19.973845910999998,
+    "childProcessCpuSeconds": 16.391147964
+  },
+  "boundaries": {
+    "robotContacted": false,
+    "rosNodeStarted": false,
+    "liveSensorsSubscribed": false,
+    "motionCommandsSent": false,
+    "servicesChanged": false,
+    "mapSaved": false,
+    "mapActivated": false,
+    "timingHypothesisValidated": false,
+    "robotCalibrationValidated": false,
+    "geometryValidated": false,
+    "relocalizationValidated": false,
+    "targetArm64SupervisionValidated": false,
+    "systemdRecoveryValidated": false,
+    "voiceConcurrencyValidated": false,
+    "navigationValidated": false,
+    "deploymentApproved": false,
+    "rawDataPublished": false,
+    "recordedPoseUsedForInitialSeed": true,
+    "possibleMappingSequenceReuse": true,
+    "worldPointsConvertedBackToSensor": true,
+    "automaticReseeding": false,
+    "groundTruthAccuracyMeasured": false,
+    "globalRelocalizationValidated": false,
+    "localizationReady": false,
+    "navigationReady": false
+  },
+  "replayRate": 1.0,
+  "pacedRecordedInputNotLivePerformance": true
+}
