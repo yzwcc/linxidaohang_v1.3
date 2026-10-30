@@ -8,6 +8,7 @@ from pathlib import Path
 import threading
 
 from .process_protocol import session_id
+from .map_provenance import sensor_provenance as checked_provenance
 
 
 class SaveDecision:
@@ -62,13 +63,21 @@ class MappingSession:
     """
 
     def __init__(self, native_factory, mapping_factory, decision, output, *, name, session,
-                 input_mode, can_save, inspect_map, reload_map):
+                 input_mode, can_save, inspect_map, reload_map,
+                 sensor_provenance=None, verify_sensor_provenance=None):
         if (not isinstance(decision, SaveDecision) or not isinstance(name, str)
                 or not 1 <= len(name.strip()) <= 64
                 or input_mode not in ("live", "recorded", "synthetic")
                 or not all(callable(value) for value in
                            (native_factory, mapping_factory, can_save, inspect_map, reload_map))):
             raise ValueError("explicit_mapping_save_configuration_required")
+        if (sensor_provenance is None) != (verify_sensor_provenance is None):
+            raise ValueError("paired_sensor_provenance_verifier_required")
+        self.sensor_provenance = (None if sensor_provenance is None else checked_provenance(sensor_provenance))
+        if verify_sensor_provenance is not None and not callable(verify_sensor_provenance):
+            raise ValueError("callable_sensor_provenance_verifier_required")
+        self.verify_sensor_provenance = verify_sensor_provenance
+        self._verify_provenance()
         self.session = session_id(session)
         self.output, self.name, self.input_mode = Path(output), name.strip(), input_mode
         self.output.mkdir(mode=0o700)
@@ -101,6 +110,11 @@ class MappingSession:
         if threading.get_ident() != self.owner or self.closed or self.failed:
             raise RuntimeError("active_owner_thread_mapping_session_required")
 
+    def _verify_provenance(self):
+        if (self.sensor_provenance is not None
+                and checked_provenance(self.verify_sensor_provenance()) != self.sensor_provenance):
+            raise ValueError("unchanged_mapping_sensor_provenance_required")
+
     def _call(self, method, *args):
         self._active()
         try:
@@ -130,6 +144,7 @@ class MappingSession:
                 # Closing odometry emits its remaining marginalized frames exactly once.
                 self.remaining = self.native.close()
                 if not self.failed and self.decision.requested() and self.can_save() is True:
+                    self._verify_provenance()
                     stats = (ctypes.c_double * 6)()
                     self.mapping.call("finish", os.fsencode(self.output / "map"),
                                       os.fsencode(self.output / "private-saved-points.f64"), stats)
@@ -161,6 +176,10 @@ class MappingSession:
             raise ValueError("saved_map_inventory_must_match_native_counts")
         point_digest = _digest(points_path)
         reloaded = self.reload_map(self.output)
+        self._verify_provenance()
+        if (self.sensor_provenance is not None
+                and checked_provenance(reloaded.get("sensorProvenance")) != self.sensor_provenance):
+            raise ValueError("same_sensor_provenance_in_fresh_reload_required")
         comparison = reloaded.get("comparison", {})
         maximum = comparison.get("maximumPointDisplacementRawUnits")
         if (type(reloaded.get("pid")) is not int or reloaded["pid"] <= 0 or reloaded["pid"] == os.getpid()
@@ -177,11 +196,13 @@ class MappingSession:
 
         def publish():
             receipt = {
-                "schemaVersion": 1, "session": self.session, "name": self.name,
+                "schemaVersion": 2 if self.sensor_provenance is not None else 1,
+                "session": self.session, "name": self.name,
                 "inputMode": self.input_mode, "counts": counts, "mapInventory": before,
                 "savedPointsSha256": point_digest, "freshProcessReloadPassed": True,
                 "navigationReady": False, "localizationReady": False,
                 "geometricAccuracyValidated": False,
+                **({"sensorProvenance": self.sensor_provenance} if self.sensor_provenance is not None else {}),
             }
             temporary = self.output / "map-ready.pending"
             with temporary.open("x", encoding="utf-8") as stream:

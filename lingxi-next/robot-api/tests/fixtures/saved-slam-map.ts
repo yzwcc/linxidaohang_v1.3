@@ -5,6 +5,11 @@ import path from "node:path";
 
 export async function savedSlamFixture(root: string, options: {
   directory?: string; session?: string; points?: number; inputMode?: "live" | "recorded" | "synthetic";
+  sensorProvenance?: {
+    schemaVersion: 1; profileSha256: string;
+    timingHypothesis: "header_is_scan_start" | "header_is_scan_end";
+    configurationSha256: Record<string, string>;
+  };
 } = {}) {
   const directory = path.join(root, options.directory ?? "synthetic-map");
   const mapRoot = path.join(directory, "map");
@@ -44,6 +49,7 @@ export async function savedSlamFixture(root: string, options: {
     },
     savedPointsSha256: hash(bytes), freshProcessReloadPassed: true,
     navigationReady: false, localizationReady: false, geometricAccuracyValidated: false,
+    ...(options.sensorProvenance ? { schemaVersion: 2, sensorProvenance: options.sensorProvenance } : {}),
   };
   const ready = path.join(directory, "map-ready.json");
   const points = path.join(directory, "private-saved-points.f64");

@@ -78,7 +78,7 @@ def child(args, sink, platform):
     child_session = verified_child_session(platform.args)
     binding, points = load_map(
         args.saved_map, args.map_id, args.receipt_sha256, platform.profile, args.profile_sha256,
-        session=child_session, input_mode="live")
+        session=child_session, input_mode="live", sensor_provenance=platform.sensor_provenance())
     session = make_session(binding, points)
     sources, config_hash = source_hashes(), digest(args.config.read_bytes())
     gicp = Path(small_gicp.__file__).resolve(strict=True)
@@ -153,7 +153,8 @@ def child(args, sink, platform):
         try:
             reloaded, _ = load_map(
                 args.saved_map, args.map_id, args.receipt_sha256, platform.profile,
-                args.profile_sha256, session=binding.session, input_mode="live")
+                args.profile_sha256, session=binding.session, input_mode="live",
+                sensor_provenance=platform.sensor_provenance())
             if (platform.verify() != platform.frozen or source_hashes() != sources or reloaded != binding
                     or digest(args.config.read_bytes()) != config_hash or digest(gicp.read_bytes()) != gicp_hash):
                 raise ValueError("unchanged_live_localization_inputs_required")

@@ -18,7 +18,8 @@ from mapping_service import configuration, private_json
 SOURCE_NAMES = (
     "robot-runtime/python/mapping_service.py", "robot-runtime/python/controlled_mapping.py",
     "robot-runtime/python/mapping_points.py", "robot-runtime/python/mapping_platform.py",
-    "robot-slam/lingxi_slam/mapping_worker.py", "robot-slam/lingxi_slam/mapping_session.py",
+    "robot-runtime/python/localization_control.py",
+    "robot-slam/lingxi_slam/map_provenance.py", "robot-slam/lingxi_slam/mapping_worker.py", "robot-slam/lingxi_slam/mapping_session.py",
     "robot-slam/lingxi_slam/mapping_input.py", "robot-slam/lingxi_slam/sensor_admission.py",
     "robot-api/src/mapping-backend.ts", "robot-api/src/server.ts", "robot-api/src/domain.ts",
     "robot-api/src/mapping-points.ts", "robot-api/src/slam-points.ts",
@@ -121,6 +122,37 @@ def run(args):
             if len(receipts) != 1:
                 raise RuntimeError("exact_one_ready_map_required")
             receipt = json.loads(receipts[0].read_text())
+            from localization_control import load_map
+            from glim_target_controlled_mapping import configuration_files
+            from lingxi_slam.map_provenance import sensor_provenance
+            profile = Path(config["bundle"]) / "private-profile.json"
+            provenance = sensor_provenance({
+                "schemaVersion": 1, "profileSha256": digest(profile),
+                "timingHypothesis": config["hypothesis"],
+                "configurationSha256": configuration_files(Path(config["bundle"]) / "config"),
+            })
+            reloaded = json.loads((receipts[0].parent / "reload-report.json").read_text())
+            if (receipt.get("schemaVersion") != 2 or receipt.get("sensorProvenance") != provenance
+                    or reloaded.get("sensorProvenance") != provenance):
+                raise RuntimeError("versioned_matching_sensor_provenance_required")
+            options = dict(directory=receipts[0].parent, map_id="slam-" + receipt["session"],
+                           receipt_sha256=digest(receipts[0]), profile=profile,
+                           profile_sha256=digest(profile), session="f" * 32,
+                           input_mode="recorded")
+            _, localized_points = load_map(**options, sensor_provenance=provenance)
+            if len(localized_points) != receipt["counts"]["points"]:
+                raise RuntimeError("complete_provenance_bound_localization_points_required")
+            for mismatch in (
+                    None,
+                    {**provenance, "timingHypothesis": "header_is_scan_end" if config["hypothesis"]
+                     == "header_is_scan_start" else "header_is_scan_start"},
+                    {**provenance, "configurationSha256": {"different.json": "0" * 64}},
+                    {**provenance, "profileSha256": "0" * 64}):
+                try:
+                    load_map(**options, sensor_provenance=mismatch)
+                except ValueError:
+                    continue
+                raise RuntimeError("mismatched_localization_provenance_was_accepted")
             from run_glim_mapping_trial import compare_points, inventory_map
             if inventory_map(receipts[0].parent / "map") != receipt["mapInventory"]:
                 raise RuntimeError("unchanged_saved_map_inventory_required")
@@ -128,7 +160,11 @@ def run(args):
                                         receipts[0].parent / "private-reloaded-points.f64",
                                         receipt["counts"]["points"])
             report.update(result=api["result"], sessions=api["sessions"], children=children,
-                          roundTrip=comparison, apiReportSha256=digest(args.output / "private-api-report.json"))
+                          roundTrip=comparison, apiReportSha256=digest(args.output / "private-api-report.json"),
+                          sensorProvenance={"receiptSchemaVersion": 2, "freshReloadMatches": True,
+                                            "currentConfigurationMatches": True,
+                                            "localizationPointsLoaded": len(localized_points),
+                                            "missingOrMismatchedRejected": 4})
             if points_enabled:
                 if not api.get("pointStream") or not all(api["pointStream"].values()):
                     raise RuntimeError("complete_paired_point_stream_probe_required")
@@ -170,6 +206,7 @@ def public_evidence(report, trial):
                      for entry in report["children"]],
         **({"pointStream": report["pointStream"]} if "pointStream" in report else {}),
         "roundTrip": report["roundTrip"], "serviceExitCode": report["serviceExitCode"],
+        "sensorProvenance": report["sensorProvenance"],
         "socketRemoved": report["socketRemoved"],
         "boundaries": dict.fromkeys((
             "robotContacted", "liveSensorsSubscribed", "motionCommandsSent", "targetArm64Validated",

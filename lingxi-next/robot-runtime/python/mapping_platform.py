@@ -113,6 +113,16 @@ class MappingPlatform:
                                   if self.points_enabled else None)
         self.frozen = self.verify()
 
+    def sensor_provenance(self):
+        from glim_target_controlled_mapping import configuration_files
+        from lingxi_slam.map_provenance import sensor_provenance
+        from verify_slam_capture import sha256
+        return sensor_provenance({
+            "schemaVersion": 1, "profileSha256": sha256(self.profile),
+            "timingHypothesis": self.hypothesis,
+            "configurationSha256": configuration_files(self.config_dir),
+        })
+
     def verify(self):
         from verify_slam_capture import sha256
         if self.arm64:
@@ -223,6 +233,7 @@ def reload_saved(config_file, saved):
     if any(os.environ.get(key) != entry for key, entry in environment.items()):
         raise ValueError("unchanged_reviewed_native_environment_required")
     binding = MappingPlatform(value)
+    provenance = binding.sensor_provenance()
     before = inventory_map(saved / "map")
     stats = (ctypes.c_double * 4)()
     MappingLibrary(binding.mapping_library).call(
@@ -234,12 +245,14 @@ def reload_saved(config_file, saved):
         raise ValueError("complete_saved_graph_reload_required")
     comparison = compare_points(saved / "private-saved-points.f64",
                                 saved / "private-reloaded-points.f64", int(stats[1]))
-    if inventory_map(saved / "map") != before or binding.verify() != binding.frozen:
+    if (inventory_map(saved / "map") != before or binding.verify() != binding.frozen
+            or binding.sensor_provenance() != provenance):
         raise ValueError("saved_map_or_platform_changed_during_reload")
     private_json(saved / "reload-report.json", {
         "pid": os.getpid(), "loadedSubmaps": int(stats[0]),
         "loadedGraphFactors": int(stats[2]), "loadedGraphValues": int(stats[3]),
         "comparison": comparison, "mapInventory": before,
+        "sensorProvenance": provenance,
     })
 
 

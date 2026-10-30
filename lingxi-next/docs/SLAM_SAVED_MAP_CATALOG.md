@@ -14,8 +14,11 @@ There is no automatic search of vendor directories, no copy into AIMDK and
 no migration or mutation of these map files. Without this setting, existing
 management behavior is unchanged.
 
-The catalog accepts schema-1 receipts only after explicit save and independent
-process reload. It checks consistent frame/submap counts, point-file length,
+The catalog accepts schema-1 and schema-2 receipts only after explicit save and
+independent process reload. Version 2 additionally requires exact sensor and
+configuration provenance; version 1 cannot carry that field. See
+[Map Sensor Provenance](SLAM_MAP_PROVENANCE.md) for the new format and limits.
+It checks consistent frame/submap counts, point-file length,
 all map artifact sizes and SHA-256 inventory, and the complete saved-point hash.
 The inventory encoding matches the existing Python `inventory_map` routine.
 Incomplete, changed, indirect and duplicate-session entries are excluded.

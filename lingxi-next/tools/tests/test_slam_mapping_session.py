@@ -30,8 +30,15 @@ class MappingSaveLifecycle(unittest.TestCase):
         self.reload_pid = os.getpid() + 1
         self.on_reload = lambda: None
         self.frame_result = None
+        self.provenance = {
+            "schemaVersion": 1, "profileSha256": "a" * 64,
+            "timingHypothesis": "header_is_scan_start",
+            "configurationSha256": {"lidar.json": "b" * 64},
+        }
+        self.current_provenance = self.provenance
+        self.reload_provenance = self.provenance
 
-    def make(self, can_save=None):
+    def make(self, can_save=None, with_provenance=False):
         test = self
         native_created = [False]
 
@@ -88,12 +95,62 @@ class MappingSaveLifecycle(unittest.TestCase):
                 "comparison": {"pointCount": 3, "samePointOrderCompared": True,
                                "maximumPointDisplacementRawUnits": 0.,
                                "predeclaredToleranceRawUnits": 1e-4},
+                **({"sensorProvenance": self.reload_provenance}
+                   if with_provenance else {}),
             }
 
+        options = ({"sensor_provenance": self.provenance,
+                    "verify_sensor_provenance": lambda: self.current_provenance}
+                   if with_provenance else {})
         return MappingSession(Native, Mapping, self.decision, self.output,
                               name="Synthetic test map", session=SESSION, input_mode="synthetic",
                               can_save=can_save or (lambda: self.healthy),
-                              inspect_map=inspect, reload_map=reload)
+                              inspect_map=inspect, reload_map=reload, **options)
+
+    def test_provenance_is_published_only_after_matching_fresh_reload(self):
+        session = self.make(with_provenance=True)
+        self.decision.request_save()
+        session.close()
+        saved = json.loads((self.output / "map-ready.json").read_text())
+        self.assertEqual(2, saved["schemaVersion"])
+        self.assertEqual(self.provenance, saved["sensorProvenance"])
+
+    def test_provenance_change_during_reload_withdraws_ready_receipt(self):
+        session = self.make(with_provenance=True)
+        self.on_reload = lambda: setattr(self, "current_provenance", {
+            **self.provenance, "profileSha256": "c" * 64})
+        self.decision.request_save()
+        with self.assertRaisesRegex(ValueError, "unchanged_mapping_sensor_provenance_required"):
+            session.close()
+        self.assertFalse((self.output / "map-ready.json").exists())
+
+    def test_provenance_mismatch_at_initialization_creates_no_native_or_output(self):
+        self.current_provenance = {**self.provenance, "profileSha256": "c" * 64}
+        with self.assertRaisesRegex(ValueError, "unchanged_mapping_sensor_provenance_required"):
+            self.make(with_provenance=True)
+        self.assertFalse(self.output.exists())
+        self.assertEqual([], self.calls)
+
+    def test_provenance_change_before_save_skips_native_finish(self):
+        session = self.make(with_provenance=True)
+        self.current_provenance = {**self.provenance, "timingHypothesis": "header_is_scan_end"}
+        self.decision.request_save()
+        with self.assertRaisesRegex(ValueError, "unchanged_mapping_sensor_provenance_required"):
+            session.close()
+        self.assertNotIn("finish", self.calls)
+        self.assertFalse((self.output / "map-ready.json").exists())
+
+    def test_fresh_reload_must_report_the_same_provenance(self):
+        for index, reported in enumerate((None, {**self.provenance, "profileSha256": "c" * 64})):
+            with self.subTest(reported=reported):
+                self.output = Path(self.temporary.name) / str(index)
+                self.decision = SaveDecision()
+                self.reload_provenance = reported
+                session = self.make(with_provenance=True)
+                self.decision.request_save()
+                with self.assertRaises(ValueError):
+                    session.close()
+                self.assertFalse((self.output / "map-ready.json").exists())
 
     def test_explicit_save_flushes_closes_reloads_then_publishes_once(self):
         session = self.make()

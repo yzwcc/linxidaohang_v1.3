@@ -7,8 +7,14 @@ import type { SavedSlamMap, SavedSlamPointPreview } from "../../shared/contracts
 
 const positive = z.number().int().positive().safe();
 const sha256 = z.string().regex(/^[a-f0-9]{64}$/);
-const receiptSchema = z.object({
+const provenanceSchema = z.object({
   schemaVersion: z.literal(1),
+  profileSha256: sha256,
+  timingHypothesis: z.enum(["header_is_scan_start", "header_is_scan_end"]),
+  configurationSha256: z.record(z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/), sha256)
+    .refine((files) => Object.keys(files).length >= 1 && Object.keys(files).length <= 32),
+}).strict();
+const receiptFields = {
   session: z.string().regex(/^[a-f0-9]{32}$/),
   name: z.string().trim().min(1).max(64),
   inputMode: z.enum(["live", "recorded", "synthetic"]),
@@ -26,7 +32,11 @@ const receiptSchema = z.object({
   navigationReady: z.literal(false),
   localizationReady: z.literal(false),
   geometricAccuracyValidated: z.literal(false),
-});
+};
+const receiptSchema = z.union([
+  z.object({ schemaVersion: z.literal(1), ...receiptFields }).strict(),
+  z.object({ schemaVersion: z.literal(2), ...receiptFields, sensorProvenance: provenanceSchema }).strict(),
+]);
 
 const MAX_POINTS = 2_000_000;
 const PREVIEW_POINTS = 20_000;
@@ -116,6 +126,7 @@ export class SavedSlamMapCatalog {
       inputMode: receipt.inputMode, counts, freshProcessReloadPassed: true,
       localizationReady: false, navigationReady: false, geometricAccuracyValidated: false,
       coordinateUnits: "native-raw",
+      ...(receipt.schemaVersion === 2 ? { sensorProvenance: receipt.sensorProvenance } : {}),
     };
     return { map, pointsFile, pointsSha256: receipt.savedPointsSha256,
       receiptSha256: createHash("sha256").update(receiptBytes).digest("hex") };

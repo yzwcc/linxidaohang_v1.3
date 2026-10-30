@@ -65,6 +65,14 @@ export type SavedSlamMap = {
   localizationReady: false;
   navigationReady: false;
   geometricAccuracyValidated: false;
+  sensorProvenance?: SensorProvenance;
+};
+
+export type SensorProvenance = {
+  schemaVersion: 1;
+  profileSha256: string;
+  timingHypothesis: "header_is_scan_start" | "header_is_scan_end";
+  configurationSha256: Record<string, string>;
 };
 
 export type SavedSlamPointPreview = {

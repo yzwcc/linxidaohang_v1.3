@@ -126,7 +126,8 @@ def target_prepare(plan_file):
     binding = MappingPlatform(configuration(source / "private-config.json")[0])
     from localization_control import load_map
     load_map(source / "maps/saved-map", plan["mapId"], plan["receiptSha256"], binding.profile,
-             plan["profileSha256"], session="0" * 32, input_mode="recorded")
+             plan["profileSha256"], session="0" * 32, input_mode="recorded",
+             sensor_provenance=binding.sensor_provenance())
     report = {"result": "isolated_arm64_localization_prepared", "versions": versions,
             "smallGicpExtensionSha256": sha256(Path(versions["extension"])),
             "frozenInputs": binding.frozen}

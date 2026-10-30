@@ -101,7 +101,8 @@ def run(args, sink):
         factory, binding.mapper,
         SensorProfile("lidar_chest_front", "lidar_imu_chest_front", "frame_relative_nanoseconds_hypothesis"),
         binding.hypothesis, args.output, name="Pending map", session=session, input_mode=binding.mode,
-        inspect_map=inventory_map, reload_map=reload_map)
+        inspect_map=inventory_map, reload_map=reload_map,
+        sensor_provenance=binding.sensor_provenance(), verify_sensor_provenance=binding.sensor_provenance)
     mapping = MappingInput(controller)
 
     def control():

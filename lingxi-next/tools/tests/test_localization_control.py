@@ -75,6 +75,32 @@ class MapInputs(unittest.TestCase):
         }
         return control.load_map(**{**options, **kwargs})
 
+    def test_v2_receipt_requires_matching_current_sensor_provenance(self):
+        provenance = {
+            "schemaVersion": 1, "profileSha256": control.digest(self.profile.read_bytes()),
+            "timingHypothesis": "header_is_scan_start",
+            "configurationSha256": {"lidar.json": "a" * 64},
+        }
+        self.receipt.update(schemaVersion=2, sensorProvenance=provenance)
+        self.write_receipt()
+        binding, _ = self.load(sensor_provenance=provenance)
+        self.assertEqual("slam-" + "1" * 32, binding.map_id)
+        for current in (None, {**provenance, "timingHypothesis": "header_is_scan_end"},
+                        {**provenance, "profileSha256": "b" * 64},
+                        {**provenance, "configurationSha256": {"lidar.json": "b" * 64}}):
+            with self.subTest(current=current), self.assertRaises(ValueError):
+                self.load(sensor_provenance=current)
+        self.receipt["sensorProvenance"] = {**provenance, "profileSha256": "b" * 64}
+        self.write_receipt()
+        with self.assertRaisesRegex(ValueError, "matching_saved_map_sensor_provenance_required"):
+            self.load(sensor_provenance=self.receipt["sensorProvenance"])
+
+    def test_v1_receipt_with_unproven_sensor_field_is_rejected(self):
+        self.receipt["sensorProvenance"] = {"schemaVersion": 1}
+        self.write_receipt()
+        with self.assertRaisesRegex(ValueError, "versioned_saved_map_sensor_provenance_required"):
+            self.load()
+
     def test_load_owns_immutable_points_and_binds_actual_bytes(self):
         binding, points = self.load()
         np.testing.assert_array_equal(self.points, points)

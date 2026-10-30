@@ -34,7 +34,8 @@ def prepare(plan_file):
     (ROOT / "node_modules").symlink_to(consumer / "node_modules", target_is_directory=True)
     platform = MappingPlatform(configuration(ROOT / "private-config.json")[0])
     load_map(Path(plan["savedMap"]), plan["mapId"], plan["receiptSha256"],
-             platform.profile, plan["profileSha256"], session="0" * 32, input_mode="live")
+             platform.profile, plan["profileSha256"], session="0" * 32, input_mode="live",
+             sensor_provenance=platform.sensor_provenance())
     import small_gicp
     from importlib.metadata import version
     if version("small-gicp") != "1.0.1":

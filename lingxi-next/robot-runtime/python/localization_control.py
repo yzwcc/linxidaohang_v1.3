@@ -18,6 +18,7 @@ sys.path[:0] = [str(ROOT / "robot-slam"), str(ROOT / "tools")]
 from lingxi_slam.localization_session import (
     LocalizationBinding, LocalizationControlError, LocalizationSession, dispatch)
 from lingxi_slam.seeded_localization import RegistrationConfig, SeededMapRegistration
+from lingxi_slam.map_provenance import sensor_provenance as checked_provenance
 from run_glim_mapping_trial import inventory_map
 
 
@@ -35,11 +36,11 @@ def direct(path, *, directory=False):
 
 
 def load_map(directory, map_id, receipt_sha256, profile, profile_sha256, *, session,
-             input_mode, config=None):
+             input_mode, config=None, sensor_provenance=None):
     """Load owned point bytes from an integrity-checked map, never a client path.
 
-    The profile is the verified current input profile. Old receipts do not prove
-    that it was also used for mapping; this association remains unvalidated.
+    Version 2 binds the current profile and configuration bytes to mapping.
+    Version 1 remains diagnostic-only; neither version proves calibration.
     """
     config = RegistrationConfig() if config is None else config
     if not isinstance(config, RegistrationConfig):
@@ -61,7 +62,7 @@ def load_map(directory, map_id, receipt_sha256, profile, profile_sha256, *, sess
     if (type(counts) is not dict or type(inventory) is not dict
             or any(type(counts.get(key)) is not int or counts[key] < 1
                    for key in ("points", "savedFrames", "finalizedFrames", "submaps"))
-            or type(receipt.get("schemaVersion")) is not int or receipt["schemaVersion"] != 1
+            or type(receipt.get("schemaVersion")) is not int or receipt["schemaVersion"] not in (1, 2)
             or receipt.get("inputMode") not in ("recorded", "live")
             or input_mode not in ("recorded", "live")
             or map_id != "slam-" + str(receipt.get("session"))
@@ -74,6 +75,13 @@ def load_map(directory, map_id, receipt_sha256, profile, profile_sha256, *, sess
             or not config.minimum_points <= counts["points"] <= config.maximum_map_points
             or direct(points_file).st_size != counts["points"] * 24):
         raise ValueError("complete_saved_localization_map_required")
+    if receipt["schemaVersion"] == 2:
+        recorded = checked_provenance(receipt.get("sensorProvenance"))
+        expected = checked_provenance(sensor_provenance)
+        if recorded != expected or recorded["profileSha256"] != profile_sha256:
+            raise ValueError("matching_saved_map_sensor_provenance_required")
+    elif "sensorProvenance" in receipt:
+        raise ValueError("versioned_saved_map_sensor_provenance_required")
     # Bound the tree before using the existing native-map inventory validator.
     map_root = directory / "map"
     direct(map_root, directory=True)

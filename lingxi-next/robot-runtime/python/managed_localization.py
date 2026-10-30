@@ -67,7 +67,7 @@ def run(args):
     }
     profile = platform.profile
     load_map(args.saved_map, args.map_id, args.receipt_sha256, profile, args.profile_sha256,
-             session="0" * 32, input_mode=mode)
+             session="0" * 32, input_mode=mode, sensor_provenance=platform.sensor_provenance())
 
     def native_command(output):
         command = [sys.executable, "-B", str(ROOT / "robot-runtime/python/controlled_localization.py"), "child"]
@@ -81,7 +81,7 @@ def run(args):
         native_environment=environment, api_environment=api, output=args.output, saved_maps=saved_maps)
     binding, _ = load_map(
         args.saved_map, args.map_id, args.receipt_sha256, profile, args.profile_sha256,
-        session=owner.native.session, input_mode=mode)
+        session=owner.native.session, input_mode=mode, sensor_provenance=platform.sensor_provenance())
 
     def verify():
         if mode == "live":
@@ -104,7 +104,7 @@ def run(args):
             raise ValueError("unchanged_managed_localization_inputs_required")
         reloaded, _ = load_map(
             args.saved_map, args.map_id, args.receipt_sha256, profile, args.profile_sha256,
-            session=binding.session, input_mode=mode)
+            session=binding.session, input_mode=mode, sensor_provenance=platform.sensor_provenance())
         if reloaded != binding:
             raise ValueError("unchanged_managed_localization_binding_required")
         for path, expected in ((args.node, args.node_sha256), (args.api_bundle, args.api_sha256)):

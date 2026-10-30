@@ -31,6 +31,7 @@ SOURCES = (
     "tools/glim_live_session.py",
     "robot-slam/lingxi_slam/passive_ros.py",
     "robot-slam/lingxi_slam/worker.py",
+    "robot-slam/lingxi_slam/map_provenance.py",
 )
 
 
@@ -95,7 +96,8 @@ def child(args, sink):
     profile = platform.profile
     binding, points = load_map(
         args.saved_map, args.map_id, args.receipt_sha256, profile, args.profile_sha256,
-        session=session_id(os.environ.get("LINGXI_SLAM_SESSION")), input_mode="recorded")
+        session=session_id(os.environ.get("LINGXI_SLAM_SESSION")), input_mode="recorded",
+        sensor_provenance=platform.sensor_provenance())
     session = make_session(binding, points)
     decode = platform.decoder()
     config_hash = digest(args.config.read_bytes())
@@ -114,7 +116,7 @@ def child(args, sink):
             raise ValueError("localization_configuration_changed")
         reloaded, _ = load_map(
             args.saved_map, args.map_id, args.receipt_sha256, profile, args.profile_sha256,
-            session=binding.session, input_mode="recorded")
+            session=binding.session, input_mode="recorded", sensor_provenance=platform.sensor_provenance())
         if reloaded != binding:
             raise ValueError("localization_binding_changed")
         return {**current, "localizationBinding": asdict(binding),
@@ -179,7 +181,7 @@ def run(args):
         binding, _ = load_map(
             args.saved_map, args.map_id, args.receipt_sha256,
             platform.profile, args.profile_sha256,
-            session=owner.session, input_mode="recorded")
+            session=owner.session, input_mode="recorded", sensor_provenance=platform.sensor_provenance())
         expected = platform.frozen["journal"]
         terminal = replay.coordinate(owner, expected["records"], args.seconds)
         child_report = strict_json((args.output / "child-report.json").read_bytes())

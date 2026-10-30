@@ -90,6 +90,25 @@ class PlatformConfiguration(unittest.TestCase):
         self.assertEqual("recorded", binding.mode)
         self.assertEqual({"frozen": True}, binding.frozen)
 
+    def test_sensor_provenance_hashes_actual_profile_and_configuration_files(self):
+        config = self.root / "config"
+        config.mkdir()
+        settings = config / "lidar.json"
+        settings.write_bytes(b'{"synthetic":true}')
+        profile = self.root / "private-profile.json"
+        profile.write_bytes(b'{"syntheticProfile":true}')
+        with patch.object(MappingPlatform, "verify", return_value={}):
+            binding = MappingPlatform(self.arm())
+        before = binding.sensor_provenance()
+        self.assertEqual(hashlib.sha256(profile.read_bytes()).hexdigest(), before["profileSha256"])
+        self.assertEqual({"lidar.json": hashlib.sha256(settings.read_bytes()).hexdigest()},
+                         before["configurationSha256"])
+        settings.write_bytes(b'{"synthetic":false}')
+        self.assertNotEqual(before, binding.sensor_provenance())
+        before = binding.sensor_provenance()
+        profile.write_bytes(b'{"syntheticProfile":false}')
+        self.assertNotEqual(before, binding.sensor_provenance())
+
 
 class LoadedLibraries(unittest.TestCase):
     def test_optional_inventory_modules_need_not_be_loaded_but_cannot_be_replaced(self):

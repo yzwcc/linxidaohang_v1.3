@@ -10,7 +10,8 @@ from .worker import SensorWorker, WorkerLimits
 
 class MappingWorker:
     def __init__(self, native_factory, mapping_factory, profile, hypothesis, output, *,
-                 name, session, input_mode, inspect_map, reload_map, save_timeout_seconds=90.):
+                 name, session, input_mode, inspect_map, reload_map, save_timeout_seconds=90.,
+                 sensor_provenance=None, verify_sensor_provenance=None):
         if (type(save_timeout_seconds) not in (float, int)
                 or not 5 <= save_timeout_seconds <= 120
                 or not callable(mapping_factory)):
@@ -28,7 +29,8 @@ class MappingWorker:
             native_session = MappingSession(
                 native_factory, mapping_factory, self.decision, self.output,
                 name=self.name, session=session, input_mode=input_mode, can_save=self._can_save,
-                inspect_map=inspect_map, reload_map=reload_map)
+                inspect_map=inspect_map, reload_map=reload_map,
+                sensor_provenance=sensor_provenance, verify_sensor_provenance=verify_sensor_provenance)
             # Initialization can overlap a stop-time rename; publish the latest name.
             with self.phase_lock:
                 native_session.name = self.name

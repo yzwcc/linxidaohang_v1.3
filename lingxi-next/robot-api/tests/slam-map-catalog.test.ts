@@ -47,6 +47,37 @@ describe("saved SLAM receipt catalog", () => {
     expect(JSON.stringify(await catalog.list())).not.toContain(root);
   });
 
+  it("reads v2 sensor provenance without treating it as readiness evidence", async () => {
+    const sensorProvenance = {
+      schemaVersion: 1 as const, profileSha256: "a".repeat(64),
+      timingHypothesis: "header_is_scan_start" as const,
+      configurationSha256: { "lidar.json": "b".repeat(64) },
+    };
+    const fixture = await savedSlamFixture(maps, { sensorProvenance });
+    const [map] = await catalog.list();
+    expect(map.sensorProvenance).toEqual(sensorProvenance);
+    expect(map.localizationReady).toBe(false);
+    expect(map.navigationReady).toBe(false);
+    expect((await catalog.preview(fixture.id)).mapId).toBe(fixture.id);
+  });
+
+  it("excludes malformed v2 provenance and refuses provenance smuggled into v1", async () => {
+    const provenance = {
+      schemaVersion: 1 as const, profileSha256: "a".repeat(64),
+      timingHypothesis: "header_is_scan_start" as const,
+      configurationSha256: { "lidar.json": "b".repeat(64) },
+    };
+    const fixture = await savedSlamFixture(maps, { sensorProvenance: provenance });
+    await writeFile(fixture.ready, JSON.stringify({
+      ...fixture.receipt, sensorProvenance: { ...provenance, unexpected: true },
+    }));
+    expect(await catalog.list()).toEqual([]);
+    await writeFile(fixture.ready, JSON.stringify({
+      ...fixture.receipt, schemaVersion: 1,
+    }));
+    expect(await catalog.list()).toEqual([]);
+  });
+
   it("distinguishes changed receipt identity even when the map ID and point bytes are retained", async () => {
     const fixture = await savedSlamFixture(maps);
     const before = await catalog.preview(fixture.id);
