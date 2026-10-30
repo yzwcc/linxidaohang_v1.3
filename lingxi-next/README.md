@@ -264,6 +264,11 @@ npm run build
 
 ## Robot runtime
 
+The robot ARM64 path now passes schema-v2 recorded map save, fresh native
+reload, point-stream reconnects and a paired HTTPS known-seed localization
+lifecycle using that same new map. This is not physical accuracy or navigation
+acceptance. See `docs/SLAM_MAP_PROVENANCE.md` for results and remaining gates.
+
 The opt-in independent GLIM path now has recorded-data start/save/discard
 controls, same-engine corrected point display and a verified saved-point
 preview. A separate bounded commissioning launcher supports paired HTTPS

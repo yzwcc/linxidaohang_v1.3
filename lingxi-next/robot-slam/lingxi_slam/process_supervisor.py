@@ -111,6 +111,7 @@ class ProcessSupervisor:
         with self.condition:
             if self.failure is None:
                 self.failure = reason
+                print(f"slam_process_fault:{reason}", file=sys.stderr, flush=True)
             self.state = "failed"
             self.condition.notify_all()
 

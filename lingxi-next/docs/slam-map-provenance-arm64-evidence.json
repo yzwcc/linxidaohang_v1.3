@@ -1,0 +1,106 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-30",
+  "result": "arm64_v2_map_save_reload_and_recorded_seed_lifecycle_verified",
+  "machine": "aarch64",
+  "inputMode": "recorded",
+  "rate": 1.0,
+  "hostIdentityVerified": true,
+  "mapping": {
+    "privateTrialReportSha256": "70c074f23eec669e769066802d43e6422c729424ccc5b95d07c7ca65edd4c82d",
+    "collectedAggregateSha256": "72214f1f5d780f4d75de45abe770d8ae5d90d5363a5566e5c45e4b02b77e730e",
+    "probeSha256": "1249c52b5864d6041028d551887eea33fe03c294f8f5e00f83f12712c14d2c21",
+    "sourceSha256": {
+      "docs/slam-stream-input-evidence.json": "d4defa80f4e5d48ca0bc620965218103c89726cdde0e523531d14262468449cc",
+      "docs/slam-point-arm64-target-evidence.json": "83311c9c80d6f9e8829ca739fff1230cea08e9ce3815ecfeb210607ac7815af0",
+      "robot-runtime/python/mapping_service.py": "6f6a52916e1d3e1f71ede9d8d2438d0041c43797ccad0b93a2823a9944734830",
+      "robot-runtime/python/controlled_mapping.py": "6f4ffd74654d912a56eec66a8b65c92e8750b4fffdaec8546ec5959d7756604a",
+      "robot-runtime/python/mapping_points.py": "f8e7bc00e9474ad452811ce4ba2b7b4cf9456298452dbcf73e6abfc6a1e963aa",
+      "robot-runtime/python/mapping_platform.py": "958f358436831f0d1f5a97c63285e1e9906092acf111a8c9820f61c73e19b898",
+      "robot-runtime/python/localization_control.py": "4e7d61115989dac4068f0b8e5e39afd33a58303b37983c9d825140166538ddd0",
+      "robot-slam/lingxi_slam/map_provenance.py": "bec5841b0f8097c97fb4eef5304f95a5416d7a1a4707aff0727bfd0e365f1587",
+      "robot-slam/lingxi_slam/mapping_worker.py": "e5e0b8bb48b4e82665874cd71638af986b34b458159be4b732b66596ab954224",
+      "robot-slam/lingxi_slam/mapping_session.py": "a3bf217dff9edd37c20ea8c2bb51553370777564f046c8b28708af24c240b0d1",
+      "robot-slam/lingxi_slam/mapping_input.py": "a34d3838b05236bd4cd60475b5c85f6db2c6487d6c2d8faf41fedb8b6b2f9385",
+      "robot-slam/lingxi_slam/sensor_admission.py": "eafe810e053f5da92ea022dd66615c568deca4a5ca6143ff82e894a19c1e626d",
+      "robot-slam/lingxi_slam/process_supervisor.py": "4118824773cb11e0d2c1e3c0d19734b20b1639919a8bc85c2649b73711119841",
+      "robot-slam/lingxi_slam/worker.py": "59beea9c8c9015dc1b24f09fc010ccb86f59eda469a0d9af990777c715ff5cea",
+      "robot-api/src/mapping-backend.ts": "92b9f37b02e6c67f7324f9c49bdf95ee59ceed6a64ac6bcc05be29a1e02b0e36",
+      "robot-api/src/server.ts": "e2f5c9473f80f7da8bc6c52700329cc2eb3def4f7745c94d794284f54ca14e7a",
+      "robot-api/src/domain.ts": "4d4f4aed45a21cb676785101dadda9a9f350615d0ea035d44555a86595de73a3",
+      "robot-api/src/mapping-points.ts": "fd2197878fc0ced2e23aac44807a9533b086b160a58fe4dd41b195143eb5a74c",
+      "robot-api/src/slam-points.ts": "b9ad55d77d51e764536248069987080358d69a98eb904c18804a72c797ff2dca",
+      "robot-slam/lingxi_slam/point_data.py": "14444f89b917eb98b7edf4804acb45948babe20cd28214fa20734c08cddefc36",
+      "robot-slam/lingxi_slam/point_pipe.py": "c19c395dc7d3429d238bb870319b56defbbb3858ca70e025cbb03ea6733fb822",
+      "robot-slam/lingxi_slam/point_output.py": "4b501e2411fd6e54f6b22f954fe13ac222de8d43ad221d61aba5de102512ba81",
+      "shared/contracts.ts": "c7e519f46255082baf2eb8e1200a5cc926d36ed65f3158e9a90dba730e078e9d",
+      "tools/check-mapping-control.ts": "201ad8559be6f79c136dfa32446b08fbcf1bd674bff940331150702b8d164387",
+      "tools/run_mapping_control_trial.py": "93ccb42a03b7f0fd389047d6d8d5c8a0c8cf72114ad2ebac99abbd9468f88812"
+    },
+    "sessions": [
+      {"save": true, "completedMessages": 4144, "processedScans": 196, "estimatedPoses": 165},
+      {"save": false, "completedMessages": 4144, "processedScans": 196, "estimatedPoses": 165}
+    ],
+    "counts": {"finalizedFrames": 165, "savedFrames": 165, "submaps": 1, "points": 2655},
+    "roundTrip": {
+      "pointCount": 2655,
+      "maximumPointDisplacementRawUnits": 4.917714307212616e-7,
+      "rmsPointDisplacementRawUnits": 1.6491822479343285e-7,
+      "predeclaredToleranceRawUnits": 0.0001,
+      "samePointOrderCompared": true,
+      "geometricAccuracyValidated": false
+    },
+    "sensorProvenance": {
+      "receiptSchemaVersion": 2, "freshReloadMatches": true, "currentConfigurationMatches": true,
+      "localizationPointsLoaded": 2655, "missingOrMismatchedRejected": 4
+    },
+    "pointStream": {
+      "pairedWebSocket": true, "singleServerAcrossSessions": true, "browserReconnects": 2,
+      "recordedProvenance": true, "freshBoundedPoints": true, "noDemoFallback": true, "clearsAfterStop": true
+    },
+    "nativeCreateCloseOncePerChild": true,
+    "serviceExitCode": 0,
+    "socketRemoved": true
+  },
+  "recordedLocalization": {
+    "privateCheckReportSha256": "5431b1940953ae8c0223c19fdef261d69a9c617228e4a6dfa89d545d7b7d2dc0",
+    "privateCollectionReportSha256": "6fcef6eb5e557c2d9a124edc395779ef8163a1855b8046b521cae115a480ea4d",
+    "apiBundleSha256": "ecf215415ff19b10d404bbec373cfd2d246f9d05a68fb147d891a00b59988471",
+    "nodeSha256": "7e48183361053f039294fbbc3ba586722fe756bf296d6cb8195356d10819cd16",
+    "sourceSha256": {
+      "robot-runtime/python/controlled_localization.py": "cd8f688926747a34a79fade25e3a2f35649411bdae6b2298830d2df241dfeac4",
+      "robot-runtime/python/localization_control.py": "4e7d61115989dac4068f0b8e5e39afd33a58303b37983c9d825140166538ddd0",
+      "robot-runtime/python/mapping_platform.py": "958f358436831f0d1f5a97c63285e1e9906092acf111a8c9820f61c73e19b898",
+      "robot-slam/lingxi_slam/localization_session.py": "97038363e0910e777615233dc2b40c7f558ba010a2a303d445094dafb47c9714",
+      "robot-slam/lingxi_slam/localization_tracking.py": "c4b99640f0c9380bcc44f0daa0b1f2c37b760ba2559cf5f636483ec253444611",
+      "robot-slam/lingxi_slam/seeded_localization.py": "563bebbe0710ba07b96e4721d12b033443e0a317834b117c0b2697fe003f8a8f",
+      "robot-runtime/python/live_localization.py": "b4e9b92370fd29efcd552cb058653955fdee9f8d18ba8ca76456401ead4cea59",
+      "robot-runtime/python/live_child.py": "13fe9ee8215dc4a555ca73fafbe4c9de2462ebb92ec371bad0486683105685ea",
+      "robot-runtime/python/live_points.py": "535852cdae450a4af6ab54d8ac86f3577591f67c1d22562e0b4f1c9e60325e60",
+      "tools/glim_live_session.py": "6fa7bb6bbdf8708e51443c5385f8e40eff7ea622a6c27326556de2b3f007a504",
+      "robot-slam/lingxi_slam/passive_ros.py": "11f3468e15b020e375b2ab7cd86ef2df01b3ff11ea262c822bbabb74485588de",
+      "robot-slam/lingxi_slam/worker.py": "59beea9c8c9015dc1b24f09fc010ccb86f59eda469a0d9af990777c715ff5cea",
+      "robot-slam/lingxi_slam/map_provenance.py": "bec5841b0f8097c97fb4eef5304f95a5416d7a1a4707aff0727bfd0e365f1587",
+      "robot-runtime/python/managed_localization.py": "24f0753145f3e763f181fc2d3a6c4ebb168ff5da7f4bc9ac05d53f6f7bcac4bf",
+      "robot-runtime/python/localization_owner.py": "6068acf26a5b0f0d92251ba01892e0a23a3ab2f26476e71a70da4501eb4efd1a",
+      "tools/check_managed_localization_runtime.py": "6f1d6d76bc7a4c55e83f73ca6871af253fd32d1248ca5b38ca6e91e8b1247fdf"
+    },
+    "seedSource": "preserved_recorded_pose_at_explicit_current_reference_not_truth",
+    "seedRequests": 1, "seedReferenceFrame": 1, "trackingFrameObserved": 4,
+    "pauseConfirmed": true, "stopConfirmed": true, "staleGenerationRejected": true,
+    "stoppedQueries": 557, "completedMessages": 4144, "processedScans": 196, "estimatedPoses": 165,
+    "nativeCalls": {"create": 1, "imu": 3930, "frame": 196, "close": 1},
+    "singleNativeWorker": true,
+    "apiProcess": {"exitCode": 0, "forcedTermination": false, "processAlive": false, "groupAlive": false},
+    "nativeProcess": {
+      "state": "stopped", "exitCode": 0, "forcedTermination": false,
+      "cleanupComplete": true, "processAlive": false, "monitorAlive": false
+    }
+  },
+  "boundaries": {
+    "robotContacted": true, "liveSensorsSubscribed": false, "motionCommandsSent": false,
+    "targetArm64Validated": true, "geometricAccuracyValidated": false,
+    "mapProfileAssociationVerified": false, "localizationReady": false,
+    "navigationReady": false, "deploymentApproved": false
+  }
+}

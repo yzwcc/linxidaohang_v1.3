@@ -36,6 +36,7 @@ class MappingInputContracts(unittest.TestCase):
         self.frame_entered, self.frame_release = threading.Event(), threading.Event()
         self.frame_release.set()
         self.on_reload = lambda: None
+        self.verify_save = lambda: None
         test = self
 
         def record(name):
@@ -120,7 +121,8 @@ class MappingInputContracts(unittest.TestCase):
             SensorProfile("synthetic_cloud", "synthetic_imu", "frame_relative_nanoseconds_hypothesis"),
             "header_is_scan_start", self.output, name="Synthetic map",
             session="bbaaccdd00112233445566778899aabb", input_mode="synthetic",
-            inspect_map=inspect, reload_map=reload, save_timeout_seconds=5.)
+            inspect_map=inspect, reload_map=reload, save_timeout_seconds=5.,
+            verify_save=lambda: self.verify_save())
         self.input = MappingInput(self.controller)
         self.addCleanup(self.controller.stop)
 
@@ -231,13 +233,35 @@ class MappingInputContracts(unittest.TestCase):
         self.assertFalse((self.output / "map-ready.json").exists())
 
     def test_managed_changed_platform_rejects_save(self):
+        def changed():
+            raise RuntimeError("synthetic_platform_changed_before_save")
+        self.verify_save = changed
         self.start()
-        with self.assertRaisesRegex(RuntimeError, "mapping_inputs_changed_before_stop"):
+        with self.assertRaisesRegex(RuntimeError, "mapping_terminal_not_confirmed"):
             finish_input(self.input, "requested_stop", SimpleNamespace(received=True),
                          {"name": "Must not save"}, threading.Event(), lambda: {"changed": True}, {})
         self.controller.stop()
         self.assertNotIn("mapper_finish", self.calls)
         self.assertFalse((self.output / "map-ready.json").exists())
+
+    def test_slow_full_verification_runs_only_after_the_input_watchdog_stops(self):
+        verifications = []
+        def verify():
+            state = self.controller.worker.snapshot()
+            self.assertEqual("stopping", state["state"])
+            self.assertEqual("finished", state["stream"]["state"])
+            self.assertIn("native_close", self.calls)
+            time.sleep(.8)
+            verifications.append(True)
+        self.verify_save = verify
+        self.start()
+        def final_verify():
+            self.assertFalse(self.controller.worker.snapshot()["threadAlive"])
+            return {}
+        terminal = finish_input(self.input, "requested_stop", SimpleNamespace(received=True),
+                                {"name": "Verified after drain"}, threading.Event(), final_verify, {})
+        self.assertEqual("saved", terminal["phase"])
+        self.assertEqual(2, len(verifications))
 
     def test_managed_parent_loss_revokes_a_pending_save(self):
         self.start()

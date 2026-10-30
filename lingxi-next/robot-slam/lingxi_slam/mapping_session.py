@@ -5,7 +5,9 @@ import json
 import math
 import os
 from pathlib import Path
+import sys
 import threading
+import traceback
 
 from .process_protocol import session_id
 from .map_provenance import sensor_provenance as checked_provenance
@@ -64,7 +66,7 @@ class MappingSession:
 
     def __init__(self, native_factory, mapping_factory, decision, output, *, name, session,
                  input_mode, can_save, inspect_map, reload_map,
-                 sensor_provenance=None, verify_sensor_provenance=None):
+                 sensor_provenance=None, verify_sensor_provenance=None, verify_save=None):
         if (not isinstance(decision, SaveDecision) or not isinstance(name, str)
                 or not 1 <= len(name.strip()) <= 64
                 or input_mode not in ("live", "recorded", "synthetic")
@@ -77,6 +79,9 @@ class MappingSession:
         if verify_sensor_provenance is not None and not callable(verify_sensor_provenance):
             raise ValueError("callable_sensor_provenance_verifier_required")
         self.verify_sensor_provenance = verify_sensor_provenance
+        if verify_save is not None and not callable(verify_save):
+            raise ValueError("callable_mapping_save_verifier_required")
+        self.verify_save = verify_save
         self._verify_provenance()
         self.session = session_id(session)
         self.output, self.name, self.input_mode = Path(output), name.strip(), input_mode
@@ -144,6 +149,9 @@ class MappingSession:
                 # Closing odometry emits its remaining marginalized frames exactly once.
                 self.remaining = self.native.close()
                 if not self.failed and self.decision.requested() and self.can_save() is True:
+                    # Full binary/journal verification must not stall the active input watchdog.
+                    if self.verify_save is not None:
+                        self.verify_save()
                     self._verify_provenance()
                     stats = (ctypes.c_double * 6)()
                     self.mapping.call("finish", os.fsencode(self.output / "map"),
@@ -162,6 +170,9 @@ class MappingSession:
         except BaseException as error:
             self.close_error = error
             self.decision.discard()
+            origin = traceback.extract_tb(error.__traceback__)[-1]
+            print(f"mapping_close_failure:{type(error).__name__}:"
+                  f"{Path(origin.filename).name}:{origin.lineno}", file=sys.stderr, flush=True)
             raise
         finally:
             self.decision.finish()
@@ -176,6 +187,8 @@ class MappingSession:
             raise ValueError("saved_map_inventory_must_match_native_counts")
         point_digest = _digest(points_path)
         reloaded = self.reload_map(self.output)
+        if self.verify_save is not None:
+            self.verify_save()
         self._verify_provenance()
         if (self.sensor_provenance is not None
                 and checked_provenance(reloaded.get("sensorProvenance")) != self.sensor_provenance):

@@ -1,7 +1,9 @@
 """A single mapping session; sensor callbacks never perform save or native work."""
 from dataclasses import replace
 from pathlib import Path
+import sys
 import threading
+import traceback
 
 from .mapping_session import MappingSession, SaveDecision
 from .process_protocol import session_id
@@ -11,7 +13,7 @@ from .worker import SensorWorker, WorkerLimits
 class MappingWorker:
     def __init__(self, native_factory, mapping_factory, profile, hypothesis, output, *,
                  name, session, input_mode, inspect_map, reload_map, save_timeout_seconds=90.,
-                 sensor_provenance=None, verify_sensor_provenance=None):
+                 sensor_provenance=None, verify_sensor_provenance=None, verify_save=None):
         if (type(save_timeout_seconds) not in (float, int)
                 or not 5 <= save_timeout_seconds <= 120
                 or not callable(mapping_factory)):
@@ -26,11 +28,19 @@ class MappingWorker:
         self.phase_lock, self.stop_lock = threading.Lock(), threading.Lock()
 
         def factory():
-            native_session = MappingSession(
-                native_factory, mapping_factory, self.decision, self.output,
-                name=self.name, session=session, input_mode=input_mode, can_save=self._can_save,
-                inspect_map=inspect_map, reload_map=reload_map,
-                sensor_provenance=sensor_provenance, verify_sensor_provenance=verify_sensor_provenance)
+            try:
+                native_session = MappingSession(
+                    native_factory, mapping_factory, self.decision, self.output,
+                    name=self.name, session=session, input_mode=input_mode, can_save=self._can_save,
+                    inspect_map=inspect_map, reload_map=reload_map,
+                    sensor_provenance=sensor_provenance, verify_sensor_provenance=verify_sensor_provenance,
+                    verify_save=verify_save)
+            except BaseException as error:
+                origin = traceback.extract_tb(error.__traceback__)[-1]
+                # Private stderr gets code location, never exception text or input values.
+                print(f"mapping_startup_failure:{type(error).__name__}:"
+                      f"{Path(origin.filename).name}:{origin.lineno}", file=sys.stderr, flush=True)
+                raise
             # Initialization can overlap a stop-time rename; publish the latest name.
             with self.phase_lock:
                 native_session.name = self.name

@@ -1,6 +1,8 @@
 """Synthetic lifecycle checks, not native mapping or robot acceptance."""
 import hashlib
 import importlib.util
+from contextlib import redirect_stderr
+import io
 import json
 import os
 from pathlib import Path
@@ -37,6 +39,7 @@ class MappingSaveLifecycle(unittest.TestCase):
         }
         self.current_provenance = self.provenance
         self.reload_provenance = self.provenance
+        self.verify_save = None
 
     def make(self, can_save=None, with_provenance=False):
         test = self
@@ -105,7 +108,37 @@ class MappingSaveLifecycle(unittest.TestCase):
         return MappingSession(Native, Mapping, self.decision, self.output,
                               name="Synthetic test map", session=SESSION, input_mode="synthetic",
                               can_save=can_save or (lambda: self.healthy),
-                              inspect_map=inspect, reload_map=reload, **options)
+                              inspect_map=inspect, reload_map=reload,
+                              verify_save=self.verify_save, **options)
+
+    def test_save_verifier_runs_after_native_close_and_again_after_reload(self):
+        def verify():
+            self.calls.append("verify-save")
+        self.verify_save = verify
+        session = self.make()
+        self.decision.request_save()
+        session.close()
+        self.assertEqual(2, self.calls.count("verify-save"))
+        self.assertLess(self.calls.index("native-close"), self.calls.index("verify-save"))
+        self.assertLess(self.calls.index("verify-save"), self.calls.index("finish"))
+        self.assertGreater(len(self.calls) - 1, self.calls.index("reload"))
+
+    def test_save_input_change_at_either_verification_prevents_publication(self):
+        for fail_at in (1, 2):
+            with self.subTest(fail_at=fail_at):
+                self.output = self.output.parent / ("changed-" + str(fail_at))
+                self.decision, attempts = SaveDecision(), []
+                def verify():
+                    attempts.append(True)
+                    if len(attempts) == fail_at:
+                        raise ValueError("synthetic_saved_inputs_changed")
+                self.verify_save = verify
+                session = self.make()
+                self.decision.request_save()
+                with self.assertRaisesRegex(ValueError, "saved_inputs_changed"):
+                    session.close()
+                self.assertFalse((self.output / "map-ready.json").exists())
+                self.assertIsNone(session.receipt)
 
     def test_provenance_is_published_only_after_matching_fresh_reload(self):
         session = self.make(with_provenance=True)
@@ -227,6 +260,16 @@ class MappingSaveLifecycle(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "independent_unchanged"):
             session.close()
         self.assertFalse((self.output / "map-ready.json").exists())
+
+    def test_close_failure_logs_code_location_without_exception_text(self):
+        session = self.make()
+        self.failure = "native-close"
+        output = io.StringIO()
+        with redirect_stderr(output), self.assertRaises(RuntimeError):
+            session.close()
+        self.assertRegex(output.getvalue(), r"mapping_close_failure:RuntimeError:test_slam_mapping_session.py:\d+")
+        self.assertNotIn("synthetic_close_failure", output.getvalue())
+        self.assertNotIn(str(self.output), output.getvalue())
 
     def test_map_changed_during_reload_is_not_published(self):
         session = self.make()

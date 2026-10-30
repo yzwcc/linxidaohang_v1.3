@@ -1,9 +1,10 @@
-"""Stage and run the local recorded GLIM service plus the paired API probe."""
+"""Run one isolated Linux recorded GLIM service and paired API probe."""
 import argparse
 import hashlib
 import json
 import os
 from pathlib import Path
+import platform
 import shutil
 import signal
 import subprocess
@@ -16,11 +17,14 @@ sys.path[:0] = [str(ROOT / "robot-runtime/python"), str(ROOT / "tools")]
 from mapping_service import configuration, private_json
 
 SOURCE_NAMES = (
+    "docs/slam-stream-input-evidence.json", "docs/slam-point-arm64-target-evidence.json",
     "robot-runtime/python/mapping_service.py", "robot-runtime/python/controlled_mapping.py",
     "robot-runtime/python/mapping_points.py", "robot-runtime/python/mapping_platform.py",
     "robot-runtime/python/localization_control.py",
     "robot-slam/lingxi_slam/map_provenance.py", "robot-slam/lingxi_slam/mapping_worker.py", "robot-slam/lingxi_slam/mapping_session.py",
     "robot-slam/lingxi_slam/mapping_input.py", "robot-slam/lingxi_slam/sensor_admission.py",
+    "robot-slam/lingxi_slam/process_supervisor.py",
+    "robot-slam/lingxi_slam/worker.py",
     "robot-api/src/mapping-backend.ts", "robot-api/src/server.ts", "robot-api/src/domain.ts",
     "robot-api/src/mapping-points.ts", "robot-api/src/slam-points.ts",
     "robot-slam/lingxi_slam/point_data.py", "robot-slam/lingxi_slam/point_pipe.py",
@@ -37,6 +41,30 @@ def digest(path):
     return value.hexdigest()
 
 
+def recorded_inputs(config, machine):
+    arm = config.get("platform") == "arm64-humble"
+    if config.get("inputMode") != "recorded" or machine != ("aarch64" if arm else "x86_64"):
+        raise ValueError("matching_linux_architecture_and_recorded_input_required")
+    names = (("root", "coreRoot", "mappingRoot", "reference") if arm else
+             ("work", "adapter", "mappingAdapter", "bundle", "reference"))
+    roots = [Path(config[name]) for name in names]
+    if "pointAdapter" in config:
+        roots.append(Path(config["pointAdapter"]))
+    return roots, Path(config["root" if arm else "bundle"]) / "private-profile.json"
+
+
+def stage_runtime(source, runtime, *, arm64):
+    for name in ("tools", "robot-slam", "robot-runtime/python"):
+        shutil.copytree(source / name, runtime / name, ignore=shutil.ignore_patterns(
+            "__pycache__", ".pytest_cache", "*.pyc"))
+    (runtime / "docs").mkdir(mode=0o700)
+    names = ["slam-stream-input-evidence.json"]
+    if arm64:
+        names.append("slam-point-arm64-target-evidence.json")
+    for name in names:
+        shutil.copyfile(source / "docs" / name, runtime / "docs" / name)
+
+
 def run(args):
     config, _ = configuration(args.config)
     if args.point_adapter is not None:
@@ -45,22 +73,19 @@ def run(args):
             raise ValueError("direct_frozen_point_adapter_required")
         config = {**config, "pointAdapter": str(entry)}
     points_enabled = "pointAdapter" in config
+    machine = platform.machine()
+    roots, profile = recorded_inputs(config, machine)
+    if args.node_sha256 is not None and digest(args.node) != args.node_sha256:
+        raise ValueError("expected_mapping_probe_node_bytes_required")
     cache = (Path.home() / ".cache/lingxi-next").resolve(strict=True)
     if (sys.platform != "linux" or os.geteuid() == 0 or not args.output.is_absolute()
             or args.output.exists() or not args.output.resolve().is_relative_to(cache)
             or args.output.resolve() != args.output
-            or any(args.output.is_relative_to(Path(config[key])) for key in
-                   ("work", "adapter", "mappingAdapter", "bundle", "reference",
-                    *(("pointAdapter",) if points_enabled else ())))):
+            or any(args.output.is_relative_to(root) for root in roots)):
         raise ValueError("new_private_local_linux_mapping_trial_required")
     args.output.mkdir(mode=0o700)
     runtime = args.output / "runtime-source"
-    for name in ("tools", "robot-slam", "robot-runtime/python"):
-        shutil.copytree(ROOT / name, runtime / name, ignore=shutil.ignore_patterns(
-            "__pycache__", ".pytest_cache", "*.pyc"))
-    (runtime / "docs").mkdir(mode=0o700)
-    shutil.copyfile(ROOT / "docs/slam-stream-input-evidence.json",
-                    runtime / "docs/slam-stream-input-evidence.json")
+    stage_runtime(ROOT, runtime, arm64=machine == "aarch64")
     config_file = args.output / "private-config.json"
     private_json(config_file, config)
     probe = args.output / "probe.cjs"
@@ -71,7 +96,7 @@ def run(args):
     if len(os.fsencode(socket)) >= 100:
         raise ValueError("short_local_mapping_socket_path_required")
     report = {"result": "failed", "robotContacted": False, "motionCommandsSent": False,
-              "inputMode": "recorded", "probeSha256": digest(probe),
+              "inputMode": "recorded", "machine": machine, "probeSha256": digest(probe),
               "sourceSha256": {name: digest(ROOT / name) for name in SOURCE_NAMES}}
     service = None
     with (args.output / "private-service.log").open("xb") as log:
@@ -125,11 +150,10 @@ def run(args):
             from localization_control import load_map
             from glim_target_controlled_mapping import configuration_files
             from lingxi_slam.map_provenance import sensor_provenance
-            profile = Path(config["bundle"]) / "private-profile.json"
             provenance = sensor_provenance({
                 "schemaVersion": 1, "profileSha256": digest(profile),
                 "timingHypothesis": config["hypothesis"],
-                "configurationSha256": configuration_files(Path(config["bundle"]) / "config"),
+                "configurationSha256": configuration_files(profile.parent / "config"),
             })
             reloaded = json.loads((receipts[0].parent / "reload-report.json").read_text())
             if (receipt.get("schemaVersion") != 2 or receipt.get("sensorProvenance") != provenance
@@ -160,6 +184,7 @@ def run(args):
                                         receipts[0].parent / "private-reloaded-points.f64",
                                         receipt["counts"]["points"])
             report.update(result=api["result"], sessions=api["sessions"], children=children,
+                          savedMapDirectory=receipts[0].parent.name,
                           roundTrip=comparison, apiReportSha256=digest(args.output / "private-api-report.json"),
                           sensorProvenance={"receiptSchemaVersion": 2, "freshReloadMatches": True,
                                             "currentConfigurationMatches": True,
@@ -195,7 +220,7 @@ def public_evidence(report, trial):
     """Export only reviewed aggregate fields, not private reports, IDs, maps or paths."""
     return {
         "schemaVersion": 1, "date": "2026-10-30", "result": report["result"],
-        "inputMode": "recorded", "machine": "x86_64", "rate": 1.,
+        "inputMode": "recorded", "machine": report["machine"], "rate": 1.,
         "privateTrialReportSha256": digest(trial / "private-trial-report.json"),
         "probeSha256": report["probeSha256"], "sourceSha256": report["sourceSha256"],
         "runs": [{key: entry[key] for key in (
@@ -211,7 +236,7 @@ def public_evidence(report, trial):
         "boundaries": dict.fromkeys((
             "robotContacted", "liveSensorsSubscribed", "motionCommandsSent", "targetArm64Validated",
             "geometricAccuracyValidated", "localizationReady", "navigationReady", "deploymentApproved",
-        ), False),
+        ), False) | {"targetArm64Validated": report["machine"] == "aarch64"},
     }
 
 
@@ -221,6 +246,7 @@ def main():
         parser.add_argument("--" + name, type=Path, required=True)
     parser.add_argument("--evidence", type=Path)
     parser.add_argument("--point-adapter", type=Path)
+    parser.add_argument("--node-sha256")
     args = parser.parse_args()
     previous = os.umask(0o077)
     try:

@@ -7,6 +7,7 @@ import selectors
 import sys
 import threading
 import time
+import traceback
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -97,12 +98,17 @@ def run(args, sink):
             raise RuntimeError("fresh_process_map_reload_failed")
         return json.loads((saved / "reload-report.json").read_text())
 
+    def verify_save():
+        if verify_inputs() != frozen:
+            raise RuntimeError("mapping_inputs_changed_before_save")
+
     controller = MappingWorker(
         factory, binding.mapper,
         SensorProfile("lidar_chest_front", "lidar_imu_chest_front", "frame_relative_nanoseconds_hypothesis"),
         binding.hypothesis, args.output, name="Pending map", session=session, input_mode=binding.mode,
         inspect_map=inventory_map, reload_map=reload_map,
-        sensor_provenance=binding.sensor_provenance(), verify_sensor_provenance=binding.sensor_provenance)
+        sensor_provenance=binding.sensor_provenance(), verify_sensor_provenance=binding.sensor_provenance,
+        verify_save=verify_save)
     mapping = MappingInput(controller)
 
     def control():
@@ -159,6 +165,9 @@ def run(args, sink):
         report["result"] = "saved" if requested else "discarded"
     except BaseException as error:
         report["errorType"] = type(error).__name__
+        origin = traceback.extract_tb(error.__traceback__)[-1]
+        print(f"controlled_mapping_failure:{type(error).__name__}:"
+              f"{Path(origin.filename).name}:{origin.lineno}", file=sys.stderr, flush=True)
         controller.cancel_save()
     finally:
         mapping.admission.close()
@@ -197,9 +206,6 @@ def finish_input(mapping, reason, command, requested, failed, verify_inputs, fro
         mapping.controller.cancel_save()
         mapping.finish(reason, cancelled=lambda: True)
         raise RuntimeError("explicit_owned_mapping_stop_required")
-    if verify_inputs() != frozen:
-        mapping.controller.cancel_save()
-        raise RuntimeError("mapping_inputs_changed_before_stop")
     terminal = mapping.finish(reason, save=bool(requested), name=requested.get("name"),
                               cancelled=failed.is_set)
     if (terminal["phase"] != ("saved" if requested else "stopped") or failed.is_set()
@@ -251,7 +257,13 @@ def main():
     try:
         with os.fdopen(os.dup(1), "wb", buffering=0) as sink:
             os.dup2(2, 1)
-            return run(args, sink)
+            try:
+                return run(args, sink)
+            except Exception as error:
+                origin = traceback.extract_tb(error.__traceback__)[-1]
+                print(f"mapping_child_failure:{type(error).__name__}:"
+                      f"{Path(origin.filename).name}:{origin.lineno}", file=sys.stderr, flush=True)
+                raise
     finally:
         os.umask(previous)
 

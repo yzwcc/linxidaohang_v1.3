@@ -1,5 +1,7 @@
 """Controller contracts with a synthetic mapper; native library execution is separate."""
 import importlib.util
+from contextlib import redirect_stderr
+import io
 from pathlib import Path
 import sys
 import tempfile
@@ -152,10 +154,14 @@ class MappingController(unittest.TestCase):
 
     def test_failed_factory_is_joined_and_never_saved(self):
         self.fail_create = True
-        self.start(feed=False)
+        diagnostics = io.StringIO()
+        with redirect_stderr(diagnostics):
+            self.start(feed=False)
         self.assertEqual("failed", self.controller.stop(save=True)["phase"])
         self.assertFalse(self.controller.snapshot()["worker"]["threadAlive"])
         self.assertEqual(["create"], self.calls)
+        self.assertRegex(diagnostics.getvalue(), r"mapping_startup_failure:RuntimeError:test_slam_mapping_worker.py:[0-9]+")
+        self.assertNotIn("synthetic_factory_failed", diagnostics.getvalue())
 
     def test_stop_before_start_never_creates_a_native_engine(self):
         self.assertEqual("stopped", self.controller.stop(save=True)["phase"])
