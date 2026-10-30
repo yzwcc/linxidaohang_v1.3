@@ -1,4 +1,4 @@
-"""Bounded recorded localization and HTTPS console with matching platform inputs."""
+"""Bounded recorded or live localization with the paired HTTPS console."""
 import argparse
 import json
 import math
@@ -42,7 +42,11 @@ def run(args):
     if (type(args.seconds) not in (int, float) or not math.isfinite(args.seconds)
             or not 5 <= args.seconds <= 120):
         raise ValueError("bounded_offline_localization_duration_required")
-    config, environment = verified_configuration(args.config)
+    config, environment = verified_configuration(args.config, allow_live=True)
+    mode = config.get("inputMode", "recorded")
+    # Native/ROS startup precedes API admission; the child must outlive the parent interval.
+    if mode == "live" and config["maxSeconds"] < args.seconds + 45.:
+        raise ValueError("live_child_duration_must_cover_startup_and_parent_interval")
     platform = MappingPlatform(config)
     for path, expected in ((args.node, args.node_sha256), (args.api_bundle, args.api_sha256)):
         direct(path)
@@ -63,7 +67,7 @@ def run(args):
     }
     profile = platform.profile
     load_map(args.saved_map, args.map_id, args.receipt_sha256, profile, args.profile_sha256,
-             session="0" * 32, input_mode="recorded")
+             session="0" * 32, input_mode=mode)
 
     def native_command(output):
         command = [sys.executable, "-B", str(ROOT / "robot-runtime/python/controlled_localization.py"), "child"]
@@ -77,9 +81,15 @@ def run(args):
         native_environment=environment, api_environment=api, output=args.output, saved_maps=saved_maps)
     binding, _ = load_map(
         args.saved_map, args.map_id, args.receipt_sha256, profile, args.profile_sha256,
-        session=owner.native.session, input_mode="recorded")
+        session=owner.native.session, input_mode=mode)
 
     def verify():
+        if mode == "live":
+            from live_localization import verify_completion as verify_live
+            return verify_live(
+                strict_json((owner.native_output / "child-report.json").read_bytes()),
+                strict_json((owner.native_output / "localization-final.json").read_bytes()),
+                frozen=platform.frozen, binding=binding, sources=sources, config_hash=config_hash)
         verify_completion(
             strict_json((owner.native_output / "child-report.json").read_bytes()),
             strict_json((owner.native_output / "localization-final.json").read_bytes()),
@@ -94,7 +104,7 @@ def run(args):
             raise ValueError("unchanged_managed_localization_inputs_required")
         reloaded, _ = load_map(
             args.saved_map, args.map_id, args.receipt_sha256, profile, args.profile_sha256,
-            session=binding.session, input_mode="recorded")
+            session=binding.session, input_mode=mode)
         if reloaded != binding:
             raise ValueError("unchanged_managed_localization_binding_required")
         for path, expected in ((args.node, args.node_sha256), (args.api_bundle, args.api_sha256)):
@@ -111,7 +121,8 @@ def run(args):
         for value in (signal.SIGINT, signal.SIGTERM):
             previous[value] = signal.signal(value, lambda *_: stop.set())
         report = owner.run(
-            binding, platform.frozen["journal"]["records"], seconds=args.seconds, stop=stop,
+            binding, None if mode == "live" else platform.frozen["journal"]["records"],
+            seconds=args.seconds, stop=stop,
             on_listening=lambda status: print(json.dumps(status), flush=True),
             verify_complete=verify, verify_inputs=recheck)
     finally:

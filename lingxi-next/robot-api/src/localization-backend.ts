@@ -11,7 +11,7 @@ export interface LocalizationBackend {
   command(command: LocalizationCommand): Promise<LocalizationState>;
 }
 
-const unavailable = () => Object.assign(new Error("定位服务不可用，请检查录制定位进程"), { statusCode: 503 });
+const unavailable = () => Object.assign(new Error("定位服务不可用，请检查定位进程"), { statusCode: 503 });
 const envelope = z.discriminatedUnion("ok", [
   z.object({ ok: z.literal(true), value: z.unknown() }).strict(),
   z.object({ ok: z.literal(false), code: z.string().regex(/^[a-z_]{1,100}$/),
@@ -20,8 +20,8 @@ const envelope = z.discriminatedUnion("ok", [
 
 export function validatedLocalizationState(value: unknown): LocalizationState {
   const result = localizationStateSchema.safeParse(value);
-  // Live and ARM64 localization have not passed commissioning.
-  if (!result.success || result.data.binding.input_mode !== "recorded") throw unavailable();
+  // Diagnostic live input still publishes readiness=false until commissioning.
+  if (!result.success || result.data.binding.input_mode === "synthetic") throw unavailable();
   return result.data;
 }
 

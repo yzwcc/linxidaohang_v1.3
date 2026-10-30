@@ -25,6 +25,12 @@ SOURCES = (
     "robot-slam/lingxi_slam/localization_session.py",
     "robot-slam/lingxi_slam/localization_tracking.py",
     "robot-slam/lingxi_slam/seeded_localization.py",
+    "robot-runtime/python/live_localization.py",
+    "robot-runtime/python/live_child.py",
+    "robot-runtime/python/live_points.py",
+    "tools/glim_live_session.py",
+    "robot-slam/lingxi_slam/passive_ros.py",
+    "robot-slam/lingxi_slam/worker.py",
 )
 
 
@@ -32,13 +38,14 @@ def source_hashes():
     return {name: digest((ROOT / name).read_bytes()) for name in SOURCES}
 
 
-def verified_configuration(file):
+def verified_configuration(file, *, allow_live=False):
     config, environment = configuration(file)
     arm64 = config.get("platform") == "arm64-humble"
     expected_machine = "aarch64" if arm64 else "x86_64"
     if (sys.platform != "linux" or host_platform.machine() != expected_machine or os.geteuid() == 0
             or arm64 and sys.version_info[:2] != (3, 10)
-            or config["inputMode"] != "recorded" or "pointAdapter" not in config):
+            or config["inputMode"] not in (("recorded", "live") if allow_live and arm64 else ("recorded",))
+            or "pointAdapter" not in config):
         raise ValueError("ordinary_user_matching_recorded_localization_platform_required")
     return config, environment
 
@@ -78,10 +85,13 @@ def child(args, sink):
     import small_gicp
     from lingxi_slam.point_output import NativePointOutput, PointOutputNative
 
-    config, environment = verified_configuration(args.config)
+    config, environment = verified_configuration(args.config, allow_live=True)
     if any(os.environ.get(key) != value for key, value in environment.items()):
         raise ValueError("unchanged_reviewed_localization_environment_required")
     platform = MappingPlatform(config)
+    if platform.mode == "live":
+        from live_localization import child as live_child
+        return live_child(args, sink, platform)
     profile = platform.profile
     binding, points = load_map(
         args.saved_map, args.map_id, args.receipt_sha256, profile, args.profile_sha256,

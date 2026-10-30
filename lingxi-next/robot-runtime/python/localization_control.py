@@ -62,7 +62,8 @@ def load_map(directory, map_id, receipt_sha256, profile, profile_sha256, *, sess
             or any(type(counts.get(key)) is not int or counts[key] < 1
                    for key in ("points", "savedFrames", "finalizedFrames", "submaps"))
             or type(receipt.get("schemaVersion")) is not int or receipt["schemaVersion"] != 1
-            or receipt.get("inputMode") != input_mode
+            or receipt.get("inputMode") not in ("recorded", "live")
+            or input_mode not in ("recorded", "live")
             or map_id != "slam-" + str(receipt.get("session"))
             or receipt.get("freshProcessReloadPassed") is not True
             or any(receipt.get(key) is not False for key in (
@@ -232,12 +233,7 @@ class LocalizationControlServer(getattr(socketserver, "UnixStreamServer", socket
 
     def server_close(self):
         # Revoke immediately, even if native cleanup must wait for the process supervisor.
-        state = self.session.state()
-        try:
-            dispatch(self.session, {"action": "stop", "binding": state["binding"],
-                                   "expectedGeneration": state["generation"]})
-        except LocalizationControlError:
-            pass
+        self.session.stop_admission()
         if self.thread is not None and self.thread.is_alive():
             self.shutdown()
             self.thread.join(1.)

@@ -9,7 +9,7 @@ import type { LocalizationBackend } from "../src/localization-backend";
 import type { LocalizationState } from "../../shared/localization";
 import { identityMatrix, localizationFixture } from "./fixtures/localization-state";
 
-describe("isolated paired recorded localization console", () => {
+describe("isolated paired localization console", () => {
   let root: string, app: FastifyInstance, token: string, backend: LocalizationBackend, state: LocalizationState;
   const headers = () => ({ authorization: `Bearer ${token}` });
   const payload = () => ({ binding: state.binding, expectedGeneration: state.generation });
@@ -117,13 +117,25 @@ describe("isolated paired recorded localization console", () => {
     expect(backend.command).toHaveBeenCalledOnce();
   });
 
-  it.each(["outage", "invalid", "live"] as const)("clears the current pose on %s", async (mode) => {
+  it("accepts live sensor state and generation-bound controls", async () => {
+    state.binding.input_mode = "live";
+    const response = await app.inject({ url: "/api/v1/slam/localization", headers: headers() });
+    expect(response.statusCode).toBe(200);
+    expect(response.json().binding.input_mode).toBe("live");
+    const result = await app.inject({ method: "POST", url: "/api/v1/slam/localization/pause",
+      headers: headers(), payload: payload() });
+    expect(result.statusCode).toBe(202);
+    expect(result.json()).toMatchObject({ state: "paused", generation: 1,
+      localizationReady: false, navigationReady: false, binding: { input_mode: "live" } });
+  });
+
+  it.each(["outage", "invalid", "synthetic"] as const)("clears the current pose on %s", async (mode) => {
     state = { ...state, state: "tracking", consecutiveMatches: 3, mapFromSensor: identityMatrix };
     expect((await app.inject({ url: "/api/v1/state", headers: headers() })).json()
       .slamLocalization.snapshot.mapFromSensor).toEqual(identityMatrix);
     if (mode === "outage") vi.mocked(backend.state).mockRejectedValue(new Error("Disconnected"));
     if (mode === "invalid") state.consecutiveMatches = 0;
-    if (mode === "live") state.binding.input_mode = "live";
+    if (mode === "synthetic") state.binding.input_mode = "synthetic";
     expect((await app.inject({ url: "/api/v1/state", headers: headers() })).json()
       .slamLocalization).toEqual({ status: "unavailable" });
     expect((await app.inject({ url: "/api/v1/slam/localization", headers: headers() })).statusCode)

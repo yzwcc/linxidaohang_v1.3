@@ -1,5 +1,6 @@
 """Opt-in passive Humble input with health IPC and a separate corrected-point stream."""
 import json
+import math
 import os
 from pathlib import Path
 import selectors
@@ -14,11 +15,27 @@ from lingxi_slam.process_protocol import HealthEmitter, session_id
 from run_glim_supervised_replay import StopPipe
 
 
-def serve(worker, topics, sink, *, runner, session, control_fd=0, writer_failed=lambda: False):
+def serve(worker, topics, sink, *, runner, session, control_fd=0, writer_failed=lambda: False,
+          seconds=300., on_stopping=lambda: None):
     """The control thread observes counters only; native methods stay on the worker."""
+    if (type(seconds) not in (int, float) or not math.isfinite(seconds) or not 0 < seconds <= 300.
+            or not callable(on_stopping)):
+        raise ValueError("bounded_live_duration_and_stop_callback_required")
     emitter = HealthEmitter(sink, session)
     stop, done = threading.Event(), threading.Event()
     command, failures = StopPipe(), []
+    stopping_lock, stopping_called = threading.Lock(), False
+
+    def stopping():
+        nonlocal stopping_called
+        with stopping_lock:
+            if not stopping_called:
+                stopping_called = True
+                try:
+                    on_stopping()
+                except Exception:
+                    failures.append("live_stop_callback_failed")
+            stop.set()
 
     def control():
         try:
@@ -29,25 +46,25 @@ def serve(worker, topics, sink, *, runner, session, control_fd=0, writer_failed=
                     emitter.emit(snapshot)
                     if snapshot["state"] == "failed" or writer_failed():
                         failures.append("live_sensor_or_writer_failed")
-                        stop.set()
+                        stopping()
                         return
                     if selector.select(.05):
                         if command.feed(os.read(control_fd, 6)):
-                            stop.set()
+                            stopping()
                             return
         except Exception:
             failures.append("live_parent_control_failed")
-            stop.set()
+            stopping()
 
     thread = threading.Thread(target=control, name="live-point-control", daemon=True)
     report = {"result": "failed", "stopReceived": False}
     try:
         thread.start()
-        report["passive"] = runner(worker, topics, 300., stop_event=stop)
+        report["passive"] = runner(worker, topics, seconds, stop_event=stop)
     except Exception:
         failures.append("passive_sensor_session_failed")
     finally:
-        stop.set()
+        stopping()
         done.set()
         if thread.ident is not None:
             thread.join(1.)
@@ -74,6 +91,7 @@ def serve(worker, topics, sink, *, runner, session, control_fd=0, writer_failed=
 
 
 def verified_inputs(args):
+    """File/configuration preflight shared by the parent and the sensor child."""
     import glim_live_session as live
     import glim_point_target_probe as probe
     from glim_target_replay import verify_replay_bundle
@@ -81,8 +99,6 @@ def verified_inputs(args):
     from run_glim_offline_trial import explicit_diagnostic_profile
     from verify_slam_capture import sha256
 
-    session_id(os.environ.get("LINGXI_SLAM_SESSION"))
-    live.validate_environment(args.root, args.core_root)
     baseline = json.loads((ROOT / "docs/slam-humble-live-evidence.json").read_text(encoding="utf-8"))
     if (sha256(args.root / "replay-manifest.json") != baseline["replayManifestSha256"]
             or sha256(args.core_root / "bundle-manifest.json") != baseline["coreBundleManifestSha256"]
@@ -103,6 +119,13 @@ def verified_inputs(args):
     return manifest, core, points
 
 
+def verified_child_session(args):
+    import glim_live_session as live
+    session = session_id(os.environ.get("LINGXI_SLAM_SESSION"))
+    live.validate_environment(args.root, args.core_root)
+    return session
+
+
 def run(args, sink):
     import glim_live_session as live
     import glim_point_target_probe as probe
@@ -114,8 +137,8 @@ def run(args, sink):
     from lingxi_slam.worker import SensorWorker
     from slam_bag_audit import CLOUD, IMU
 
+    session = verified_child_session(args)
     frozen = verified_inputs(args)
-    session = session_id(os.environ.get("LINGXI_SLAM_SESSION"))
     if (args.point_socket.parent != Path.cwd() or args.point_socket.parent.stat().st_mode & 0o077
             or args.point_socket.is_symlink() or len(os.fsencode(args.point_socket)) >= 100):
         raise ValueError("private_owned_live_point_socket_required")

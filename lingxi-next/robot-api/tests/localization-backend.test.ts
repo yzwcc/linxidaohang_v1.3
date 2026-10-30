@@ -12,6 +12,13 @@ describe("localization state validation", () => {
     expect(validatedLocalizationState({ ...localizationFixture(), state: "tracking",
       consecutiveMatches: 3, mapFromSensor: identityMatrix }).navigationReady).toBe(false);
   });
+  it("accepts live diagnostic input but rejects synthetic input", () => {
+    const state = localizationFixture();
+    expect(validatedLocalizationState({ ...state, binding: { ...state.binding, input_mode: "live" } })
+      .binding.input_mode).toBe("live");
+    expect(() => validatedLocalizationState({ ...state,
+      binding: { ...state.binding, input_mode: "synthetic" } })).toThrow();
+  });
   it.each([
     { state: "paused", mapFromSensor: identityMatrix }, { cleanupComplete: true },
     { workerClosed: true }, { state: "tracking", consecutiveMatches: 3 },

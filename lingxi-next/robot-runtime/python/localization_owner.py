@@ -1,4 +1,4 @@
-"""One offline parent owns the recorded native worker and paired HTTP API."""
+"""One parent owns the recorded or live native worker and paired HTTP API."""
 from dataclasses import asdict
 import math
 import os
@@ -176,19 +176,23 @@ class ManagedLocalizationOwner:
 
     def run(self, binding, expected_messages, *, seconds, stop=None,
             on_listening=None, verify_complete=None, verify_inputs=None):
-        if (self.started or binding.session != self.native.session or binding.input_mode != "recorded"
-                or type(expected_messages) is not int or expected_messages < 1
+        live = binding.input_mode == "live"
+        if (self.started or binding.session != self.native.session
+                or binding.input_mode not in ("recorded", "live")
+                or (live and expected_messages is not None)
+                or (not live and (type(expected_messages) is not int or expected_messages < 1))
                 or type(seconds) not in (int, float) or not math.isfinite(seconds) or not 0 < seconds <= 120
                 or stop is not None and not isinstance(stop, threading.Event)
                 or on_listening is not None and not callable(on_listening)
                 or not callable(verify_complete) or not callable(verify_inputs)):
-            raise ValueError("single_use_bounded_recorded_localization_owner_required")
+            raise ValueError("single_use_bounded_localization_owner_required")
         self.started = True
         stop = stop or threading.Event()
         report = {"schemaVersion": 1, "result": "failed", "reason": None, "failure": None,
                   "failurePhase": None,
                   "inputComplete": False, "inputsRechecked": False,
-                  "robotContacted": False, "motionCommandsSent": False,
+                  "inputMode": binding.input_mode, "intervalComplete": False,
+                  "robotContacted": live, "motionCommandsSent": False,
                   "localizationReady": False, "navigationReady": False,
                   "mapProfileAssociationVerified": False}
         def fail(kind, phase):
@@ -207,7 +211,7 @@ class ManagedLocalizationOwner:
             if on_listening is not None:
                 on_listening(status)
             deadline = time.monotonic() + seconds
-            phase = "recorded_input"
+            phase = "live_input" if live else "recorded_input"
             with selectors.DefaultSelector() as selector:
                 selector.register(self.api.stdout, selectors.EVENT_READ)
                 while True:
@@ -215,12 +219,15 @@ class ManagedLocalizationOwner:
                     if selector.select(0):
                         raise RuntimeError("unexpected_localization_api_status")
                     completed = self.native.snapshot()["completedMessages"]
-                    if completed > expected_messages:
+                    if not live and completed > expected_messages:
                         raise ValueError("localization_input_counter_exceeded")
-                    if completed == expected_messages:
+                    if not live and completed == expected_messages:
                         report["reason"] = "recorded_input_complete"
                         break
                     if time.monotonic() >= deadline:
+                        if live:
+                            report["reason"] = "live_interval_complete"
+                            break
                         raise TimeoutError("localization_recorded_input_deadline")
                     stop.wait(.025)
         except InterruptedError:
@@ -252,12 +259,15 @@ class ManagedLocalizationOwner:
             report["inputsRechecked"] = True
         except Exception as error:
             fail(type(error).__name__, "input_verification")
-        if report["reason"] == "recorded_input_complete" and not report["failure"]:
+        verify_terminal = (report["reason"] in ("recorded_input_complete", "live_interval_complete")
+                           or live and report["reason"] == "operator_stop")
+        if verify_terminal and not report["failure"] and native["exitCode"] is not None:
             try:
-                if native["exitCode"] != 0 or native["completedMessages"] != expected_messages:
+                if native["exitCode"] != 0 or not live and native["completedMessages"] != expected_messages:
                     raise RuntimeError("localization_native_completion_unconfirmed")
                 verify_complete()
-                report.update(result="completed", inputComplete=True)
+                if report["reason"] != "operator_stop":
+                    report.update(result="completed", inputComplete=not live, intervalComplete=live)
             except Exception as error:
                 fail(type(error).__name__, "completion_verification")
         if report["failure"]:

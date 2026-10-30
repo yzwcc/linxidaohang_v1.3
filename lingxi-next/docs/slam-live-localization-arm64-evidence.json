@@ -1,0 +1,107 @@
+{
+  "schemaVersion": 1,
+  "observedDate": "2026-10-30",
+  "result": "arm64_live_unseeded_localization_https_collected_not_navigation_acceptance",
+  "platform": "linux-aarch64-humble",
+  "inputMode": "live",
+  "robotContacted": true,
+  "motionCommandsSent": false,
+  "localizationReady": false,
+  "navigationReady": false,
+  "mapProfileAssociationVerified": false,
+  "seedRequests": 0,
+  "seedSource": null,
+  "pauseConfirmed": true,
+  "stopConfirmed": true,
+  "staleGenerationRejected": true,
+  "stoppedQueries": 222,
+  "referenceFramesObserved": [
+    1,
+    2,
+    3,
+    4,
+    5
+  ],
+  "completedMessages": 3365,
+  "processedScans": 160,
+  "estimatedPoses": 129,
+  "nativeCalls": {
+    "create": 1,
+    "imu": 3204,
+    "frame": 160,
+    "close": 1
+  },
+  "singleNativeWorker": true,
+  "sourceSha256": {
+    "robot-runtime/python/controlled_localization.py": "cb436e8a420c9440792f8ff6ecc4d7290dbd25468d8f5c65251bbb5203c24d54",
+    "robot-runtime/python/localization_control.py": "4d478085566a74b7df8b43ac04da1e47d011307b147f1ef1b4114a7c3c6f68e3",
+    "robot-runtime/python/mapping_platform.py": "960e29dca91a71837c4ce6545b356de1db86c2295edc9a9f0f20ec262aa45b4a",
+    "robot-slam/lingxi_slam/localization_session.py": "97038363e0910e777615233dc2b40c7f558ba010a2a303d445094dafb47c9714",
+    "robot-slam/lingxi_slam/localization_tracking.py": "c4b99640f0c9380bcc44f0daa0b1f2c37b760ba2559cf5f636483ec253444611",
+    "robot-slam/lingxi_slam/seeded_localization.py": "563bebbe0710ba07b96e4721d12b033443e0a317834b117c0b2697fe003f8a8f",
+    "robot-runtime/python/live_localization.py": "5fccdc77ae5c25a48991ee4fc094309fc84a2928293e09a260cc7e57070977c6",
+    "robot-runtime/python/live_child.py": "13fe9ee8215dc4a555ca73fafbe4c9de2462ebb92ec371bad0486683105685ea",
+    "robot-runtime/python/live_points.py": "535852cdae450a4af6ab54d8ac86f3577591f67c1d22562e0b4f1c9e60325e60",
+    "tools/glim_live_session.py": "6fa7bb6bbdf8708e51443c5385f8e40eff7ea622a6c27326556de2b3f007a504",
+    "robot-slam/lingxi_slam/passive_ros.py": "11f3468e15b020e375b2ab7cd86ef2df01b3ff11ea262c822bbabb74485588de",
+    "robot-slam/lingxi_slam/worker.py": "59beea9c8c9015dc1b24f09fc010ccb86f59eda469a0d9af990777c715ff5cea",
+    "robot-runtime/python/managed_localization.py": "ae53d979e4b345b310680e9210d8ffe5ea25a5221d95d73df546db4e7d7ccdf0",
+    "robot-runtime/python/localization_owner.py": "6068acf26a5b0f0d92251ba01892e0a23a3ab2f26476e71a70da4501eb4efd1a",
+    "tools/check_managed_live_localization.py": "46ad970235d7da10d518173253e092bb59f33381721800b8ce1f4974aad4d02e"
+  },
+  "apiBundleSha256": "528a102e2ec573f5b02da73ea012e1813108df133a8c577cdab24462cf5ba013",
+  "nodeSha256": "7e48183361053f039294fbbc3ba586722fe756bf296d6cb8195356d10819cd16",
+  "receiptSha256": "f6bf5c1494f3782a3659c5767e29d7c32202ab228b5baefedbe91cd6b6f5e3b2",
+  "profileSha256": "201194cf0d07fedf0a3a22b6cc17081575505469d8cbd72f14f626cf3d95e633",
+  "privateReportsSha256": {
+    "owner-report.json": "ac4a2f43ddafd082aa2f34596f7d71425e7c484818404a498879d0495189c022",
+    "native/child-report.json": "ebbe00abe9fa55fa5b02796122cbe7d6af63bb4e12502cad206e7e28ba394e89",
+    "native/localization-final.json": "132278152a28fe8ca0f40996ef34b270eed64a7a257219b4005f13b0349d9e2c"
+  },
+  "workerCounts": {
+    "acceptedImu": 3211,
+    "acceptedClouds": 161,
+    "completedMessages": 3365,
+    "discardedMessages": 7,
+    "rejectedMessages": 0,
+    "maximumQueuedMessages": 41,
+    "maximumQueuedClouds": 2,
+    "maximumQueuedPayloadBytes": 1564968
+  },
+  "maximumObservedQueueAgeSeconds": 0.1264231839995773,
+  "apiProcess": {
+    "exitCode": 0,
+    "forcedTermination": false,
+    "processAlive": false,
+    "groupAlive": false
+  },
+  "nativeProcess": {
+    "state": "stopped",
+    "exitCode": 0,
+    "forcedTermination": false,
+    "cleanupComplete": true,
+    "processAlive": false,
+    "monitorAlive": false
+  },
+  "versions": {
+    "numpy": "1.26.1",
+    "scipy": "1.8.0",
+    "small-gicp": "1.0.1",
+    "python": "3.10.12",
+    "input": "installed_humble_rclpy"
+  },
+  "ddsProfileSha256": "6bd06d226e4c7a5e72caf9cc44613ab26a469940f286dd887d5a2b1d81af2a0b",
+  "smallGicpExtensionSha256": "0d7ead3dcd635c640f0c49c458f3427981e4bdcd69bb40b4ec8898dcec54819b",
+  "privateCheckReportSha256": "1ca5f9e21fc98662a5d2a85a93e3c306a7c4a75712570927a13c4d986870e779",
+  "privateCollectionReportSha256": "4a8d29fa8b55cad4f75c94db733300a25d7d454f30d197e20855d46a16c33c99",
+  "limitations": [
+    "unseeded_live_input_and_loopback_https_only_not_map_localization_accuracy",
+    "estimated_poses_are_native_odometry_not_saved_map_tracking",
+    "copied_x64_saved_map_not_arm64_native_reload_or_current_site_association",
+    "raw_imu_coordinates_no_base_calibration_or_navigation_tf",
+    "native_imu_prediction_quality_warning_not_resolved_by_this_trial",
+    "no_lan_browser_android_motion_or_acoustic_acceptance",
+    "system_scipy_warned_about_numpy_range_no_system_packages_changed",
+    "short_bounded_trial_not_long_run_or_product_acceptance"
+  ]
+}

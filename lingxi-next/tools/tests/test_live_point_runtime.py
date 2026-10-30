@@ -42,15 +42,19 @@ class LiveConfiguration(unittest.TestCase):
             with self.assertRaises(ValueError):
                 live_points.digest_file(artifact.parent / "missing", digest)
 
+    @unittest.skipUnless(sys.platform == "linux", "uses the local POSIX account database")
     def test_environment_is_explicit_and_does_not_inherit_local_or_secret_settings(self):
         root, core = Path("/synthetic/live"), Path("/synthetic/core")
-        with patch.dict(os.environ, {"ROS_ARGS": "synthetic", "PRIVATE_MARKER": "not-inherited"}):
+        with patch.dict(os.environ, {"ROS_ARGS": "synthetic", "PRIVATE_MARKER": "not-inherited",
+                                   "HOME": "/synthetic/never-inherit-home"}):
             environment = live_points.environment(root, core)
         self.assertEqual("humble", environment["ROS_DISTRO"])
         self.assertEqual("0", environment["ROS_DOMAIN_ID"])
         self.assertEqual("rmw_fastrtps_cpp", environment["RMW_IMPLEMENTATION"])
         self.assertEqual("2", environment["OMP_NUM_THREADS"])
         self.assertEqual("2", environment["OPENBLAS_NUM_THREADS"])
+        import pwd
+        self.assertEqual(pwd.getpwuid(os.geteuid()).pw_dir, environment["HOME"])
         self.assertNotIn("ROS_ARGS", environment)
         self.assertNotIn("PRIVATE_MARKER", environment)
         self.assertNotIn("LD_PRELOAD", environment)
@@ -302,6 +306,38 @@ class LiveChildControl(unittest.TestCase):
         self.assertEqual(1, self.worker.stops)
         self.assertFalse(report["controlThreadAlive"])
 
+    def test_stop_callback_precedes_runner_exit_and_is_called_once(self):
+        calls = []
+        def runner(worker, topics, seconds, *, stop_event):
+            self.assertEqual(60., seconds)
+            worker.state = "running"
+            os.write(self.write_fd, b"stop\n")
+            self.assertTrue(stop_event.wait(2.))
+            self.assertEqual(["revoked"], calls)
+            self.assertEqual(0, worker.stops)
+            return {"purpose": "explicitly_synthetic_passive_fixture"}
+        with patch.object(self, "runner", runner):
+            report = self.serve(seconds=60., on_stopping=lambda: calls.append("revoked"))
+        self.assertEqual(["revoked"], calls)
+        self.assertEqual("live_sensor_session_closed", report["result"])
+
+    def test_stop_callback_failure_still_stops_worker_and_is_reported(self):
+        callback = Mock(side_effect=RuntimeError("PRIVATE_MARKER"))
+        report = self.serve(on_stopping=callback)
+        callback.assert_called_once()
+        self.assertEqual(1, self.worker.stops)
+        self.assertEqual("failed", report["result"])
+        self.assertIn("live_stop_callback_failed", report["failures"])
+        self.assertNotIn("PRIVATE_MARKER", json.dumps(report))
+
+    def test_invalid_duration_rejects_before_worker_or_runner(self):
+        for value in (True, 0, -1, float("nan"), float("inf"), 301):
+            with self.subTest(value=value), patch.object(self, "runner") as runner:
+                with self.assertRaises(ValueError):
+                    self.serve(seconds=value)
+                runner.assert_not_called()
+        self.assertEqual(0, self.worker.stops)
+
 
 @unittest.skipUnless(sys.platform == "linux", "target artifact verification imports POSIX tooling")
 class FrozenInputContract(unittest.TestCase):
@@ -327,20 +363,36 @@ class FrozenInputContract(unittest.TestCase):
         }[path.name]
         self.addCleanup(patch.stopall)
         patch.dict(sys.modules, self.modules).start()
-        patch.dict(os.environ, {"LINGXI_SLAM_SESSION": "a" * 32}).start()
+        patch.dict(os.environ, {}, clear=True).start()
         patch.object(Path, "read_text", autospec=True, side_effect=self.read_text).start()
 
     def read_text(self, path, **settings):
         return json.dumps(self.baseline if path.name == "slam-humble-live-evidence.json"
                           else self.loading if path.name == "slam-point-arm64-target-evidence.json" else {})
 
-    def test_matching_artifacts_require_environment_control_and_diagnostic_profile(self):
+    def test_parent_preflight_needs_no_child_session_or_ros_environment(self):
         verified = live_child.verified_inputs(self.args)
         self.assertEqual(3, len(verified))
-        self.live.validate_environment.assert_called_once_with(self.args.root, self.args.core_root)
+        self.live.validate_environment.assert_not_called()
         self.live.verify_control.assert_called_once_with(self.args.root)
         self.modules["run_glim_offline_trial"].explicit_diagnostic_profile.assert_called_once_with(
             {}, {}, "header_is_scan_start")
+
+    def test_child_requires_supervisor_session_before_environment_validation(self):
+        for value in (None, "", "invalid"):
+            with self.subTest(value=value), patch.dict(os.environ, {} if value is None else {
+                    "LINGXI_SLAM_SESSION": value}, clear=True):
+                with self.assertRaisesRegex(ValueError, "explicit_process_session_id"):
+                    live_child.verified_child_session(self.args)
+        self.live.validate_environment.assert_not_called()
+
+    def test_child_keeps_strict_ros_environment_validation(self):
+        with patch.dict(os.environ, {"LINGXI_SLAM_SESSION": "a" * 32}):
+            self.assertEqual("a" * 32, live_child.verified_child_session(self.args))
+            self.live.validate_environment.assert_called_once_with(self.args.root, self.args.core_root)
+            self.live.validate_environment.side_effect = ValueError("synthetic_bad_ros_environment")
+            with self.assertRaisesRegex(ValueError, "bad_ros_environment"):
+                live_child.verified_child_session(self.args)
 
     def test_manifest_dds_and_loaded_point_library_mismatches_are_not_adopted(self):
         original, loading = deepcopy(self.baseline), deepcopy(self.loading)

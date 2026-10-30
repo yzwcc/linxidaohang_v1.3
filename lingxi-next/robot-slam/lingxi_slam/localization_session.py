@@ -122,6 +122,18 @@ class LocalizationSession:
                 now = self.last_clock if self.last_clock is not None else 0.
             return self._state_locked(now)
 
+    def stop_admission(self):
+        """Atomically retire the mailbox without racing a client's generation.
+
+        Runtime shutdown owns this terminal transition. Native resources still
+        close on the worker; no subsequent seed or late result can reopen it.
+        """
+        with self.lock:
+            if self.accepting:
+                self.accepting = False
+                self._revoke_locked("stopped", "runtime_stopping")
+                self.reference = None
+
     def request(self, action, binding, generation, *, seed=None, reference_frame=None):
         # Validate malformed requests before touching the current session.
         if (action not in ("seed", "pause", "stop") or type(binding) is not dict
@@ -252,8 +264,10 @@ class LocalizationSession:
                     and packet.algorithm_stamp > self.latest[0].algorithm_stamp):
                 xyz, pose = xyz.copy(), pose.copy()
                 xyz.flags.writeable = pose.flags.writeable = False
-                self.latest = (replace(packet, points=xyz, world_lidar_pose=pose), received_at)
                 with self.lock:
+                    if not self.accepting or processing_generation != self.generation:
+                        return self._state_locked(self._now_locked())
+                    self.latest = (replace(packet, points=xyz, world_lidar_pose=pose), received_at)
                     self.reference = (packet.native_frame_id, received_at)
         except (ValueError, AttributeError, TypeError):
             self.latest = None

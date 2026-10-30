@@ -18,6 +18,7 @@ const reasons: Record<string, string> = {
   corrected_point_stream_expired: "扫描数据已过期",
   fresh_matching_seed_reference_required: "参考帧已过期，请重新确认",
   explicit_stop: "本次定位已停止",
+  runtime_stopping: "定位进程正在停止",
   seed_application_failed: "初始位姿应用失败",
 };
 const initial: SeedFields = { x: "0", y: "0", z: "0", roll: "0", pitch: "0", yaw: "0" };
@@ -142,13 +143,15 @@ export default function LocalizationPanel({ connection, maps }: {
   const pose = snapshot?.state === "tracking" && matchedPreview && snapshot.mapFromSensor
     ? planarImuPose(snapshot.mapFromSensor) : undefined;
   const map = maps?.find((item) => item.id === mapId);
+  const inputLabel = snapshot?.binding.input_mode === "live" ? "实时传感器" :
+    snapshot?.binding.input_mode === "recorded" ? "录制数据" : "等待输入状态";
 
   return <div className="page localization-page">
-    <div className="page-heading"><div><h1>定位验证</h1><p>已保存点云地图 · 录制数据</p></div>
+    <div className="page-heading"><div><h1>定位验证</h1><p>已保存点云地图 · {inputLabel}</p></div>
       <button className="btn icon" title="刷新定位状态" disabled={busy} onClick={() => setRevision((v) => v + 1)}><RefreshCw size={15} /></button>
     </div>
     <div className="notice warn"><AlertTriangle size={15} />
-      <span>离线验证 · IMU 原始坐标，尚未标定为底盘坐标。定位与导航尚未验收。</span>
+      <span>IMU 原始坐标，尚未标定为底盘坐标。定位与导航尚未验收。</span>
     </div>
     <div className="content-grid two localization-layout">
       <section className="localization-cloud">
@@ -163,7 +166,7 @@ export default function LocalizationPanel({ connection, maps }: {
       <section className="localization-controls stack">
         <div className="localization-status" role="status" data-testid="localization-status">
           <strong>{snapshot ? labels[snapshot.state] : "定位服务不可用"}</strong>
-          <span className="helper">{snapshot ? reasons[snapshot.reason] ?? "录制数据定位验证" : "等待连接，当前位姿已清除"}</span>
+          <span className="helper">{snapshot ? reasons[snapshot.reason] ?? `${inputLabel}定位验证` : "等待连接，当前位姿已清除"}</span>
           {snapshot && <div className="inline"><span className="tag">代次 {snapshot.generation}</span>
             <span className="tag">连续匹配 {snapshot.consecutiveMatches}</span>
             <span className="tag">参考帧 {snapshot.referenceFrame ?? "无"}</span></div>}

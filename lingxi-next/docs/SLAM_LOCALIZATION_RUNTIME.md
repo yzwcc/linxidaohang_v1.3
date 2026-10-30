@@ -53,7 +53,8 @@ small-gicp 固定为 1.0.1，原生配准器由点云工作线程创建、调用
 
 当前入口支持普通用户 Linux x86_64 或匹配的 ARM64/Humble、录制输入和
 已验证的纠正点扩展。ARM64 要求 Python 3.10，使用安装好的 Humble 解码器；
-架构不匹配、root 和实时输入仍被拒绝。
+架构不匹配和 root 被拒绝；这个直接录制入口仍拒绝实时输入。
+统一启动器后来增加了显式 ARM64 实时模式，见本文末尾。
 配置沿用现有录制建图的私有 JSON，要求包含 `pointAdapter`。
 还需要既有冻结原生依赖、numpy/scipy、small-gicp 1.0.1，以及匹配平台的
 解码器（x64 使用 rosbags，ARM64 使用已安装的 Humble）；
@@ -232,3 +233,13 @@ python -B tools/export_localization_arm64_evidence.py \
 本轮 HTTPS 检查使用机器人本地回环，没有验证局域网浏览器或 APK 访问。
 实时定位、地图/配置关联、底盘标定、独立动态精度和导航仍待完成，
 三个就绪/关联标记继续为 false；版本及已交付安装包/APK 保持 0.1.19。
+
+## ARM64 实时输入验证
+
+同日随后已完成实时雷达/IMU 到隔离配对 HTTPS 的有界检查：
+完成 3,365 条消息、160 次扫描、129 个里程计位姿，观察到 5 个新参考帧。
+暂停、停止、旧代次拒绝及停止后 222 次查询正常；原生和 API 均干净退出。
+未提交初值，未建立保存地图跟踪；不构成定位精度、底盘标定或导航验收。
+实现、复现方式及 IMU 预测警告见
+[实时运行链路](SLAM_LIVE_LOCALIZATION.md) 和
+[脱敏实机摘要](slam-live-localization-arm64-evidence.json)。

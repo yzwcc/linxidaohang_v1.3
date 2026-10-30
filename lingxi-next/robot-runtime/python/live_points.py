@@ -28,8 +28,11 @@ def digest_file(path, expected):
 
 
 def environment(root, core):
+    import pwd
+    # ROS expands its log directory even when application ROS logging is disabled.
+    home = pwd.getpwuid(os.geteuid()).pw_dir
     return {
-        "PATH": "/usr/bin:/bin", "LANG": "C.UTF-8", "PYTHONDONTWRITEBYTECODE": "1",
+        "PATH": "/usr/bin:/bin", "HOME": home, "LANG": "C.UTF-8", "PYTHONDONTWRITEBYTECODE": "1",
         "PYTHONNOUSERSITE": "1", "PYTHONUNBUFFERED": "1",
         "ROS_DISTRO": "humble", "ROS_DOMAIN_ID": "0", "RMW_IMPLEMENTATION": "rmw_fastrtps_cpp",
         "FASTRTPS_DEFAULT_PROFILES_FILE": "/agibot/software/entry/cfg/ros_dds_configuration.xml",

@@ -21,8 +21,8 @@ from localization_owner import ManagedLocalizationOwner
 from mapping_service import private_json
 
 
-def binding(session):
-    return LocalizationBinding(session, "recorded", "slam-" + "b" * 32,
+def binding(session, scenario):
+    return LocalizationBinding(session, "live" if scenario.startswith("live") else "recorded", "slam-" + "b" * 32,
                                "c" * 64, "d" * 64, "e" * 64)
 
 
@@ -35,7 +35,7 @@ def native(args):
     sink = os.fdopen(os.dup(1), "wb", buffering=0)
     emitter = HealthEmitter(sink, os.environ["LINGXI_SLAM_SESSION"])
     (args.output / "child.pid").write_text(str(os.getpid()))
-    identity = binding(emitter.session)
+    identity = binding(emitter.session, args.scenario)
     if args.scenario == "wrong-binding":
         identity = replace(identity, points_sha256="f" * 64)
     session = LocalizationSession(identity, UnusedRegistrar)
@@ -54,7 +54,7 @@ def native(args):
                 selector.register(0, selectors.EVENT_READ)
                 while True:
                     if args.scenario != "duration":
-                        count = min(20, count + 1)
+                        count = count + 1 if args.scenario.startswith("live") else min(20, count + 1)
                     emitter.emit({
                         "state": "running", "failure": None, "counts": {"completedMessages": count},
                         "stream": {"counts": {"processedScans": count, "estimatedPoses": count}},
@@ -66,10 +66,11 @@ def native(args):
         # The existing real replay rejects a partial journal, including operator stop.
         partial_failure = args.scenario == "partial-failure" and not complete
         session.close_worker()
-        private_json(args.output / "fixture-report.json", {
-            "complete": complete, "stopReceived": stop_received,
-            "workerClosed": session.state()["workerClosed"],
-        })
+        if args.scenario != "live-missing-report":
+            private_json(args.output / "fixture-report.json", {
+                "complete": complete, "stopReceived": stop_received,
+                "workerClosed": session.state()["workerClosed"],
+            })
         emitter.emit({
             "state": "failed" if partial_failure else "stopped",
             "failure": "native_replay_composition_failed" if partial_failure else None,
@@ -105,16 +106,20 @@ def owner(args):
 
     def verify():
         final = json.loads((runtime.native_output / "fixture-report.json").read_bytes())
-        if args.scenario == "bad-completion" or final != {
-                "complete": True, "stopReceived": True, "workerClosed": True}:
+        live = args.scenario.startswith("live")
+        if (args.scenario in ("bad-completion", "live-bad-report")
+                or not live and not final["complete"]
+                or final["stopReceived"] is not True or final["workerClosed"] is not True):
             raise ValueError("synthetic_complete_report_required")
 
     def recheck():
         if args.scenario == "changed-input":
             raise ValueError("synthetic_unchanged_inputs_required")
 
+    live = args.scenario.startswith("live")
     result = runtime.run(
-        binding(runtime.native.session), 20, seconds=.25 if args.scenario == "duration" else 10.,
+        binding(runtime.native.session, args.scenario), None if live else 20,
+        seconds=1.5 if live else .25 if args.scenario == "duration" else 10.,
         stop=stop, verify_complete=verify, verify_inputs=recheck,
         on_listening=lambda value: print(json.dumps({
             **value, "apiPid": runtime.api.pid, "nativePid": runtime.native.process.pid,

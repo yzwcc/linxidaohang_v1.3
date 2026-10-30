@@ -217,6 +217,13 @@ compatibility check and all 94 focused localization Python tests.
 See [the ARM64 recorded localization evidence](docs/slam-managed-localization-arm64-evidence.json).
 This does not establish live localization, native ARM64 map reload, LAN browser
 access, base calibration, independent accuracy or navigation readiness.
+A subsequent bounded trial on the actual ARM64 robot now connects passive live
+Humble LiDAR/IMU to the same owned localization session and paired loopback HTTPS.
+It completed 3,365 messages and 160 scans, exposed five fresh references, and
+confirmed pause/stop, stale-generation rejection and 222 stopped-state queries.
+Both child processes closed normally. No seed was submitted: the 129 native
+odometry poses are not saved-map tracking, accuracy or navigation acceptance.
+See [the live runtime and remaining calibration limits](docs/SLAM_LIVE_LOCALIZATION.md).
 An independent full-recording range audit records returns beyond 5 raw-coordinate
 units. The roughly 5 m travel estimate is not calibration truth; travel,
 scan coverage and map accuracy are different quantities.

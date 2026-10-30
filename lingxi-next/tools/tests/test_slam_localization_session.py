@@ -7,6 +7,7 @@ import queue
 import sys
 import threading
 import unittest
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(ROOT / "robot-slam"), str(ROOT / "tools/tests")]
@@ -272,6 +273,34 @@ class SessionTests(unittest.TestCase):
         self.assertEqual([("open", owner), ("close", owner)], self.lifecycle)
         self.assertTrue(self.session.state()["workerClosed"])
         self.assertTrue(self.session.state()["cleanupComplete"])
+
+    def test_runtime_stop_during_point_copy_cannot_restore_seed_reference(self):
+        self.tracking(threaded=True)
+        from lingxi_slam.localization_session import arrays
+
+        def blocked_arrays(packet):
+            self.entered.set()
+            if not self.release.wait(5):
+                raise RuntimeError("point copy release deadline")
+            return arrays(packet)
+
+        with patch("lingxi_slam.localization_session.arrays", side_effect=blocked_arrays):
+            pending = self.harness.call(lambda: self.session.observe(
+                self.packet(5), session=SESSION, input_mode="synthetic", received_at=self.now))
+            try:
+                self.assertTrue(self.entered.wait(5))
+                self.session.stop_admission()
+                stopped = self.session.state()
+                self.assertEqual("stopped", stopped["state"])
+                self.assertIsNone(stopped["referenceFrame"])
+                self.assertIsNone(stopped["mapFromSensor"])
+            finally:
+                self.release.set()
+            state = pending.result(10)
+        self.assertEqual("stopped", state["state"])
+        self.assertIsNone(state["referenceFrame"])
+        self.assertIsNone(state["mapFromSensor"])
+        self.assertEqual(3, len(self.calls))
 
     def test_latest_request_replaces_pending_command_without_running_old_seed(self):
         self.session.open_worker()

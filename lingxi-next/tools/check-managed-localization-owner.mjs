@@ -109,10 +109,13 @@ async function start(t, scenario = "healthy") {
   } };
 }
 function safe(report, inputsRechecked = true) {
-  assert.equal(report.inputComplete, report.result === "completed");
+  const live = report.inputMode === "live";
+  assert.equal(report.inputComplete, !live && report.result === "completed");
+  assert.equal(report.intervalComplete, live && report.result === "completed");
   assert.equal(report.inputsRechecked, inputsRechecked);
   assert.equal(report.failurePhase === null, report.failure === null);
-  for (const flag of ["robotContacted", "motionCommandsSent", "localizationReady",
+  assert.equal(report.robotContacted, live); // Declared input mode; fixture performs no sensor I/O.
+  for (const flag of ["motionCommandsSent", "localizationReady",
     "navigationReady", "mapProfileAssociationVerified"]) assert.equal(report[flag], false);
   assert.equal(report.nativeProcess.processAlive, false);
   assert.equal(report.nativeProcess.monitorAlive, false);
@@ -120,6 +123,44 @@ function safe(report, inputsRechecked = true) {
   if (report.apiProcess) {
     assert.equal(report.apiProcess.processAlive, false);
     assert.equal(report.apiProcess.groupAlive, false);
+  }
+}
+
+for (const interrupted of [false, true]) {
+  test(`live interval ${interrupted ? "operator stop" : "completion"} verifies terminal cleanup`, { skip }, async (t) => {
+    const runtime = await start(t, "live"), status = await runtime.ready();
+    const pair = await runtime.send(status.port, "session/pair", "POST", { pairingCode: "owned-localization-test" });
+    const token = pair.value.token;
+    const state = await runtime.send(status.port, "slam/localization", "GET", undefined, token);
+    assert.equal(state.status, 200);
+    assert.equal(state.value.binding.input_mode, "live");
+    const pause = await runtime.send(status.port, "slam/localization/pause", "POST", {
+      binding: state.value.binding, expectedGeneration: state.value.generation,
+    }, token);
+    assert.equal(pause.status, 202);
+    if (interrupted) runtime.child.kill("SIGTERM");
+    assert.deepEqual(await bounded(runtime.exited), { code: interrupted ? 2 : 0, signal: null });
+    const report = await runtime.report();
+    safe(report);
+    assert.equal(report.reason, interrupted ? "operator_stop" : "live_interval_complete");
+    assert.equal(report.failure, null);
+    assert.equal(report.nativeProcess.exitCode, 0);
+    assert.equal(report.apiProcess.exitCode, 0);
+    await assert.rejects(runtime.send(status.port, "slam/localization", "GET", undefined, token));
+  });
+}
+for (const scenario of ["live-bad-report", "live-missing-report"]) {
+  for (const interrupted of [false, true]) {
+    test(`${scenario} rejects ${interrupted ? "operator stop" : "completion"}`, { skip }, async (t) => {
+      const runtime = await start(t, scenario);
+      await runtime.ready();
+      if (interrupted) runtime.child.kill("SIGTERM");
+      assert.deepEqual(await bounded(runtime.exited), { code: 1, signal: null });
+      const report = await runtime.report();
+      safe(report);
+      assert.equal(report.failurePhase, "completion_verification");
+      assert.equal(report.reason, interrupted ? "operator_stop" : "live_interval_complete");
+    });
   }
 }
 

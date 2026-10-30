@@ -49,7 +49,8 @@
 后端超时、断开或协议无效返回 503。单次 Unix 请求超时为 1,200 ms，
 请求/响应上限为 4,096/8,192 字节，每连接仅一次请求，不自动重试。
 
-HTTP 适配当前只接受 `recorded`，不以实时或合成输入冒充已验证定位。
+HTTP 适配最初只接受 `recorded`；后续增加显式 `live` 诊断输入，仍拒绝 `synthetic`。
+输入模式不代表该地图定位或当前现场精度已经通过验收。
 所有定位状态强制保持 `localizationReady=false`、`navigationReady=false`。
 独立控制台不调用机器人状态、灵心、模型或运动接口，
 写入白名单仅含配对/撤销会话及上述三个定位操作。
@@ -132,3 +133,8 @@ Linux 进程检查可设置 `LINGXI_LOCALIZATION_TEST_BUNDLE` 指向本轮编译
 “ARM64 录制定位验证”及 `slam-managed-localization-arm64-evidence.json`。
 这次使用机器人本地回环，没有重跑浏览器，也未验证 LAN/Android 实际访问；
 实时定位、底盘标定、导航和产品验收范围不变。
+
+后续实时雷达/IMU 已接入同一隔离 HTTPS 定位状态，网页按状态区分实时和录制输入。
+本轮未提交初值，不声称保存地图跟踪通过；停止后 222 次查询没有恢复位姿。
+更新后的网页另通过相同 11 阶段合成桌面/横屏回归，没有实机 LAN/Android 浏览器验收。
+详情见 [实时运行链路](SLAM_LIVE_LOCALIZATION.md)。

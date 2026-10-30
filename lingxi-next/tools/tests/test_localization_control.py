@@ -87,9 +87,24 @@ class MapInputs(unittest.TestCase):
     def test_wrong_receipt_profile_map_identity_or_mode_is_rejected(self):
         for options in (
                 {"receipt_sha256": "3" * 64}, {"profile_sha256": "3" * 64},
-                {"map_id": "slam-" + "3" * 32}, {"input_mode": "live"}):
+                {"map_id": "slam-" + "3" * 32}, {"input_mode": "synthetic"},
+                {"input_mode": "unknown"}):
             with self.subTest(options=options), self.assertRaises(ValueError):
                 self.load(**options)
+
+    def test_saved_map_source_mode_is_independent_from_localization_input_mode(self):
+        for saved_mode in ("recorded", "live"):
+            self.receipt["inputMode"] = saved_mode
+            self.write_receipt()
+            for current_mode in ("recorded", "live"):
+                with self.subTest(saved=saved_mode, current=current_mode):
+                    binding, _ = self.load(input_mode=current_mode)
+                    self.assertEqual(current_mode, binding.input_mode)
+        for mode in ("synthetic", "unknown", None):
+            self.receipt["inputMode"] = mode
+            self.write_receipt()
+            with self.subTest(mode=mode), self.assertRaises(ValueError):
+                self.load(input_mode="live")
 
     def test_counts_reload_and_readiness_cannot_be_forged(self):
         original = deepcopy(self.receipt)
@@ -185,6 +200,29 @@ class ControlAndOwnership(unittest.TestCase):
         native.close()
         native.close()
         self.assertEqual(["imu", "close"], calls)
+        self.assertTrue(self.session.state()["cleanupComplete"])
+
+    def test_runtime_stop_is_idempotent_and_cannot_be_reopened_by_late_seed_or_points(self):
+        self.session.open_worker()
+        packet = PointPacket(1, 1000.1, len(self.world), self.world, self.pose)
+        self.session.observe(packet, session="2" * 32, input_mode="recorded",
+                             received_at=control.time.monotonic())
+        before = self.session.state()
+        self.session.stop_admission()
+        stopped = self.session.state()
+        self.assertEqual(before["generation"] + 1, stopped["generation"])
+        self.assertIsNone(stopped["mapFromSensor"])
+        self.session.stop_admission()
+        self.assertEqual(stopped["generation"], self.session.state()["generation"])
+        with self.assertRaises(control.LocalizationControlError):
+            self.session.request("seed", stopped["binding"], stopped["generation"],
+                                 seed=self.pose, reference_frame=1)
+        self.session.observe(replace(packet, native_frame_id=2, algorithm_stamp=1000.2),
+                             session="2" * 32, input_mode="recorded",
+                             received_at=control.time.monotonic())
+        self.assertEqual("stopped", self.session.state()["state"])
+        self.assertIsNone(self.session.state()["mapFromSensor"])
+        self.session.close_worker()
         self.assertTrue(self.session.state()["cleanupComplete"])
 
     def test_failed_point_factory_and_failed_native_close_clean_localization(self):
@@ -323,6 +361,23 @@ class ControlAndOwnership(unittest.TestCase):
                     runtime.os, "geteuid", return_value=uid):
                 with self.assertRaises(ValueError):
                     runtime.verified_configuration(Path("/unused"))
+
+    def test_live_requires_explicit_opt_in_matching_arm64_humble(self):
+        config = {"platform": "arm64-humble", "inputMode": "live", "pointAdapter": "/verified"}
+        for machine, python, uid, accepted in (
+                ("aarch64", (3, 10), 1000, True), ("x86_64", (3, 10), 1000, False),
+                ("aarch64", (3, 12), 1000, False), ("aarch64", (3, 10), 0, False)):
+            with self.subTest(machine=machine, python=python, uid=uid), patch.object(
+                    runtime, "configuration", return_value=(config, {})), patch.object(
+                    runtime.host_platform, "machine", return_value=machine), patch.object(
+                    runtime.sys, "version_info", python), patch.object(
+                    runtime.os, "geteuid", return_value=uid):
+                if accepted:
+                    self.assertEqual((config, {}), runtime.verified_configuration(
+                        Path("/unused"), allow_live=True))
+                else:
+                    with self.assertRaises(ValueError):
+                        runtime.verified_configuration(Path("/unused"), allow_live=True)
 
     def test_loaded_inventory_preserves_platform_specific_library_hashes(self):
         arm = SimpleNamespace(arm64=True, odometry_library=Path("/frozen/odom.so"),
