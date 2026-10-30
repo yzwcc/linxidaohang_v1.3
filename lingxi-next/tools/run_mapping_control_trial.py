@@ -24,6 +24,7 @@ SOURCE_NAMES = (
     "robot-slam/lingxi_slam/map_provenance.py", "robot-slam/lingxi_slam/mapping_worker.py", "robot-slam/lingxi_slam/mapping_session.py",
     "robot-slam/lingxi_slam/mapping_input.py", "robot-slam/lingxi_slam/sensor_admission.py",
     "robot-slam/lingxi_slam/process_supervisor.py",
+    "robot-slam/lingxi_slam/activity_lease.py",
     "robot-slam/lingxi_slam/worker.py",
     "robot-api/src/mapping-backend.ts", "robot-api/src/server.ts", "robot-api/src/domain.ts",
     "robot-api/src/mapping-points.ts", "robot-api/src/slam-points.ts",

@@ -16,6 +16,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(ROOT / "robot-slam"), str(ROOT / "tools")]
 from lingxi_slam.process_protocol import session_id
 from lingxi_slam.process_supervisor import ProcessLimits, ProcessSupervisor
+from lingxi_slam.activity_lease import ActivityBusy, ActivityGate
 from mapping_platform import configuration
 
 
@@ -47,7 +48,7 @@ class MappingManager:
     """One slot, explicit session ownership and no native calls in request handlers."""
 
     def __init__(self, maps, command_factory, environment, *, owner_factory=ProcessSupervisor,
-                 points_enabled=False, input_mode="recorded"):
+                 points_enabled=False, input_mode="recorded", activity_gate=None):
         self.maps = Path(maps)
         if (not self.maps.is_absolute() or self.maps.resolve(strict=True) != self.maps
                 or not self.maps.is_dir() or not callable(command_factory) or type(points_enabled) is not bool
@@ -58,6 +59,7 @@ class MappingManager:
         self.current, self.closed = None, False
         self.points_enabled = points_enabled
         self.input_mode = input_mode
+        self.activity_gate = activity_gate
 
     def state(self):
         with self.lock:
@@ -66,6 +68,7 @@ class MappingManager:
                 return {"backend": "glim", "inputMode": self.input_mode, "phase": "idle",
                         "session": None, "mapping": False, "cleanupComplete": True}
             state = current["owner"].snapshot()
+            self._release_cleaned(current, state)
             phase = current["phase"]
             if state["state"] == "failed":
                 phase = "failed"
@@ -94,21 +97,36 @@ class MappingManager:
                     raise ControlError("mapping_service_closed", 503)
                 if self.current is not None:
                     previous = self.current["owner"].snapshot()
-                    if not previous["cleanupComplete"]:
+                    self._release_cleaned(self.current, previous)
+                    if not previous["cleanupComplete"] or previous["processAlive"] or previous["monitorAlive"]:
                         raise ControlError("mapping_busy")
                 identity = uuid.uuid4().hex
                 output = self.maps / identity
-                owner = self.owner_factory(
-                    self.command_factory(output), cwd=self.maps, environment=self.environment,
-                    stderr_path=self.maps / (identity + ".private.log"),
-                    limits=ProcessLimits(startup_seconds=30., progress_seconds=2., shutdown_seconds=100.))
+                lease = None
+                try:
+                    if self.activity_gate is not None:
+                        lease = self.activity_gate.acquire()
+                    owner = self.owner_factory(
+                        self.command_factory(output), cwd=self.maps, environment=self.environment,
+                        stderr_path=self.maps / (identity + ".private.log"),
+                        limits=ProcessLimits(startup_seconds=30., progress_seconds=2., shutdown_seconds=100.),
+                        **({"activity_lease": lease} if lease is not None else {}))
+                except ActivityBusy:
+                    if lease is not None:
+                        lease.close()
+                    raise ControlError("slam_activity_busy") from None
+                except BaseException:
+                    if lease is not None:
+                        lease.close()
+                    raise
                 self.current = {"owner": owner, "output": output, "phase": "requested",
-                                "result": None, "decision": None}
+                                "result": None, "decision": None, "lease": lease}
             try:
                 owner.start()
             except BaseException:
                 with self.lock:
                     self.current["phase"] = "failed"
+                    self._release_cleaned(self.current, owner.snapshot())
                 raise ControlError("mapping_start_failed", 503) from None
             return self.state()
         finally:
@@ -146,6 +164,7 @@ class MappingManager:
                     "session": session, "name": name.strip(),
                 })
             terminal = owner.stop()
+            self._release_cleaned(current, terminal)
             if (terminal["state"] != "stopped" or terminal["exitCode"] != 0
                     or terminal["forcedTermination"] or not terminal["cleanupComplete"]
                     or terminal["processAlive"] or terminal["monitorAlive"]):
@@ -172,7 +191,8 @@ class MappingManager:
         except Exception as error:
             if finishing is not None:
                 self._revoke(finishing["owner"])
-                finishing["owner"].stop()
+                terminal = finishing["owner"].stop()
+                self._release_cleaned(finishing, terminal)
                 ready = finishing["output"] / "map-ready.json"
                 if ready.exists() and not ready.is_symlink():
                     # Preserve uncertain output without advertising it in the ready catalog.
@@ -184,6 +204,12 @@ class MappingManager:
             raise ControlError("mapping_finish_unconfirmed", 503) from None
         finally:
             self.operation.release()
+
+    @staticmethod
+    def _release_cleaned(current, state):
+        if (current["lease"] is not None and state["cleanupComplete"] is True
+                and not state["processAlive"] and not state["monitorAlive"]):
+            current["lease"].close()
 
     @staticmethod
     def _revoke(owner):
@@ -202,7 +228,9 @@ class MappingManager:
             # Parent/control loss revokes saving in the child, even during independent reload.
             self._revoke(owner)
             with self.operation:
-                return owner.stop()
+                terminal = owner.stop()
+                self._release_cleaned(self.current, terminal)
+                return terminal
 
 
 def dispatch(manager, value):
@@ -318,7 +346,8 @@ def main():
     manager = MappingManager(args.maps, lambda output: [
         sys.executable, "-B", str(ROOT / "robot-runtime/python/controlled_mapping.py"),
         "--config", str(args.config), "--output", str(output),
-    ], environment, points_enabled="pointAdapter" in config, input_mode=config["inputMode"])
+    ], environment, points_enabled="pointAdapter" in config, input_mode=config["inputMode"],
+        activity_gate=ActivityGate(args.maps / ".slam-activity.lock"))
     serve(args.socket, manager, parent_input=sys.stdin.buffer if args.parent_stdin else None,
           status=(lambda value: print(json.dumps(value), flush=True)) if args.parent_stdin else None)
 

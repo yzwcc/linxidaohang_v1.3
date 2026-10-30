@@ -13,6 +13,7 @@ import traceback
 ROOT = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(ROOT / "robot-slam"), str(ROOT / "tools")]
 from lingxi_slam.process_protocol import HealthEmitter, session_id
+from lingxi_slam.activity_lease import inherited_activity_fds
 from mapping_service import configuration, private_json
 from mapping_platform import MappingPlatform
 
@@ -93,7 +94,8 @@ def run(args, sink):
             result = subprocess.run([
                 sys.executable, "-B", str(ROOT / "robot-runtime/python/mapping_platform.py"),
                 "--config", str(args.config), "--saved", str(saved),
-            ], stdout=output, stderr=output, env=os.environ.copy(), timeout=60, check=False)
+            ], stdout=output, stderr=output, env=os.environ.copy(), timeout=60, check=False,
+                pass_fds=inherited_activity_fds())
         if result.returncode:
             raise RuntimeError("fresh_process_map_reload_failed")
         return json.loads((saved / "reload-report.json").read_text())

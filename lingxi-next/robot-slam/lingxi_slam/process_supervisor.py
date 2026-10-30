@@ -12,6 +12,7 @@ import time
 import uuid
 
 from .process_protocol import decode
+from .activity_lease import ActivityLease, LEASE_ENV
 
 
 @dataclass(frozen=True)
@@ -40,7 +41,8 @@ class ProcessLimits:
 class ProcessSupervisor:
     """Single-use local owner. Commands/environment are trusted composition, never HTTP input."""
 
-    def __init__(self, command, *, cwd, environment, stderr_path, limits=None, clock=time.monotonic):
+    def __init__(self, command, *, cwd, environment, stderr_path, limits=None, clock=time.monotonic,
+                 activity_lease=None):
         self.limits = ProcessLimits() if limits is None else limits
         if (sys.platform != "linux" or not isinstance(self.limits, ProcessLimits) or not callable(clock)
                 or type(command) not in (list, tuple) or not 1 <= len(command) <= 64
@@ -49,7 +51,8 @@ class ProcessSupervisor:
                 or type(environment) is not dict
                 or any(type(key) is not str or not key or "=" in key or "\x00" in key
                        or type(value) is not str or "\x00" in value for key, value in environment.items())
-                or set(environment) & {"LINGXI_SLAM_SESSION", "LD_PRELOAD", "PYTHONINSPECT", "PYTHONSTARTUP"}):
+                or set(environment) & {"LINGXI_SLAM_SESSION", LEASE_ENV, "LD_PRELOAD", "PYTHONINSPECT", "PYTHONSTARTUP"}
+                or activity_lease is not None and not isinstance(activity_lease, ActivityLease)):
             raise ValueError("explicit_local_posix_process_configuration_required")
         executable = Path(command[0])
         self.cwd = Path(cwd).resolve(strict=True)
@@ -59,6 +62,7 @@ class ProcessSupervisor:
                 or self.stderr_path.exists() or self.stderr_path.is_symlink()):
             raise ValueError("absolute_executable_working_directory_and_new_private_log_required")
         self.command, self.environment, self.clock = tuple(command), environment.copy(), clock
+        self.activity_lease = activity_lease
         self.session = uuid.uuid4().hex
         self.condition, self.requested_stop = threading.Condition(), threading.Event()
         self.state, self.failure = "new", None
@@ -89,11 +93,13 @@ class ProcessSupervisor:
                                      | getattr(os, "O_NOFOLLOW", 0), 0o600)
                 with os.fdopen(descriptor, "wb", buffering=0) as private_log:
                     descriptor = None
+                    inherited = () if self.activity_lease is None else (self.activity_lease.fileno(),)
                     self.process = subprocess.Popen(
                         self.command, cwd=self.cwd,
-                        env={**self.environment, "LINGXI_SLAM_SESSION": self.session},
+                        env={**self.environment, "LINGXI_SLAM_SESSION": self.session,
+                             **({LEASE_ENV: str(inherited[0])} if inherited else {})},
                         stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=private_log,
-                        bufsize=0, close_fds=True, start_new_session=True, shell=False,
+                        bufsize=0, close_fds=True, pass_fds=inherited, start_new_session=True, shell=False,
                     )
                 self.state = "starting"
                 self.thread = threading.Thread(target=self._monitor, name="lingxi-slam-process", daemon=True)
@@ -246,6 +252,7 @@ class ProcessSupervisor:
         process = self.process
         if process is None:
             self.cleanup_complete = True
+            self._release_activity()
             return
         try:
             if process.poll() is None:
@@ -273,6 +280,12 @@ class ProcessSupervisor:
         except BaseException:
             self.cleanup_complete = False
             self._fault("process_cleanup_failed")
+        if self.cleanup_complete:
+            self._release_activity()
+
+    def _release_activity(self):
+        if self.activity_lease is not None:
+            self.activity_lease.close()
 
     def _group_has_live_members(self):
         with os.scandir("/proc") as entries:
@@ -307,6 +320,7 @@ class ProcessSupervisor:
         with self.condition:
             if self.state == "new":
                 self.state, self.cleanup_complete = "stopped", True
+                self._release_activity()
             self.requested_stop.set()
             thread = self.thread
         if thread is not None and thread.ident is not None:

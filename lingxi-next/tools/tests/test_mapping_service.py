@@ -9,11 +9,13 @@ import sys
 import tempfile
 import threading
 import unittest
+from unittest.mock import patch
 
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "robot-runtime/python"))
 from mapping_service import ControlError, MappingManager, MappingSocketServer, dispatch
+from lingxi_slam.activity_lease import ActivityBusy, ActivityGate
 
 
 class MappingControl(unittest.TestCase):
@@ -79,6 +81,40 @@ class MappingControl(unittest.TestCase):
             callback()
         self.assertEqual(code, raised.exception.code)
         return raised.exception
+
+    @unittest.skipUnless(sys.platform == "linux" and os.geteuid() != 0,
+                         "requires ordinary-user Linux file locks")
+    def test_uncertain_mapping_cleanup_holds_shared_lease_until_terminal_observation(self):
+        os.chmod(self.maps, 0o700)
+        gate = ActivityGate(self.maps / "activity.lock")
+        self.manager.activity_gate = gate
+        self.manager.start()
+        owner = self.owners[0]
+        owner.state = "failed"
+        self.assertFalse(self.manager.state()["cleanupComplete"])
+        with self.assertRaises(ActivityBusy):
+            gate.acquire()
+        owner.cleaned = True
+        state = owner.snapshot()
+        with patch.object(owner, "snapshot", return_value={**state, "processAlive": True}):
+            self.manager.state()
+            with self.assertRaises(ActivityBusy):
+                gate.acquire()
+            self.assert_code("mapping_busy", self.manager.start)
+        self.assertTrue(self.manager.state()["cleanupComplete"])
+        gate.acquire().close()
+
+    @unittest.skipUnless(sys.platform == "linux" and os.geteuid() != 0,
+                         "requires ordinary-user Linux file locks")
+    def test_closing_mapping_service_releases_shared_lease_after_owner_stop(self):
+        os.chmod(self.maps, 0o700)
+        gate = ActivityGate(self.maps / "activity.lock")
+        self.manager.activity_gate = gate
+        self.manager.start()
+        with self.assertRaises(ActivityBusy):
+            gate.acquire()
+        self.manager.close()
+        gate.acquire().close()
 
     def test_start_state_and_named_save_are_owned_and_idempotent(self):
         self.assertEqual("idle", self.manager.state()["phase"])

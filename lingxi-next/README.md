@@ -205,8 +205,11 @@ shutdown and confirmed-cleanup states to the paired console. Service identity,
 run and generation are separate from the child localization session; late child
 responses are discarded across changes. The fixed-map console remains compatible.
 This is an isolated offline integration, not a production owner, installer or APK
-update. Mapping/localization exclusion and live seeded accuracy remain outstanding.
+update. Same-catalog mapping/localization service entrypoints now use a shared,
+child-inherited Linux activity lease. Other entrypoints are not covered; unified
+ownership and live seeded accuracy remain outstanding.
 See [the service console contract](docs/SLAM_LOCALIZATION_CONSOLE.md#按需会话接入).
+See [activity ownership and its limits](docs/SLAM_ACTIVITY_OWNERSHIP.md).
 A new ordinary-user recorded-input launcher now owns the native localization
 worker and paired HTTPS API together, with bounded startup, peer-failure cleanup
 and end-of-run input verification. Thirteen Linux process cases and 87 focused

@@ -11,6 +11,7 @@ import tempfile
 import threading
 import time
 import unittest
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(ROOT / "robot-runtime/python"), str(ROOT / "robot-slam")]
@@ -18,6 +19,8 @@ AVAILABLE = sys.platform == "linux" and os.geteuid() != 0 and all(importlib.util
     for name in ("numpy", "scipy"))
 if AVAILABLE:
     import localization_service as service
+    from lingxi_slam.activity_lease import ActivityGate
+    from mapping_service import MappingManager
 
 MAP = "slam-" + "b" * 32
 RECEIPT = "c" * 64
@@ -44,6 +47,7 @@ class ManagerTests(unittest.TestCase):
             def __init__(self, command, **kwargs):
                 self.session = ("%032x" % (len(case.owners) + 1))
                 self.phase, self.failure = "new", None
+                self.process = None
                 self.stopped = False
                 case.owners.append(self)
 
@@ -52,6 +56,8 @@ class ManagerTests(unittest.TestCase):
 
             def snapshot(self):
                 return {"state": self.phase, "failure": self.failure,
+                        "session": self.session, "completedMessages": 1,
+                        "processedScans": 0, "estimatedPoses": 0,
                         "cleanupComplete": self.stopped and not case.unclean,
                         "processAlive": not self.stopped, "monitorAlive": not self.stopped,
                         "forcedTermination": False, "exitCode": 0 if self.stopped else None}
@@ -111,6 +117,126 @@ class ManagerTests(unittest.TestCase):
         current = self.manager.runtime()
         self.manager.shutdown(current["runId"], current["generation"], self.manager.instance)
         self.wait(lambda: not self.manager.current["thread"].is_alive())
+
+    def shared_mapping(self):
+        path = self.root / "activity.lock"
+        self.manager.activity_gate = ActivityGate(path)
+        mapping = MappingManager(self.root, lambda output: [str(output)], {},
+                                 owner_factory=self.manager.owner_factory, activity_gate=ActivityGate(path))
+        self.addCleanup(mapping.close)
+        return mapping
+
+    def assert_activity_busy(self, callback):
+        with self.assertRaises(service.ControlError) as caught:
+            callback()
+        self.assertEqual("slam_activity_busy", caught.exception.code)
+        self.assertEqual(409, caught.exception.status)
+
+    def test_shared_gate_blocks_both_service_directions_without_mutating_rejected_generation(self):
+        mapping = self.shared_mapping()
+        first = mapping.start()
+        before = self.manager.runtime()
+        self.assert_activity_busy(lambda: self.manager.start(MAP, RECEIPT, 0, self.manager.instance))
+        self.assertEqual(before, self.manager.runtime())
+        self.assertFalse(self.resolve_entered.is_set())
+        self.assertEqual(1, len(self.owners))
+        mapping.finish(first["session"], save=False)
+        self.start()
+        self.assert_activity_busy(mapping.start)
+        self.assertEqual(2, len(self.owners))
+        self.finish()
+        self.assertEqual("running", mapping.start()["phase"])
+
+    def test_simultaneous_service_starts_create_only_one_owner(self):
+        mapping = self.shared_mapping()
+        barrier, results = threading.Barrier(2), []
+
+        def request(callback):
+            barrier.wait(timeout=3)
+            try:
+                callback()
+                results.append("accepted")
+            except service.ControlError as error:
+                results.append(error.code)
+
+        threads = [threading.Thread(target=request, args=(callback,)) for callback in (
+            mapping.start, lambda: self.manager.start(MAP, RECEIPT, 0, self.manager.instance))]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join(3)
+            self.assertFalse(thread.is_alive())
+        self.assertCountEqual(["accepted", "slam_activity_busy"], results)
+        self.wait(lambda: len(self.owners) == 1)
+
+    def test_shared_gate_is_held_during_resolution_and_released_on_cancel_before_spawn(self):
+        mapping = self.shared_mapping()
+        self.resolve_release.clear()
+        current = self.manager.start(MAP, RECEIPT, 0, self.manager.instance)
+        self.assertTrue(self.resolve_entered.wait(2))
+        self.assert_activity_busy(mapping.start)
+        self.assertEqual([], self.owners)
+        self.manager.shutdown(current["runId"], current["generation"], self.manager.instance)
+        self.assert_activity_busy(mapping.start)
+        self.resolve_release.set()
+        self.wait(lambda: not self.manager.current["thread"].is_alive())
+        self.assertEqual("running", mapping.start()["phase"])
+
+    def test_selection_and_factory_failure_release_shared_gate_without_child_launch(self):
+        mapping = self.shared_mapping()
+        self.resolve_error = True
+        self.manager.start(MAP, RECEIPT, 0, self.manager.instance)
+        self.wait(lambda: not self.manager.current["thread"].is_alive())
+        self.assertEqual([], self.owners)
+        current = mapping.start()
+        mapping.finish(current["session"], save=False)
+        self.resolve_error = False
+        with patch.object(self.manager, "owner_factory", side_effect=RuntimeError("synthetic constructor failure")):
+            self.manager.start(MAP, RECEIPT, self.manager.runtime()["generation"], self.manager.instance)
+            self.wait(lambda: not self.manager.current["thread"].is_alive())
+        self.assertEqual("running", mapping.start()["phase"])
+
+    def test_unconfirmed_localization_cleanup_keeps_shared_gate_after_thread_exit(self):
+        mapping = self.shared_mapping()
+        self.unclean = True
+        self.start()
+        self.addCleanup(self.manager.current["lease"].close)
+        self.finish()
+        self.assertFalse(self.manager.runtime()["cleanupComplete"])
+        self.assert_activity_busy(mapping.start)
+
+    def test_localization_thread_start_failure_releases_shared_gate(self):
+        mapping = self.shared_mapping()
+        with patch("localization_service.threading.Thread.start", side_effect=RuntimeError("synthetic thread failure")):
+            with self.assertRaises(RuntimeError):
+                self.manager.start(MAP, RECEIPT, 0, self.manager.instance)
+        self.assertTrue(self.manager.runtime()["cleanupComplete"])
+        self.assertEqual([], self.owners)
+        self.assertEqual("running", mapping.start()["phase"])
+
+    def test_mapping_factory_and_start_failure_release_shared_gate(self):
+        mapping = self.shared_mapping()
+        for error in (RuntimeError("synthetic constructor failure"), service.ActivityBusy("synthetic admission failure")):
+            with self.subTest(error=type(error).__name__), patch.object(mapping, "owner_factory", side_effect=error):
+                with self.assertRaises((RuntimeError, service.ControlError)):
+                    mapping.start()
+            lease = self.manager.activity_gate.acquire()
+            lease.close()
+
+        original = mapping.owner_factory
+
+        def factory(*args, **kwargs):
+            owner = original(*args, **kwargs)
+
+            def failed():
+                owner.phase, owner.stopped = "failed", True
+                raise RuntimeError("synthetic start failure")
+            owner.start = failed
+            return owner
+
+        with patch.object(mapping, "owner_factory", factory), self.assertRaises(service.ControlError):
+            mapping.start()
+        self.start()
 
     def test_idle_start_proxy_shutdown_restart_uses_distinct_process_binding(self):
         self.assertEqual("idle", self.manager.runtime()["phase"])

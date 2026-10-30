@@ -22,6 +22,7 @@ from mapping_service import ControlError, PUBLIC_FAILURES
 from lingxi_slam.localization_session import LocalizationBinding, LOCALIZATION_SOURCE_FRAME
 from lingxi_slam.map_provenance import sensor_provenance
 from lingxi_slam.process_supervisor import ProcessLimits, ProcessSupervisor
+from lingxi_slam.activity_lease import ActivityBusy, ActivityGate
 
 
 def selection(map_id, receipt_sha256):
@@ -93,7 +94,7 @@ class LocalizationManager:
     """Single native slot. Replacements require observed cleanup, never a timeout guess."""
 
     def __init__(self, runs, resolve_map, command_factory, environment, *, input_mode,
-                 owner_factory=ProcessSupervisor, exchange=None):
+                 owner_factory=ProcessSupervisor, exchange=None, activity_gate=None):
         self.runs = Path(runs)
         parent = direct(self.runs, directory=True)
         if (sys.platform != "linux" or os.geteuid() == 0 or parent.st_uid != os.geteuid()
@@ -106,6 +107,7 @@ class LocalizationManager:
         self.environment, self.owner_factory = environment.copy(), owner_factory
         self.input_mode, self.exchange = input_mode, exchange or self._exchange
         self.instance = uuid.uuid4().hex
+        self.activity_gate = activity_gate
         self.lock, self.closed, self.generation, self.current = threading.RLock(), False, 0, None
 
     def runtime(self):
@@ -136,16 +138,23 @@ class LocalizationManager:
             self._generation(expected_generation, service_id)
             if self.current and (not self.current["cleanup"] or self.current["thread"].is_alive()):
                 raise ControlError("localization_runtime_busy")
-            self.generation += 1
             current = {"id": uuid.uuid4().hex, "selection": requested, "phase": "starting",
                        "cleanup": False, "failure": None, "owner": None, "binding": None,
-                       "stop": threading.Event()}
+                       "stop": threading.Event(), "lease": None}
             current["thread"] = threading.Thread(target=self._run, args=(current,),
                                                   name="localization-session-owner", daemon=True)
+            try:
+                lease = self.activity_gate.acquire() if self.activity_gate is not None else None
+            except ActivityBusy:
+                raise ControlError("slam_activity_busy") from None
+            current["lease"] = lease
+            self.generation += 1
             self.current = current
             try:
                 current["thread"].start()
             except BaseException:
+                if lease is not None:
+                    lease.close()
                 current.update(phase="failed", failure="localization_process_failed", cleanup=True)
                 raise
             return self.runtime()
@@ -181,7 +190,8 @@ class LocalizationManager:
             owner = self.owner_factory(
                 self.command_factory(chosen, output), cwd=output, environment=self.environment,
                 stderr_path=output / "private-child.log",
-                limits=ProcessLimits(startup_seconds=30., progress_seconds=2., shutdown_seconds=5.))
+                limits=ProcessLimits(startup_seconds=30., progress_seconds=2., shutdown_seconds=5.),
+                **({"activity_lease": current["lease"]} if current["lease"] is not None else {}))
             with self.lock:
                 current.update(owner=owner, binding=replace(chosen.binding, session=owner.session), output=output)
             if current["stop"].is_set():
@@ -211,6 +221,8 @@ class LocalizationManager:
                         failure = failure or "localization_process_failed"
                 except Exception:
                     cleanup, failure = False, failure or "localization_process_failed"
+            if cleanup and current["lease"] is not None:
+                current["lease"].close()
             with self.lock:
                 current.update(cleanup=cleanup, failure=failure, phase="failed" if failure else "stopped")
 
@@ -414,7 +426,8 @@ def main():
                 "--map-id", chosen.binding.map_id, "--receipt-sha256", chosen.binding.receipt_sha256,
                 "--profile-sha256", profile_sha256, "--output", str(output)]
 
-    manager = LocalizationManager(runs, resolver, command, environment, input_mode=config["inputMode"])
+    manager = LocalizationManager(runs, resolver, command, environment, input_mode=config["inputMode"],
+                                  activity_gate=ActivityGate(maps / ".slam-activity.lock"))
     serve(args.socket, manager, parent_input=sys.stdin.buffer if args.parent_stdin else None,
           status=lambda value: print(json.dumps(value), flush=True))
 
