@@ -1,0 +1,128 @@
+{
+  "schemaVersion": 1,
+  "result": "same_recorded_native_lidar_to_base_projection_not_calibration_acceptance",
+  "sourceSha256": {
+    "robot-slam/lingxi_slam/base_pose.py": "2361f3c64c5d4e47473a610f3c1f0c8677421da8ec72f0488217b6d3b994f51d",
+    "robot-slam/lingxi_slam/seeded_localization.py": "563bebbe0710ba07b96e4721d12b033443e0a317834b117c0b2697fe003f8a8f",
+    "tools/project_recorded_base_poses.py": "11b9a7a54b28140d32a194628b640806906fe7cae0a769e39d784dc2c56ce130",
+    "tools/audit_slam_calibration.py": "03375a989583b26e6a92557cb23515d7f97cd0586e2cfd54a54aa424819e5374",
+    "tools/diagnose_slam_sensors.py": "0c9808ca472b6d7be7b3b118c05d83b13f5b975e76da1c732e08adf071e1b824",
+    "tools/run_kiss_offline_trial.py": "ebe6d933005fa0821b50c0f91477e7a80a32ac1d174bf1040ec90d91e382a8aa",
+    "tools/verify_slam_capture.py": "073c280e1791636e6ccd41c016ca50d56fa3a71078eb5ab1a4bfcc77e0259bad",
+    "tools/slam_bag_audit.py": "529f6eb0b6a5050e74d0c65c566d53893f5e989e0a1a6d889ba0d27bf7a7620b"
+  },
+  "captureManifestSha256": "dff6ef252728ac0a26989b880d1d3a11769922467c8f5d7747c1b04a5c2c1e28",
+  "streamEvidenceSha256": "d4defa80f4e5d48ca0bc620965218103c89726cdde0e523531d14262468449cc",
+  "nativeInputSha256": {
+    "static-start": {
+      "report.json": "d1110fd77670a89d6a713055162583b2f248af9ed5e27a81dcaf5e00312df718",
+      "private-trajectory.npz": "413b6b5319dd5965c7e8974ec12a28d77948dd773301ea401aa5cc43b49461ca"
+    },
+    "static-end": {
+      "report.json": "7e2d2995e66888c6b247065368156dedf93e02091dca3e17cad12f4a7f7ca3b0",
+      "private-trajectory.npz": "93e5d84a6ebbdec3681a5d57bd79c3da202087615593b2975889e659a89d5ef4"
+    },
+    "dynamic-start": {
+      "report.json": "c855619d03c331f733d993274bbfe4611851e9c8b366bc4b6a6cef06b7203836",
+      "private-trajectory.npz": "8a31be2eda4aa526f305395a37c8d9180169f2bfddd5ada21dd25d86b6bb3675"
+    },
+    "dynamic-end": {
+      "report.json": "a3cc85d2deac5dc205b89c3303669ef26067e736b0b33f285613473d96d31d14",
+      "private-trajectory.npz": "31c3f6439464bc1e3a0d21e230ad77201452b636e5c86906731c3dddd3679d64"
+    }
+  },
+  "maximumInterpolationGapNs": 50000000,
+  "outputCoordinateFrame": "lingxi_glim_odom",
+  "outputBodyFrame": "base_link",
+  "explicitMetresPerMapUnitNotMeasured": 1.0,
+  "runs": {
+    "static-start": {
+      "nativePoses": 313,
+      "projectedBasePoses": 313,
+      "unavailablePoses": 0,
+      "unavailableReasons": {},
+      "baseToLidarPath": [
+        "base_link",
+        "pelvis",
+        "waist_yaw_link",
+        "waist_pitch_link",
+        "torso_link",
+        "lidar_chest_front"
+      ],
+      "largestUsedInterpolationGapNs": 22049417,
+      "maximumReconstructionElementError": 5.551115123125783e-16,
+      "maximumLidarBaseOriginDistanceMetresAtDeclaredScale": 0.3532472075563977,
+      "maximumLidarBaseRotationDegrees": 89.89439393411024
+    },
+    "static-end": {
+      "nativePoses": 311,
+      "projectedBasePoses": 311,
+      "unavailablePoses": 0,
+      "unavailableReasons": {},
+      "baseToLidarPath": [
+        "base_link",
+        "pelvis",
+        "waist_yaw_link",
+        "waist_pitch_link",
+        "torso_link",
+        "lidar_chest_front"
+      ],
+      "largestUsedInterpolationGapNs": 22049417,
+      "maximumReconstructionElementError": 5.551115123125783e-16,
+      "maximumLidarBaseOriginDistanceMetresAtDeclaredScale": 0.35324720755639816,
+      "maximumLidarBaseRotationDegrees": 89.89439393411034
+    },
+    "dynamic-start": {
+      "nativePoses": 1190,
+      "projectedBasePoses": 1190,
+      "unavailablePoses": 0,
+      "unavailableReasons": {},
+      "baseToLidarPath": [
+        "base_link",
+        "pelvis",
+        "waist_yaw_link",
+        "waist_pitch_link",
+        "torso_link",
+        "lidar_chest_front"
+      ],
+      "largestUsedInterpolationGapNs": 23999500,
+      "maximumReconstructionElementError": 1.5543122344752192e-15,
+      "maximumLidarBaseOriginDistanceMetresAtDeclaredScale": 0.3539905518155198,
+      "maximumLidarBaseRotationDegrees": 93.56737507507889
+    },
+    "dynamic-end": {
+      "nativePoses": 1189,
+      "projectedBasePoses": 1189,
+      "unavailablePoses": 0,
+      "unavailableReasons": {},
+      "baseToLidarPath": [
+        "base_link",
+        "pelvis",
+        "waist_yaw_link",
+        "waist_pitch_link",
+        "torso_link",
+        "lidar_chest_front"
+      ],
+      "largestUsedInterpolationGapNs": 23999500,
+      "maximumReconstructionElementError": 1.5543122344752192e-15,
+      "maximumLidarBaseOriginDistanceMetresAtDeclaredScale": 0.3539905518155202,
+      "maximumLidarBaseRotationDegrees": 93.53260000590879
+    }
+  },
+  "boundaries": {
+    "robotContacted": false,
+    "liveSensorsSubscribed": false,
+    "motionCommandsSent": false,
+    "nativeEngineRerun": false,
+    "tfPublished": false,
+    "physicalScaleValidated": false,
+    "timingHypothesisValidated": false,
+    "calibrationValidated": false,
+    "siteAssociationVerified": false,
+    "mapGravityAlignmentValidated": false,
+    "localizationReady": false,
+    "navigationReady": false,
+    "tf2TargetValidated": false,
+    "deploymentApproved": false
+  }
+}

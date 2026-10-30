@@ -269,6 +269,11 @@ reload, point-stream reconnects and a paired HTTPS known-seed localization
 lifecycle using that same new map. This is not physical accuracy or navigation
 acceptance. See `docs/SLAM_MAP_PROVENANCE.md` for results and remaining gates.
 
+Exact-time LiDAR-to-base projection now has a reusable component, a read-only
+TF2 adapter and same-recording native-trajectory verification. It retains
+explicit scale/time assumptions and is not yet a live navigation position.
+See `docs/SLAM_BASE_POSE.md`.
+
 The opt-in independent GLIM path now has recorded-data start/save/discard
 controls, same-engine corrected point display and a verified saved-point
 preview. A separate bounded commissioning launcher supports paired HTTPS
