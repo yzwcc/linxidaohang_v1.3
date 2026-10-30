@@ -1,6 +1,7 @@
 """Offline live-runtime inventory and archive checks; never execute robot code."""
 import gzip
 import hashlib
+import importlib
 from dataclasses import dataclass
 from html.parser import HTMLParser
 import json
@@ -22,7 +23,8 @@ BOUNDARIES = ("robotContacted", "arm64RuntimeExecuted", "sensorsSubscribed", "mo
               "servicesChanged", "liveRenderingValidated", "mappingReady", "localizationReady",
               "navigationReady", "productAccepted")
 DIRECTORIES = ("web", "robot-api/src", "robot-runtime/src", "robot-runtime/python",
-               "robot-slam/lingxi_slam", "shared")
+               "robot-slam/lingxi_slam", "robot-slam/native-point-output", "tools/glim-replay",
+               "tools/glim-mapping", "shared")
 METADATA = (
     "package.json", "package-lock.json", "vite.config.ts", "tsconfig.json", "tsconfig.api.json",
     "tsconfig.runtime.json", "robot-runtime/build-live.mjs", "docs/slam-humble-live-evidence.json",
@@ -342,6 +344,7 @@ def extract(archive, output, archive_sha256, manifest_sha256, *, profile=LIVE):
             with stream.extractfile(member) as payload, destination.open("xb") as target:
                 shutil.copyfileobj(payload, target)
             destination.chmod(0o700 if name == "node/bin/node" else 0o600)
+    importlib.invalidate_caches()
     verify_bundle(output, manifest_sha256, project=output / "source", profile=profile)
     if sha256(archive) != archive_sha256:
         raise ValueError("unchanged_live_archive_during_extraction_required")

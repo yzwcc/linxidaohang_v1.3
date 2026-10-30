@@ -18,6 +18,8 @@ existing port-3000 console. It is not a final product release or APK update.
 - The archive contains source, compiled API/web assets, pinned ARM64 Node and
   production JavaScript dependencies. It excludes configuration, TLS keys,
   pairing credentials, recordings and business maps.
+- Native replay, mapping and point-output adapter sources are included for the
+  runtime's provenance checks, not for compilation on the robot.
 - Existing isolated GLIM/native libraries, point adapter and verified sensor
   configuration remain external requirements. The target must be ordinary-user
   Linux AArch64 with the matching Humble Python 3.10 environment.
@@ -28,21 +30,25 @@ existing port-3000 console. It is not a final product release or APK update.
 See [workspace behavior](SLAM_WORKSPACE.md),
 [native mapping configuration](SLAM_MAPPING_CONTROL.md), and
 [the package verification evidence](slam-workspace-preparation-evidence.json).
+The separate [actual ARM64 recorded-input check](SLAM_WORKSPACE_ARM64.md)
+records r7 commissioning and the earlier unsuccessful attempts. Preparation
+flags are deliberately not promoted to physical or product acceptance flags.
 
 The final generated archive is
-`artifacts/lingxi-next-shared-slam-20261031-r2-arm64.tar.gz`, with an adjacent
+`artifacts/lingxi-next-shared-slam-20261031-r7-arm64.tar.gz`, with an adjacent
 `.sha256` file. These generated artifacts are intentionally excluded from Git.
-The earlier non-r2 development archive is superseded.
+Earlier development archives are superseded; their target observations are
+retained in the separate ARM64 commissioning record.
 
 | Item | Final preparation |
 | --- | --- |
-| Archive bytes | 54,218,809 |
-| Source files | 203 |
-| Package files including manifest | 7,779 |
+| Archive bytes | 54,232,058 |
+| Source files | 214 |
+| Package files including manifest | 7,790 |
 | Pinned production packages | 95 |
-| ARM64 Node prepared, not executed | 22.23.4 |
-| Archive SHA256 | `fcd6759ed73e8fa4f7c2ca80fce1aa43057b355a629c6401defd36d6b5a5b419` |
-| Manifest SHA256 | `b3725cd4cd48784a043720f6df16582bc67b835252d95f13906fb8ca959cd31c` |
+| Pinned ARM64 Node | 22.23.4 |
+| Archive SHA256 | `5d0928cc4f9ee29dde86c24771f3885554452651ecbd820fa157147ebfe725c7` |
+| Manifest SHA256 | `aec5ac3da86c80e77e4853c9a91edb1720807d339d431d6bef2be4354927d387` |
 
 Preparation, independent verification and extraction checked every archive
 member. Use a new matching manifest after any rebuild; these are not universal
@@ -183,7 +189,7 @@ establish ARM64 acceptance.
 The extracted composition test likewise cannot establish physical accuracy,
 sensor calibration, live mapping, relocalization or navigation performance.
 
-## Verification Record
+## Historical r2 Preparation Checks
 
 - Full Linux regression: 1,096 tests run, 1,081 passed and 15 explicitly skipped.
   The final stop-budget regression was added afterward and passed in the
@@ -204,5 +210,6 @@ sensor calibration, live mapping, relocalization or navigation performance.
   The full regression and extracted composition passed. This development-host
   observation is retained here; it is not evidence of long-run reliability.
 
-Readiness flags in the package evidence remain false. No robot was contacted,
-deployed to, or moved during this package milestone.
+Readiness flags in the preparation evidence remain false. These historical r2
+preparation tests did not contact, deploy to, or move the robot. Actual target
+commissioning is recorded separately and must not be inferred from preparation.

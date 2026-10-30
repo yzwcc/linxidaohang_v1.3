@@ -58,6 +58,31 @@ class SlamBundleContracts(unittest.TestCase):
         with self.assertRaises(ValueError):
             bundle.verify_bundle(root, report["manifestSha256"], project=root / "source", profile=PROFILE)
 
+    def test_extraction_invalidates_cached_missing_module_paths_before_source_verification(self):
+        args, report = self.prepared()
+        events, original = [], bundle.verify_bundle
+
+        def verify(*values, **keywords):
+            events.append("verified")
+            return original(*values, **keywords)
+
+        with patch.object(bundle.importlib, "invalidate_caches", side_effect=lambda: events.append("invalidated")), \
+                patch.object(bundle, "verify_bundle", side_effect=verify):
+            bundle.extract(args.output / PROFILE.archive, self.root / "cold-extracted",
+                           report["archiveSha256"], report["manifestSha256"], profile=PROFILE)
+        self.assertEqual(["invalidated", "verified"], events)
+
+    def test_actual_source_inventory_includes_runtime_native_provenance(self):
+        sources = bundle.source_hashes(ROOT, profile=PROFILE)
+        native = ["tools/glim-replay/offline.cpp", "tools/glim-replay/CMakeLists.txt",
+                  "tools/glim-mapping/mapping.cpp", "tools/glim-mapping/CMakeLists.txt"]
+        native += ["robot-slam/native-point-output/" + name for name in (
+            "point_output.h", "point_output.cpp", "point_output_contract.cpp", "CMakeLists.txt",
+            "exports.map", "verify_exports.cmake")]
+        for name in native:
+            with self.subTest(name=name):
+                self.assertEqual(bundle.sha256(ROOT / name), sources[name])
+
     def fixture(self):
         root, report = self.extracted()
         config = self.root / "external-config.json"

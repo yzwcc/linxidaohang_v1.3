@@ -41,13 +41,14 @@ def notify_ready(value):
 
 def run(args):
     api = validate(args)
+    _, native_environment = verified_configuration(args.config, allow_live=True)
     stop = threading.Event()
     previous = {value: signal.signal(value, lambda *_: stop.set()) for value in (signal.SIGINT, signal.SIGTERM)}
     try:
         owner = ManagedSlamOwner(
             [sys.executable, "-B", str(ROOT / "robot-runtime/python/slam_service.py"), "--config", str(args.config)],
             [str(args.node), str(args.api_bundle)], maps=args.maps, output=args.output,
-            service_environment={"PATH": "/usr/bin:/bin", "LANG": "C.UTF-8",
+            service_environment={**native_environment, "PATH": "/usr/bin:/bin", "LANG": "C.UTF-8",
                                  "PYTHONDONTWRITEBYTECODE": "1", "PYTHONNOUSERSITE": "1"}, api_environment=api)
         result = owner.run(stop=stop, seconds=args.seconds, on_listening=notify_ready)
         return 0 if result["result"] == "stopped" else 1

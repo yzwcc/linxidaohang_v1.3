@@ -215,8 +215,13 @@ one paired HTTPS API and one parent-linked service. It reuses the existing
 process owner, keeps the saved-map catalog across runs and exposes both modes
 in the same desktop/landscape web session. Its default port is 3443; port 3000
 is reserved. Native session limits and false navigation/localization readiness
-remain unchanged. This source integration is not yet in the installer or APK.
+remain unchanged. A dedicated commissioning archive and ordinary-user service
+installer now package this workspace; they do not replace the product installer
+or update the APK. The r7 package passed the actual ARM64 recorded-input lifecycle,
+including native map save/reload, restart persistence and complete localization
+shutdown. Live accuracy, motion and full-product acceptance remain outstanding.
 See [the shared workspace](docs/SLAM_WORKSPACE.md).
+See [the actual ARM64 workspace check](docs/SLAM_WORKSPACE_ARM64.md).
 A new ordinary-user recorded-input launcher now owns the native localization
 worker and paired HTTPS API together, with bounded startup, peer-failure cleanup
 and end-of-run input verification. Thirteen Linux process cases and 87 focused

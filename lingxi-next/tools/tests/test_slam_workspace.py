@@ -109,14 +109,19 @@ class WorkspaceConfiguration(unittest.TestCase):
             "--api-bundle", str(api), "--api-sha256", hashlib.sha256(api.read_bytes()).hexdigest()]
         required = {"LINGXI_TLS_KEY": "/synthetic/key", "LINGXI_TLS_CERT": "/synthetic/cert",
                     "LINGXI_PAIRING_CODE_SHA256": "a" * 64}
+        native = {"LD_LIBRARY_PATH": "/synthetic/verified/lib", "PYTHONPATH": "/synthetic/verified/humble",
+                  "OMP_NUM_THREADS": "2", "OPENBLAS_NUM_THREADS": "2"}
         with patch.object(sys, "argv", arguments), patch("managed_slam.verified_configuration", return_value=(
-                {"pointAdapter": str(frozen)}, {})), patch("managed_slam.signal.signal"), \
+                {"pointAdapter": str(frozen)}, native)), patch("managed_slam.signal.signal"), \
                 patch.dict(os.environ, {**required, "LINGXI_DEMO_MODE": "1", "NODE_OPTIONS": "--inspect"}, clear=True), \
                 patch("managed_slam.ManagedSlamOwner") as owner:
             owner.return_value.run.return_value = {"result": "stopped"}
             self.assertEqual(0, managed_slam.main())
         self.assertIsNone(owner.return_value.run.call_args.kwargs["seconds"])
         self.assertEqual({"PATH": "/usr/bin:/bin", "LANG": "C.UTF-8", **required}, owner.call_args.kwargs["api_environment"])
+        self.assertEqual({**native, "PATH": "/usr/bin:/bin", "LANG": "C.UTF-8",
+                          "PYTHONDONTWRITEBYTECODE": "1", "PYTHONNOUSERSITE": "1"},
+                         owner.call_args.kwargs["service_environment"])
         self.assertFalse((self.root / "r").exists())
 
 

@@ -60,7 +60,7 @@ class LiveBundleContracts(unittest.TestCase):
             path = self.project / name
             path.mkdir(parents=True, exist_ok=True)
             (path / "synthetic.txt").write_text("synthetic source", encoding="utf-8")
-        (self.project / "tools").mkdir()
+        (self.project / "tools").mkdir(exist_ok=True)
         (self.project / "tools/synthetic.py").write_text('"""Synthetic source, not executed."""')
         lock = json.loads((self.consumer / "package-lock.json").read_text())
         lock["packages"].update({

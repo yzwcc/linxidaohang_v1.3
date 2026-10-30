@@ -16,7 +16,7 @@ async function project(t) {
     await mkdir(path.join(root, name), { recursive: true });
     await writeFile(path.join(root, name, "synthetic.txt"), "synthetic source");
   }
-  await mkdir(path.join(root, "tools"));
+  await mkdir(path.join(root, "tools"), { recursive: true });
   await writeFile(path.join(root, "tools/synthetic.py"), '"""Synthetic source, not executed."""');
   return root;
 }
@@ -29,6 +29,16 @@ test("source inventory is deterministic, explicit and includes runtime Python pl
   assert.equal(first["robot-runtime/python/synthetic.txt"], first["web/synthetic.txt"]);
   assert.ok(first["tools/synthetic.py"]);
   assert.equal(Object.keys(first).length, metadataFiles.length + sourceDirectories.length + 1);
+});
+
+test("actual source inventory contains the native provenance required by runtime verification", async () => {
+  const sources = await sourceHashes();
+  for (const name of ["tools/glim-replay/offline.cpp", "tools/glim-replay/CMakeLists.txt",
+    "tools/glim-mapping/mapping.cpp", "tools/glim-mapping/CMakeLists.txt",
+    ...["point_output.h", "point_output.cpp", "point_output_contract.cpp", "CMakeLists.txt",
+      "exports.map", "verify_exports.cmake"].map((name) => `robot-slam/native-point-output/${name}`)]) {
+    assert.match(sources[name], /^[a-f0-9]{64}$/);
+  }
 });
 
 test("environment and private-data files inside source directories reject the build snapshot", async (t) => {
