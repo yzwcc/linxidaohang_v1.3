@@ -117,5 +117,65 @@ python -B -m unittest discover -s tools/tests -p test_localization_control.py -v
 物理运动未独立确认，地图可能复用同段数据，初值来自原记录。
 没有位置真值、长程闭环、重复场景全局重定位、底座外参、
 ARM64 性能或导航控制结果。
-下一步仍可离线接入配对管理 API 与网页初值/状态，再准备 ARM64 适配；
-这些功能尚未包含在本次定位入口中。
+随后已接入配对管理 API 与网页，见 `SLAM_LOCALIZATION_CONSOLE.md`。
+下述统一启动器将同一录制原生会话与配对 HTTPS API 交给一个父进程管理；
+ARM64/live 定位仍未适配。
+
+## 统一启动与退出
+
+新增 `robot-runtime/python/managed_localization.py`，复用上述录制子进程；
+`localization_owner.py` 先等原生健康状态和同 session 私有控制 socket 就绪，
+再启动已核对 SHA256 的 Node 与定位 API。父进程持有两端输入管道；
+API 或原生端退出、启动超时、输入变化和处理期限结束均撤销 HTTP 接入并清理子进程。
+父进程被强杀时，子进程通过各自管道 EOF 独立退出。
+
+环境只转交明确允许的字段，不继承 `NODE_OPTIONS`、`LD_PRELOAD`、
+演示模式或其他后端覆盖。TLS 文件必须是直接绝对路径，大小为 1 字节至 1 MiB；
+私钥须当前用户所有、禁止组和其他用户访问。配对摘要必须为 64 位小写十六进制。
+配置、源码、Node/API、地图和 TLS 字节在结束时重新核对。
+输出目录不能覆盖地图目录、录制输入、运行时或 TLS 文件。
+
+先在私有环境设置 `LINGXI_TLS_KEY`、`LINGXI_TLS_CERT`、
+`LINGXI_PAIRING_CODE_SHA256`，并保留前述原生库环境。
+可选 `LINGXI_WEB_ROOT` 指向编译网页；绑定地址和端口沿用控制台文档。
+这些值不写入交付包或 Git，启动器不生成配对码，也不安装服务。
+
+```sh
+python -B robot-runtime/python/managed_localization.py \
+  --config /private/config.json \
+  --saved-map /private/saved-map \
+  --map-id "slam-REPLACE_WITH_32_HEX_SESSION" \
+  --receipt-sha256 "REPLACE_WITH_ACTUAL_RECEIPT_SHA256" \
+  --profile-sha256 "REPLACE_WITH_ACTUAL_PROFILE_SHA256" \
+  --node /private/node \
+  --node-sha256 "REPLACE_WITH_ACTUAL_NODE_SHA256" \
+  --api-bundle /private/localization-main.mjs \
+  --api-sha256 "REPLACE_WITH_ACTUAL_API_SHA256" \
+  --output /private/new-run \
+  --seconds 90
+```
+
+输出及其 `native/` 目录为 0700，日志和 `owner-report.json` 为 0600；
+Unix socket 完整路径须小于 100 字节。使用新的持久目录保留证据，
+不要依赖可能随 WSL 退出而清空的 `/tmp`。
+启动状态只输出实际监听端口，不输出配对码或位姿。
+原生启动、API 启动和录制处理分别有期限；`--seconds` 为 API 就绪后的处理期限。
+
+结果仅在完整处理全部回调、输入复核和子报告校验通过、两个子进程干净退出时为
+`completed`。`failurePhase` 保留首个失败阶段。SIGINT/SIGTERM 请求结束，
+不把部分录制当作成功：现有原生回放若因提前停止返回失败，整体仍为 `failed`；
+只有原生正常收尾的中断才为 `interrupted`。退出码分别为 0、1、2。
+
+`tools/check_managed_localization_runtime.py` 复用同组参数，另需
+`--seed-sample` / `--seed-sha256`，不传 `--seconds`。
+它以一次性私有证书和随机配对码检查未认证拒绝、HTTPS 配对、明确初值、
+实际跟踪、暂停、旧代次拒绝、停止及完整回放。
+证书通过明确 CA 校验，没有关闭证书验证。初值取自保留样本，
+明确绑定提交时的当前参考帧，不表示二者位置相同，也不是位置真值。
+
+最终源码的一次持久输出检查完整处理 4,144 条回调、196 次扫描、165 个里程计位姿，
+观察到第 4 帧跟踪；停止后 592 次 HTTPS 查询未恢复位姿。
+原生创建/关闭各一次，API 与原生均退出 0、无强制终止。
+13 项 Linux 进程测试和 87 项定位相关 Python 回归通过；
+摘要见 `slam-managed-localization-evidence.json`。
+这些结果没有扩大地图精度、坐标标定或导航就绪范围。

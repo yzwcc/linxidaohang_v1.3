@@ -19,6 +19,7 @@
     "test": "vitest run",
     "test:point-runtime": "node --test tools/check-point-runtime.mjs",
     "test:mapping-runtime": "node --test tools/check-managed-mapping-owner.mjs",
+    "test:localization-runtime": "node --test tools/check-managed-localization-owner.mjs",
     "android:add": "cap add android",
     "android:sync": "npm run build && cap sync android",
     "android:build": "npm run android:sync && node tools/build-android.mjs",

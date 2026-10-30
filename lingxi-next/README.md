@@ -197,9 +197,17 @@ and displays saved point clouds with an explicitly seeded raw IMU pose.
 Its isolated entrypoint supports seed/pause/stop, rejects unrelated writes,
 clears stale poses and verifies the map receipt/point identity before overlay.
 Eleven synthetic browser stages and seven compiled Linux API lifecycle cases
-pass; these do not establish native-to-HTTP, ARM64/live localization or APK
-acceptance. The API and native process still require separate owners.
+pass; these establish the console contract, not ARM64/live localization or APK
+acceptance.
 See [the offline localization console](docs/SLAM_LOCALIZATION_CONSOLE.md).
+A new ordinary-user recorded-input launcher now owns the native localization
+worker and paired HTTPS API together, with bounded startup, peer-failure cleanup
+and end-of-run input verification. Thirteen Linux process cases and 87 focused
+Python tests pass. A real native-to-HTTPS check processed all 4,144 callbacks,
+confirmed tracking/pause/stop and closed both children without forced termination.
+The seed comes from a preserved recording, not independent position truth;
+ARM64/live localization, base calibration and navigation remain unaccepted.
+See [the unified recorded runtime](docs/SLAM_LOCALIZATION_RUNTIME.md).
 An independent full-recording range audit records returns beyond 5 raw-coordinate
 units. The roughly 5 m travel estimate is not calibration truth; travel,
 scan coverage and map accuracy are different quantities.

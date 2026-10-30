@@ -240,3 +240,39 @@ ARM64/live 定位、独立精度或 Android 实机验收。本轮原生 Python �
 仍需统一原生/API 启动所有权、地图/配置关联证明、底盘标定和导航适配；
 所有就绪标记继续为 false，未重打 0.1.19 安装包或 APK。
 详见 `SLAM_LOCALIZATION_CONSOLE.md`。
+
+## 2026-10-30 定位原生进程与 HTTPS 统一管理
+
+新增 `managed_localization.py` / `localization_owner.py`，由一个普通用户父进程
+管理录制原生定位和配对 HTTPS API，原生就绪后才监听。
+未修改冻结原生适配器或质量门槛，没有重打 0.1.19 安装包或 APK。
+
+| 检查 | 结果 |
+| --- | --- |
+| Linux 进程故障测试 | 13/13 通过；健康完成、两端分别崩溃、父进程强杀、正常/失败中断、绑定不符、原生/API 启动失败、缺少 TLS、处理超时、完成报告拒绝和输入变化；断言失败阶段、实际启动情况和子进程清理 |
+| 定位 Python 回归 | 87/87 通过，含新增 6 项启动准入测试和原 19 项运行接入测试；验证环境白名单、TLS/配对、输出重叠、运行时摘要和结束时 TLS 变化拒绝 |
+| 独立 API 构建 | `npm run build:localization-runtime` 通过；本机 bundle 与实际 HTTPS 试验加载文件 SHA256 相同 |
+| 真实原生到 HTTPS | 持久输出的一次最终源码检查通过：4,144 条回调、196 次扫描、165 个里程计位姿；原生 create/close 各 1 次，单一非主工作线程 |
+| 实际 HTTPS 控制 | 未认证 401、配对 201、明确初值 202；第 4 帧观察到跟踪，暂停立即撤销位姿，旧代次 409；停止后 592 次查询未恢复位姿 |
+| 完整结束 | 原生/API 均退出 0，无强制终止或执行中残留；输入重新核对、完整原生报告和停止状态验证通过；目录 0700、日志与报告 0600 |
+
+复现命令见 `SLAM_LOCALIZATION_RUNTIME.md`；进程测试为
+`npm run test:localization-runtime`，须以普通 Linux 用户显式设置
+`LINGXI_LOCALIZATION_OWNER_PYTHON` 和 `LINGXI_LOCALIZATION_TEST_BUNDLE`。
+定位回归为 `python -B -m unittest discover -s tools/tests -p '*localization*.py' -q`。
+13 项进程测试的原生协议为合成夹具；真实原生整链路由独立 HTTPS 检查器验证。
+
+初次夹具因启动预算/接口不符失败，修正后通过；加强失败阶段断言后发现
+Unix socket 已绑定但尚未服务时的 `BlockingIOError`，现在在既定启动期限内等待。
+最终 13 项全部通过。首次真实 HTTPS 检查也成功，但 `/tmp` 输出未持久保留，
+因此使用新持久目录再次完整运行并核对报告，以后者生成公开聚合
+`slam-managed-localization-evidence.json`。没有把失败或丢失证据的结果混入该聚合。
+
+本次初值来自保留录制位姿，绑定提交时当前参考帧；不是独立真值。
+输入物理运动未独立确认，地图可能复用同段数据。
+`localizationReady`、`navigationReady`、`mapProfileAssociationVerified` 仍为 false，
+位姿仍是 `native-raw` / IMU；没有 ARM64/live 定位、底盘标定或导航验收。
+本轮未重复全量 Python、网页/Java/Android 测试，未修改旧证据含义。
+
+期间用户恢复机器人网络并授权按需测试；新 IP 与保存的原主机密钥一致，
+只读 SSH 架构查询为 `aarch64`，未在机器人执行本次定位代码或发送运动命令。
