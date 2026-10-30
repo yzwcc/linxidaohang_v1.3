@@ -47,6 +47,8 @@ for (const name of ["tools/check-live-mapping.mjs", "robot-runtime/python/manage
   "robot-runtime/python/controlled_mapping.py", "robot-runtime/python/mapping_platform.py",
   "robot-slam/lingxi_slam/passive_ros.py", "robot-slam/lingxi_slam/mapping_worker.py",
   "robot-slam/lingxi_slam/mapping_session.py", "robot-api/src/mapping-backend.ts",
+  "robot-api/src/server.ts", "robot-api/src/mapping-points.ts",
+  "robot-runtime/src/mapping-api.ts", "robot-runtime/src/mapping-main.ts",
   "robot-api/src/domain.ts", "shared/contracts.ts", "web/src/App.tsx"]) {
   report.sourceSha256[name] = hash(await readFile(path.join(root, name)));
 }
@@ -155,6 +157,7 @@ try {
   report.webAssetsVerified = true;
   const initial = await api("state");
   assert.equal(initial.demoMode, false); assert.equal(initial.mappingInputMode, "live");
+  assert.equal(initial.checks.find((check) => check.id === "lidar")?.ready, false);
   for (const save of [true, false]) {
     await api("mapping/start", "POST", undefined, 202);
     const started = await api("state");
@@ -171,6 +174,8 @@ try {
     assert.equal(state.mappingStatus, "running");
     assert(state.mappingProgress?.completedMessages > 0 && state.mappingProgress.processedScans >= 3 &&
       state.mappingProgress.estimatedPoses >= 3);
+    assert.equal(state.checks.find((check) => check.id === "lidar")?.ready, true);
+    assert.equal(state.checks.find((check) => check.id === "navigation")?.ready, false);
     const result = await api(`mapping/stop-${save ? "save" : "discard"}`, "POST",
       { session: expectedSession, ...(save ? { name: "Passive live mapping check" } : {}) });
     assert.equal(result.confirmed, true);
@@ -187,9 +192,10 @@ try {
     }
     const stopped = await api("state");
     assert.equal(stopped.mapping, false); assert.equal(stopped.mappingControlReady, true);
+    assert.equal(stopped.checks.find((check) => check.id === "lidar")?.ready, false);
     assert.deepEqual(stopped.maps, initial.maps);
     assert.equal(stopped.savedSlamMaps.length, 1);
-    report.sessions.push(summary);
+    report.sessions.push({ ...summary, livePointHealthConfirmed: true, stoppedPointHealthCleared: true });
     peer.terminate(); peer = undefined; expectedSession = undefined;
   }
   child.kill("SIGTERM");

@@ -1,0 +1,86 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-30",
+  "scope": "isolated_mapping_live_point_health",
+  "result": "arm64_passive_live_mapping_https_save_discard_verified",
+  "inputMode": "live",
+  "machine": "arm64",
+  "motionCommandsSent": false,
+  "geometryValidated": false,
+  "localizationReady": false,
+  "navigationReady": false,
+  "productionAccepted": false,
+  "privateCheckReportSha256": "da8dd7533d1758c1089d7823083cf2c288d8b5fa9395d7e62b0bcc95fee40a31",
+  "apiBundleSha256": "2ea45c5b902dfffc07999aefcc4c5ddb2c2cb66f6b3483027386d4ccff6f49a6",
+  "nodeSha256": "7e48183361053f039294fbbc3ba586722fe756bf296d6cb8195356d10819cd16",
+  "sourceSha256": {
+    "tools/check-live-mapping.mjs": "87f1054e75e2c73158a12961bba390944e261e48d0befe4f27625389ca79c2e0",
+    "robot-runtime/python/managed_mapping.py": "ca4002dee7f5bdac5f18995d6dec913ffbb2aafc82d8581ceddc42c19065f6c8",
+    "robot-runtime/python/mapping_owner.py": "6f5f05e9c6847cf3058a48c067e50df03665024f837bef976167d172dd193626",
+    "robot-runtime/python/mapping_service.py": "6f6a52916e1d3e1f71ede9d8d2438d0041c43797ccad0b93a2823a9944734830",
+    "robot-runtime/python/controlled_mapping.py": "6f4ffd74654d912a56eec66a8b65c92e8750b4fffdaec8546ec5959d7756604a",
+    "robot-runtime/python/mapping_platform.py": "633edf5876efd05c440cb2f0c6a7312c9e9650dd8acb2683b592dfc0e8072a41",
+    "robot-slam/lingxi_slam/passive_ros.py": "74cf91cf1d87e73625e81b30f39acd4afddbd5c6e4f61176f19de21a9c98c42d",
+    "robot-slam/lingxi_slam/mapping_worker.py": "e5e0b8bb48b4e82665874cd71638af986b34b458159be4b732b66596ab954224",
+    "robot-slam/lingxi_slam/mapping_session.py": "a3bf217dff9edd37c20ea8c2bb51553370777564f046c8b28708af24c240b0d1",
+    "robot-api/src/mapping-backend.ts": "77b171c2c23b1b6ded2accf24e60d7b2adb01402a998f5de0fcaedc1f64bab31",
+    "robot-api/src/server.ts": "ae28570eddca60d9237bd7a5d9bd1efb295dbf4fcfc6a264d910abcf6527c706",
+    "robot-api/src/mapping-points.ts": "fd2197878fc0ced2e23aac44807a9533b086b160a58fe4dd41b195143eb5a74c",
+    "robot-runtime/src/mapping-api.ts": "cdddcdb0022ca86d46aeac519c5521669c5cc09a65fd37beb7f8bed9c5971610",
+    "robot-runtime/src/mapping-main.ts": "a3497991158111fc6eff398feabcaee07f69603bacb61595d57bdda8dccc55d6",
+    "robot-api/src/domain.ts": "6812aec5458a1d49a07b97375cb7dc4323b6d84d14bebbf1d043273f3a2f0e7e",
+    "shared/contracts.ts": "2530583b0ac45d10323e7be0e3833e472d777098a1e0300fcd7808b54a3dc786",
+    "web/src/App.tsx": "58bf2e7c94916c87db77bf677c1b7925074d8481849877501b38b66d6a37408c"
+  },
+  "sessions": [
+    {
+      "save": true,
+      "livePointHealthConfirmed": true,
+      "stoppedPointHealthCleared": true,
+      "reconnectConfirmed": true,
+      "observedFrames": 54,
+      "completedMessagesBeforeStop": 2953,
+      "completedMessagesAfterDrain": 2965,
+      "savedFrames": 110,
+      "submaps": 1,
+      "savedPoints": 2515
+    },
+    {
+      "save": false,
+      "livePointHealthConfirmed": true,
+      "stoppedPointHealthCleared": true,
+      "reconnectConfirmed": true,
+      "observedFrames": 54,
+      "completedMessagesBeforeStop": 2968,
+      "completedMessagesAfterDrain": 2980
+    }
+  ],
+  "httpsVerified": true,
+  "webAssetsVerified": true,
+  "cleanupConfirmed": true,
+  "ownerExitCode": 0,
+  "serviceExitCode": 0,
+  "apiExitCode": 0,
+  "forcedTermination": false,
+  "remainingChildren": 0,
+  "browserRerun": false,
+  "androidDeviceTest": false,
+  "setupFailuresExcludedFromSuccess": [
+    {
+      "cause": "wrong_node_path_blocked_by_known_digest",
+      "sensorCollectionStarted": false
+    },
+    {
+      "cause": "standard_api_bundle_instead_of_managed_mapping_entrypoint",
+      "privateCheckReportSha256": "c08611a1b91151106245d5cdc4f6384735695e052652e7f598be465abf14c652",
+      "sensorCollectionStarted": false,
+      "apiRequiredTermination": true,
+      "remainingChildren": 0
+    },
+    {
+      "cause": "source_manifest_input_missing_before_owner_spawn",
+      "privateStderrSha256": "fdec4310e18e765de70a6fb3a5f89874581d6593425b2a7240e40decf836fae3",
+      "sensorCollectionStarted": false
+    }
+  ]
+}

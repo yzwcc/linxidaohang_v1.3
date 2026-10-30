@@ -1,6 +1,7 @@
 import { createConnection } from "node:net";
 import path from "node:path";
 import { z } from "zod";
+import type { LidarEvent } from "../../shared/contracts";
 import type { RobotAdapter, RobotSnapshot } from "./domain";
 
 const session = z.string().regex(/^[a-f0-9]{32}$/);
@@ -117,7 +118,10 @@ export class UnixMappingBackend implements MappingBackend {
   }
 }
 
-export function mappingGuard(adapter: RobotAdapter, backend: MappingBackend, consoleMode = false): RobotAdapter {
+export function mappingGuard(
+  adapter: RobotAdapter, backend: MappingBackend, consoleMode = false,
+  points?: { getPointEvent(): LidarEvent },
+): RobotAdapter {
   const rejectMotion = async () => { throw new Error("独立建图验证模式不接受机器人运动或资源播放"); };
   return {
     demoMode: adapter.demoMode,
@@ -127,6 +131,17 @@ export function mappingGuard(adapter: RobotAdapter, backend: MappingBackend, con
         backend: "glim", inputMode: "recorded", phase: "failed", session: null,
         mapping: true, cleanupComplete: false,
       }));
+      let freshLivePoints = false;
+      if (consoleMode && mapping.inputMode === "live" && mapping.phase === "running" && mapping.mapping && mapping.session) {
+        try {
+          const event = points?.getPointEvent();
+          if (event?.type === "slam-preview" && event.inputMode === "live" &&
+              event.frame.epoch === mapping.session && event.frame.points.length > 0) {
+            const age = Date.now() - event.frame.receivedAtMs;
+            freshLivePoints = Number.isFinite(age) && age >= -50 && age <= 2000;
+          }
+        } catch { /* The point consumer rejects stale frames and disconnected pipes. */ }
+      }
       return {
         ...original, mapping: mapping.mapping,
         mappingStatus: mapping.phase === "stopping" ? "saving" : mapping.phase,
@@ -142,6 +157,13 @@ export function mappingGuard(adapter: RobotAdapter, backend: MappingBackend, con
         checks: original.checks.map((check) => check.id === "slam" ? {
           ...check, ready: mapping.phase !== "failed" || mapping.cleanupComplete,
           detail: mapping.inputMode === "live" ? "独立 GLIM · 实时采集验证" : "独立 GLIM · 录制数据验证",
+        } : check.id === "lidar" && consoleMode ? {
+          ...check, ready: freshLivePoints,
+          detail: mapping.phase === "failed" ? "建图输入未确认，请检查采集服务"
+            : mapping.inputMode === "recorded" ? "录制点云回放，不代表实时雷达"
+              : mapping.phase === "idle" ? "开始采集后检查实时点云"
+                : ["saving", "stopping"].includes(mapping.phase) ? "采集已结束，正在处理地图"
+                  : freshLivePoints ? "当前建图会话实时点云已接收" : "等待当前会话的新鲜点云",
         } : check.id === "navigation" ? { ...check, ready: false, detail: "独立建图验证期间不允许导航" } : check),
       };
     },

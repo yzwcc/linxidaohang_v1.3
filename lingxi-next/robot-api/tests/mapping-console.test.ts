@@ -7,6 +7,7 @@ import { buildServer } from "../src/server";
 import { pairingCodeHash } from "../src/auth";
 import type { MappingBackend, MappingBackendState } from "../src/mapping-backend";
 import { mappingConsoleAdapter, mappingGuard } from "../src/mapping-backend";
+import { MappingPointSource } from "../src/mapping-points";
 
 describe("dedicated managed-mapping console", () => {
   let root: string, app: FastifyInstance, token: string;
@@ -57,6 +58,24 @@ describe("dedicated managed-mapping console", () => {
       mappingControlReady: true, mapping: false, mappingStatus: "idle",
     });
     expect(stateReader).toHaveBeenCalledOnce();
+  });
+
+  it("wires the current point consumer into the paired HTTP health snapshot", async () => {
+    state = { ...state, phase: "running", mapping: true, cleanupComplete: false, session: "b".repeat(32) };
+    const consumer = vi.spyOn(MappingPointSource.prototype, "getPointEvent").mockReturnValue({
+      type: "slam-preview", inputMode: "live", coordinateUnits: "native-raw",
+      frame: { epoch: state.session!, sequence: 1, source: "point-cloud", frameId: "synthetic-test",
+        sensorFrame: "synthetic-test", fixedFrame: true, stampMs: 1, receivedAtMs: Date.now(), points: [1, 2, 3] },
+    });
+    try {
+      const read = async () => (await app.inject({ url: "/api/v1/state",
+        headers: { authorization: `Bearer ${token}` } })).json();
+      const result = await read();
+      expect(result.checks.find((check: { id: string }) => check.id === "lidar").ready).toBe(true);
+      expect(result.checks.find((check: { id: string }) => check.id === "navigation").ready).toBe(false);
+      consumer.mockImplementation(() => { throw new Error("Synthetic disconnected pipe"); });
+      expect((await read()).checks.find((check: { id: string }) => check.id === "lidar").ready).toBe(false);
+    } finally { consumer.mockRestore(); }
   });
 
   it("requires pairing then accepts start independently of vendor SLAM", async () => {

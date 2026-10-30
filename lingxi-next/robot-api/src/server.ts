@@ -124,12 +124,12 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
   }
   const baseAdapter = isolatedConsole ? mappingConsoleAdapter() :
     options.adapter ?? (demoMode ? new DemoAdapter() : new AimdkAdapter(process.env.AIMDK_BRIDGE_URL));
-  const adapter = mappingBackend ? mappingGuard(baseAdapter, mappingBackend, mappingConsole) : baseAdapter;
   const savedSlamDirectory = options.savedSlamDirectory ?? process.env.LINGXI_SAVED_SLAM_DIR;
   const slamCatalog = savedSlamDirectory ? new SavedSlamMapCatalog(savedSlamDirectory) : undefined;
   if (mappingBackend && !slamCatalog) throw new Error("independent_mapping_requires_saved_slam_directory");
   if (localizationBackend && !slamCatalog) throw new Error("localization_requires_saved_slam_directory");
   const mappingPoints = mappingBackend ? new MappingPointSource(mappingBackend, savedSlamDirectory!) : undefined;
+  const adapter = mappingBackend ? mappingGuard(baseAdapter, mappingBackend, mappingConsole, mappingPoints) : baseAdapter;
   const store = new JsonStateStore(options.stateDirectory ?? process.env.LINGXI_DATA_DIR ?? path.resolve("var/lib/lingxi-next"));
   const hash = options.pairingCodeHash ?? process.env.LINGXI_PAIRING_CODE_SHA256 ??
     (demoMode ? pairingCodeHash(process.env.LINGXI_DEMO_PAIRING_CODE ?? "lingxi-dev-only") : "");
