@@ -183,6 +183,12 @@ This x64 diagnostic reuses a recorded initial pose and possibly mapping input;
 it is not independent accuracy, confirmed walking coverage, ARM64 performance
 or navigation acceptance.
 See [the complete recorded localization boundary](docs/SLAM_RECORDED_LOCALIZATION.md).
+Localization now also has a reusable worker-owned session core with immutable
+map/profile/input binding, explicit reference-frame seeds, immediate revocation
+and generation-checked management requests. Actual GICP concurrency tests cover
+pause, stop, reseed and expiry during an in-flight call. This core has not yet
+been wired into the management API, a runtime launcher or an ARM64 package.
+See [the localization session contract](docs/SLAM_LOCALIZATION_SESSION.md).
 An independent full-recording range audit records returns beyond 5 raw-coordinate
 units. The roughly 5 m travel estimate is not calibration truth; travel,
 scan coverage and map accuracy are different quantities.
