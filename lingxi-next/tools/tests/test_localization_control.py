@@ -289,7 +289,15 @@ class ControlAndOwnership(unittest.TestCase):
                     state = send({"action": "state"})["value"]
                     request = {"action": "seed", "binding": state["binding"],
                                "expectedGeneration": state["generation"],
-                               "referenceFrame": 1, "mapFromSensor": self.pose.tolist()}
+                               "referenceFrame": 1, "sourceFrame": "lidar_chest_front",
+                               "mapFromSensor": self.pose.tolist()}
+                    self.assertEqual("lidar_chest_front", state["sourceFrame"])
+                    for frame in ("IMU", "base_link", None):
+                        mismatched = {**request, "sourceFrame": frame}
+                        if frame is None:
+                            del mismatched["sourceFrame"]
+                        self.assertEqual(400, send(mismatched)["status"])
+                        self.assertEqual(state["generation"], send({"action": "state"})["value"]["generation"])
                     self.assertEqual("seed_requested", send(request)["value"]["state"])
                     self.assertEqual(409, send(request)["status"])
                     self.session.tick()

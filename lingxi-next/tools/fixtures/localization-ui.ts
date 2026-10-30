@@ -42,7 +42,7 @@ async function main() {
     points_sha256: map.receipt.savedPointsSha256 };
   let acceptedPose: RigidMatrix | undefined;
   const commands: string[] = [];
-  let rejected = 0, reads = 0, seed: RigidMatrix | undefined;
+  let rejected = 0, reads = 0, seed: RigidMatrix | undefined, seedSourceFrame: string | undefined;
   const conflict = () => Object.assign(new Error("Synthetic generation conflict"), { statusCode: 409 });
   const backend: LocalizationBackend = {
     state: async () => {
@@ -55,7 +55,10 @@ async function main() {
       if (conflictNext) { conflictNext = false; state.generation++; rejected++; throw conflict(); }
       if (outage || value.expectedGeneration !== state.generation ||
           !sameLocalizationBinding(value.binding, state.binding) || state.state === "stopped") throw conflict();
-      if (value.action === "seed") seed = acceptedPose = structuredClone(value.mapFromSensor);
+      if (value.action === "seed") {
+        seed = acceptedPose = structuredClone(value.mapFromSensor);
+        seedSourceFrame = value.sourceFrame;
+      }
       state = { ...state, generation: state.generation + 1, requestPending: true,
         mapFromSensor: null, consecutiveMatches: 0,
         state: { seed: "seed_requested" as const, pause: "paused" as const, stop: "stopped" as const }[value.action],
@@ -88,7 +91,7 @@ async function main() {
         mapFromSensor: acceptedPose, reason: "matching_confirmed" };
     } else if (action === "ack") state = { ...state, requestPending: false };
     else if (action !== "status") return reply.code(404).send();
-    return { classification: "isolated_synthetic_ui_fixture", commands, rejected, reads, seed,
+    return { classification: "isolated_synthetic_ui_fixture", commands, rejected, reads, seed, seedSourceFrame,
       state: state.state, generation: state.generation };
   });
   const url = await app.listen({ host: "127.0.0.1", port: 0 });

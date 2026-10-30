@@ -12,6 +12,6 @@ export function localizationFixture(): LocalizationState {
     generation: 0, state: "unseeded", reason: "explicit_seed_required",
     requestPending: false, workerReady: true, workerClosed: false, cleanupComplete: false,
     consecutiveMatches: 0, lastFrame: 12, referenceFrame: 12, mapFromSensor: null,
-    coordinateUnits: "native-raw", sourceFrame: "IMU", localizationReady: false, navigationReady: false,
+    coordinateUnits: "native-raw", sourceFrame: "lidar_chest_front", localizationReady: false, navigationReady: false,
   };
 }

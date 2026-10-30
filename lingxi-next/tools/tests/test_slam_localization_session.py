@@ -117,7 +117,7 @@ class SessionTests(unittest.TestCase):
         values = dict(action=action, binding=asdict(self.binding),
                       expectedGeneration=self.session.state()["generation"])
         if action == "seed":
-            values.update(mapFromSensor=self.truth.tolist(),
+            values.update(sourceFrame="lidar_chest_front", mapFromSensor=self.truth.tolist(),
                           referenceFrame=self.session.state()["referenceFrame"])
         values.update(kwargs)
         return dispatch(self.session, values)
@@ -273,7 +273,8 @@ class SessionTests(unittest.TestCase):
                         self.now += 1.01
                     dispatch(session, dict(
                         action="seed", binding=asdict(self.binding), expectedGeneration=0,
-                        mapFromSensor=self.truth.tolist(), referenceFrame=2 if kind == "changed" else 1))
+                        sourceFrame="lidar_chest_front", mapFromSensor=self.truth.tolist(),
+                        referenceFrame=2 if kind == "changed" else 1))
                     if kind == "delayed":
                         self.now += 1.01
                     session.tick()
@@ -458,15 +459,15 @@ class SessionTests(unittest.TestCase):
             None, [], {"action": "resume"}, {"action": "state", "extra": 1},
             dict(action="pause", binding=asdict(self.binding), expectedGeneration=True),
             dict(action="seed", binding=asdict(self.binding), expectedGeneration=current["generation"],
-                 mapFromSensor=[[True] * 4] * 4, referenceFrame=4),
+                 sourceFrame="lidar_chest_front", mapFromSensor=[[True] * 4] * 4, referenceFrame=4),
             dict(action="seed", binding=asdict(self.binding), expectedGeneration=current["generation"],
-                 mapFromSensor=np.eye(4).tolist(), referenceFrame=True),
+                 sourceFrame="lidar_chest_front", mapFromSensor=np.eye(4).tolist(), referenceFrame=True),
         ]
         for seed in (np.zeros((4, 4)).tolist(), [[float("nan")] * 4] * 4,
                      [["1"] * 4] * 4, [[10**500] * 4] * 4):
             cases.append(dict(action="seed", binding=asdict(self.binding),
                               expectedGeneration=current["generation"],
-                              mapFromSensor=seed, referenceFrame=4))
+                              sourceFrame="lidar_chest_front", mapFromSensor=seed, referenceFrame=4))
         for value in cases:
             with self.subTest(value_type=type(value).__name__), self.assertRaises(
                     LocalizationControlError) as caught:
@@ -474,6 +475,21 @@ class SessionTests(unittest.TestCase):
             self.assertEqual(400, caught.exception.status)
             self.assertEqual(current["generation"], self.session.state()["generation"])
             self.assertEqual("tracking", self.session.state()["state"])
+
+    def test_seed_requires_explicit_lidar_frame_without_revoking_current_track(self):
+        current = self.tracking()
+        self.assertEqual("lidar_chest_front", current["sourceFrame"])
+        for frame in (None, "IMU", "base_link", "LIDAR", "lidar_imu_chest_front"):
+            value = dict(action="seed", binding=asdict(self.binding),
+                         expectedGeneration=current["generation"],
+                         mapFromSensor=self.truth.tolist(), referenceFrame=4)
+            if frame is not None:
+                value["sourceFrame"] = frame
+            with self.subTest(frame=frame), self.assertRaises(LocalizationControlError) as caught:
+                dispatch(self.session, value)
+            self.assertEqual(400, caught.exception.status)
+            self.assertEqual(current, self.session.state())
+        self.assertEqual("seed_requested", self.command("seed")["state"])
 
     def test_invalid_or_stale_point_input_revokes_pose(self):
         self.tracking()

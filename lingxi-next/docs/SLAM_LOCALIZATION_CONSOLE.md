@@ -9,13 +9,13 @@
 ## 本轮功能
 
 独立控制台提供“定位验证”和只读“地图管理”。
-定位页显示保存地图的点云投影，支持六自由度初始 IMU 位姿输入、
-状态刷新、暂停及停止。只有新鲜的 `tracking` 状态才叠加 IMU 位置和朝向。
+定位页显示保存地图的点云投影，支持六自由度初始胸前雷达位姿输入、
+状态刷新、暂停及停止。只有新鲜的 `tracking` 状态才叠加雷达位置和朝向。
 地图 ID、实际收据字节摘要和点云摘要必须全部匹配，否则不显示叠加图。
 图像继续使用点云，不转换成占据栅格。
 
 初始位姿的 X/Y/Z 为 `native-raw`；横滚、俯仰、朝向以度输入，
-转换为 `mapFromImu = translation * Rz(yaw) * Ry(pitch) * Rx(roll)`。
+转换为 `mapFromLidar = translation * Rz(yaw) * Ry(pitch) * Rx(roll)`。
 这不是底盘位置、米制标定或导航 TF。初始数值只作为待编辑字段，
 页面不会自动提交初值。
 
@@ -33,7 +33,7 @@
 | 接口 | 请求及结果 |
 | --- | --- |
 | `GET /api/v1/slam/localization` | 返回经过严格校验的当前录制定位状态；无可用后端返回 503 |
-| `POST /api/v1/slam/localization/seed` | `binding`、`expectedGeneration`、`referenceFrame`、4×4 `mapFromSensor` |
+| `POST /api/v1/slam/localization/seed` | `binding`、`expectedGeneration`、`sourceFrame=lidar_chest_front`、`referenceFrame`、4×4 `mapFromSensor` |
 | `POST /api/v1/slam/localization/pause` | `binding`、`expectedGeneration` |
 | `POST /api/v1/slam/localization/stop` | `binding`、`expectedGeneration` |
 | `GET /api/v1/state` | `slamLocalization.status` 为 `available` 或 `unavailable`；可用时附 `snapshot` |
@@ -43,6 +43,16 @@
 写请求必须匹配当前身份和代次；初值另须匹配新鲜参考帧。
 矩阵必须为有限数值、正交且行列式为 +1 的刚体变换。
 未知字段、缩放、反射及非法矩阵均被拒绝。
+
+坐标系更正：早期定位页面和状态误标为 IMU；原生点输出的位姿实际取自
+`T_world_lidar`，定位预测、匹配及底盘投影也使用该雷达位姿。
+点源的 `PointPacket.source_frame=IMU` 仅指 GLIM 内部去畸变点的来源，
+这些点经 `T_world_imu` 转到世界坐标后，再用雷达位姿逆变换为雷达扫描。
+它不表示 `mapFromSensor` 属于 IMU。本轮没有更改原生点 ABI 或矩阵计算。
+状态 `sourceFrame` 和初值请求现均明确为 `lidar_chest_front`；缺失、IMU、
+底盘或其他坐标系请求返回 400，不改变已有跟踪代次。旧版诊断客户端必须
+与新 API/Python 进程一同更新，不能给旧 IMU 初值简单换标签后重用。
+该坐标语义更正不代表厂商内部雷达/IMU 外参已独立标定或物理精度验收通过。
 
 写请求成功返回 202，状态代次必须恰好加一，`requestPending=true`，
 位姿必须为空；这不是定位成功确认。冲突返回 409，非法请求返回 400，
@@ -138,3 +148,28 @@ Linux 进程检查可设置 `LINGXI_LOCALIZATION_TEST_BUNDLE` 指向本轮编译
 本轮未提交初值，不声称保存地图跟踪通过；停止后 222 次查询没有恢复位姿。
 更新后的网页另通过相同 11 阶段合成桌面/横屏回归，没有实机 LAN/Android 浏览器验收。
 详情见 [实时运行链路](SLAM_LIVE_LOCALIZATION.md)。
+
+## 雷达位姿约定更正验证
+
+2026-10-30 更正了上述 IMU 误标，并为初值增加显式坐标系字段。
+本次仅做离线与本机 Linux 验证，没有连接或部署机器人，没有发送运动指令。
+
+| 检查 | 结果 |
+| --- | --- |
+| 全量 Vitest | 307 通过、9 个 Linux socket 项在 Windows 跳过 |
+| Linux 定位 API/socket | 50/50 通过，包含上述 9 项 |
+| 全量 Python | 1,033 项，1,018 通过、15 项因可选环境依赖跳过 |
+| Python Unix 控制复核 | 27/27 通过，错配/缺失坐标系返回 400 且不推进代次 |
+| 浏览器 | 11 阶段，1440×900 与 844×390；验证雷达标签、初值坐标系及位姿撤销 |
+| 构建 | 网页、API/运行时类型检查和独立定位 bundle 通过 |
+
+新增合成回归使用非零平移和旋转的 IMU/雷达外参，检查原生世界点只逆变换
+一次，匹配初值与输出继续属于雷达；它不是物理外参标定或实际定位精度证明。
+浏览器报告及截图保存在私有 `.local/localization-frame-ui-20261030-a/`。
+测试服务和浏览器会话已退出，交付 APK/安装包仍保持 0.1.19 原样。
+
+首轮全量 Python 的可选上游检查因 Windows 挂载的 GLIM 文件被 Linux Git
+判为修改而失败；未修改该工作副本。改用 `LINGXI_GLIM_UPSTREAM_ROOT`
+显式指定已有、干净且同一固定提交的 Linux 检出后，全量重新通过。
+Linux Vitest 通过现有隔离依赖的 `NODE_PATH` 和 `ESBUILD_BINARY_PATH` 加载
+Linux 原生二进制，没有重新安装或改写 Windows 依赖。

@@ -15,6 +15,9 @@ from .process_protocol import session_id
 from .seeded_localization import rigid_pose
 
 
+LOCALIZATION_SOURCE_FRAME = "lidar_chest_front"
+
+
 class LocalizationControlError(Exception):
     def __init__(self, code, status=409):
         self.code, self.status = code, status
@@ -115,7 +118,7 @@ class LocalizationSession:
             "referenceFrame": (reference[0] if reference is not None
                                and 0 <= now - reference[1] <= self.maximum_age else None),
             "mapFromSensor": deepcopy(self.pose),
-            "coordinateUnits": "native-raw", "sourceFrame": "IMU",
+            "coordinateUnits": "native-raw", "sourceFrame": LOCALIZATION_SOURCE_FRAME,
             "localizationReady": False, "navigationReady": False,
             **({"basePose": self._base_state_locked()} if self.base_scale is not None else {}),
         }
@@ -395,11 +398,13 @@ def dispatch(session, value):
         return session.state()
     fields = {"action", "binding", "expectedGeneration"}
     if action == "seed":
-        fields |= {"mapFromSensor", "referenceFrame"}
+        fields |= {"mapFromSensor", "referenceFrame", "sourceFrame"}
     if action not in ("seed", "pause", "stop") or set(value) != fields:
         raise LocalizationControlError("invalid_localization_request", 400)
     seed = value.get("mapFromSensor")
     if action == "seed":
+        if value["sourceFrame"] != LOCALIZATION_SOURCE_FRAME:
+            raise LocalizationControlError("invalid_localization_seed_frame", 400)
         if (type(seed) is not list or len(seed) != 4 or any(
                 type(row) is not list or len(row) != 4
                 or any(type(number) not in (int, float) for number in row) for row in seed)):

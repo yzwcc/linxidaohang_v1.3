@@ -119,7 +119,8 @@ def check(args):
                 raise RuntimeError("unexpected_localization_readiness")
             fields = {"binding": state["binding"], "expectedGeneration": state["generation"]}
             if phase == "initial" and state["referenceFrame"] is not None:
-                seed_request = {**fields, "mapFromSensor": seed, "referenceFrame": state["referenceFrame"]}
+                seed_request = {**fields, "sourceFrame": state["sourceFrame"],
+                                "mapFromSensor": seed, "referenceFrame": state["referenceFrame"]}
                 accepted = request("slam/localization/seed", body=seed_request, method="POST", expected=202)
                 if accepted["state"] != "seed_requested" or accepted["mapFromSensor"] is not None:
                     raise RuntimeError("explicit_https_seed_admission_required")

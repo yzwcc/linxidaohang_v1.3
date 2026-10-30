@@ -6,7 +6,7 @@ import {
 } from "../../shared/localization";
 import { api, jsonBody, type Connection } from "./api";
 import LidarCanvas from "./LidarCanvas";
-import { planarImuPose, seedMatrix, type SeedFields } from "./localization-view";
+import { planarLidarPose, seedMatrix, type SeedFields } from "./localization-view";
 
 const labels: Record<LocalizationState["state"], string> = {
   unseeded: "等待初始位姿", seed_requested: "初始位姿已提交，等待确认", acquiring: "正在建立连续匹配",
@@ -106,7 +106,8 @@ export default function LocalizationPanel({ connection, maps }: {
     try {
       body = {
         binding: state.binding, expectedGeneration: state.generation,
-        ...(action === "seed" ? { referenceFrame: state.referenceFrame, mapFromSensor: seedMatrix(fields) } : {}),
+        ...(action === "seed" ? { sourceFrame: state.sourceFrame,
+          referenceFrame: state.referenceFrame, mapFromSensor: seedMatrix(fields) } : {}),
       } as Omit<LocalizationCommand, "action">;
       if (action === "seed" && state.referenceFrame === null) throw new Error("当前没有新鲜参考帧，请等待扫描数据");
     } catch (caught) { setError((caught as Error).message); return; }
@@ -141,7 +142,7 @@ export default function LocalizationPanel({ connection, maps }: {
   const matchedPreview = preview?.mapId === mapId && preview?.receiptSha256 === receiptSha256 &&
     preview?.pointsSha256 === pointsSha256 ? preview : undefined;
   const pose = snapshot?.state === "tracking" && matchedPreview && snapshot.mapFromSensor
-    ? planarImuPose(snapshot.mapFromSensor) : undefined;
+    ? planarLidarPose(snapshot.mapFromSensor) : undefined;
   const map = maps?.find((item) => item.id === mapId);
   const inputLabel = snapshot?.binding.input_mode === "live" ? "实时传感器" :
     snapshot?.binding.input_mode === "recorded" ? "录制数据" : "等待输入状态";
@@ -151,7 +152,7 @@ export default function LocalizationPanel({ connection, maps }: {
       <button className="btn icon" title="刷新定位状态" disabled={busy} onClick={() => setRevision((v) => v + 1)}><RefreshCw size={15} /></button>
     </div>
     <div className="notice warn"><AlertTriangle size={15} />
-      <span>IMU 原始坐标，尚未标定为底盘坐标。定位与导航尚未验收。</span>
+      <span>胸前雷达原始坐标，尚未标定为底盘坐标。定位与导航尚未验收。</span>
     </div>
     <div className="content-grid two localization-layout">
       <section className="localization-cloud">
@@ -160,7 +161,7 @@ export default function LocalizationPanel({ connection, maps }: {
         {matchedPreview ? <LidarCanvas preview={matchedPreview} overlayPose={pose} /> :
           <div className="empty">等待定位服务与地图点云</div>}
         {pose && <div className="helper mono" data-testid="localization-pose">
-          IMU · X {pose.x.toFixed(3)} / Y {pose.y.toFixed(3)} / Z {snapshot!.mapFromSensor![2][3].toFixed(3)} raw
+          雷达 · X {pose.x.toFixed(3)} / Y {pose.y.toFixed(3)} / Z {snapshot!.mapFromSensor![2][3].toFixed(3)} raw
         </div>}
       </section>
       <section className="localization-controls stack">
@@ -172,7 +173,7 @@ export default function LocalizationPanel({ connection, maps }: {
             <span className="tag">参考帧 {snapshot.referenceFrame ?? "无"}</span></div>}
         </div>
         <form className="stack" onSubmit={(event) => { event.preventDefault(); void command("seed"); }}>
-          <h2>初始 IMU 位姿</h2>
+          <h2>初始雷达位姿</h2>
           <div className="form-grid seed-fields">
             {(Object.keys(initial) as (keyof SeedFields)[]).map((key) => <div className="field" key={key}>
               <label htmlFor={`seed-${key}`}>{({ x: "X / raw", y: "Y / raw", z: "Z / raw",

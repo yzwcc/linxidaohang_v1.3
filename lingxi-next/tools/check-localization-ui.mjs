@@ -74,6 +74,7 @@ function metric() {
     panelOverlap: Boolean(a && b && a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom),
     syntheticBanner: Boolean(document.querySelector(".synthetic-fixture-banner")),
     seedFields: document.querySelectorAll('input[id^="seed-"]').length,
+    seedHeading: document.querySelector(".localization-controls h2")?.textContent ?? null,
     seedDisabled: button("提交初始位姿")?.disabled, stopDisabled: button("停止会话")?.disabled,
     alert: document.querySelector('[role="alert"]')?.textContent ?? null };
 }
@@ -83,8 +84,10 @@ async function capture(name, pose, cloud = true) {
   assert.equal(value.panelOverlap, false);
   assert.equal(value.syntheticBanner, true);
   assert.equal(value.seedFields, 6);
+  assert.equal(value.seedHeading, "初始雷达位姿");
   assert.equal(Boolean(value.pose), pose);
   if (cloud) assert(value.nonBackground > 100);
+  if (pose) assert(value.pose.includes("雷达") && !value.pose.includes("IMU"));
   if (pose) assert(value.markerPixels > 10); else assert.equal(value.markerPixels, 0);
   report.stages[name] = value;
   const filename = path.join(output, name + ".png");
@@ -113,6 +116,7 @@ try {
   await capture("pending", false);
   const submitted = control("status");
   assert.deepEqual(submitted.commands, ["seed"]);
+  assert.equal(submitted.seedSourceFrame, "lidar_chest_front");
   assert.deepEqual(submitted.seed.map(row => row[3]), [1.25, -0.5, 0.1, 1]);
   assert(Math.abs(submitted.seed[1][0] - Math.cos(Math.PI / 18)) < 1e-6);
   control("track");

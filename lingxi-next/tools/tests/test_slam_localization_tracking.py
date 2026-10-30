@@ -80,6 +80,44 @@ class TrackingTests(unittest.TestCase):
         self.assertGreater(self.seed(), generation)
         self.assertEqual("acquiring", self.tracker.snapshot().state)
 
+    def test_imu_point_source_does_not_change_the_lidar_pose_convention(self):
+        odom_from_imu = pose()
+        imu_from_lidar = np.eye(4)
+        angle = .4
+        imu_from_lidar[:3, :3] = [[np.cos(angle), 0, np.sin(angle)], [0, 1, 0],
+                                [-np.sin(angle), 0, np.cos(angle)]]
+        imu_from_lidar[:3, 3] = [.25, -.15, .1]
+        odom_from_lidar = odom_from_imu @ imu_from_lidar
+        # Match the native tap: IMU-frame points become world points, but the pose is lidar.
+        imu_points = (self.world - odom_from_imu[:3, 3]) @ odom_from_imu[:3, :3]
+        world = imu_points @ odom_from_imu[:3, :3].T + odom_from_imu[:3, 3]
+        scan_lidar = (imu_points - imu_from_lidar[:3, 3]) @ imu_from_lidar[:3, :3]
+        map_from_odom = np.eye(4)
+        map_from_odom[:3, 3] = [2., -1., .5]
+        seed = map_from_odom @ odom_from_lidar
+        calls = []
+
+        def register(scan, initial):
+            np.testing.assert_allclose(scan, scan_lidar, atol=1e-12, rtol=0)
+            np.testing.assert_allclose(initial, seed, atol=1e-12, rtol=0)
+            calls.append(True)
+            return RegistrationEstimate(True, (), initial, {})
+
+        tracker = LocalizationTracker(type("Check", (), {"register": staticmethod(register)})(),
+                                      session=SESSION, input_mode="synthetic", clock=lambda: self.now)
+        packet = PointPacket(1, 1000.1, len(world), world, odom_from_lidar)
+        self.assertEqual("IMU", packet.source_frame)
+        generation = tracker.begin(seed, packet, received_at=self.now)
+        for frame in range(1, 4):
+            self.now += .1
+            result = tracker.observe(replace(packet, native_frame_id=frame,
+                                             algorithm_stamp=1000. + frame * .1),
+                                     session=SESSION, generation=generation, received_at=self.now)
+        self.assertEqual(3, len(calls))
+        self.assertEqual("tracking", result.state)
+        np.testing.assert_allclose(result.map_from_sensor, seed, atol=1e-12, rtol=0)
+        self.assertGreater(np.linalg.norm(seed - map_from_odom @ odom_from_imu), .1)
+
     def test_old_generation_wrong_session_and_duplicates_do_not_refresh_track(self):
         generation, _ = self.tracking()
         self.seed()

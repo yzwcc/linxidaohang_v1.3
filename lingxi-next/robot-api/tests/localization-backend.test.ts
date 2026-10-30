@@ -8,7 +8,7 @@ import { localizationStateSchema } from "../../shared/localization";
 import { identityMatrix, localizationFixture } from "./fixtures/localization-state";
 
 describe("localization state validation", () => {
-  it("accepts raw IMU tracking without claiming production readiness", () => {
+  it("accepts raw chest lidar tracking without claiming production readiness", () => {
     expect(validatedLocalizationState({ ...localizationFixture(), state: "tracking",
       consecutiveMatches: 3, mapFromSensor: identityMatrix }).navigationReady).toBe(false);
   });
@@ -23,7 +23,7 @@ describe("localization state validation", () => {
     { state: "paused", mapFromSensor: identityMatrix }, { cleanupComplete: true },
     { workerClosed: true }, { state: "tracking", consecutiveMatches: 3 },
     { localizationReady: true }, { navigationReady: true }, { sourceFrame: "base_link" },
-    { coordinateUnits: "metres" },
+    { coordinateUnits: "metres" }, { sourceFrame: "IMU" }, { sourceFrame: undefined },
   ])("rejects inconsistent state %j", (patch) => {
     expect(localizationStateSchema.safeParse({ ...localizationFixture(), ...patch }).success).toBe(false);
   });
@@ -62,7 +62,7 @@ describe.skipIf(process.platform !== "linux")("bounded Unix localization transpo
   it("forwards exact bound generation and validates the seed acknowledgement", async () => {
     const state = localizationFixture();
     const command = { action: "seed" as const, binding: state.binding, expectedGeneration: 0,
-      referenceFrame: 12, mapFromSensor: identityMatrix };
+      sourceFrame: state.sourceFrame, referenceFrame: 12, mapFromSensor: identityMatrix };
     const backend = await fixture((socket, line) => {
       expect(JSON.parse(line)).toEqual(command);
       socket.end(JSON.stringify({ ok: true, value: { ...state, generation: 1,

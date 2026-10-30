@@ -2,6 +2,7 @@ import { z } from "zod";
 
 const counter = z.number().int().nonnegative().safe();
 const frame = counter.positive();
+export const localizationSourceFrameSchema = z.literal("lidar_chest_front");
 const row = z.tuple([z.number().finite(), z.number().finite(), z.number().finite(), z.number().finite()]);
 
 export const rigidMatrixSchema = z.tuple([row, row, row, row]).refine((matrix) => {
@@ -62,7 +63,7 @@ export const localizationStateSchema = z.object({
   referenceFrame: frame.nullable(),
   mapFromSensor: rigidMatrixSchema.nullable(),
   coordinateUnits: z.literal("native-raw"),
-  sourceFrame: z.literal("IMU"),
+  sourceFrame: localizationSourceFrameSchema,
   basePose: basePoseStateSchema.optional(),
   localizationReady: z.literal(false),
   navigationReady: z.literal(false),
@@ -84,7 +85,7 @@ const identity = {
 };
 export const localizationIdentitySchema = z.object(identity).strict();
 export const localizationSeedSchema = z.object({
-  ...identity, referenceFrame: frame, mapFromSensor: rigidMatrixSchema,
+  ...identity, sourceFrame: localizationSourceFrameSchema, referenceFrame: frame, mapFromSensor: rigidMatrixSchema,
 }).strict();
 
 export type RigidMatrix = z.infer<typeof rigidMatrixSchema>;

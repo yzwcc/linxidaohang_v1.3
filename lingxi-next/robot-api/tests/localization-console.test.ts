@@ -13,7 +13,8 @@ describe("isolated paired localization console", () => {
   let root: string, app: FastifyInstance, token: string, backend: LocalizationBackend, state: LocalizationState;
   const headers = () => ({ authorization: `Bearer ${token}` });
   const payload = () => ({ binding: state.binding, expectedGeneration: state.generation });
-  const seed = () => ({ ...payload(), referenceFrame: state.referenceFrame, mapFromSensor: identityMatrix });
+  const seed = () => ({ ...payload(), sourceFrame: state.sourceFrame,
+    referenceFrame: state.referenceFrame, mapFromSensor: identityMatrix });
   const options = () => ({
     demoMode: true, localizationConsole: true, localizationBackend: backend,
     stateDirectory: path.join(root, "data"), savedSlamDirectory: path.join(root, "maps"),
@@ -94,6 +95,7 @@ describe("isolated paired localization console", () => {
   });
 
   it.each([
+    { sourceFrame: "IMU" }, { sourceFrame: "base_link" }, { sourceFrame: undefined },
     { referenceFrame: 0 }, { expectedGeneration: -1 }, { referenceFrame: null },
     { binding: {} }, { extra: true }, { mapFromSensor: [[1]] },
     { mapFromSensor: [[2, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]] },
