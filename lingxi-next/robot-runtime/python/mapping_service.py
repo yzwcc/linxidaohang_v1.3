@@ -19,6 +19,15 @@ from lingxi_slam.process_supervisor import ProcessLimits, ProcessSupervisor
 from mapping_platform import configuration
 
 
+PUBLIC_FAILURES = frozenset((
+    "process_start_failed", "process_startup_deadline_exceeded",
+    "process_progress_deadline_exceeded", "process_shutdown_deadline_exceeded",
+    "child_reported_failure", "child_exited_without_confirmed_stop",
+    "child_health_pipe_closed", "invalid_child_health_protocol",
+    "child_descendants_outlived_owner", "process_cleanup_failed",
+))
+
+
 class ControlError(Exception):
     def __init__(self, code, status=409):
         self.code, self.status = code, status
@@ -68,6 +77,8 @@ class MappingManager:
                 "mapping": phase in ("requested", "running", "saving", "stopping")
                 or not state["cleanupComplete"] and state["state"] in ("stopped", "failed"),
                 "cleanupComplete": state["cleanupComplete"],
+                **({"failureCode": state.get("failure") if state.get("failure") in PUBLIC_FAILURES
+                    else "mapping_process_failed"} if phase == "failed" else {}),
                 "completedMessages": state["completedMessages"],
                 "processedScans": state["processedScans"], "estimatedPoses": state["estimatedPoses"],
                 **({"pointStream": {"socket": current["output"].name + ".points.sock"}}

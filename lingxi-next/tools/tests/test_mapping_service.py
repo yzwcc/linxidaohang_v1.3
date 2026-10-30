@@ -30,6 +30,7 @@ class MappingControl(unittest.TestCase):
                 self.session = "bbaaccdd00112233445566778899aabb"
                 self.process, self.stops = None, 0
                 self.state, self.cleaned = "new", False
+                self.failure = None
                 self.save_receipt, self.start_error, self.terminal_error = True, False, False
                 self.input_mode = "recorded"
                 self.entered, self.release = threading.Event(), threading.Event()
@@ -45,6 +46,7 @@ class MappingControl(unittest.TestCase):
             def snapshot(self):
                 return {
                     "session": self.session, "state": self.state, "cleanupComplete": self.cleaned,
+                    "failure": self.failure,
                     "completedMessages": 12, "processedScans": 2, "estimatedPoses": 1,
                     "exitCode": 0, "forcedTermination": self.terminal_error,
                     "processAlive": False, "monitorAlive": False,
@@ -194,6 +196,38 @@ class MappingControl(unittest.TestCase):
         self.assertEqual("failed", self.manager.state()["phase"])
         self.manager.close()
         self.assertEqual(503, self.assert_code("mapping_service_closed", self.manager.start).status)
+
+    def test_public_failure_does_not_claim_cleanup_or_allow_overlapping_start(self):
+        self.manager.start()
+        owner = self.owners[0]
+        owner.state, owner.failure = "failed", "process_startup_deadline_exceeded"
+        failed = self.manager.state()
+        self.assertEqual("failed", failed["phase"])
+        self.assertEqual(owner.failure, failed["failureCode"])
+        self.assertFalse(failed["cleanupComplete"])
+        self.assertTrue(failed["mapping"])
+        self.assert_code("mapping_busy", self.manager.start)
+        owner.cleaned = True
+        self.assertTrue(self.manager.state()["cleanupComplete"])
+        self.assertFalse(self.manager.state()["mapping"])
+        self.manager.start()
+        self.assertNotIn("failureCode", self.manager.state())
+
+    def test_only_fixed_failure_codes_leave_the_service(self):
+        self.assertNotIn("failureCode", self.manager.state())
+        self.manager.start()
+        owner = self.owners[0]
+        owner.failure = "child_reported_failure"
+        self.assertNotIn("failureCode", self.manager.state())
+        owner.state = "failed"
+        self.assertEqual("child_reported_failure", self.manager.state()["failureCode"])
+        for failure in (None, "private exception at /home/synthetic/map.log", "unknown_failure"):
+            with self.subTest(failure=failure):
+                owner.failure = failure
+                result = self.manager.state()
+                self.assertEqual("mapping_process_failed", result["failureCode"])
+                self.assertNotIn("/home/", json.dumps(result))
+                self.assertNotIn("private exception", json.dumps(result))
 
     def test_dispatch_rejects_unknown_fields_and_requires_explicit_session(self):
         for request in (None, [], {}, {"action": 1}, {"action": "unknown"},

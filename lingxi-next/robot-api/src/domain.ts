@@ -103,6 +103,8 @@ export type RobotSnapshot = Pick<
   | "mappingInputMode"
   | "mappingSession"
   | "mappingProgress"
+  | "mappingFailure"
+  | "mappingCleanupComplete"
   | "mappingControlReady"
   | "actionBusy"
   | "actionStatus"

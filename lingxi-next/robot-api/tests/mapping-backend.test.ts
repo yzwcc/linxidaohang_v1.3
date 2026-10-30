@@ -190,9 +190,39 @@ describe("independent recorded mapping controls", () => {
   it("fails closed for unavailable mapping status", async () => {
     vi.mocked(backend.state).mockRejectedValue(new Error("Synthetic service unavailable"));
     const snapshot = await mappingGuard(adapter, backend).getSnapshot();
-    expect(snapshot).toMatchObject({ mapping: true, mappingStatus: "failed", mappingBackend: "glim" });
+    expect(snapshot).toMatchObject({ mapping: true, mappingStatus: "failed", mappingBackend: "glim",
+      mappingFailure: "mapping_service_unavailable", mappingCleanupComplete: false });
     expect(snapshot.checks.find((check) => check.id === "slam")?.ready).toBe(false);
     expect(snapshot.mappingProgress).toBeUndefined();
+    const response = await app!.inject({ url: "/api/v1/state", headers: headers() });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ mappingFailure: "mapping_service_unavailable",
+      mappingCleanupComplete: false });
+    expect(response.body).not.toContain("Synthetic service unavailable");
+  });
+
+  it("propagates failure and cleanup through the API, clearing the failure for a new session", async () => {
+    state = { ...idle, phase: "failed", session: identity, mapping: true, cleanupComplete: false,
+      failureCode: "process_startup_deadline_exceeded" };
+    const snapshot = async () => (await app!.inject({ url: "/api/v1/state", headers: headers() })).json();
+    expect(await snapshot()).toMatchObject({ mappingStatus: "failed",
+      mappingFailure: "process_startup_deadline_exceeded", mappingCleanupComplete: false });
+    state = { ...state, mapping: false, cleanupComplete: true };
+    expect(await snapshot()).toMatchObject({ mappingStatus: "failed",
+      mappingFailure: "process_startup_deadline_exceeded", mappingCleanupComplete: true });
+    await backend.start();
+    const running = await snapshot();
+    expect(running).toMatchObject({ mappingStatus: "running", mappingCleanupComplete: false });
+    expect(running).not.toHaveProperty("mappingFailure");
+    expect(running.checks.find((check: { id: string }) => check.id === "navigation").ready).toBe(false);
+  });
+
+  it("uses a generic failure for older services and ignores a stale failure in healthy state", async () => {
+    const guarded = mappingGuard(adapter, backend);
+    state = { ...idle, phase: "failed" };
+    expect((await guarded.getSnapshot()).mappingFailure).toBe("mapping_process_failed");
+    state = { ...idle, failureCode: "child_reported_failure" };
+    expect((await guarded.getSnapshot()).mappingFailure).toBeUndefined();
   });
 
   it("reports actual mapping counters without manufacturing missing progress", async () => {

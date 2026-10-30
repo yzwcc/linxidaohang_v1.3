@@ -2,6 +2,7 @@ import { createConnection } from "node:net";
 import path from "node:path";
 import { z } from "zod";
 import type { LidarEvent } from "../../shared/contracts";
+import { mappingFailureSchema } from "../../shared/mapping";
 import type { RobotAdapter, RobotSnapshot } from "./domain";
 
 const session = z.string().regex(/^[a-f0-9]{32}$/);
@@ -9,6 +10,7 @@ const stateSchema = z.object({
   backend: z.literal("glim"), inputMode: z.enum(["recorded", "live"]),
   phase: z.enum(["idle", "requested", "running", "saving", "stopping", "failed"]),
   session: session.nullable(), mapping: z.boolean(), cleanupComplete: z.boolean(),
+  failureCode: mappingFailureSchema.optional(),
   completedMessages: z.number().int().nonnegative().safe().optional(),
   processedScans: z.number().int().nonnegative().safe().optional(),
   estimatedPoses: z.number().int().nonnegative().safe().optional(),
@@ -129,7 +131,7 @@ export function mappingGuard(
       const original = await adapter.getSnapshot();
       const mapping = await backend.state().catch((): MappingBackendState => ({
         backend: "glim", inputMode: "recorded", phase: "failed", session: null,
-        mapping: true, cleanupComplete: false,
+        mapping: true, cleanupComplete: false, failureCode: "mapping_service_unavailable",
       }));
       let freshLivePoints = false;
       if (consoleMode && mapping.inputMode === "live" && mapping.phase === "running" && mapping.mapping && mapping.session) {
@@ -146,6 +148,8 @@ export function mappingGuard(
         ...original, mapping: mapping.mapping,
         mappingStatus: mapping.phase === "stopping" ? "saving" : mapping.phase,
         mappingBackend: "glim", mappingInputMode: mapping.inputMode, mappingSession: mapping.session ?? undefined,
+        mappingCleanupComplete: mapping.cleanupComplete,
+        mappingFailure: mapping.phase === "failed" ? mapping.failureCode ?? "mapping_process_failed" : undefined,
         ...(mapping.completedMessages !== undefined && mapping.processedScans !== undefined &&
           mapping.estimatedPoses !== undefined ? { mappingProgress: {
             completedMessages: mapping.completedMessages, processedScans: mapping.processedScans,

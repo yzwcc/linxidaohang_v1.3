@@ -1,4 +1,5 @@
 import type { LocalizationState } from "./localization";
+import type { MappingFailure } from "./mapping";
 
 export type HealthCheck = {
   id: string;
@@ -136,6 +137,8 @@ export type RobotState = {
   mappingInputMode?: "live" | "recorded";
   mappingSession?: string;
   mappingProgress?: { completedMessages: number; processedScans: number; estimatedPoses: number };
+  mappingFailure?: MappingFailure;
+  mappingCleanupComplete?: boolean;
   mappingControlReady?: boolean;
   actionBusy?: boolean;
   actionStatus?: "dispatching" | "preset-motion" | "linkcraft-awaiting-operator" | "uncertain";

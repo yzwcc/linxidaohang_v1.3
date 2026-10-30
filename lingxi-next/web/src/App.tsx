@@ -45,6 +45,7 @@ import { api, ApiError, jsonBody, openEvents, pairRobot, type Connection } from 
 import MapCanvas from "./MapCanvas";
 import LidarCanvas from "./LidarCanvas";
 import LocalizationPanel from "./LocalizationPanel";
+import { mappingFeedback } from "./mapping-view";
 
 type View = "overview" | "mapping" | "maps" | "localization" | "navigation" | "tours" | "settings";
 
@@ -378,6 +379,7 @@ function Mapping({
     saving: "等待保存确认",
     failed: state.mappingBackend ? "建图未完成" : "保存未确认",
   }[state.mappingStatus ?? (state.mapping ? "requested" : "idle")];
+  const feedback = mappingFeedback(state);
 
   async function start() {
     setBusy(true);
@@ -448,6 +450,8 @@ function Mapping({
           <Section title="建图准备检查" icon={ShieldCheck}><CheckList checks={state.checks.filter((item) => ["aimdk", "slam", "lidar", "odom"].includes(item.id))} /></Section>
           <Section title="采集控制" icon={Activity}>
             <div className="stack">
+              {feedback && <div className={`notice ${feedback.tone}`} role={feedback.tone === "error" ? "alert" : "status"}
+                data-testid="mapping-feedback">{feedback.text}</div>}
               <div className="helper">建图期间由现场人员使用外置遥控器移动机器人。</div>
               {!state.mapping ? (
                 <button className="btn accent" disabled={!canStart || busy} onClick={start}><Play size={13} />开始采集</button>
