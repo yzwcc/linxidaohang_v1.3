@@ -1,0 +1,4 @@
+# Optional isolated x64 Python 3.12 trial; not a robot/ARM64 dependency lock.
+small-gicp==1.0.1
+numpy==2.5.4
+scipy==1.16.3

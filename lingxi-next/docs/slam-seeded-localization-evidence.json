@@ -1,0 +1,209 @@
+{
+  "schemaVersion": 1,
+  "kind": "seeded_recorded_scan_registration_diagnostic",
+  "machine": "x86_64",
+  "python": "3.12.3",
+  "dependencies": {
+    "small-gicp": "1.0.1",
+    "numpy": "2.5.4",
+    "scipy": "1.16.3"
+  },
+  "sourceSha256": {
+    "registration": "563bebbe0710ba07b96e4721d12b033443e0a317834b117c0b2697fe003f8a8f",
+    "runner": "0c5459600375f6d48248bb195b774c5410bc15dfc7500153a690e6b596676c32"
+  },
+  "configRawUnitsNotPhysicalAcceptance": {
+    "voxel_raw": 0.2,
+    "correspondence_raw": 1.0,
+    "maximum_inlier_rms_raw": 0.25,
+    "maximum_inlier_p95_raw": 0.45,
+    "minimum_overlap": 0.6,
+    "maximum_seed_translation_raw": 2.0,
+    "maximum_seed_rotation_radians": 0.5235987755982988,
+    "minimum_geometry_ratio": 0.001,
+    "minimum_native_information_ratio": 1e-06,
+    "minimum_points": 64,
+    "maximum_map_points": 2000000,
+    "maximum_scan_points": 100000,
+    "maximum_iterations": 40
+  },
+  "savedMap": {
+    "receiptSha256": "f6bf5c1494f3782a3659c5767e29d7c32202ab228b5baefedbe91cd6b6f5e3b2",
+    "pointsSha256": "29b23992701af021acd3695b45d66bd6747b1e68e36776f5bda5d3a6b46d0210",
+    "mapInventory": {
+      "num_submaps": 1,
+      "num_all_frames": 165,
+      "num_matching_cost_factors": 0,
+      "fileCount": 12,
+      "totalBytes": 549482,
+      "artifactInventorySha256": "6bb7eac23b78770fa35a611cd3d2dacdf35d19ffc36449731cbcaee93fd4e4af"
+    }
+  },
+  "scans": [
+    {
+      "inputSha256": "1c404fe4420d774bc8eb2e0f69a443c73c244bb92a348a44a4b1c09d293c91a7",
+      "trials": [
+        {
+          "seedKind": "recorded_pose_reuse",
+          "acceptedByTrialGate": true,
+          "rejectionReasons": [],
+          "metrics": {
+            "scanPoints": 7606,
+            "mapPoints": 2655,
+            "downsampledScanPoints": 3761,
+            "downsampledMapPoints": 2431,
+            "nativeConverged": true,
+            "nativeInliers": 3761,
+            "iterations": 2,
+            "overlap": 1.0,
+            "inlierRmsRaw": 0.11321897259509457,
+            "inlierP95Raw": 0.1858729219416446,
+            "seedTranslationCorrectionRaw": 0.009128240375188335,
+            "seedRotationCorrectionRadians": 0.0021876384697018625,
+            "geometryInformationRatio": 0.2487424748860959,
+            "nativeInformationRatio": 0.03884257062427943,
+            "milliseconds": 19.178413999999755
+          }
+        },
+        {
+          "seedKind": "controlled_perturbation",
+          "acceptedByTrialGate": true,
+          "rejectionReasons": [],
+          "metrics": {
+            "scanPoints": 7606,
+            "mapPoints": 2655,
+            "downsampledScanPoints": 3761,
+            "downsampledMapPoints": 2431,
+            "nativeConverged": true,
+            "nativeInliers": 3761,
+            "iterations": 4,
+            "overlap": 1.0,
+            "inlierRmsRaw": 0.11321861388052014,
+            "inlierP95Raw": 0.18586081089349066,
+            "seedTranslationCorrectionRaw": 0.26672413088120306,
+            "seedRotationCorrectionRadians": 0.08679880572483582,
+            "geometryInformationRatio": 0.2487275109651346,
+            "nativeInformationRatio": 0.03895311979125882,
+            "milliseconds": 14.799550000000217
+          }
+        },
+        {
+          "seedKind": "remote_seed_negative_control",
+          "acceptedByTrialGate": false,
+          "rejectionReasons": [
+            "native_not_converged_or_insufficient_inliers",
+            "insufficient_scan_map_overlap",
+            "excessive_scan_map_residual",
+            "degenerate_registration_geometry"
+          ],
+          "metrics": {
+            "scanPoints": 7606,
+            "mapPoints": 2655,
+            "downsampledScanPoints": 3761,
+            "downsampledMapPoints": 2431,
+            "nativeConverged": true,
+            "nativeInliers": 0,
+            "iterations": 0,
+            "overlap": 0.0,
+            "inlierRmsRaw": null,
+            "inlierP95Raw": null,
+            "seedTranslationCorrectionRaw": 0.0,
+            "seedRotationCorrectionRadians": 2.1073424255447017e-08,
+            "geometryInformationRatio": 0.0,
+            "nativeInformationRatio": 0.0,
+            "milliseconds": 20.265736999999895
+          }
+        }
+      ]
+    },
+    {
+      "inputSha256": "f5f36aa3fbce1604b244668f8e1dd397fdcc22f2ce216095906da84ef8d09dad",
+      "trials": [
+        {
+          "seedKind": "recorded_pose_reuse",
+          "acceptedByTrialGate": true,
+          "rejectionReasons": [],
+          "metrics": {
+            "scanPoints": 7602,
+            "mapPoints": 2655,
+            "downsampledScanPoints": 3702,
+            "downsampledMapPoints": 2431,
+            "nativeConverged": true,
+            "nativeInliers": 3702,
+            "iterations": 2,
+            "overlap": 1.0,
+            "inlierRmsRaw": 0.11173010950563861,
+            "inlierP95Raw": 0.18598183351414724,
+            "seedTranslationCorrectionRaw": 0.06235932763173496,
+            "seedRotationCorrectionRadians": 0.0020313290319433535,
+            "geometryInformationRatio": 0.24444245120810504,
+            "nativeInformationRatio": 0.038583179150245506,
+            "milliseconds": 13.244985000000042
+          }
+        },
+        {
+          "seedKind": "controlled_perturbation",
+          "acceptedByTrialGate": true,
+          "rejectionReasons": [],
+          "metrics": {
+            "scanPoints": 7602,
+            "mapPoints": 2655,
+            "downsampledScanPoints": 3702,
+            "downsampledMapPoints": 2431,
+            "nativeConverged": true,
+            "nativeInliers": 3702,
+            "iterations": 3,
+            "overlap": 1.0,
+            "inlierRmsRaw": 0.11173954435893231,
+            "inlierP95Raw": 0.18596388831645985,
+            "seedTranslationCorrectionRaw": 0.2482228791074572,
+            "seedRotationCorrectionRadians": 0.08560780178150433,
+            "geometryInformationRatio": 0.24410446831458013,
+            "nativeInformationRatio": 0.038602921108160784,
+            "milliseconds": 13.02874200000037
+          }
+        },
+        {
+          "seedKind": "remote_seed_negative_control",
+          "acceptedByTrialGate": false,
+          "rejectionReasons": [
+            "native_not_converged_or_insufficient_inliers",
+            "insufficient_scan_map_overlap",
+            "excessive_scan_map_residual",
+            "degenerate_registration_geometry"
+          ],
+          "metrics": {
+            "scanPoints": 7602,
+            "mapPoints": 2655,
+            "downsampledScanPoints": 3702,
+            "downsampledMapPoints": 2431,
+            "nativeConverged": true,
+            "nativeInliers": 0,
+            "iterations": 0,
+            "overlap": 0.0,
+            "inlierRmsRaw": null,
+            "inlierP95Raw": null,
+            "seedTranslationCorrectionRaw": 0.0,
+            "seedRotationCorrectionRadians": 0.0,
+            "geometryInformationRatio": 0.0,
+            "nativeInformationRatio": 0.0,
+            "milliseconds": 20.21138600000061
+          }
+        }
+      ]
+    }
+  ],
+  "boundaries": {
+    "recordedPoseUsedForSeeds": true,
+    "possibleMappingSequenceReuse": true,
+    "worldPointsConvertedBackToSensor": true,
+    "inputFilesUnchanged": true,
+    "poseCoordinatesExported": false,
+    "groundTruthAccuracyMeasured": false,
+    "globalRelocalizationValidated": false,
+    "continuousTrackingValidated": false,
+    "robotExecution": false,
+    "localizationReady": false,
+    "navigationReady": false
+  }
+}

@@ -98,3 +98,14 @@ odometry engine is initialized before loading the mapping extension, matching
 the original native diagnostic's order. Two new Linux x64 recorded runs now
 exercise actual native save/reload and plain discard; neither uses ROS or a
 robot connection. The live owner, API and APK still do not select this backend.
+
+`seeded_localization.SeededMapRegistration` adds explicit-seed scan-to-map
+registration using pinned small-gicp 1.0.1 and independent overlap, residual,
+correction and geometry gates. `localization_tracking.LocalizationTracker`
+adds odometry prediction, consecutive confirmation, freshness and generation
+isolation. These are diagnostic components, not an activated localization
+backend; readiness always remains false. Actual x64 tests use synthetic
+moving geometry, plus separate first/latest preserved real-point samples.
+Independent localization accuracy, continuous real-input tracking, global
+recovery, ARM64 execution and navigation remain unverified.
+See `docs/SLAM_SEEDED_LOCALIZATION.md` for evidence and reproduction.
