@@ -1,21 +1,23 @@
 /** Synthetic protocol/UI fixture only. No native localization or robot connection. */
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { createHash, X509Certificate } from "node:crypto";
+import { createHash, randomUUID, X509Certificate } from "node:crypto";
 import { chmod, mkdir, readFile, realpath, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { pairingCodeHash } from "../../robot-api/src/auth";
 import type { LocalizationBackend } from "../../robot-api/src/localization-backend";
 import { buildServer } from "../../robot-api/src/server";
-import { localizationFixture } from "../../robot-api/tests/fixtures/localization-state";
+import { localizationFixture, localizationRuntimeFixture } from "../../robot-api/tests/fixtures/localization-state";
 import { savedSlamFixture } from "../../robot-api/tests/fixtures/saved-slam-map";
 import { sameLocalizationBinding, type RigidMatrix } from "../../shared/localization";
 
 async function main() {
   assert.equal(process.platform, "linux");
   assert.notEqual(process.geteuid!(), 0);
-  assert.equal(process.argv.length, 5);
+  assert([5, 6].includes(process.argv.length));
+  const serviceMode = process.argv[5] === "service";
+  if (process.argv.length === 6) assert(serviceMode);
   const root = path.resolve(process.argv[2]), web = await realpath(process.argv[3]);
   const seconds = Number(process.argv[4]);
   assert(Number.isInteger(seconds) && seconds >= 30 && seconds <= 900);
@@ -34,7 +36,9 @@ async function main() {
   })).digest("base64");
   const maps = path.join(root, "maps");
   await mkdir(maps, { mode: 0o700 });
-  const map = await savedSlamFixture(maps, { session: "b".repeat(32), inputMode: "recorded" });
+  const map = await savedSlamFixture(maps, { session: "b".repeat(32), inputMode: "recorded",
+    sensorProvenance: { schemaVersion: 1, profileSha256: "e".repeat(64), timingHypothesis: "header_is_scan_start",
+      configurationSha256: { "synthetic.json": "f".repeat(64) } } });
   await writeFile(map.ready, JSON.stringify({ ...map.receipt, name: "合成测试地图 / Synthetic" }));
   let state = localizationFixture(), outage = false, conflictNext = false;
   const receiptSha256 = createHash("sha256").update(await readFile(map.ready)).digest("hex");
@@ -42,12 +46,36 @@ async function main() {
     points_sha256: map.receipt.savedPointsSha256 };
   let acceptedPose: RigidMatrix | undefined;
   const commands: string[] = [];
+  const lifecycleCommands: string[] = [];
+  let runtime = localizationRuntimeFixture(), conflictServiceNext = false;
   let rejected = 0, reads = 0, seed: RigidMatrix | undefined, seedSourceFrame: string | undefined;
   const conflict = () => Object.assign(new Error("Synthetic generation conflict"), { statusCode: 409 });
   const backend: LocalizationBackend = {
+    ...(serviceMode ? {
+      runtime: async () => {
+        if (outage) throw Object.assign(new Error("Synthetic offline"), { statusCode: 503 });
+        return structuredClone(runtime);
+      },
+      lifecycle: async (value) => {
+        lifecycleCommands.push(value.action);
+        if (conflictServiceNext) { conflictServiceNext = false; runtime.generation++; throw conflict(); }
+        if (outage || value.serviceId !== runtime.serviceId || value.expectedGeneration !== runtime.generation) throw conflict();
+        if (value.action === "start") {
+          if (!runtime.cleanupComplete || value.mapId !== map.id || value.receiptSha256 !== receiptSha256) throw conflict();
+          runtime = { ...runtime, generation: runtime.generation + 1, runId: randomUUID().replaceAll("-", ""),
+            selectedMap: { mapId: value.mapId, receiptSha256: value.receiptSha256 },
+            phase: "starting", cleanupComplete: false, failureCode: undefined };
+          state = { ...localizationFixture(), binding: { ...state.binding, session: randomUUID().replaceAll("-", "") } };
+        } else {
+          if (value.runId !== runtime.runId) throw conflict();
+          runtime = { ...runtime, generation: runtime.generation + 1, phase: "stopping", cleanupComplete: false };
+        }
+        return structuredClone(runtime);
+      },
+    } satisfies Pick<LocalizationBackend, "runtime" | "lifecycle"> : {}),
     state: async () => {
       reads++;
-      if (outage) throw Object.assign(new Error("Synthetic offline"), { statusCode: 503 });
+      if (outage || (serviceMode && runtime.phase !== "running")) throw Object.assign(new Error("Synthetic offline"), { statusCode: 503 });
       return structuredClone(state);
     },
     command: async (value) => {
@@ -85,6 +113,11 @@ async function main() {
     else if (action === "map-mismatch") state.binding = { ...state.binding, receipt_sha256: "f".repeat(64) };
     else if (action === "map-restore") state.binding = { ...state.binding, receipt_sha256: receiptSha256 };
     else if (action === "conflict-next") conflictNext = true;
+    else if (action === "conflict-service-next") conflictServiceNext = true;
+    else if (action === "ready") runtime = { ...runtime, phase: "running" };
+    else if (action === "cleaned") runtime = { ...runtime, phase: "stopped", cleanupComplete: true };
+    else if (action === "cleanup-failed") runtime = { ...runtime, phase: "failed", cleanupComplete: false,
+      failureCode: "process_cleanup_failed" };
     else if (action === "track") {
       if (!acceptedPose || !["seed_requested", "acquiring"].includes(state.state)) return reply.code(409).send();
       state = { ...state, state: "tracking", requestPending: false, consecutiveMatches: 3,
@@ -92,7 +125,7 @@ async function main() {
     } else if (action === "ack") state = { ...state, requestPending: false };
     else if (action !== "status") return reply.code(404).send();
     return { classification: "isolated_synthetic_ui_fixture", commands, rejected, reads, seed, seedSourceFrame,
-      state: state.state, generation: state.generation };
+      state: state.state, generation: state.generation, serviceMode, lifecycleCommands, runtime };
   });
   const url = await app.listen({ host: "127.0.0.1", port: 0 });
   console.log(JSON.stringify({ classification: "isolated_synthetic_ui_fixture",

@@ -3,9 +3,9 @@ import { createServer, type Server, type Socket } from "node:net";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { UnixLocalizationBackend, validatedLocalizationState } from "../src/localization-backend";
+import { UnixLocalizationServiceBackend, validatedLocalizationState } from "../src/localization-backend";
 import { localizationStateSchema } from "../../shared/localization";
-import { identityMatrix, localizationFixture } from "./fixtures/localization-state";
+import { identityMatrix, localizationFixture, localizationRuntimeFixture } from "./fixtures/localization-state";
 
 describe("localization state validation", () => {
   it("accepts raw chest lidar tracking without claiming production readiness", () => {
@@ -48,8 +48,38 @@ describe.skipIf(process.platform !== "linux")("bounded Unix localization transpo
       socket.once("data", (bytes) => respond(socket, bytes.toString("utf8")));
     });
     await new Promise<void>((resolve) => server!.listen(endpoint, resolve));
-    return new UnixLocalizationBackend(endpoint);
+    return new UnixLocalizationServiceBackend(endpoint);
   }
+  it("reads service runtime independently of the child state", async () => {
+    const value = localizationRuntimeFixture();
+    const backend = await fixture((socket, line) => {
+      expect(JSON.parse(line)).toEqual({ action: "runtime" });
+      socket.end(JSON.stringify({ ok: true, value }) + "\n");
+    });
+    expect(await backend.runtime()).toEqual(value);
+  });
+  it.each(["start", "shutdown"] as const)("forwards one exact %s request with service identity", async (action) => {
+    const selection = { mapId: `slam-${"b".repeat(32)}`, receiptSha256: "c".repeat(64) };
+    const identity = { serviceId: "1".repeat(32), expectedGeneration: 0 };
+    const command = action === "start" ? { action, ...identity, ...selection } :
+      { action, ...identity, runId: "2".repeat(32) };
+    let calls = 0;
+    const value = { ...localizationRuntimeFixture(), generation: 1, runId: "2".repeat(32),
+      selectedMap: selection, cleanupComplete: false, phase: action === "start" ? "starting" : "stopping" };
+    const backend = await fixture((socket, line) => {
+      calls++; expect(JSON.parse(line)).toEqual(command);
+      socket.end(JSON.stringify({ ok: true, value }) + "\n");
+    });
+    expect(await backend.lifecycle(command)).toEqual(value);
+    expect(calls).toBe(1);
+  });
+  it("does not retry a lifecycle request without acknowledgement", async () => {
+    let calls = 0;
+    const backend = await fixture((socket) => { calls++; socket.end(); });
+    await expect(backend.lifecycle({ action: "shutdown", serviceId: "1".repeat(32),
+      expectedGeneration: 1, runId: "2".repeat(32) })).rejects.toMatchObject({ statusCode: 503 });
+    expect(calls).toBe(1);
+  });
   it("sends a single exact state query", async () => {
     let count = 0;
     const backend = await fixture((socket, line) => {

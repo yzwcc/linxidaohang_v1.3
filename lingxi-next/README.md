@@ -193,13 +193,20 @@ the native point worker and private same-user Unix controls under process
 supervision. That initial stage had no automatic seed, HTTP exposure or ARM64/live-input support.
 See [the localization runtime boundary](docs/SLAM_LOCALIZATION_RUNTIME.md).
 An additional paired HTTPS console now adapts that private localization socket
-and displays saved point clouds with an explicitly seeded raw IMU pose.
+and displays saved point clouds with an explicitly seeded raw chest LiDAR pose.
 Its isolated entrypoint supports seed/pause/stop, rejects unrelated writes,
 clears stale poses and verifies the map receipt/point identity before overlay.
 Eleven synthetic browser stages and seven compiled Linux API lifecycle cases
 pass; these establish the console contract, not ARM64/live localization or APK
 acceptance.
 See [the offline localization console](docs/SLAM_LOCALIZATION_CONSOLE.md).
+An explicit on-demand service mode now adds saved-map selection, process start,
+shutdown and confirmed-cleanup states to the paired console. Service identity,
+run and generation are separate from the child localization session; late child
+responses are discarded across changes. The fixed-map console remains compatible.
+This is an isolated offline integration, not a production owner, installer or APK
+update. Mapping/localization exclusion and live seeded accuracy remain outstanding.
+See [the service console contract](docs/SLAM_LOCALIZATION_CONSOLE.md#按需会话接入).
 A new ordinary-user recorded-input launcher now owns the native localization
 worker and paired HTTPS API together, with bounded startup, peer-failure cleanup
 and end-of-run input verification. Thirteen Linux process cases and 87 focused

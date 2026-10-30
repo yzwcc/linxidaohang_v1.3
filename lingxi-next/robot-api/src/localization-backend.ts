@@ -3,12 +3,15 @@ import path from "node:path";
 import { z } from "zod";
 import {
   localizationIdentitySchema, localizationSeedSchema, localizationStateSchema, sameLocalizationBinding,
-  type LocalizationCommand, type LocalizationState,
+  localizationRuntimeSchema, localizationStartSchema, localizationShutdownSchema, localizationLifecycleConfirmed,
+  type LocalizationCommand, type LocalizationState, type LocalizationRuntime, type LocalizationLifecycleCommand,
 } from "../../shared/localization";
 
 export interface LocalizationBackend {
   state(): Promise<LocalizationState>;
   command(command: LocalizationCommand): Promise<LocalizationState>;
+  runtime?(): Promise<LocalizationRuntime>;
+  lifecycle?(command: LocalizationLifecycleCommand): Promise<LocalizationRuntime>;
 }
 
 const unavailable = () => Object.assign(new Error("定位服务不可用，请检查定位进程"), { statusCode: 503 });
@@ -34,6 +37,18 @@ export function confirmedLocalizationCommand(command: LocalizationCommand, value
   return result;
 }
 
+export function validatedLocalizationRuntime(value: unknown): LocalizationRuntime {
+  const result = localizationRuntimeSchema.safeParse(value);
+  if (!result.success) throw unavailable();
+  return result.data;
+}
+
+export function confirmedLocalizationLifecycle(command: LocalizationLifecycleCommand, value: unknown) {
+  const result = validatedLocalizationRuntime(value);
+  if (!localizationLifecycleConfirmed(command, result)) throw unavailable();
+  return result;
+}
+
 /** One request per connection. A lost acknowledgement is never retried. */
 export class UnixLocalizationBackend implements LocalizationBackend {
   constructor(private readonly socket: string) {
@@ -42,7 +57,7 @@ export class UnixLocalizationBackend implements LocalizationBackend {
     }
   }
 
-  private request(command: object): Promise<unknown> {
+  protected request(command: object): Promise<unknown> {
     const payload = Buffer.from(JSON.stringify(command) + "\n");
     if (payload.length > 4096) return Promise.reject(unavailable());
     return new Promise((resolve, reject) => {
@@ -91,3 +106,18 @@ export class UnixLocalizationBackend implements LocalizationBackend {
 }
 
 function withoutAction({ action: _action, ...value }: LocalizationCommand) { return value; }
+
+/** Explicit opt-in: fixed-map owners retain their original protocol and behavior. */
+export class UnixLocalizationServiceBackend extends UnixLocalizationBackend {
+  async runtime() {
+    return validatedLocalizationRuntime(await this.request({ action: "runtime" }));
+  }
+
+  async lifecycle(value: LocalizationLifecycleCommand) {
+    const { action, ...body } = value;
+    const parsed: LocalizationLifecycleCommand = action === "start"
+      ? { action, ...localizationStartSchema.parse(body) }
+      : { action: z.literal("shutdown").parse(action), ...localizationShutdownSchema.parse(body) };
+    return confirmedLocalizationLifecycle(parsed, await this.request(parsed));
+  }
+}

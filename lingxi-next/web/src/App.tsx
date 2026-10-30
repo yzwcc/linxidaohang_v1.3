@@ -1161,7 +1161,7 @@ export default function App() {
           <div className="topbar-title">{activeItem?.label ?? "运行总览"}</div>
           <div className="topbar-right">
             {state.demoMode && <span className="status-pill"><span className="status-dot warn" />演示数据</span>}
-            <span className="status-pill"><StatusDot ready={isolatedLocalization || state.connected} />{isolatedLocalization ? "离线定位控制台" : state.connected ? "机器人在线" : "连接中断"}</span>
+            <span className="status-pill"><StatusDot ready={isolatedLocalization || state.connected} />{isolatedLocalization ? "独立定位控制台" : state.connected ? "机器人在线" : "连接中断"}</span>
             {isolatedLocalization && <button className="btn icon" title="断开并清除会话" onClick={() => {
               void api(connection, "/api/v1/session/revoke", { method: "POST" }).catch(() => undefined);
               setConnection(null); setState(null); setSettings(undefined);

@@ -74,8 +74,10 @@ function metric() {
     panelOverlap: Boolean(a && b && a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom),
     syntheticBanner: Boolean(document.querySelector(".synthetic-fixture-banner")),
     seedFields: document.querySelectorAll('input[id^="seed-"]').length,
-    seedHeading: document.querySelector(".localization-controls h2")?.textContent ?? null,
+    seedHeading: document.querySelector(".localization-controls form h2")?.textContent ?? null,
     seedDisabled: button("提交初始位姿")?.disabled, stopDisabled: button("停止会话")?.disabled,
+    startDisabled: button("启动定位进程")?.disabled, shutdownDisabled: button("关闭定位进程")?.disabled,
+    runtime: document.querySelector('[data-testid="localization-runtime"]')?.textContent ?? null,
     alert: document.querySelector('[role="alert"]')?.textContent ?? null };
 }
 async function capture(name, pose, cloud = true) {
@@ -98,7 +100,8 @@ async function capture(name, pose, cloud = true) {
 
 try {
   run("open", url);
-  control("status");
+  const serviceMode = control("status").serviceMode;
+  report.serviceMode = serviceMode;
   run("set", "viewport", "1440", "900");
   run("snapshot", "-i");
   run("fill", "#robot-address", parsed.origin);
@@ -106,6 +109,20 @@ try {
   click("连接机器人");
   wait("Boolean(document.querySelector('#seed-x'))");
   evaluate(`window.__localizationMetric = ${metric.toString()}`);
+  if (serviceMode) {
+    wait("window.__localizationMetric().runtime?.includes('未启动定位进程')");
+    await capture("service-idle", false, false);
+    assert.equal(evaluate("window.__localizationMetric().seedDisabled"), true);
+    run("snapshot", "-i");
+    run("select", "#localization-map", `slam-${"b".repeat(32)}`);
+    wait("!window.__localizationMetric().startDisabled");
+    click("启动定位进程");
+    wait("window.__localizationMetric().runtime?.includes('启动中')");
+    await capture("service-starting", false);
+    assert.equal(evaluate("window.__localizationMetric().seedDisabled"), true);
+    assert.deepEqual(control("status").lifecycleCommands, ["start"]);
+    control("ready");
+  }
   wait("window.__localizationMetric().nonBackground > 100 && !window.__localizationMetric().seedDisabled");
   await capture("unseeded", false);
   for (const [key, value] of Object.entries({ x: "1.25", y: "-0.5", z: "0.1", roll: "5", pitch: "-10", yaw: "90" })) {
@@ -123,8 +140,9 @@ try {
   wait("Boolean(window.__localizationMetric().pose)");
   await capture("tracking", true);
   control("map-mismatch");
-  wait("!window.__localizationMetric().canvas && !window.__localizationMetric().pose");
-  await capture("map-mismatch", false, false);
+  wait(serviceMode ? "!window.__localizationMetric().pose && window.__localizationMetric().seedDisabled" :
+    "!window.__localizationMetric().canvas && !window.__localizationMetric().pose");
+  await capture("map-mismatch", false, serviceMode);
   control("map-restore");
   wait("Boolean(window.__localizationMetric().pose)");
   evaluate(`(() => {
@@ -186,13 +204,44 @@ try {
   await capture("stopped", false);
   assert.equal(evaluate("window.__localizationMetric().seedDisabled"), true);
   assert.equal(evaluate("window.__localizationMetric().stopDisabled"), true);
+  if (serviceMode) {
+    const firstRun = control("status").runtime.runId;
+    click("关闭定位进程");
+    wait("window.__localizationMetric().runtime?.includes('关闭中')");
+    await capture("service-stopping", false);
+    assert.equal(evaluate("window.__localizationMetric().startDisabled"), true);
+    assert.equal(evaluate("window.__localizationMetric().shutdownDisabled"), true);
+    control("cleaned");
+    wait("!window.__localizationMetric().startDisabled");
+    await capture("service-cleaned", false);
+    control("conflict-service-next");
+    const commandsBefore = control("status").lifecycleCommands.length;
+    click("启动定位进程");
+    wait("Boolean(window.__localizationMetric().alert)");
+    assert.equal(control("status").lifecycleCommands.length, commandsBefore + 1);
+    wait("!window.__localizationMetric().startDisabled");
+    click("启动定位进程");
+    wait("window.__localizationMetric().runtime?.includes('启动中')");
+    assert.notEqual(control("status").runtime.runId, firstRun);
+    control("ready");
+    wait("!window.__localizationMetric().seedDisabled");
+    await capture("service-restarted", false);
+    assert.equal(evaluate("document.querySelector('#seed-x').value"), "0");
+    click("关闭定位进程");
+    control("cleanup-failed");
+    wait("window.__localizationMetric().runtime?.includes('进程异常')");
+    assert.equal(evaluate("window.__localizationMetric().startDisabled"), true);
+    await capture("service-cleanup-failed", false);
+    report.cleanupFailureBlocksReplacement = true;
+  }
   click("地图管理");
   run("wait", "--text", "合成测试地图 / Synthetic");
   report.readonlyMaps = evaluate(`![...document.querySelectorAll('button')].some(item =>
     ['新建点位','删除地图','切换地图','开始导航'].some(text => item.textContent.includes(text)))`);
   assert.equal(report.readonlyMaps, true);
   click("定位验证");
-  wait("window.__localizationMetric().status?.includes('会话已停止')");
+  wait(serviceMode ? "window.__localizationMetric().runtime?.includes('进程异常')" :
+    "window.__localizationMetric().status?.includes('会话已停止')");
   assert.equal(control("status").commands.length, before + 2);
   report.storageKeys = evaluate("Object.keys(localStorage)");
   assert.deepEqual(report.storageKeys, ["lingxi.robotAddress"]);

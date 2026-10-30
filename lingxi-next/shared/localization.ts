@@ -99,3 +99,63 @@ export type LocalizationCommand =
 export function sameLocalizationBinding(a: LocalizationIdentity["binding"], b: LocalizationIdentity["binding"]) {
   return (Object.keys(a) as (keyof typeof a)[]).every((key) => a[key] === b[key]);
 }
+
+export const localizationMapSelectionSchema = z.object({
+  mapId: z.string().regex(/^slam-[a-f0-9]{32}$/),
+  receiptSha256: z.string().regex(/^[a-f0-9]{64}$/),
+}).strict();
+const serviceIdentity = {
+  serviceId: z.string().regex(/^[a-f0-9]{32}$/),
+  expectedGeneration: counter.max(Number.MAX_SAFE_INTEGER - 1),
+};
+export const localizationStartSchema = z.object({
+  ...serviceIdentity, ...localizationMapSelectionSchema.shape,
+}).strict();
+export const localizationShutdownSchema = z.object({
+  ...serviceIdentity, runId: z.string().regex(/^[a-f0-9]{32}$/),
+}).strict();
+export const localizationRuntimeSchema = z.object({
+  backend: z.literal("glim"), inputMode: z.enum(["recorded", "live"]),
+  serviceId: serviceIdentity.serviceId, generation: counter,
+  runId: z.string().regex(/^[a-f0-9]{32}$/).nullable(),
+  phase: z.enum(["idle", "starting", "running", "stopping", "stopped", "failed"]),
+  selectedMap: localizationMapSelectionSchema.nullable(), cleanupComplete: z.boolean(), closed: z.boolean(),
+  localizationReady: z.literal(false), navigationReady: z.literal(false),
+  failureCode: z.enum(["map_selection_unavailable", "localization_process_failed", "process_start_failed",
+    "process_startup_deadline_exceeded", "process_progress_deadline_exceeded", "process_shutdown_deadline_exceeded",
+    "child_reported_failure", "child_exited_without_confirmed_stop", "child_health_pipe_closed",
+    "invalid_child_health_protocol", "child_descendants_outlived_owner", "process_cleanup_failed"]).optional(),
+}).strict().refine((value) => {
+  if (value.phase === "idle") return value.runId === null && value.selectedMap === null &&
+    value.generation === 0 && value.cleanupComplete && !value.failureCode;
+  if (!value.runId || !value.selectedMap || value.generation === 0) return false;
+  if (value.phase === "failed") return value.failureCode !== undefined;
+  if (value.failureCode) return false;
+  return value.phase === "stopped" ? value.cleanupComplete : !value.cleanupComplete;
+}, "定位进程生命周期状态不一致");
+
+export type LocalizationRuntime = z.infer<typeof localizationRuntimeSchema>;
+export type LocalizationLifecycleCommand =
+  | (z.infer<typeof localizationStartSchema> & { action: "start" })
+  | (z.infer<typeof localizationShutdownSchema> & { action: "shutdown" });
+
+export function sameLocalizationRuntime(a: LocalizationRuntime, b: LocalizationRuntime) {
+  return a.serviceId === b.serviceId && a.generation === b.generation && a.runId === b.runId &&
+    a.inputMode === b.inputMode && a.phase === b.phase && a.closed === b.closed &&
+    a.selectedMap?.mapId === b.selectedMap?.mapId &&
+    a.selectedMap?.receiptSha256 === b.selectedMap?.receiptSha256;
+}
+
+export function localizationStateMatchesRuntime(state: LocalizationState, runtime: LocalizationRuntime) {
+  return !runtime.closed && runtime.phase === "running" && state.binding.input_mode === runtime.inputMode &&
+    state.binding.map_id === runtime.selectedMap?.mapId &&
+    state.binding.receipt_sha256 === runtime.selectedMap?.receiptSha256;
+}
+
+export function localizationLifecycleConfirmed(command: LocalizationLifecycleCommand, result: LocalizationRuntime) {
+  if (result.closed || result.serviceId !== command.serviceId || result.generation !== command.expectedGeneration + 1) return false;
+  return command.action === "start"
+    ? result.phase === "starting" && result.runId !== null && !result.cleanupComplete &&
+      result.selectedMap?.mapId === command.mapId && result.selectedMap?.receiptSha256 === command.receiptSha256
+    : result.runId === command.runId && ["stopping", "stopped", "failed"].includes(result.phase);
+}

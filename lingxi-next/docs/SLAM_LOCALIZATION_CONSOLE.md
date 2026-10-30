@@ -1,4 +1,4 @@
-# 离线定位管理网页
+# 独立定位管理网页
 
 日期：2026-10-30。本页最初的网页/API 阶段机器人断电，没有连接或部署机器人；
 后续已完成 ARM64 录制定位与配对 HTTPS 回环检查，见本文末尾。
@@ -63,7 +63,8 @@ HTTP 适配最初只接受 `recorded`；后续增加显式 `live` 诊断输入�
 输入模式不代表该地图定位或当前现场精度已经通过验收。
 所有定位状态强制保持 `localizationReady=false`、`navigationReady=false`。
 独立控制台不调用机器人状态、灵心、模型或运动接口，
-写入白名单仅含配对/撤销会话及上述三个定位操作。
+固定地图入口的写入白名单含配对/撤销会话及上述三个定位操作；
+按需服务另增加下文的启动/关闭操作。
 业务、建图、语音回调和凭据写入均被拒绝。
 
 ## 运行接入
@@ -173,3 +174,66 @@ Linux 进程检查可设置 `LINGXI_LOCALIZATION_TEST_BUNDLE` 指向本轮编译
 显式指定已有、干净且同一固定提交的 Linux 检出后，全量重新通过。
 Linux Vitest 通过现有隔离依赖的 `NODE_PATH` 和 `ESBUILD_BINARY_PATH` 加载
 Linux 原生二进制，没有重新安装或改写 Windows 依赖。
+
+## 按需会话接入
+
+2026-10-30，新增服务生命周期的 HTTP 和网页接入。原有固定地图入口保持兼容，
+没有覆盖厂商环境、原生算法或已有安装包。本次没有连接机器人或发送运动指令。
+
+`UnixLocalizationServiceBackend` 复用已有有界 Unix 传输。
+独立 API 只有在 `LINGXI_LOCALIZATION_SERVICE=1` 时才选择服务协议，
+`LINGXI_LOCALIZATION_SOCKET` 此时指向 `localization_service.py` 的私有服务 socket，
+而不是某个子进程的 socket。其余 TLS、配对、地图目录和父输入所有权限制不变。
+这只增加协议接入；现有固定地图所有者不会因此改为按需服务所有者。
+生产统一所有者和安装器尚未接入，不应仅设置该变量就替换现有生产服务。
+
+| 接口 | 请求及结果 |
+| --- | --- |
+| `GET /api/v1/slam/localization/runtime` | 返回服务 ID、运行代次、run ID、所选地图、阶段与清理状态；固定地图入口返回 501 |
+| `POST /api/v1/slam/localization/start` | `serviceId`、`expectedGeneration`、`mapId`、`receiptSha256`；202 仅表示 `starting` |
+| `POST /api/v1/slam/localization/shutdown` | `serviceId`、`expectedGeneration`、`runId`；202 撤销当前工作进程的查询/控制并异步关闭 |
+
+新读接口仍要求配对，新写接口还要求 HTTPS。响应校验服务 ID、代次恰好加一、
+所选地图或 run ID；错配确认不当作成功。每个控制请求只转发一次，不自动重试。
+只接收地图身份和摘要，不接收文件路径、命令或传感器配置。
+目录解析、schema-v2 来源匹配及最终原生加载仍由既有服务/子进程检查。
+`running` 仅表示进程健康，所有定位/导航就绪标志继续为 false。
+
+网页新增保存地图选择和启动/关闭按钮。缺少配置来源或合成输入地图不可选；
+预览取得实际收据摘要后才开放启动。工作进程占用时禁止换图，关闭只显示待清理，
+清理未确认或失败时不允许新建。`stop` 保持终止定位会话的含义，
+不等于 `shutdown`，也不等于进程已退出。
+
+服务模式按“runtime → 定位状态 → runtime”读取；只有服务、运行代次、run ID、
+地图摘要、输入模式和运行阶段保持一致，才接纳工作进程位姿。
+观测过期、断线、控制派发或连接切换即撤销旧位姿，旧响应不能恢复显示。
+新 run 清空上次初始位姿字段，没有自动提交或恢复。固定地图入口只在明确的
+501 能力响应后继续使用原有状态查询；503、超时或格式错误不会降级成可控会话。
+
+本次验证分为三层：纯协议/路由测试；实际 Linux HTTP 监听到 Unix 服务及
+受监督合成子进程的两次新建/关闭；回环 HTTPS 合成网页的桌面/横屏测试。
+真实进程检查核对旧绑定拒绝、两次 session 不同、子进程 PID 消失、父输入 EOF
+以及服务 socket 删除。合成浏览器覆盖新服务 17 阶段和固定入口 11 阶段，
+含迟到查询、匹配位姿、摘要错配、清理失败阻止替换、重新启动初值清空。
+两种视口为 1440×900 和 844×390，均检查点云像素、位姿标记及无横向溢出/面板重叠。
+它们不是 GLIM 实际执行、机器人定位精度或 Android 实机验收。
+
+复现服务浏览器夹具时，为 `tools/fixtures/localization-ui.ts` 的原有三个参数
+（新私有目录、编译网页目录、30–900 秒期限）追加 `service`；不追加则测试固定入口。
+以工具输出的回环 URL 与该次证书 SPKI 调用 `tools/check-localization-ui.mjs`。
+报告保存在忽略入库的 `.local/localization-ui-service-20261030-a/` 和
+`.local/localization-ui-fixed-20261030-d/`，不得当成实际地图或机器人数据交付。
+Linux 真实服务整链路测试为 `localization-service-process.test.ts`，需显式设置
+`LINGXI_LOCALIZATION_SERVICE_TEST_PYTHON` 为具备既有 numpy 依赖的普通用户 Python。
+
+最终检查：Windows 全量 Vitest 336 通过、14 个 Linux 专用项跳过；
+Linux 全量 350/350 通过，包含真实服务 HTTP/Unix/合成子进程整链路；
+Python 服务回归 22/22，编译 API 进程回归 7/7，网页与独立 API 构建通过。
+首次编译 API 检查在 Windows 挂载依赖下有两项超过原有 8 秒启动期限；
+转到 Linux 本地依赖后完整复核通过，没有放宽期限。两份 bundle SHA256 一致，
+95 个运行依赖版本逐项一致。此次未修改 Java/Android 源码或重打 APK，
+也没有重复全量 Python/原生 SLAM/实机验收；构建仅有依赖包的注释注解警告。
+
+尚缺：统一 API/服务所有者、跨建图/定位互斥、安装器和 APK 更新。
+之后仍需实机带初值的保存地图跟踪、物理标定、导航/避障及语音验收；
+当前 live 会话的有界时长限制保持原样，不自动续期或重启。

@@ -1,6 +1,13 @@
-import type { LocalizationState, RigidMatrix } from "../../../shared/localization";
+import type { LocalizationState, LocalizationRuntime, RigidMatrix } from "../../../shared/localization";
 
 export const identityMatrix: RigidMatrix = [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]];
+
+/** Synthetic service metadata only; no native process or sensor is running. */
+export function localizationRuntimeFixture(): LocalizationRuntime {
+  return { backend: "glim", inputMode: "recorded", serviceId: "1".repeat(32), generation: 0,
+    runId: null, phase: "idle", selectedMap: null, cleanupComplete: true, closed: false,
+    localizationReady: false, navigationReady: false };
+}
 
 /** Protocol fixture only; it does not establish a native map/profile association. */
 export function localizationFixture(): LocalizationState {

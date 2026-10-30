@@ -29,9 +29,13 @@ import { SavedSlamMapCatalog } from "./slam-map-catalog";
 import { mappingConsoleAdapter, mappingGuard, UnixMappingBackend, type MappingBackend } from "./mapping-backend";
 import { MappingPointSource } from "./mapping-points";
 import {
-  confirmedLocalizationCommand, UnixLocalizationBackend, validatedLocalizationState, type LocalizationBackend,
+  confirmedLocalizationCommand, UnixLocalizationBackend, UnixLocalizationServiceBackend, validatedLocalizationState,
+  confirmedLocalizationLifecycle, validatedLocalizationRuntime, type LocalizationBackend,
 } from "./localization-backend";
-import { localizationIdentitySchema, localizationSeedSchema, type LocalizationCommand } from "../../shared/localization";
+import {
+  localizationIdentitySchema, localizationSeedSchema, localizationStartSchema, localizationShutdownSchema,
+  type LocalizationCommand, type LocalizationLifecycleCommand,
+} from "../../shared/localization";
 
 type ServerOptions = {
   adapter?: RobotAdapter;
@@ -112,8 +116,9 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
     ? new UnixMappingBackend(process.env.LINGXI_MAPPING_SOCKET) : undefined);
   const mappingConsole = options.mappingConsole === true;
   const localizationConsole = options.localizationConsole === true;
-  const localizationBackend = options.localizationBackend ?? (localizationConsole && process.env.LINGXI_LOCALIZATION_SOCKET
-    ? new UnixLocalizationBackend(process.env.LINGXI_LOCALIZATION_SOCKET) : undefined);
+  const localizationBackend: LocalizationBackend | undefined = options.localizationBackend ?? (localizationConsole && process.env.LINGXI_LOCALIZATION_SOCKET
+    ? new (process.env.LINGXI_LOCALIZATION_SERVICE === "1" ? UnixLocalizationServiceBackend : UnixLocalizationBackend)(
+      process.env.LINGXI_LOCALIZATION_SOCKET) : undefined);
   if ((localizationBackend || localizationConsole) && (!localizationConsole || !localizationBackend ||
       mappingBackend || mappingConsole || options.adapter || options.lidarSource || options.agentSpeaker)) {
     throw new Error("isolated_localization_console_requires_only_own_backend");
@@ -241,7 +246,7 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
         "/api/v1/session/pair", "/api/v1/session/revoke",
         ...(mappingConsole ? ["/api/v1/mapping/start", "/api/v1/mapping/stop-save", "/api/v1/mapping/stop-discard"] : []),
         ...(localizationConsole ? ["/api/v1/slam/localization/seed", "/api/v1/slam/localization/pause",
-          "/api/v1/slam/localization/stop"] : []),
+          "/api/v1/slam/localization/stop", "/api/v1/slam/localization/start", "/api/v1/slam/localization/shutdown"] : []),
       ].includes(route);
       if (!allowed && !["GET", "HEAD", "OPTIONS"].includes(request.method)) {
         return reply.code(403).send({ message: localizationConsole
@@ -254,9 +259,9 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
     try {
       const snapshot = await adapter.getSnapshot();
       if (localizationConsole) return {
-        ...snapshot, connected: false, navigation: { status: "idle", detail: "独立录制定位控制台" },
+        ...snapshot, connected: false, navigation: { status: "idle", detail: "独立定位控制台" },
         checks: snapshot.checks.map((check) => ({
-          ...check, ready: false, detail: "离线定位验证 · 未接入机器人",
+          ...check, ready: false, detail: "独立定位验证 · 未接入机器人控制",
         })),
       };
       if (mappingConsole) return snapshot;
@@ -416,6 +421,22 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
     if (!localizationBackend) throw deny(503, "独立定位控制台尚未启动");
     return validatedLocalizationState(await localizationBackend.state());
   });
+  app.get("/api/v1/slam/localization/runtime", async () => {
+    if (!localizationBackend) throw deny(503, "独立定位控制台尚未启动");
+    if (!localizationBackend.runtime) throw deny(501, "当前入口使用固定地图定位进程");
+    return validatedLocalizationRuntime(await localizationBackend.runtime());
+  });
+  for (const action of ["start", "shutdown"] as const) {
+    app.post(`/api/v1/slam/localization/${action}`, async (request, reply) => {
+      if (!localizationBackend) throw deny(503, "独立定位控制台尚未启动");
+      if (!secureRequest(request)) throw deny(426, "定位控制必须通过 HTTPS");
+      if (!localizationBackend.lifecycle) throw deny(501, "当前入口不支持按需启动定位进程");
+      const parsed = (action === "start" ? localizationStartSchema : localizationShutdownSchema).safeParse(request.body);
+      if (!parsed.success) throw deny(400, "定位服务、代次或地图身份无效");
+      const command = { ...parsed.data, action } as LocalizationLifecycleCommand;
+      return reply.code(202).send(confirmedLocalizationLifecycle(command, await localizationBackend.lifecycle(command)));
+    });
+  }
   for (const action of ["seed", "pause", "stop"] as const) {
     app.post(`/api/v1/slam/localization/${action}`, async (request, reply) => {
       if (!localizationBackend) throw deny(503, "独立定位控制台尚未启动");
