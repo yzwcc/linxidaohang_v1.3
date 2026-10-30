@@ -264,6 +264,13 @@ npm run build
 
 ## Robot runtime
 
+The independent managed mapper now also completes actual ARM64 passive live
+LiDAR/IMU collection, paired HTTPS/WSS point streaming, save/fresh-process reload,
+discard, and real browser rendering/save at desktop and phone-landscape sizes.
+One earlier browser trial failed to produce points and remains an open startup
+stability limitation. This is not geometry, Android hardware or navigation
+acceptance. See [the live mapping results](docs/SLAM_LIVE_MAPPING.md).
+
 The robot ARM64 path now passes schema-v2 recorded map save, fresh native
 reload, point-stream reconnects and a paired HTTPS known-seed localization
 lifecycle using that same new map. This is not physical accuracy or navigation
@@ -274,10 +281,10 @@ TF2 adapter and same-recording native-trajectory verification. It retains
 explicit scale/time assumptions and is not yet a live navigation position.
 See `docs/SLAM_BASE_POSE.md`.
 
-The opt-in independent GLIM path now has recorded-data start/save/discard
+The opt-in independent GLIM path now has recorded and passive-live start/save/discard
 controls, same-engine corrected point display and a verified saved-point
 preview. A separate bounded commissioning launcher supports paired HTTPS
-control without vendor SLAM. It is not yet production live mapping or
+control without vendor SLAM. It is not yet production-accepted live mapping or
 independent navigation; see `docs/SLAM_MAPPING_CONTROL.md` and the separate
 source-bound package in `docs/SLAM_MANAGED_MAPPING_RUNTIME.md`.
 

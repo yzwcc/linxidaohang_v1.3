@@ -131,6 +131,11 @@ export function mappingGuard(adapter: RobotAdapter, backend: MappingBackend, con
         ...original, mapping: mapping.mapping,
         mappingStatus: mapping.phase === "stopping" ? "saving" : mapping.phase,
         mappingBackend: "glim", mappingInputMode: mapping.inputMode, mappingSession: mapping.session ?? undefined,
+        ...(mapping.completedMessages !== undefined && mapping.processedScans !== undefined &&
+          mapping.estimatedPoses !== undefined ? { mappingProgress: {
+            completedMessages: mapping.completedMessages, processedScans: mapping.processedScans,
+            estimatedPoses: mapping.estimatedPoses,
+          } } : {}),
         ...(consoleMode ? { mappingControlReady: !mapping.mapping && mapping.cleanupComplete &&
           ["idle", "failed"].includes(mapping.phase) } : {}),
         motionPresets: [], linkcraftResources: [],

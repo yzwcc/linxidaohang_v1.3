@@ -135,6 +135,7 @@ export type RobotState = {
   mappingBackend?: "glim";
   mappingInputMode?: "live" | "recorded";
   mappingSession?: string;
+  mappingProgress?: { completedMessages: number; processedScans: number; estimatedPoses: number };
   mappingControlReady?: boolean;
   actionBusy?: boolean;
   actionStatus?: "dispatching" | "preset-motion" | "linkcraft-awaiting-operator" | "uncertain";

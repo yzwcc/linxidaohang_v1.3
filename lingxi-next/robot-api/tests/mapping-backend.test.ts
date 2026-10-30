@@ -192,6 +192,19 @@ describe("independent recorded mapping controls", () => {
     const snapshot = await mappingGuard(adapter, backend).getSnapshot();
     expect(snapshot).toMatchObject({ mapping: true, mappingStatus: "failed", mappingBackend: "glim" });
     expect(snapshot.checks.find((check) => check.id === "slam")?.ready).toBe(false);
+    expect(snapshot.mappingProgress).toBeUndefined();
+  });
+
+  it("reports actual mapping counters without manufacturing missing progress", async () => {
+    state = { ...idle, inputMode: "live", phase: "running", mapping: true, session: identity,
+      completedMessages: 420, processedScans: 20, estimatedPoses: 8 };
+    expect(await mappingGuard(adapter, backend).getSnapshot()).toMatchObject({
+      mappingInputMode: "live", mappingProgress: {
+        completedMessages: 420, processedScans: 20, estimatedPoses: 8,
+      },
+    });
+    state = { ...idle, processedScans: 0 };
+    expect((await mappingGuard(adapter, backend).getSnapshot()).mappingProgress).toBeUndefined();
   });
 
   it("allows a new attempt after a failed session has fully cleaned up", async () => {

@@ -1,0 +1,233 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-30",
+  "result": "arm64_passive_live_mapping_https_save_discard_verified",
+  "inputMode": "live",
+  "machine": "aarch64",
+  "motionCommandsSent": false,
+  "geometryValidated": false,
+  "localizationReady": false,
+  "navigationReady": false,
+  "productionAccepted": false,
+  "privateCheckReportSha256": "e784b9788bd154ef3011b6ea5581c7a344587084893e708a73bc7450f9fb35df",
+  "apiBundleSha256": "d4bee352ed15f40b7d38ecb9ab3a376163d1f6464b14ee2addd0ab70ca24e84e",
+  "nodeSha256": "7e48183361053f039294fbbc3ba586722fe756bf296d6cb8195356d10819cd16",
+  "sourceSha256": {
+    "tools/check-live-mapping.mjs": "06177681c630df4808092a3b86decee46de30d6c4b899b22a5acc1b12c83d1d9",
+    "robot-runtime/python/managed_mapping.py": "ca4002dee7f5bdac5f18995d6dec913ffbb2aafc82d8581ceddc42c19065f6c8",
+    "robot-runtime/python/mapping_owner.py": "6f5f05e9c6847cf3058a48c067e50df03665024f837bef976167d172dd193626",
+    "robot-runtime/python/mapping_service.py": "6f6a52916e1d3e1f71ede9d8d2438d0041c43797ccad0b93a2823a9944734830",
+    "robot-runtime/python/controlled_mapping.py": "6f4ffd74654d912a56eec66a8b65c92e8750b4fffdaec8546ec5959d7756604a",
+    "robot-runtime/python/mapping_platform.py": "633edf5876efd05c440cb2f0c6a7312c9e9650dd8acb2683b592dfc0e8072a41",
+    "robot-slam/lingxi_slam/passive_ros.py": "74cf91cf1d87e73625e81b30f39acd4afddbd5c6e4f61176f19de21a9c98c42d",
+    "robot-slam/lingxi_slam/mapping_worker.py": "e5e0b8bb48b4e82665874cd71638af986b34b458159be4b732b66596ab954224",
+    "robot-slam/lingxi_slam/mapping_session.py": "a3bf217dff9edd37c20ea8c2bb51553370777564f046c8b28708af24c240b0d1",
+    "robot-api/src/mapping-backend.ts": "97fcb06115cc20a450a1a3fb1f78bd7ec38bad799c8a2fc599bfdfbe08cf5ae1",
+    "robot-api/src/domain.ts": "6812aec5458a1d49a07b97375cb7dc4323b6d84d14bebbf1d043273f3a2f0e7e",
+    "shared/contracts.ts": "2530583b0ac45d10323e7be0e3833e472d777098a1e0300fcd7808b54a3dc786",
+    "web/src/App.tsx": "58bf2e7c94916c87db77bf677c1b7925074d8481849877501b38b66d6a37408c"
+  },
+  "sessions": [
+    {
+      "save": true,
+      "completedMessages": 3370,
+      "processedScans": 159,
+      "estimatedPoses": 129,
+      "frames": {
+        "count": 64,
+        "last": 128,
+        "maximumPoints": 6974
+      },
+      "reconnectConfirmed": true,
+      "counts": {
+        "finalizedFrames": 130,
+        "savedFrames": 130,
+        "submaps": 1,
+        "points": 2523
+      },
+      "previewPoints": 2523
+    },
+    {
+      "save": false,
+      "completedMessages": 3364,
+      "processedScans": 159,
+      "estimatedPoses": 128,
+      "frames": {
+        "count": 64,
+        "last": 127,
+        "maximumPoints": 7046
+      },
+      "reconnectConfirmed": true
+    }
+  ],
+  "children": [
+    {
+      "result": "saved",
+      "counts": {
+        "acceptedImu": 3231,
+        "acceptedClouds": 161,
+        "completedMessages": 3392,
+        "discardedMessages": 0,
+        "rejectedMessages": 0,
+        "maximumQueuedMessages": 18,
+        "maximumQueuedClouds": 1,
+        "maximumQueuedPayloadBytes": 790624
+      },
+      "nativeCalls": {
+        "create": 1,
+        "imu": 3215,
+        "frame": 160,
+        "close": 1
+      },
+      "points": [
+        {
+          "sent": 129,
+          "replaced": 0,
+          "failed": false,
+          "threadAlive": false
+        }
+      ],
+      "maximumObservedQueueAgeSeconds": 0.09028234899960808,
+      "maximumObservedScanWaitSeconds": 0.0022416719984903466
+    },
+    {
+      "result": "discarded",
+      "counts": {
+        "acceptedImu": 3229,
+        "acceptedClouds": 162,
+        "completedMessages": 3391,
+        "discardedMessages": 0,
+        "rejectedMessages": 0,
+        "maximumQueuedMessages": 24,
+        "maximumQueuedClouds": 1,
+        "maximumQueuedPayloadBytes": 791168
+      },
+      "nativeCalls": {
+        "create": 1,
+        "imu": 3224,
+        "frame": 161,
+        "close": 1
+      },
+      "points": [
+        {
+          "sent": 129,
+          "replaced": 0,
+          "failed": false,
+          "threadAlive": false
+        }
+      ],
+      "maximumObservedQueueAgeSeconds": 0.11842365399934351,
+      "maximumObservedScanWaitSeconds": 0.008027653002500301
+    }
+  ],
+  "freshReloads": [
+    {
+      "flow": "api",
+      "reportSha256": "1446c0bc024362a08e7647512d6ace7143e36775cbe403dcd94ec523297a5cbb",
+      "loadedSubmaps": 1,
+      "savedFrames": 130,
+      "comparison": {
+        "pointCount": 2523,
+        "maximumPointDisplacementRawUnits": 5.317731357829383e-7,
+        "rmsPointDisplacementRawUnits": 1.653448426369155e-7,
+        "predeclaredToleranceRawUnits": 0.0001,
+        "samePointOrderCompared": true,
+        "geometricAccuracyValidated": false
+      }
+    },
+    {
+      "flow": "ui",
+      "reportSha256": "99ff2760630a8938939e4e102f99815433c5f11cf860a2376c48068ff00e571f",
+      "loadedSubmaps": 1,
+      "savedFrames": 11,
+      "comparison": {
+        "pointCount": 2508,
+        "maximumPointDisplacementRawUnits": 5.001351028051876e-7,
+        "rmsPointDisplacementRawUnits": 1.6378604239923014e-7,
+        "predeclaredToleranceRawUnits": 0.0001,
+        "samePointOrderCompared": true,
+        "geometricAccuracyValidated": false
+      }
+    }
+  ],
+  "httpsVerified": true,
+  "webAssetsVerified": true,
+  "cleanupConfirmed": true,
+  "owner": {
+    "schemaVersion": 1,
+    "result": "stopped",
+    "failure": null,
+    "mappingReady": false,
+    "localizationReady": false,
+    "navigationReady": false,
+    "serviceProcess": {
+      "exitCode": 0,
+      "forcedTermination": false,
+      "processAlive": false,
+      "groupAlive": false
+    },
+    "adoptedChildren": {
+      "count": 0,
+      "forcedTermination": false,
+      "cleanupComplete": true
+    },
+    "apiProcess": {
+      "exitCode": 0,
+      "forcedTermination": false,
+      "processAlive": false,
+      "groupAlive": false
+    },
+    "remainingChildren": 0
+  },
+  "browser": {
+    "result": "actual_robot_live_mapping_desktop_landscape_rendering_and_save_checked",
+    "privateReportSha256": "46e25ecfd3dd35ce141fcbdc1c700ad5e30348fdeb76a8ad5b4ea3bf3c4c3761",
+    "checkerSha256": "a9f8446d8aa9c85a7871ba037aec8e0b58cdebf8c7e5542ffcceb20c0573d6b6",
+    "syntheticData": false,
+    "saveConfirmedInUi": true,
+    "viewports": [
+      {
+        "viewport": [
+          1440,
+          900
+        ],
+        "canvas": [
+          713,
+          513
+        ],
+        "nonBackground": 24993,
+        "horizontalOverflow": false,
+        "demoBanner": false,
+        "liveMode": true,
+        "recordedMode": false
+      },
+      {
+        "viewport": [
+          844,
+          390
+        ],
+        "canvas": [
+          452,
+          185
+        ],
+        "nonBackground": 4153,
+        "horizontalOverflow": false,
+        "demoBanner": false,
+        "liveMode": true,
+        "recordedMode": false
+      }
+    ],
+    "screenshotsSha256": {
+      "live-1440x900.png": "00a0f94c19fc9098330b42f73724b353288b8859ace341160883b1ee7c64e6d9",
+      "live-844x390.png": "099b1dd9d910b05eaafe2852c46999d54f5373fa437eeed498b5869b0483c650"
+    }
+  },
+  "earlierUiFailure": {
+    "privateReportSha256": "741989bc7d6a83ec2d76178a8d78344160c61450ebcb9f91e15eb1b8d4555181",
+    "pointWaitTimedOutSeconds": 25,
+    "serviceFault": "child_reported_failure",
+    "completeNativeReportAvailable": false,
+    "causeEstablished": false,
+    "cleanupConfirmed": true
+  }
+}

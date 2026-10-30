@@ -376,7 +376,7 @@ function Mapping({
     requested: state.mappingBackend ? "等待建图进程就绪" : "等待 AIMDK 确认",
     running: "采集中",
     saving: "等待保存确认",
-    failed: "保存未确认",
+    failed: state.mappingBackend ? "建图未完成" : "保存未确认",
   }[state.mappingStatus ?? (state.mapping ? "requested" : "idle")];
 
   async function start() {
@@ -400,7 +400,9 @@ function Mapping({
       <div className="notice warn" style={{ marginBottom: 14 }}>
         <AlertTriangle size={15} />
         <span>{state.mappingBackend
-          ? "录制数据建图联调；机器人运动接口不可用。地图保存后仍需验证标定、定位和导航。"
+          ? state.mappingInputMode === "live"
+            ? "实时激光惯性建图；移动机器人使用外置遥控器。地图保存后仍需验证标定、定位和导航。"
+            : "录制数据建图联调；机器人运动接口不可用。地图保存后仍需验证标定、定位和导航。"
           : "移动机器人始终使用外置遥控器。停止建图时 AIMDK 会按地图名保存，并等待地图服务确认结果。"}</span>
       </div>
       {state.actionStatus === "linkcraft-awaiting-operator" && (
@@ -433,7 +435,12 @@ function Mapping({
         >
           <LidarCanvas connection={connection} />
           <div className="inline mapping-summary" style={{ marginTop: 12 }}>
-            <span className="tag">当前地图 {activeMap?.name ?? "未选择"}</span>
+            <span className="tag">{state.mappingBackend ? "GLIM 独立建图" : `当前地图 ${activeMap?.name ?? "未选择"}`}</span>
+            {state.mappingProgress && <>
+              <span className="tag mono">扫描 {state.mappingProgress.processedScans}</span>
+              <span className="tag mono">位姿 {state.mappingProgress.estimatedPoses}</span>
+              <span className="tag mono">消息 {state.mappingProgress.completedMessages}</span>
+            </>}
             {state.pose && <span className="tag mono">x {state.pose.x.toFixed(2)} · y {state.pose.y.toFixed(2)}</span>}
           </div>
         </Section>
@@ -465,7 +472,8 @@ function Mapping({
             </div>
           </Section>
           <div className="notice"><CircleHelp size={14} />{state.mappingBackend
-            ? "GLIM · 录制数据验证" : "AIMDK 本机建图 · 外置遥控器移动"}</div>
+            ? state.mappingInputMode === "live" ? "GLIM · 实时激光惯性建图" : "GLIM · 录制数据验证"
+            : "AIMDK 本机建图 · 外置遥控器移动"}</div>
         </div>
       </div>
     </div>
@@ -1098,7 +1106,7 @@ export default function App() {
         ...(body === undefined ? {} : { body: jsonBody(body) }),
       });
       if (method !== "GET") {
-        notify(path.includes("stop-save") ? "AIMDK 已确认地图保存。" : "请求已处理");
+        notify(path.includes("stop-save") ? "地图保存已确认。" : "请求已处理");
         await refresh(connection);
       }
       return result;
