@@ -30,9 +30,10 @@ export async function files(directory, prefix = "") {
 }
 
 export async function sourceHashes(project = root, profile = "point") {
-  if (!["point", "mapping"].includes(profile)) throw new Error("explicit_runtime_build_profile_required");
+  if (!["point", "mapping", "slam"].includes(profile)) throw new Error("explicit_runtime_build_profile_required");
   const names = [...metadataFiles];
   if (profile === "mapping") names.push("robot-runtime/build-mapping.mjs");
+  if (profile === "slam") names.push("robot-runtime/build-slam.mjs");
   for (const directory of sourceDirectories) {
     names.push(...(await files(path.join(project, directory), directory)));
   }
@@ -65,7 +66,8 @@ export async function buildAssets(output, profile = "point") {
   const vite = await import("vite");
   await esbuild.build({
     absWorkingDir: root,
-    entryPoints: [profile === "mapping" ? "robot-runtime/src/mapping-main.ts" : "robot-runtime/src/main.ts"], bundle: true,
+    entryPoints: [profile === "slam" ? "robot-runtime/src/slam-main.ts" : profile === "mapping"
+      ? "robot-runtime/src/mapping-main.ts" : "robot-runtime/src/main.ts"], bundle: true,
     platform: "node", target: "node22", format: "esm", packages: "external",
     outfile: path.join(output, "api/main.mjs"), logLevel: "warning",
   });
@@ -84,7 +86,7 @@ export async function buildAssets(output, profile = "point") {
   }
   if (!inventory["api/main.mjs"] || !inventory["web/index.html"]) throw new Error("complete_live_assets_required");
   const manifest = {
-    schemaVersion: 1, purpose: profile === "mapping"
+    schemaVersion: 1, purpose: profile === "slam" ? "shared_slam_assets_not_target_acceptance" : profile === "mapping"
       ? "isolated_managed_mapping_assets_not_target_acceptance" : "isolated_live_point_assets_not_target_acceptance",
     nodeBuildHostVersion: process.version, esbuildVersion: esbuild.version, viteVersion: vite.version,
     environmentFilesLoaded: false, customEnvironmentVariablesExposed: false,

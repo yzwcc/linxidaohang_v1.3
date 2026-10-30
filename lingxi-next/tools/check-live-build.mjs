@@ -60,3 +60,13 @@ test("mapping profile binds its dedicated builder and refuses unknown profiles",
   assert.ok(mapping["robot-runtime/build-mapping.mjs"]);
   await assert.rejects(sourceHashes(root, "unconfigured"), /explicit_runtime_build_profile/);
 });
+
+test("shared SLAM profile requires its own builder without changing mapping inventory", async (t) => {
+  const root = await project(t);
+  await assert.rejects(sourceHashes(root, "slam"));
+  await writeFile(path.join(root, "robot-runtime/build-slam.mjs"), "// Synthetic SLAM builder\n");
+  const slam = await sourceHashes(root, "slam"), point = await sourceHashes(root);
+  assert.equal(Object.keys(slam).length, Object.keys(point).length + 1);
+  assert.ok(slam["robot-runtime/build-slam.mjs"]);
+  assert.equal(slam["robot-runtime/build-mapping.mjs"], undefined);
+});

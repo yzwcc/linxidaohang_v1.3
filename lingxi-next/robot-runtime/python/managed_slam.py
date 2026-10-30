@@ -1,7 +1,9 @@
 """Run the shared SLAM workspace against an explicit independent saved-map catalog."""
 import argparse
 import json
+import os
 import signal
+import socket
 import sys
 import threading
 from pathlib import Path
@@ -14,7 +16,7 @@ from slam_owner import ManagedSlamOwner
 ROOT = Path(__file__).resolve().parents[2]
 
 
-def run(args):
+def validate(args):
     config, _ = verified_configuration(args.config, allow_live=True)
     immutable = (args.config, args.node, args.api_bundle)
     validate_output(args.output, config, immutable)
@@ -26,7 +28,19 @@ def run(args):
         if not path.is_absolute():
             raise ValueError("absolute_verified_slam_runtime_required")
         digest_file(path, expected)
-    api = production_api_environment()
+    return production_api_environment()
+
+
+def notify_ready(value):
+    endpoint = os.environ.get("NOTIFY_SOCKET")
+    if endpoint:
+        with socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM) as connection:
+            connection.sendto(b"READY=1", "\0" + endpoint[1:] if endpoint.startswith("@") else endpoint)
+    print(json.dumps(value), flush=True)
+
+
+def run(args):
+    api = validate(args)
     stop = threading.Event()
     previous = {value: signal.signal(value, lambda *_: stop.set()) for value in (signal.SIGINT, signal.SIGTERM)}
     try:
@@ -35,8 +49,7 @@ def run(args):
             [str(args.node), str(args.api_bundle)], maps=args.maps, output=args.output,
             service_environment={"PATH": "/usr/bin:/bin", "LANG": "C.UTF-8",
                                  "PYTHONDONTWRITEBYTECODE": "1", "PYTHONNOUSERSITE": "1"}, api_environment=api)
-        result = owner.run(stop=stop, seconds=args.seconds,
-                           on_listening=lambda value: print(json.dumps(value), flush=True))
+        result = owner.run(stop=stop, seconds=args.seconds, on_listening=notify_ready)
         return 0 if result["result"] == "stopped" else 1
     finally:
         for value, handler in previous.items():

@@ -9,7 +9,9 @@ import signal
 import sys
 import threading
 
-ROOT = Path(__file__).resolve().parents[3]
+ROOT = Path(os.environ.get("LINGXI_SLAM_TEST_SOURCE", Path(__file__).resolve().parents[3]))
+os.environ["LINGXI_MAPPING_TEST_SOURCE_ROOT"] = str(ROOT)
+os.environ["LINGXI_LOCALIZATION_TEST_SOURCE_ROOT"] = str(ROOT)
 sys.path[:0] = [str(ROOT / "robot-runtime/python"), str(ROOT / "robot-slam")]
 from lingxi_slam.activity_lease import ActivityGate
 from localization_service import LocalizationBinding, LocalizationManager, SavedMapResolver
@@ -42,7 +44,8 @@ def native_localization(args):
 
 
 def service(args):
-    environment = {"PATH": "/usr/bin:/bin", "LANG": "C.UTF-8", "PYTHONDONTWRITEBYTECODE": "1"}
+    environment = {"PATH": "/usr/bin:/bin", "LANG": "C.UTF-8", "PYTHONDONTWRITEBYTECODE": "1",
+                   "LINGXI_SLAM_TEST_SOURCE": str(ROOT)}
     gate = ActivityGate(args.maps / ".slam-activity.lock")
     mapping = MappingManager(args.maps, lambda output: [sys.executable, "-B", __file__,
         "mapping", "--output", str(output)], environment, points_enabled=True, activity_gate=gate)
@@ -61,10 +64,11 @@ def owner(args):
         signal.signal(value, lambda *_: stop.set())
     runtime = ManagedSlamOwner([sys.executable, "-B", __file__, "service"], [str(args.node), str(args.bundle)],
         maps=args.maps, output=args.output,
-        service_environment={"PATH": "/usr/bin:/bin", "LANG": "C.UTF-8", "PYTHONDONTWRITEBYTECODE": "1"},
+        service_environment={"PATH": "/usr/bin:/bin", "LANG": "C.UTF-8", "PYTHONDONTWRITEBYTECODE": "1",
+                             "LINGXI_SLAM_TEST_SOURCE": str(ROOT)},
         api_environment={"PATH": "/usr/bin:/bin", "LANG": "C.UTF-8", "LINGXI_HOST": "127.0.0.1", "LINGXI_PORT": "0",
                          "LINGXI_TLS_KEY": str(args.tls_key), "LINGXI_TLS_CERT": str(args.tls_cert),
-                         "LINGXI_WEB_ROOT": str(ROOT / "dist"),
+                         "LINGXI_WEB_ROOT": os.environ.get("LINGXI_SLAM_TEST_WEB", str(ROOT / "dist")),
                          "LINGXI_PAIRING_CODE_SHA256": hashlib.sha256(b"synthetic-slam-workspace").hexdigest()},
         limits=MappingOwnerLimits(startup_seconds=15., service_stop_seconds=10., api_stop_seconds=5.))
     report = runtime.run(stop=stop, seconds=None, on_listening=lambda value: print(json.dumps({

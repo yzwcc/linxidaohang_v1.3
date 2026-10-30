@@ -11,7 +11,7 @@ import sys
 import threading
 import time
 
-ROOT = Path(__file__).resolve().parents[3]
+ROOT = Path(os.environ.get("LINGXI_LOCALIZATION_TEST_SOURCE_ROOT", Path(__file__).resolve().parents[3]))
 sys.path[:0] = [str(ROOT / "robot-runtime/python"), str(ROOT / "robot-slam")]
 from lingxi_slam.localization_session import LocalizationBinding, LocalizationSession
 from lingxi_slam.process_protocol import HealthEmitter

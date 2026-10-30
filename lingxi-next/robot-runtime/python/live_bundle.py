@@ -50,6 +50,13 @@ MAPPING = BundleProfile(
     archive="managed-mapping-runtime-arm64.tar.gz", result_prefix="mapping_runtime",
     metadata=("robot-runtime/build-mapping.mjs",),
 )
+SLAM = BundleProfile(
+    manifest="slam-manifest.json", prefix="shared-slam-runtime/",
+    purpose="shared_arm64_slam_runtime_preparation",
+    build_purpose="shared_slam_assets_not_target_acceptance",
+    archive="shared-slam-runtime-arm64.tar.gz", result_prefix="slam_runtime",
+    metadata=("robot-runtime/build-slam.mjs",),
+)
 
 
 def sha256(path):
