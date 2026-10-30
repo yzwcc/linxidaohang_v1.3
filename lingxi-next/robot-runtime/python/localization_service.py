@@ -404,15 +404,9 @@ def serve(endpoint, manager, *, parent_input=None, status=None):
                 signal.signal(value, handler)
 
 
-def main():
-    parser = argparse.ArgumentParser(description=__doc__)
-    for name in ("config", "maps", "runs", "socket"):
-        parser.add_argument("--" + name, type=Path, required=True)
-    parser.add_argument("--parent-stdin", action="store_true")
-    args = parser.parse_args()
-    config, environment = verified_configuration(args.config, allow_live=True)
+def create_manager(config_file, maps, runs):
+    config, environment = verified_configuration(config_file, allow_live=True)
     platform = MappingPlatform(config)
-    maps, runs = args.maps, args.runs
     direct(maps, directory=True)
     direct(runs, directory=True)
     if maps == runs or maps in runs.parents or runs in maps.parents:
@@ -422,12 +416,21 @@ def main():
 
     def command(chosen, output):
         return [sys.executable, "-B", str(Path(__file__).with_name("controlled_localization.py")), "child",
-                "--config", str(args.config), "--saved-map", str(chosen.directory),
+                "--config", str(config_file), "--saved-map", str(chosen.directory),
                 "--map-id", chosen.binding.map_id, "--receipt-sha256", chosen.binding.receipt_sha256,
                 "--profile-sha256", profile_sha256, "--output", str(output)]
 
-    manager = LocalizationManager(runs, resolver, command, environment, input_mode=config["inputMode"],
-                                  activity_gate=ActivityGate(maps / ".slam-activity.lock"))
+    return LocalizationManager(runs, resolver, command, environment, input_mode=config["inputMode"],
+                               activity_gate=ActivityGate(maps / ".slam-activity.lock"))
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    for name in ("config", "maps", "runs", "socket"):
+        parser.add_argument("--" + name, type=Path, required=True)
+    parser.add_argument("--parent-stdin", action="store_true")
+    args = parser.parse_args()
+    manager = create_manager(args.config, args.maps, args.runs)
     serve(args.socket, manager, parent_input=sys.stdin.buffer if args.parent_stdin else None,
           status=lambda value: print(json.dumps(value), flush=True))
 

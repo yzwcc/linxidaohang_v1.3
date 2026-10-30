@@ -31,8 +31,8 @@ const runtimeLabels: Record<LocalizationRuntime["phase"], string> = {
 const canStart = (value: LocalizationRuntime) => !value.closed && value.cleanupComplete &&
   ["idle", "stopped", "failed"].includes(value.phase);
 
-export default function LocalizationPanel({ connection, maps }: {
-  connection: Connection; maps: RobotState["savedSlamMaps"];
+export default function LocalizationPanel({ connection, maps, mappingActive = false }: {
+  connection: Connection; maps: RobotState["savedSlamMaps"]; mappingActive?: boolean;
 }) {
   const [snapshot, setSnapshot] = useState<LocalizationState>();
   const [runtime, setRuntime] = useState<LocalizationRuntime>();
@@ -288,7 +288,7 @@ export default function LocalizationPanel({ connection, maps }: {
             </select>
           </div>
           <div className="task-controls">
-            <button className="btn primary" disabled={busy || !choosing || !selectedMapId ||
+            <button className="btn primary" disabled={busy || mappingActive || !choosing || !selectedMapId ||
               matchedPreview?.mapId !== selectedMapId || matchedPreview?.inputMode === "synthetic"}
               onClick={() => void lifecycle("start")}><Play size={13} />启动定位进程</button>
             <button className="btn danger" disabled={busy || !runtime?.runId || runtime.closed ||

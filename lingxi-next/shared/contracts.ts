@@ -150,6 +150,7 @@ export type RobotState = {
   savedSlamMaps?: SavedSlamMap[];
   savedSlamCatalogStatus?: "ready" | "unavailable";
   slamLocalization?: { status: "available"; snapshot: LocalizationState } | { status: "unavailable" };
+  slamWorkspace?: true;
   points: MapPoint[];
   tours: TourTask[];
   selectedTourId?: string;

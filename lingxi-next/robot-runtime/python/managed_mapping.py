@@ -15,9 +15,9 @@ from mapping_platform import configuration
 ROOT = Path(__file__).resolve().parents[2]
 
 
-def validate_output(output, config, immutable_files):
+def validate_output(output, config, immutable_files, *, existing=False):
     output = Path(output)
-    if (not output.is_absolute() or output.exists() or output.is_symlink()
+    if (not output.is_absolute() or (not output.is_dir() if existing else output.exists()) or output.is_symlink()
             or output.resolve() != output):
         raise ValueError("new_direct_mapping_output_required")
     frozen = [Path(config[name]) for name in (
@@ -27,6 +27,17 @@ def validate_output(output, config, immutable_files):
             for entry in frozen)
             or any(Path(file).resolve().is_relative_to(output) for file in immutable_files)):
         raise ValueError("mapping_output_must_not_overlap_frozen_inputs")
+
+
+def production_api_environment():
+    api = {"PATH": "/usr/bin:/bin", "LANG": "C.UTF-8"}
+    for name in ("LINGXI_TLS_KEY", "LINGXI_TLS_CERT", "LINGXI_PAIRING_CODE_SHA256",
+                 "LINGXI_HOST", "LINGXI_PORT", "LINGXI_WEB_ROOT"):
+        if name in os.environ:
+            api[name] = os.environ[name]
+    if any(not api.get(name) for name in ("LINGXI_TLS_KEY", "LINGXI_TLS_CERT", "LINGXI_PAIRING_CODE_SHA256")):
+        raise ValueError("explicit_production_tls_and_pairing_required")
+    return api
 
 
 def run(args):
@@ -42,13 +53,7 @@ def run(args):
         raise ValueError("bounded_mapping_commissioning_duration_required")
     environment = {"PATH": "/usr/bin:/bin", "LANG": "C.UTF-8",
                    "PYTHONDONTWRITEBYTECODE": "1", "PYTHONNOUSERSITE": "1"}
-    api = {"PATH": "/usr/bin:/bin", "LANG": "C.UTF-8"}
-    for name in ("LINGXI_TLS_KEY", "LINGXI_TLS_CERT", "LINGXI_PAIRING_CODE_SHA256",
-                 "LINGXI_HOST", "LINGXI_PORT", "LINGXI_WEB_ROOT"):
-        if name in os.environ:
-            api[name] = os.environ[name]
-    if any(not api.get(name) for name in ("LINGXI_TLS_KEY", "LINGXI_TLS_CERT", "LINGXI_PAIRING_CODE_SHA256")):
-        raise ValueError("explicit_production_tls_and_pairing_required")
+    api = production_api_environment()
     stop = threading.Event()
     for value in (signal.SIGINT, signal.SIGTERM):
         signal.signal(value, lambda *_: stop.set())

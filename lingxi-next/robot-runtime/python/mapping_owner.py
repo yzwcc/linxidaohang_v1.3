@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 import selectors
 import signal
+import stat
 import subprocess
 import sys
 import threading
@@ -49,8 +50,11 @@ def direct_children():
 class ManagedMappingOwner:
     """Run in a dedicated ordinary-user process, with no pre-existing children."""
 
+    service_name = "lingxi-mapping"
+    continuous = False
+
     def __init__(self, service_command, api_command, *, service_environment, api_environment,
-                 output, limits=None):
+                 output, limits=None, maps=None):
         self.limits = limits or MappingOwnerLimits()
         if (sys.platform != "linux" or os.geteuid() == 0 or not isinstance(self.limits, MappingOwnerLimits)
                 or any(type(command) not in (list, tuple) or not 1 <= len(command) <= 60
@@ -67,13 +71,20 @@ class ManagedMappingOwner:
                 or set(service_environment) & {"LD_PRELOAD", "PYTHONSTARTUP", "PYTHONINSPECT"}):
             raise ValueError("explicit_ordinary_linux_mapping_owner_required")
         self.output = Path(output)
+        self.maps = Path(maps) if maps is not None else self.output / "maps"
         if (not self.output.is_absolute() or self.output.exists() or self.output.is_symlink()
                 or self.output.parent.resolve(strict=True) != self.output.parent
-                or len(os.fsencode(self.output / "maps" / ("a" * 32 + ".points.sock"))) >= 100):
+                or len(os.fsencode(self.maps / ("a" * 32 + ".points.sock"))) >= 100):
             raise ValueError("new_direct_private_mapping_owner_directory_required")
+        if maps is not None:
+            info = self.maps.lstat()
+            if (not self.maps.is_absolute() or self.maps.resolve(strict=True) != self.maps
+                    or not stat.S_ISDIR(info.st_mode) or info.st_uid != os.geteuid() or info.st_mode & 0o077
+                    or self.maps.is_relative_to(self.output) or self.output.is_relative_to(self.maps)):
+                raise ValueError("separate_existing_private_mapping_catalog_required")
         self.output.mkdir(mode=0o700)
-        self.maps = self.output / "maps"
-        self.maps.mkdir(mode=0o700)
+        if maps is None:
+            self.maps.mkdir(mode=0o700)
         self.endpoint = self.output / "control.sock"
         self.service_command, self.api_command = tuple(service_command), tuple(api_command)
         self.service_environment, self.api_environment = service_environment.copy(), api_environment.copy()
@@ -95,6 +106,21 @@ class ManagedMappingOwner:
         for child in (self.service, self.api):
             if child is not None and child.poll() is not None:
                 raise RuntimeError("mapping_owned_process_exited")
+
+    def _service_arguments(self):
+        return ["--maps", str(self.maps), "--socket", str(self.endpoint), "--parent-stdin"]
+
+    def _api_configuration(self):
+        return {**self.api_environment, "LINGXI_MAPPING_PARENT_STDIN": "1",
+                "LINGXI_MAPPING_SOCKET": str(self.endpoint), "LINGXI_SAVED_SLAM_DIR": str(self.maps),
+                "LINGXI_DATA_DIR": str(self.output / "data")}
+
+    def _start(self, stop):
+        self.service = self._spawn([*self.service_command, *self._service_arguments()],
+                                   self.service_environment, "service")
+        self._ready(self.service, {"service": self.service_name, "event": "listening"}, stop)
+        self.api = self._spawn(self.api_command, self._api_configuration(), "api")
+        return self._ready(self.api, {"service": "lingxi-next", "event": "listening"}, stop)
 
     def _ready(self, child, expected, stop):
         data = bytearray()
@@ -191,8 +217,9 @@ class ManagedMappingOwner:
             time.sleep(self.limits.tick_seconds)
 
     def run(self, *, stop=None, seconds=300., on_listening=None):
-        if (self.started or type(seconds) not in (int, float) or not math.isfinite(seconds)
-                or not 0 < seconds <= 3600 or stop is not None and not isinstance(stop, threading.Event)
+        if (self.started or not (seconds is None and self.continuous or type(seconds) in (int, float)
+                and math.isfinite(seconds) and 0 < seconds <= 3600)
+                or stop is not None and not isinstance(stop, threading.Event)
                 or on_listening is not None and not callable(on_listening) or direct_children()):
             raise ValueError("dedicated_single_use_bounded_mapping_owner_required")
         self.started = True
@@ -205,20 +232,10 @@ class ManagedMappingOwner:
                   "mappingReady": False, "localizationReady": False, "navigationReady": False}
         try:
             self._available(stop)
-            self.service = self._spawn([
-                *self.service_command, "--maps", str(self.maps), "--socket", str(self.endpoint),
-                "--parent-stdin",
-            ], self.service_environment, "service")
-            self._ready(self.service, {"service": "lingxi-mapping", "event": "listening"}, stop)
-            self.api = self._spawn(self.api_command, {
-                **self.api_environment, "LINGXI_MAPPING_PARENT_STDIN": "1",
-                "LINGXI_MAPPING_SOCKET": str(self.endpoint), "LINGXI_SAVED_SLAM_DIR": str(self.maps),
-                "LINGXI_DATA_DIR": str(self.output / "data"),
-            }, "api")
-            status = self._ready(self.api, {"service": "lingxi-next", "event": "listening"}, stop)
+            status = self._start(stop)
             if on_listening is not None:
                 on_listening(status)
-            deadline = time.monotonic() + seconds
+            deadline = None if seconds is None else time.monotonic() + seconds
             with selectors.DefaultSelector() as selector:
                 for child in (self.api, self.service):
                     selector.register(child.stdout, selectors.EVENT_READ)
@@ -226,7 +243,7 @@ class ManagedMappingOwner:
                     self._available(stop)
                     if selector.select(0):
                         raise RuntimeError("unexpected_mapping_process_status")
-                    if time.monotonic() >= deadline:
+                    if deadline is not None and time.monotonic() >= deadline:
                         break
             report["result"] = "stopped"
         except InterruptedError:

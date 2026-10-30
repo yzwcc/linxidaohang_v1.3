@@ -206,10 +206,17 @@ run and generation are separate from the child localization session; late child
 responses are discarded across changes. The fixed-map console remains compatible.
 This is an isolated offline integration, not a production owner, installer or APK
 update. Same-catalog mapping/localization service entrypoints now use a shared,
-child-inherited Linux activity lease. Other entrypoints are not covered; unified
-ownership and live seeded accuracy remain outstanding.
+child-inherited Linux activity lease. Other entrypoints are not covered;
+production deployment and live seeded accuracy remain outstanding.
 See [the service console contract](docs/SLAM_LOCALIZATION_CONSOLE.md#按需会话接入).
 See [activity ownership and its limits](docs/SLAM_ACTIVITY_OWNERSHIP.md).
+A shared SLAM workspace now composes mapping and on-demand localization under
+one paired HTTPS API and one parent-linked service. It reuses the existing
+process owner, keeps the saved-map catalog across runs and exposes both modes
+in the same desktop/landscape web session. Its default port is 3443; port 3000
+is reserved. Native session limits and false navigation/localization readiness
+remain unchanged. This source integration is not yet in the installer or APK.
+See [the shared workspace](docs/SLAM_WORKSPACE.md).
 A new ordinary-user recorded-input launcher now owns the native localization
 worker and paired HTTPS API together, with bounded startup, peer-failure cleanup
 and end-of-run input verification. Thirteen Linux process cases and 87 focused

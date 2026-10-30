@@ -336,18 +336,22 @@ def serve(endpoint, manager, *, parent_input=None, status=None):
                 signal.signal(value, handler)
 
 
+def create_manager(config_file, maps):
+    config, environment = configuration(config_file)
+    return MappingManager(maps, lambda output: [
+        sys.executable, "-B", str(ROOT / "robot-runtime/python/controlled_mapping.py"),
+        "--config", str(config_file), "--output", str(output),
+    ], environment, points_enabled="pointAdapter" in config, input_mode=config["inputMode"],
+        activity_gate=ActivityGate(maps / ".slam-activity.lock"))
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     for name in ("config", "maps", "socket"):
         parser.add_argument("--" + name, type=Path, required=True)
     parser.add_argument("--parent-stdin", action="store_true")
     args = parser.parse_args()
-    config, environment = configuration(args.config)
-    manager = MappingManager(args.maps, lambda output: [
-        sys.executable, "-B", str(ROOT / "robot-runtime/python/controlled_mapping.py"),
-        "--config", str(args.config), "--output", str(output),
-    ], environment, points_enabled="pointAdapter" in config, input_mode=config["inputMode"],
-        activity_gate=ActivityGate(args.maps / ".slam-activity.lock"))
+    manager = create_manager(args.config, args.maps)
     serve(args.socket, manager, parent_input=sys.stdin.buffer if args.parent_stdin else None,
           status=(lambda value: print(json.dumps(value), flush=True)) if args.parent_stdin else None)
 
