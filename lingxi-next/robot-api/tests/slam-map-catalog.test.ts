@@ -39,10 +39,22 @@ describe("saved SLAM receipt catalog", () => {
     }]);
     const preview = await catalog.preview(fixture.id);
     expect(preview).toMatchObject({ mapId: fixture.id, sampled: false, totalPoints: 1440, coordinateUnits: "native-raw" });
+    expect(preview.receiptSha256).toBe(createHash("sha256").update(before).digest("hex"));
+    expect(preview.pointsSha256).toBe(createHash("sha256").update(await readFile(fixture.points)).digest("hex"));
     expect(preview.points.slice(0, 3)).toEqual([6, 0, 0]);
     expect(preview.points).toHaveLength(1440 * 3);
     expect(await readFile(fixture.ready)).toEqual(before);
     expect(JSON.stringify(await catalog.list())).not.toContain(root);
+  });
+
+  it("distinguishes changed receipt identity even when the map ID and point bytes are retained", async () => {
+    const fixture = await savedSlamFixture(maps);
+    const before = await catalog.preview(fixture.id);
+    await writeFile(fixture.ready, JSON.stringify({ ...fixture.receipt, name: "Renamed map" }));
+    const after = await catalog.preview(fixture.id);
+    expect(after.mapId).toBe(before.mapId);
+    expect(after.pointsSha256).toBe(before.pointsSha256);
+    expect(after.receiptSha256).not.toBe(before.receiptSha256);
   });
 
   it.each(["live", "recorded", "synthetic"] as const)("keeps %s classification without adding AIMDK identity", async (inputMode) => {

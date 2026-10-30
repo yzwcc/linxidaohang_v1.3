@@ -44,13 +44,15 @@ import type {
 import { api, ApiError, jsonBody, openEvents, pairRobot, type Connection } from "./api";
 import MapCanvas from "./MapCanvas";
 import LidarCanvas from "./LidarCanvas";
+import LocalizationPanel from "./LocalizationPanel";
 
-type View = "overview" | "mapping" | "maps" | "navigation" | "tours" | "settings";
+type View = "overview" | "mapping" | "maps" | "localization" | "navigation" | "tours" | "settings";
 
 const navigationItems: { id: View; label: string; icon: typeof Map }[] = [
   { id: "overview", label: "运行总览", icon: Gauge },
   { id: "mapping", label: "实时建图", icon: Radio },
   { id: "maps", label: "地图管理", icon: Map },
+  { id: "localization", label: "定位验证", icon: Compass },
   { id: "navigation", label: "导航管理", icon: Navigation },
   { id: "tours", label: "讲解管理", icon: Waypoints },
   { id: "settings", label: "设置", icon: Settings },
@@ -487,6 +489,7 @@ function Maps({
   const [pointName, setPointName] = useState("");
   const [coordinates, setCoordinates] = useState({ x: "0", y: "0", yaw: "0" });
   const activeMap = state.maps.find((map) => map.id === state.activeMapId);
+  const readOnly = state.slamLocalization !== undefined;
 
   useEffect(() => {
     setSavedPreview(undefined);
@@ -561,7 +564,7 @@ function Maps({
               )}
             </Section>
           )}
-          <Section title="地图列表" icon={Map}>
+          {!readOnly && <><Section title="地图列表" icon={Map}>
             <table className="table">
               <thead><tr><th>地图名称</th><th>地图 ID</th><th>状态</th><th /></tr></thead>
               <tbody>
@@ -610,14 +613,14 @@ function Maps({
               }}><Compass size={13} />按所填位姿重定位</button>
             </div>
             <div className="helper" style={{ marginTop: 8 }}>定位前确认机器人实际位置与所填坐标、朝向一致。</div>
-          </Section>
+          </Section></>}
         </div>
         <Section title={previewId ? `点云 · ${state.savedSlamMaps?.find((map) => map.id === previewId)?.name ?? "已保存地图"}` : "地图与点位"} icon={Compass}
           actions={previewId ? <button className="btn icon small" title="返回导航地图" onClick={() => setPreviewId("")}><X size={14} /></button> : undefined}>
           {previewId ? (
             savedPreview ? <><LidarCanvas key={previewId} preview={savedPreview} /><div className="helper" style={{ marginTop: 10 }}>GLIM 原始坐标单位；标定、定位和导航尚未验证。</div></>
               : <div className="empty" role="status">{previewBusy ? "正在读取点云" : "点云不可用，请刷新后重试"}</div>
-          ) : <>
+          ) : readOnly ? <div className="empty">选择已保存地图查看点云</div> : <>
           <MapCanvas
             grid={mapGrid ?? (activeMap?.active ? state.mapGrid : undefined)}
             pose={state.pose}
@@ -1106,6 +1109,10 @@ export default function App() {
   }, [connection, refresh]);
 
   const activeMap = useMemo(() => state?.maps.find((map) => map.id === state.activeMapId), [state]);
+  const isolatedLocalization = state?.slamLocalization !== undefined;
+  const visibleItems = navigationItems.filter((item) => isolatedLocalization
+    ? ["localization", "maps"].includes(item.id) : item.id !== "localization");
+  const effectiveView = isolatedLocalization && !["localization", "maps"].includes(view) ? "localization" : view;
 
   if (!connection || !state) {
     return <ConnectScreen onConnected={(next) => {
@@ -1114,8 +1121,8 @@ export default function App() {
     }} />;
   }
 
-  const activeItem = navigationItems.find((item) => item.id === view);
-  const mobileItems = navigationItems;
+  const activeItem = visibleItems.find((item) => item.id === effectiveView);
+  const mobileItems = visibleItems;
 
   return (
     <div className="app-shell">
@@ -1126,8 +1133,8 @@ export default function App() {
         </div>
         <div className="nav-group">
           <div className="nav-label">机器人</div>
-          {navigationItems.map(({ id, label, icon: Icon }) => (
-            <button className={`nav-button ${view === id ? "active" : ""}`} key={id} title={label} onClick={() => setView(id)}>
+          {visibleItems.map(({ id, label, icon: Icon }) => (
+            <button className={`nav-button ${effectiveView === id ? "active" : ""}`} key={id} title={label} onClick={() => setView(id)}>
               <Icon size={16} /><span>{label}</span>
             </button>
           ))}
@@ -1142,17 +1149,22 @@ export default function App() {
           <div className="topbar-title">{activeItem?.label ?? "运行总览"}</div>
           <div className="topbar-right">
             {state.demoMode && <span className="status-pill"><span className="status-dot warn" />演示数据</span>}
-            <span className="status-pill"><StatusDot ready={state.connected} />{state.connected ? "机器人在线" : "连接中断"}</span>
+            <span className="status-pill"><StatusDot ready={isolatedLocalization || state.connected} />{isolatedLocalization ? "离线定位控制台" : state.connected ? "机器人在线" : "连接中断"}</span>
+            {isolatedLocalization && <button className="btn icon" title="断开并清除会话" onClick={() => {
+              void api(connection, "/api/v1/session/revoke", { method: "POST" }).catch(() => undefined);
+              setConnection(null); setState(null); setSettings(undefined);
+            }}><DoorOpen size={14} /></button>}
             <span className="status-pill"><span className="mono">{clock}</span></span>
           </div>
         </header>
         {state.demoMode && <div className="demo-banner">模拟设备 · 页面中的状态与控制不会作用于真实机器人</div>}
-        {view === "overview" && <Overview state={state} setView={setView} onRefresh={() => void refresh().catch((error) => notify((error as Error).message))} />}
-        {view === "mapping" && <Mapping state={state} run={run} connection={connection} />}
-        {view === "maps" && <Maps state={state} run={run} refresh={() => void refresh().catch(() => undefined)} />}
-        {view === "navigation" && <NavigationPage state={state} run={run} />}
-        {view === "tours" && <Tours state={state} run={run} refresh={() => void refresh().catch(() => undefined)} />}
-        {view === "settings" && <SettingsPage connection={connection} settings={settings} run={run} refresh={() => void refresh().catch(() => undefined)} onDisconnect={() => {
+        {effectiveView === "overview" && <Overview state={state} setView={setView} onRefresh={() => void refresh().catch((error) => notify((error as Error).message))} />}
+        {effectiveView === "mapping" && <Mapping state={state} run={run} connection={connection} />}
+        {effectiveView === "maps" && <Maps state={state} run={run} refresh={() => void refresh().catch(() => undefined)} />}
+        {effectiveView === "localization" && <LocalizationPanel connection={connection} maps={state.savedSlamMaps} />}
+        {effectiveView === "navigation" && <NavigationPage state={state} run={run} />}
+        {effectiveView === "tours" && <Tours state={state} run={run} refresh={() => void refresh().catch(() => undefined)} />}
+        {effectiveView === "settings" && <SettingsPage connection={connection} settings={settings} run={run} refresh={() => void refresh().catch(() => undefined)} onDisconnect={() => {
           void api(connection, "/api/v1/session/revoke", { method: "POST" }).catch(() => undefined);
           setConnection(null);
           setState(null);
@@ -1160,7 +1172,7 @@ export default function App() {
         }} />}
       </main>
       <nav className="mobile-nav" aria-label="主导航">
-        {mobileItems.map(({ id, label, icon: Icon }) => <button className={view === id ? "active" : ""} key={id} onClick={() => setView(id)}><Icon size={16} />{label}</button>)}
+        {mobileItems.map(({ id, label, icon: Icon }) => <button className={effectiveView === id ? "active" : ""} key={id} onClick={() => setView(id)}><Icon size={16} />{label}</button>)}
       </nav>
       <div className="portrait-warning"><RotateCcw size={12} />请将设备横向持握</div>
       {toast && <div role="status" className="toast">{toast}</div>}

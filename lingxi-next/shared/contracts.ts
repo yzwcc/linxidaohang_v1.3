@@ -1,3 +1,5 @@
+import type { LocalizationState } from "./localization";
+
 export type HealthCheck = {
   id: string;
   label: string;
@@ -67,6 +69,8 @@ export type SavedSlamMap = {
 
 export type SavedSlamPointPreview = {
   mapId: string;
+  receiptSha256: string;
+  pointsSha256: string;
   inputMode: SavedSlamMap["inputMode"];
   coordinateUnits: "native-raw";
   totalPoints: number;
@@ -133,6 +137,7 @@ export type RobotState = {
   maps: RobotMap[];
   savedSlamMaps?: SavedSlamMap[];
   savedSlamCatalogStatus?: "ready" | "unavailable";
+  slamLocalization?: { status: "available"; snapshot: LocalizationState } | { status: "unavailable" };
   points: MapPoint[];
   tours: TourTask[];
   selectedTourId?: string;

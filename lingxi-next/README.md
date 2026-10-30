@@ -192,6 +192,14 @@ A separate x64 recorded-input launcher now composes verified saved-map loading,
 the native point worker and private same-user Unix controls under process
 supervision. It has no automatic seed, HTTP exposure or ARM64/live-input support.
 See [the localization runtime boundary](docs/SLAM_LOCALIZATION_RUNTIME.md).
+An additional paired HTTPS console now adapts that private localization socket
+and displays saved point clouds with an explicitly seeded raw IMU pose.
+Its isolated entrypoint supports seed/pause/stop, rejects unrelated writes,
+clears stale poses and verifies the map receipt/point identity before overlay.
+Eleven synthetic browser stages and seven compiled Linux API lifecycle cases
+pass; these do not establish native-to-HTTP, ARM64/live localization or APK
+acceptance. The API and native process still require separate owners.
+See [the offline localization console](docs/SLAM_LOCALIZATION_CONSOLE.md).
 An independent full-recording range audit records returns beyond 5 raw-coordinate
 units. The roughly 5 m travel estimate is not calibration truth; travel,
 scan coverage and map accuracy are different quantities.

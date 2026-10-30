@@ -72,7 +72,8 @@ export class SavedSlamMapCatalog {
     const ready = path.join(directory, "map-ready.json");
     const info = await direct(ready, true);
     if (info.size > 16 * 1024) throw new Error("bounded_slam_receipt_required");
-    const receipt = receiptSchema.parse(JSON.parse(await readFile(ready, "utf8")));
+    const receiptBytes = await readFile(ready);
+    const receipt = receiptSchema.parse(JSON.parse(receiptBytes.toString("utf8")));
     const { counts, mapInventory: inventory } = receipt;
     if (counts.points > MAX_POINTS || counts.savedFrames !== counts.finalizedFrames ||
         counts.savedFrames !== inventory.num_all_frames || counts.submaps !== inventory.num_submaps) {
@@ -116,7 +117,8 @@ export class SavedSlamMapCatalog {
       localizationReady: false, navigationReady: false, geometricAccuracyValidated: false,
       coordinateUnits: "native-raw",
     };
-    return { map, pointsFile, pointsSha256: receipt.savedPointsSha256 };
+    return { map, pointsFile, pointsSha256: receipt.savedPointsSha256,
+      receiptSha256: createHash("sha256").update(receiptBytes).digest("hex") };
   }
 
   private async scan() {
@@ -161,6 +163,7 @@ export class SavedSlamMapCatalog {
     }
     return {
       mapId: id, inputMode: found.map.inputMode, coordinateUnits: "native-raw",
+      receiptSha256: found.receiptSha256, pointsSha256: found.pointsSha256,
       totalPoints: found.map.counts.points, sampled: stride !== 1, points,
     };
   }

@@ -28,6 +28,10 @@ import { measureVadToFirstAudio, summarizeVoiceSamples } from "./voice/diagnosti
 import { SavedSlamMapCatalog } from "./slam-map-catalog";
 import { mappingConsoleAdapter, mappingGuard, UnixMappingBackend, type MappingBackend } from "./mapping-backend";
 import { MappingPointSource } from "./mapping-points";
+import {
+  confirmedLocalizationCommand, UnixLocalizationBackend, validatedLocalizationState, type LocalizationBackend,
+} from "./localization-backend";
+import { localizationIdentitySchema, localizationSeedSchema, type LocalizationCommand } from "../../shared/localization";
 
 type ServerOptions = {
   adapter?: RobotAdapter;
@@ -46,6 +50,8 @@ type ServerOptions = {
   savedSlamDirectory?: string;
   mappingBackend?: MappingBackend;
   mappingConsole?: boolean;
+  localizationBackend?: LocalizationBackend;
+  localizationConsole?: boolean;
 };
 
 const emptySnapshot: RobotSnapshot = {
@@ -105,15 +111,24 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
   const mappingBackend = options.mappingBackend ?? (process.env.LINGXI_MAPPING_SOCKET
     ? new UnixMappingBackend(process.env.LINGXI_MAPPING_SOCKET) : undefined);
   const mappingConsole = options.mappingConsole === true;
+  const localizationConsole = options.localizationConsole === true;
+  const localizationBackend = options.localizationBackend ?? (localizationConsole && process.env.LINGXI_LOCALIZATION_SOCKET
+    ? new UnixLocalizationBackend(process.env.LINGXI_LOCALIZATION_SOCKET) : undefined);
+  if ((localizationBackend || localizationConsole) && (!localizationConsole || !localizationBackend ||
+      mappingBackend || mappingConsole || options.adapter || options.lidarSource || options.agentSpeaker)) {
+    throw new Error("isolated_localization_console_requires_only_own_backend");
+  }
+  const isolatedConsole = mappingConsole || localizationConsole;
   if (mappingConsole && (!mappingBackend || options.adapter || options.lidarSource)) {
     throw new Error("isolated_mapping_console_requires_own_backend_without_robot_adapter");
   }
-  const baseAdapter = mappingConsole ? mappingConsoleAdapter() :
+  const baseAdapter = isolatedConsole ? mappingConsoleAdapter() :
     options.adapter ?? (demoMode ? new DemoAdapter() : new AimdkAdapter(process.env.AIMDK_BRIDGE_URL));
   const adapter = mappingBackend ? mappingGuard(baseAdapter, mappingBackend, mappingConsole) : baseAdapter;
   const savedSlamDirectory = options.savedSlamDirectory ?? process.env.LINGXI_SAVED_SLAM_DIR;
   const slamCatalog = savedSlamDirectory ? new SavedSlamMapCatalog(savedSlamDirectory) : undefined;
   if (mappingBackend && !slamCatalog) throw new Error("independent_mapping_requires_saved_slam_directory");
+  if (localizationBackend && !slamCatalog) throw new Error("localization_requires_saved_slam_directory");
   const mappingPoints = mappingBackend ? new MappingPointSource(mappingBackend, savedSlamDirectory!) : undefined;
   const store = new JsonStateStore(options.stateDirectory ?? process.env.LINGXI_DATA_DIR ?? path.resolve("var/lib/lingxi-next"));
   const hash = options.pairingCodeHash ?? process.env.LINGXI_PAIRING_CODE_SHA256 ??
@@ -187,7 +202,7 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
   });
   await app.register(websocket);
 
-  if (demoMode && !mappingConsole) await seedDemoData(store);
+  if (demoMode && !isolatedConsole) await seedDemoData(store);
 
   function secureRequest(request: FastifyRequest): boolean {
     if ((request.raw.socket as TLSSocket).encrypted === true) return true;
@@ -219,15 +234,18 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
     }
     requireSession(request);
   });
-  if (mappingConsole) {
+  if (isolatedConsole) {
     app.addHook("onRequest", async (request, reply) => {
       const route = request.routeOptions.url ?? "";
       const allowed = request.method === "POST" && [
         "/api/v1/session/pair", "/api/v1/session/revoke",
-        "/api/v1/mapping/start", "/api/v1/mapping/stop-save", "/api/v1/mapping/stop-discard",
+        ...(mappingConsole ? ["/api/v1/mapping/start", "/api/v1/mapping/stop-save", "/api/v1/mapping/stop-discard"] : []),
+        ...(localizationConsole ? ["/api/v1/slam/localization/seed", "/api/v1/slam/localization/pause",
+          "/api/v1/slam/localization/stop"] : []),
       ].includes(route);
       if (!allowed && !["GET", "HEAD", "OPTIONS"].includes(request.method)) {
-        return reply.code(403).send({ message: "独立建图控制台仅允许建图和配对操作" });
+        return reply.code(403).send({ message: localizationConsole
+          ? "独立定位控制台仅允许定位和配对操作" : "独立建图控制台仅允许建图和配对操作" });
       }
     });
   }
@@ -235,6 +253,12 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
   async function runtimeSnapshot(): Promise<RobotSnapshot> {
     try {
       const snapshot = await adapter.getSnapshot();
+      if (localizationConsole) return {
+        ...snapshot, connected: false, navigation: { status: "idle", detail: "独立录制定位控制台" },
+        checks: snapshot.checks.map((check) => ({
+          ...check, ready: false, detail: "离线定位验证 · 未接入机器人",
+        })),
+      };
       if (mappingConsole) return snapshot;
       if (demoMode) return snapshot;
       const agent = await fetch(`${process.env.LINGXI_AGENT_URL ?? "http://127.0.0.1:18180"}/health`, {
@@ -264,12 +288,15 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
   }
 
   async function stateResponse(): Promise<RobotState> {
-    let [db, snapshot, discovered, savedSlam] = await Promise.all([
+    let [db, snapshot, discovered, savedSlam, slamLocalization] = await Promise.all([
       store.read(),
       runtimeSnapshot(),
       adapter.listMaps().catch(() => []),
       slamCatalog ? slamCatalog.list().then((maps) => ({ maps, status: "ready" as const }))
         .catch(() => ({ maps: [], status: "unavailable" as const })) : undefined,
+      localizationBackend ? localizationBackend.state().then((value) => ({
+        status: "available" as const, snapshot: validatedLocalizationState(value),
+      })).catch(() => ({ status: "unavailable" as const })) : undefined,
     ]);
     // Register native map references on first use, so an already active AIMDK
     // map can receive points without forcing an unnecessary relocalization.
@@ -300,6 +327,7 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
       demoMode: adapter.demoMode,
       maps,
       ...(savedSlam ? { savedSlamMaps: savedSlam.maps, savedSlamCatalogStatus: savedSlam.status } : {}),
+      ...(slamLocalization ? { slamLocalization } : {}),
       points: db.points,
       tours: db.tours,
       activeMapId: selected,
@@ -384,6 +412,22 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
     if (!slamCatalog) throw deny(503, "独立 SLAM 地图目录尚未配置");
     return slamCatalog.preview(request.params.id);
   });
+  app.get("/api/v1/slam/localization", async () => {
+    if (!localizationBackend) throw deny(503, "独立定位控制台尚未启动");
+    return validatedLocalizationState(await localizationBackend.state());
+  });
+  for (const action of ["seed", "pause", "stop"] as const) {
+    app.post(`/api/v1/slam/localization/${action}`, async (request, reply) => {
+      if (!localizationBackend) throw deny(503, "独立定位控制台尚未启动");
+      if (!secureRequest(request)) throw deny(426, "定位控制必须通过 HTTPS");
+      const parsed = (action === "seed" ? localizationSeedSchema : localizationIdentitySchema).safeParse(request.body);
+      if (!parsed.success) throw deny(400, "定位身份、参考帧或位姿矩阵无效");
+      const command = { ...parsed.data, action } as LocalizationCommand;
+      const result = confirmedLocalizationCommand(command, await localizationBackend.command(command));
+      // Acceptance only queues the worker request; it does not confirm localization.
+      return reply.code(202).send(result);
+    });
+  }
   app.post<{ Params: { id: string }; Body?: { initialPose?: { x: number; y: number; yaw: number } } }>(
     "/api/v1/maps/:id/activate",
     async (request) => {

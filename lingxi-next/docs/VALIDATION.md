@@ -209,3 +209,34 @@ python -B -m unittest discover -s tools/tests -q
 查询会独立撤销过期位姿，未增加 worker 空闲 tick 钩子。
 没有接 HTTP 管理 API、网页初值或 ARM64/live 定位，也没有导航或实机精度验收。
 所有 `localizationReady`、`navigationReady` 保持 false，产品和 APK 仍为 0.1.19。
+
+## 2026-10-30 离线定位 HTTP 与网页
+
+机器人保持断电，本轮没有访问机器人。新增私有 Unix 定位后端的配对 HTTP
+适配、受父 stdin 管道控制的独立 API 入口，以及六自由度初值/状态网页。
+独立控制台只显示定位和只读地图，拒绝业务、建图、凭据及语音回调写入。
+位姿叠加同时核对地图 ID、实际收据摘要和点云摘要，暂停/断线/停止时清除。
+
+| 检查 | 结果 |
+| --- | --- |
+| 最终全量 Vitest | 21 个文件；256 项通过、9 个 Linux 专用项在 Windows 跳过 |
+| Linux 后端聚焦回归 | 18/18 通过，含 Windows 跳过的 9 项；覆盖真实 Unix socket、超限/畸形/断流、1,200 ms 超时、冲突和丢失确认不重试 |
+| 编译 API 进程检查 | 普通用户 Linux 7/7 通过：父管道 EOF、SIGTERM 关闭监听与已配对 WebSocket；无 owner、无生产 TLS、混用建图、相对 socket、非法端口均被拒绝 |
+| 网页及独立 API 构建 | TypeScript、API/运行时类型检查、Vite 和 `build:localization-runtime` 通过 |
+| 合成 HTTPS 浏览器 | 11 阶段通过；桌面 1440×900、横屏 844×390；点云与跟踪标记非空，无横向溢出、区域重叠或浏览器错误 |
+| 浏览器失效路径 | 收据摘要不匹配撤图；暂停后释放旧 tracking 查询未恢复位姿；断线恢复、冲突不重试、停止不可恢复均通过 |
+| 客户端存储 | 仅保存机器人地址，令牌/配对码未写入 localStorage；地图页无点位、地图修改或导航控件 |
+
+本轮命令为 `npm run build`、`npm run build:localization-runtime`、`npm test`，
+以及 Linux 下的 `localization-backend.test.ts` 和
+`node --test tools/check-localization-api.mjs`；进程检查显式指定本轮编译 bundle。
+浏览器通过 `tools/check-localization-ui.mjs` 操作独立合成夹具，
+报告及 11 张截图保存在未入库的 `.local/localization-ui-20261030-c/`。
+截图已人工检查桌面和横屏状态。
+
+这些新测试验证协议、HTTP 入口和 UI，不构成原生定位与 HTTP 组合、
+ARM64/live 定位、独立精度或 Android 实机验收。本轮原生 Python 未改，
+未重复此前 930 项回归和原生试验，旧证据不变。
+仍需统一原生/API 启动所有权、地图/配置关联证明、底盘标定和导航适配；
+所有就绪标记继续为 false，未重打 0.1.19 安装包或 APK。
+详见 `SLAM_LOCALIZATION_CONSOLE.md`。

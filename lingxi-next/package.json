@@ -13,6 +13,7 @@
     "build:api": "esbuild robot-api/src/index.ts --bundle --platform=node --target=node22 --format=esm --packages=external --outfile=robot-api/dist/index.mjs",
     "build:point-runtime": "esbuild robot-runtime/src/main.ts --bundle --platform=node --target=node22 --format=esm --packages=external --outfile=robot-runtime/dist/main.mjs",
     "build:mapping-runtime": "esbuild robot-runtime/src/mapping-main.ts --bundle --platform=node --target=node22 --format=esm --packages=external --outfile=robot-runtime/dist/mapping-main.mjs",
+    "build:localization-runtime": "esbuild robot-runtime/src/localization-main.ts --bundle --platform=node --target=node22 --format=esm --packages=external --outfile=robot-runtime/dist/localization-main.mjs",
     "build:agent": "node tools/build-agent.mjs",
     "release:commissioning": "node tools/build-release.mjs --commissioning",
     "test": "vitest run",

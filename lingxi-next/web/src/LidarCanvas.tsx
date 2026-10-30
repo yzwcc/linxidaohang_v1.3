@@ -4,9 +4,10 @@ import type { LidarFrame, SavedSlamPointPreview } from "../../shared/contracts";
 import { openLidarEvents, type Connection } from "./api";
 import { appendScan, lidarBounds, type ScanHistory } from "./lidar-view";
 
-type Props = { connection: Connection; preview?: never } | { preview: SavedSlamPointPreview; connection?: never };
+type Props = ({ connection: Connection; preview?: never } | { preview: SavedSlamPointPreview; connection?: never }) &
+  { overlayPose?: { x: number; y: number; yaw: number } };
 
-export default function LidarCanvas({ connection, preview }: Props) {
+export default function LidarCanvas({ connection, preview, overlayPose }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const historyRef = useRef<ScanHistory>({ key: "", frames: [] });
   const [frame, setFrame] = useState<LidarFrame>();
@@ -110,9 +111,10 @@ export default function LidarCanvas({ connection, preview }: Props) {
       }
       ctx.strokeStyle = "#c78c97"; ctx.lineWidth = 1.2; ctx.stroke();
     }
-    if (frame.robotPose) {
-      const [x, y] = screen(frame.robotPose.x, frame.robotPose.y);
-      ctx.save(); ctx.translate(x, y); ctx.rotate(-frame.robotPose.yaw);
+    const pose = preview ? overlayPose : frame.robotPose;
+    if (pose) {
+      const [x, y] = screen(pose.x, pose.y);
+      ctx.save(); ctx.translate(x, y); ctx.rotate(-pose.yaw);
       ctx.fillStyle = "#e0eef9"; ctx.strokeStyle = "#4487b1"; ctx.lineWidth = 1.3;
       ctx.beginPath(); ctx.arc(0, 0, 13, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
       ctx.fillStyle = "#286d9b"; ctx.beginPath(); ctx.moveTo(18, 0); ctx.lineTo(-7, -7); ctx.lineTo(-3, 0); ctx.lineTo(-7, 7); ctx.closePath(); ctx.fill();
@@ -125,7 +127,7 @@ export default function LidarCanvas({ connection, preview }: Props) {
     ctx.strokeStyle = "#526371"; ctx.fillStyle = "#526371"; ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(18, rect.height - 20); ctx.lineTo(18 + bar, rect.height - 20); ctx.stroke();
     ctx.font = "11px sans-serif"; ctx.fillText(`${distance} ${preview || coordinateUnits === "native-raw" ? "raw" : "m"}`, 18, rect.height - 27);
-  }, [frame, accumulate, zoom, pan, revision, preview, coordinateUnits]);
+  }, [frame, accumulate, zoom, pan, revision, preview, coordinateUnits, overlayPose]);
 
   function clearHistory() {
     historyRef.current = { key: "", frames: [] }; boundsRef.current = undefined;
