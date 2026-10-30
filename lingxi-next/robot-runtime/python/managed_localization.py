@@ -1,4 +1,4 @@
-"""Bounded offline recorded localization and HTTPS console; no robot access."""
+"""Bounded recorded localization and HTTPS console with matching platform inputs."""
 import argparse
 import json
 import math
@@ -61,7 +61,7 @@ def run(args):
         file: digest((ROOT / "robot-runtime/python" / file).read_bytes())
         for file in ("managed_localization.py", "localization_owner.py")
     }
-    profile = platform.args.bundle / "private-profile.json"
+    profile = platform.profile
     load_map(args.saved_map, args.map_id, args.receipt_sha256, profile, args.profile_sha256,
              session="0" * 32, input_mode="recorded")
 

@@ -1,4 +1,4 @@
-"""Supervised recorded-input localization runtime, without robot connections."""
+"""Supervised recorded-input localization on verified x64 or ARM64/Humble inputs."""
 import argparse
 from dataclasses import asdict
 import os
@@ -34,11 +34,22 @@ def source_hashes():
 
 def verified_configuration(file):
     config, environment = configuration(file)
-    if (sys.platform != "linux" or host_platform.machine() != "x86_64" or os.geteuid() == 0
-            or config.get("platform") == "arm64-humble"
+    arm64 = config.get("platform") == "arm64-humble"
+    expected_machine = "aarch64" if arm64 else "x86_64"
+    if (sys.platform != "linux" or host_platform.machine() != expected_machine or os.geteuid() == 0
+            or arm64 and sys.version_info[:2] != (3, 10)
             or config["inputMode"] != "recorded" or "pointAdapter" not in config):
-        raise ValueError("ordinary_user_x64_recorded_localization_with_corrected_points_required")
+        raise ValueError("ordinary_user_matching_recorded_localization_platform_required")
     return config, environment
+
+
+def native_library_inventory(platform):
+    if platform.arm64:
+        return {**platform.frozen["coreLibrariesSha256"],
+                platform.odometry_library.name: platform.frozen["odometryLibrarySha256"],
+                platform.point_library.name: platform.frozen["pointLibrarySha256"]}
+    return {**platform.frozen["nativeLibrariesSha256"],
+            platform.point_library.name: platform.frozen["pointExtensionLibrarySha256"]}
 
 
 def verify_completion(child_report, final, *, frozen, binding, sources, config_hash, rate):
@@ -71,7 +82,7 @@ def child(args, sink):
     if any(os.environ.get(key) != value for key, value in environment.items()):
         raise ValueError("unchanged_reviewed_localization_environment_required")
     platform = MappingPlatform(config)
-    profile = platform.args.bundle / "private-profile.json"
+    profile = platform.profile
     binding, points = load_map(
         args.saved_map, args.map_id, args.receipt_sha256, profile, args.profile_sha256,
         session=session_id(os.environ.get("LINGXI_SLAM_SESSION")), input_mode="recorded")
@@ -110,9 +121,7 @@ def child(args, sink):
     def verify_loaded():
         platform.loaded(points=True)
         verify_loaded_libraries({gicp_library: gicp_hash}, Path("/proc/self/maps").read_text())
-        return {**platform.frozen["nativeLibrariesSha256"],
-                platform.point_library.name: platform.frozen["pointExtensionLibrarySha256"],
-                gicp_library.name: gicp_hash}
+        return {**native_library_inventory(platform), gicp_library.name: gicp_hash}
 
     options = argparse.Namespace(
         rate=config["rate"], hypothesis=platform.hypothesis,
@@ -123,7 +132,10 @@ def child(args, sink):
             return replay.recorded_child(
                 options, sink, integrity=frozen, native_factory=native_factory,
                 verify_loaded=verify_loaded, decode=decode, verify_inputs=verify_inputs,
-                versions={name: version(name) for name in ("numpy", "rosbags", "small-gicp")})
+                versions={**{name: version(name) for name in ("numpy", "scipy", "small-gicp")},
+                          **({"decoder": "installed_humble_rclpy",
+                              "python": host_platform.python_version()} if platform.arm64
+                             else {"rosbags": version("rosbags")})})
     finally:
         private_json(args.output / "localization-final.json", {
             "state": session.state(), "robotContacted": False, "motionCommandsSent": False,
@@ -156,7 +168,7 @@ def run(args):
     try:
         binding, _ = load_map(
             args.saved_map, args.map_id, args.receipt_sha256,
-            platform.args.bundle / "private-profile.json", args.profile_sha256,
+            platform.profile, args.profile_sha256,
             session=owner.session, input_mode="recorded")
         expected = platform.frozen["journal"]
         terminal = replay.coordinate(owner, expected["records"], args.seconds)

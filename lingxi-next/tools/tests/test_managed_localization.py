@@ -98,7 +98,7 @@ class LauncherAdmission(unittest.TestCase):
             node_sha256=runtime.digest(node.read_bytes()), api_sha256=runtime.digest(bundle.read_bytes()),
             saved_map=saved, output=self.root / "new", map_id="synthetic",
             receipt_sha256="b" * 64, profile_sha256="c" * 64)
-        platform = Mock(args=SimpleNamespace(bundle=self.root), frozen={"journal": {"records": 1}})
+        platform = Mock(profile=profile, frozen={"journal": {"records": 1}})
         platform.verify.return_value = platform.frozen
         owner = Mock()
         owner.native.session = "d" * 32

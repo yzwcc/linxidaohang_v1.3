@@ -190,7 +190,7 @@ pause, stop, reseed and expiry during an in-flight call.
 See [the localization session contract](docs/SLAM_LOCALIZATION_SESSION.md).
 A separate x64 recorded-input launcher now composes verified saved-map loading,
 the native point worker and private same-user Unix controls under process
-supervision. It has no automatic seed, HTTP exposure or ARM64/live-input support.
+supervision. That initial stage had no automatic seed, HTTP exposure or ARM64/live-input support.
 See [the localization runtime boundary](docs/SLAM_LOCALIZATION_RUNTIME.md).
 An additional paired HTTPS console now adapts that private localization socket
 and displays saved point clouds with an explicitly seeded raw IMU pose.
@@ -208,6 +208,15 @@ confirmed tracking/pause/stop and closed both children without forced terminatio
 The seed comes from a preserved recording, not independent position truth;
 ARM64/live localization, base calibration and navigation remain unaccepted.
 See [the unified recorded runtime](docs/SLAM_LOCALIZATION_RUNTIME.md).
+The matching ARM64/Humble recorded binding has since passed an isolated check on
+the actual robot, using the preserved map, journal and explicit recorded seed.
+All 4,144 callbacks completed; paired loopback HTTPS confirmed tracking, pause,
+generation rejection and stop, with no pose revival in 554 subsequent queries.
+Both owned children exited normally. The same sources pass the x64 native HTTPS
+compatibility check and all 94 focused localization Python tests.
+See [the ARM64 recorded localization evidence](docs/slam-managed-localization-arm64-evidence.json).
+This does not establish live localization, native ARM64 map reload, LAN browser
+access, base calibration, independent accuracy or navigation readiness.
 An independent full-recording range audit records returns beyond 5 raw-coordinate
 units. The roughly 5 m travel estimate is not calibration truth; travel,
 scan coverage and map accuracy are different quantities.

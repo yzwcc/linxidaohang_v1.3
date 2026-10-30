@@ -91,6 +91,7 @@ class MappingPlatform:
                 **({"reference": Path(value["reference"]), "rate": value["rate"]}
                    if self.mode == "recorded" else {}))
             self.config_dir = self.args.root / "config"
+            self.profile = self.args.root / "private-profile.json"
             self.odometry_library = self.args.root / "lib/liblingxi_glim_offline.so"
             self.mapping_library = self.args.mapping_root / "lib/liblingxi_glim_mapping.so"
             self.cpu_library = self.args.core_root / "lib/libodometry_estimation_cpu.so"
@@ -104,6 +105,7 @@ class MappingPlatform:
             if self.points_enabled:
                 self.args.points = Path(value["pointAdapter"])
             self.config_dir = self.args.bundle / "config"
+            self.profile = self.args.bundle / "private-profile.json"
             self.odometry_library = self.args.adapter / "build/liblingxi_glim_offline.so"
             self.mapping_library = self.args.mapping_adapter / "build/liblingxi_glim_mapping.so"
             self.cpu_library = self.args.work / "prefix/lib/libodometry_estimation_cpu.so"

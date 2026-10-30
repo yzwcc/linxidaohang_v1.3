@@ -290,6 +290,53 @@ class ControlAndOwnership(unittest.TestCase):
                 with self.subTest(options=options), self.assertRaises(ValueError):
                     runtime.verified_configuration(Path("/unused"))
 
+    def test_recorded_platform_must_match_host_and_humble_python(self):
+        for machine, configured, python, accepted in (
+                ("x86_64", None, (3, 12), True),
+                ("aarch64", "arm64-humble", (3, 10), True),
+                ("x86_64", "arm64-humble", (3, 10), False),
+                ("aarch64", None, (3, 10), False),
+                ("aarch64", "arm64-humble", (3, 12), False),
+                ("armv7l", "arm64-humble", (3, 10), False)):
+            config = {"inputMode": "recorded", "pointAdapter": "/verified"}
+            if configured:
+                config["platform"] = configured
+            with self.subTest(machine=machine, configured=configured, python=python), patch.object(
+                    runtime, "configuration", return_value=(config, {"frozen": "environment"})), patch.object(
+                    runtime.host_platform, "machine", return_value=machine), patch.object(
+                    runtime.sys, "version_info", python), patch.object(
+                    runtime.os, "geteuid", return_value=1000):
+                if accepted:
+                    self.assertEqual((config, {"frozen": "environment"}),
+                                     runtime.verified_configuration(Path("/unused")))
+                else:
+                    with self.assertRaises(ValueError):
+                        runtime.verified_configuration(Path("/unused"))
+
+    def test_live_and_root_remain_rejected_on_matching_arm64(self):
+        config = {"platform": "arm64-humble", "inputMode": "recorded", "pointAdapter": "/verified"}
+        for mode, uid in (("live", 1000), ("recorded", 0)):
+            with self.subTest(mode=mode, uid=uid), patch.object(
+                    runtime, "configuration", return_value=({**config, "inputMode": mode}, {})), patch.object(
+                    runtime.host_platform, "machine", return_value="aarch64"), patch.object(
+                    runtime.sys, "version_info", (3, 10)), patch.object(
+                    runtime.os, "geteuid", return_value=uid):
+                with self.assertRaises(ValueError):
+                    runtime.verified_configuration(Path("/unused"))
+
+    def test_loaded_inventory_preserves_platform_specific_library_hashes(self):
+        arm = SimpleNamespace(arm64=True, odometry_library=Path("/frozen/odom.so"),
+            point_library=Path("/frozen/points.so"), frozen={
+                "coreLibrariesSha256": {"libglim.so": "a" * 64},
+                "odometryLibrarySha256": "b" * 64, "pointLibrarySha256": "c" * 64})
+        self.assertEqual({"libglim.so": "a" * 64, "odom.so": "b" * 64, "points.so": "c" * 64},
+                         runtime.native_library_inventory(arm))
+        x64 = SimpleNamespace(arm64=False, point_library=Path("/frozen/points.so"), frozen={
+            "nativeLibrariesSha256": {"libglim.so": "d" * 64},
+            "pointExtensionLibrarySha256": "e" * 64})
+        self.assertEqual({"libglim.so": "d" * 64, "points.so": "e" * 64},
+                         runtime.native_library_inventory(x64))
+
 
 @unittest.skipUnless(AVAILABLE, "requires isolated Linux localization dependencies")
 class RuntimeCompletion(unittest.TestCase):
@@ -381,7 +428,7 @@ class RuntimeCompletion(unittest.TestCase):
         }
         owner = Mock(session=self.binding.session)
         owner.stop.return_value = terminal
-        platform = Mock(frozen=self.frozen, args=SimpleNamespace(bundle=root))
+        platform = Mock(frozen=self.frozen, profile=root / "private-profile.json")
         platform.verify.return_value = self.frozen
         if failure == "input_changed":
             platform.verify.return_value = {}

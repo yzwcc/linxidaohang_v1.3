@@ -1,6 +1,7 @@
 # 保存地图定位运行链路
 
-日期：2026-10-30。机器人保持断电，本阶段只在电脑端使用保留的录制数据。
+日期：2026-10-30。最初阶段机器人断电，只在电脑端使用保留的录制数据；
+随后恢复网络并完成下文的 ARM64 录制定位与 HTTPS 检查。
 新增入口为 `robot-runtime/python/controlled_localization.py`；
 私有控制和地图加载位于 `localization_control.py`。
 这不是导航启动器，也没有更新生产安装包或 Android APK。
@@ -50,10 +51,12 @@ small-gicp 固定为 1.0.1，原生配准器由点云工作线程创建、调用
 
 ## 离线复现
 
-当前入口明确限制为普通用户 Linux x86_64、录制输入和已验证的纠正点扩展。
-ARM64 和实时输入会被拒绝，不能直接复制到机器人运行。
+当前入口支持普通用户 Linux x86_64 或匹配的 ARM64/Humble、录制输入和
+已验证的纠正点扩展。ARM64 要求 Python 3.10，使用安装好的 Humble 解码器；
+架构不匹配、root 和实时输入仍被拒绝。
 配置沿用现有录制建图的私有 JSON，要求包含 `pointAdapter`。
-还需要既有冻结原生依赖、numpy/scipy/rosbags 和 small-gicp 1.0.1；
+还需要既有冻结原生依赖、numpy/scipy、small-gicp 1.0.1，以及匹配平台的
+解码器（x64 使用 rosbags，ARM64 使用已安装的 Humble）；
 本入口不下载安装依赖，也不更改库搜索路径。
 
 在隔离 Linux 环境预先设置与 `child_environment(work)` 完全一致的
@@ -119,7 +122,7 @@ python -B -m unittest discover -s tools/tests -p test_localization_control.py -v
 ARM64 性能或导航控制结果。
 随后已接入配对管理 API 与网页，见 `SLAM_LOCALIZATION_CONSOLE.md`。
 下述统一启动器将同一录制原生会话与配对 HTTPS API 交给一个父进程管理；
-ARM64/live 定位仍未适配。
+下述最初统一启动检查为 x64；ARM64 录制适配结果见本文末尾，实时定位仍未接入。
 
 ## 统一启动与退出
 
@@ -179,3 +182,53 @@ Unix socket 完整路径须小于 100 字节。使用新的持久目录保留证
 13 项 Linux 进程测试和 87 项定位相关 Python 回归通过；
 摘要见 `slam-managed-localization-evidence.json`。
 这些结果没有扩大地图精度、坐标标定或导航就绪范围。
+
+## ARM64 录制定位验证
+
+同日新增匹配平台的录制定位绑定，共用 `MappingPlatform.profile`，
+复用原有 ARM64 GLIM/纠正点库、Node 和录制输入；没有重编原生 SLAM。
+`tools/run_localization_arm64_trial.py` 在核对 SSH 主机身份后上传到新的私有目录，
+逐文件核对源码和输入，建立使用系统科学计算包的隔离 Python 环境，
+只解包固定 SHA256 的 small-gicp 1.0.1 wheel，不安装或修改系统依赖。
+Humble 仅用来解码既有录制，不订阅实时传感器。
+
+首次准备遗漏冻结适配器的 C++/CMake 文件，被原有校验在定位启动前拒绝；
+上传清单改为复用既有冻结源清单，补回归测试后另建目录运行成功。
+准备报告单独保存并核验字节，避免 SciPy 警告混入命令输出后影响 JSON 读取。
+失败目录和原报告保留，不计为通过样本。
+
+| 检查 | ARM64 实际结果 |
+| --- | --- |
+| 完整录制 | 4,144 条回调、196 次扫描、165 个里程计位姿，原生 create/close 各 1 次，单一非主工作线程 |
+| 配对 HTTPS | 回环地址、显式 CA 校验；未认证 401、配对 201、明确初值 202，第 4 帧观察到跟踪 |
+| 撤销与代次 | 暂停和停止撤销位姿，旧代次 409；停止后 554 次查询未恢复位姿 |
+| 正常退出 | API/原生均退出 0，无强杀；进程、组和监控线程已清理，输入结束时重新核验 |
+| 兼容回归 | 相同最终源码的 x64 原生 HTTPS 检查通过，同样完整处理回调；停止后 603 次查询未恢复位姿 |
+| 自动回归 | 94/94 定位 Python 测试通过，含 4 项 ARM64 协调器输入检查；未重跑历史全量、网页、Java 或 Android |
+
+运行版本为 Python 3.10.12、NumPy 1.26.1、SciPy 1.8.0、small-gicp 1.0.1。
+系统 SciPy 报 NumPy 版本范围警告，本轮执行成功不代表生产依赖组合已验收。
+地图复制自保留的 x64 保存结果，本轮没有进行 ARM64 原生地图重载。
+初值为录制位姿，关联明确当前参考帧，不是位置真值。
+库清单含别名及未必逐项映射的核心库，不能把整份清单称为全部实际加载库。
+
+脱敏摘要见 `slam-managed-localization-arm64-evidence.json`。
+通过以下命令重新核验保留报告并导出，不连接机器人、不重复执行原生定位：
+
+```sh
+python -B tools/export_localization_arm64_evidence.py \
+  --trial /private/collected-arm64-trial \
+  --compatibility /private/preserved-x64-check \
+  --output /private/new-aggregate.json
+```
+
+报告中的内部 `robotContacted=false` 表示子进程只处理本地录制；
+外围收集器实际通过 SSH 连接机器人，公开摘要正确记录为 `true`。
+另外 6 项保留报告测试通过，覆盖公开摘要脱敏、报告字节变化、进程残留、
+地图绑定不一致、源码变化和兼容检查使用不同初值；这些测试不重跑原生 SLAM。
+设置 `LINGXI_LOCALIZATION_EVIDENCE_TRIAL` 和
+`LINGXI_LOCALIZATION_EVIDENCE_COMPATIBILITY` 指向私有报告目录后，
+可运行 `python -B -m unittest discover -s tools/tests -p test_localization_evidence.py -v`。
+本轮 HTTPS 检查使用机器人本地回环，没有验证局域网浏览器或 APK 访问。
+实时定位、地图/配置关联、底盘标定、独立动态精度和导航仍待完成，
+三个就绪/关联标记继续为 false；版本及已交付安装包/APK 保持 0.1.19。
