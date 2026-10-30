@@ -29,13 +29,13 @@ class ScanTimeIndex:
     def observe(self, kind, message):
         with self.lock:
             if self.closed or self.failed:
-                return
+                return False
         if kind == "imu":
             stamp = sensor_stamp(message, self.profile.imu_frame)
             with self.lock:
                 if not self.closed and not self.failed and self.first_imu is None:
                     self.first_imu = stamp
-            return
+                return not self.closed and not self.failed
         if kind != "cloud":
             raise ValueError("explicit_sensor_kind_required")
         packet = cloud_snapshot(message, self.profile, 2_000_000, self.maximum_bytes)
@@ -48,12 +48,13 @@ class ScanTimeIndex:
             raise ValueError("integer_relative_point_nanoseconds_required")
         with self.lock:
             if self.closed or self.failed:
-                return
+                return False
             if packet.stamp_ns in self.frames:
                 raise ValueError("unique_pending_scan_header_required")
             self.frames[packet.stamp_ns] = round(maximum)
             while len(self.frames) > self.maximum_frames:
                 self.frames.popitem(last=False)
+            return True
 
     def consume(self, header_ns, algorithm_stamp):
         with self.lock:

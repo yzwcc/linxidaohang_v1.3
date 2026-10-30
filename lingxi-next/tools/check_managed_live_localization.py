@@ -18,6 +18,23 @@ from localization_control import digest, direct, strict_json
 from mapping_service import private_json
 
 
+def verify_base_input(inputs):
+    observations = inputs.get("observations", {})
+    positive = ("imuMessages", "cloudMessages", "staticTransforms", "dynamicTransforms",
+                "timedFrames", "tfLookupsAvailable")
+    zero = ("invalidScanTimes", "invalidTransforms", "lookupErrors", "scanTimeUnavailable")
+    if (inputs.get("closed") is not True or inputs.get("pendingScanTimes") != 0
+            or inputs.get("retainedDynamicTransforms") != 0
+            or any(inputs.get(name) is not False for name in ("physicalScaleValidated", "navigationReady"))
+            or any(type(observations.get(name)) is not int or observations[name] < 1 for name in positive)
+            or any(type(observations.get(name)) is not int or observations[name] != 0 for name in zero)
+            or type(observations.get("tfLookupsUnavailable")) is not int
+            or observations["tfLookupsUnavailable"] < 0
+            or observations["timedFrames"] != observations["tfLookupsAvailable"]
+                + observations["tfLookupsUnavailable"]):
+        raise ValueError("observed_live_timed_tf_and_closed_inputs_required")
+
+
 def check(args):
     config, _ = verified_configuration(args.config, allow_live=True)
     if config["inputMode"] != "live" or not 10 <= args.seconds <= 30:
@@ -88,6 +105,13 @@ def check(args):
             if (state["binding"]["input_mode"] != "live" or state["mapFromSensor"] is not None
                     or state["localizationReady"] or state["navigationReady"]):
                 raise RuntimeError("unseeded_live_pose_or_readiness_forbidden")
+            if "basePose" in config:
+                base = state.get("basePose", {})
+                if (base.get("status") != "unavailable" or base.get("mapFromBase") is not None
+                        or base.get("metresPerMapUnit") != config["basePose"]["metresPerMapUnit"]
+                        or any(base.get(name) is not False for name in (
+                            "physicalScaleValidated", "navigationReady"))):
+                    raise RuntimeError("unseeded_base_pose_or_readiness_forbidden")
             fields = {"binding": state["binding"], "expectedGeneration": state["generation"]}
             if phase == "unseeded":
                 if state["state"] != "unseeded":
@@ -119,6 +143,10 @@ def check(args):
         output = args.output / "run"
         owner = strict_json((output / "owner-report.json").read_bytes())
         child = strict_json((output / "native/child-report.json").read_bytes())
+        if "basePose" in config:
+            inputs = child.get("basePoseInput", {})
+            verify_base_input(inputs)
+            report.update(basePoseInputChecked=True, basePoseInput=inputs)
         if (owner["result"] != "completed" or owner["inputComplete"]
                 or not owner["intervalComplete"] or not owner["inputsRechecked"]):
             raise RuntimeError("verified_live_interval_cleanup_required")

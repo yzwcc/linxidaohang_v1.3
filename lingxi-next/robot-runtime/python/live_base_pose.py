@@ -13,6 +13,15 @@ class LiveBasePose:
         self.times, self.coverage = ScanTimeIndex(profile, hypothesis), TfCoverage()
         self.closed = threading.Event()
         self.buffer = self.projector = None
+        self.metrics_lock = threading.Lock()
+        self.observations = dict.fromkeys((
+            "imuMessages", "cloudMessages", "staticTransforms", "dynamicTransforms",
+            "timedFrames", "tfLookupsAvailable", "tfLookupsUnavailable",
+            "scanTimeUnavailable", "invalidScanTimes", "invalidTransforms", "lookupErrors"), 0)
+
+    def count(self, name):
+        with self.metrics_lock:
+            self.observations[name] += 1
 
     def setup(self, node):
         from rclpy.duration import Duration
@@ -39,9 +48,11 @@ class LiveBasePose:
                 raise ValueError("bounded_kinematic_tf_message_required")
             for transform in message.transforms:
                 setter = self.buffer.set_transform_static if static else self.buffer.set_transform
-                self.coverage.observe(transform, static=static,
-                                      apply=lambda value=transform: setter(value, "lingxi_passive_base_pose"))
+                if self.coverage.observe(transform, static=static,
+                                         apply=lambda value=transform: setter(value, "lingxi_passive_base_pose")):
+                    self.count("staticTransforms" if static else "dynamicTransforms")
         except Exception:
+            self.count("invalidTransforms")
             self.coverage.invalidate()
             self.session.revoke_base("invalid_kinematic_tf")
 
@@ -49,8 +60,10 @@ class LiveBasePose:
         if self.closed.is_set():
             return
         try:
-            self.times.observe(kind, message)
+            if self.times.observe(kind, message):
+                self.count("imuMessages" if kind == "imu" else "cloudMessages")
         except Exception:
+            self.count("invalidScanTimes")
             self.times.invalidate()
             self.session.revoke_base("invalid_scan_time")
 
@@ -60,8 +73,18 @@ class LiveBasePose:
         try:
             timing = self.times.consume(header, algorithm)
         except Exception:
+            self.count("scanTimeUnavailable")
             self.session.revoke_base("invalid_scan_time")
             return
+        self.count("timedFrames")
+        # Unseeded input can verify timed TF without fabricating a map pose.
+        if self.projector is not None:
+            try:
+                value = self.projector.lookup(timing.effective_ns)
+                self.count("tfLookupsAvailable" if value is not None else "tfLookupsUnavailable")
+            except Exception:
+                self.count("lookupErrors")
+                self.session.revoke_base("timestamped_projection_unavailable")
         if pose is not None:
             if self.projector is None:
                 self.session.revoke_base("timestamped_projection_unavailable")
@@ -75,8 +98,9 @@ class LiveBasePose:
         self.session.revoke_base("input_closed")
 
     def summary(self):
-        with self.times.lock, self.coverage.lock:
+        with self.times.lock, self.coverage.lock, self.metrics_lock:
             return {"closed": self.closed.is_set(), "pendingScanTimes": len(self.times.frames),
                     "retainedDynamicTransforms": sum(map(len, self.coverage.dynamic.values())),
                     "maximumTfGapNs": MAXIMUM_TF_GAP_NS, "metresPerMapUnit": self.session.base_scale,
-                    "physicalScaleValidated": False, "navigationReady": False}
+                    "physicalScaleValidated": False, "navigationReady": False,
+                    "observations": dict(self.observations)}

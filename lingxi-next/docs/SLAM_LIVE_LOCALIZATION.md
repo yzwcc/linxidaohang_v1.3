@@ -80,6 +80,38 @@ python -B tools/export_live_localization_evidence.py \
 
 ## 回归与下一步
 
+### 追加实测：原始扫描时间与底盘 TF 输入
+
+已使用独立的 `robot-runtime/dist/localization-main.mjs` 再次完成 ARM64
+实时测试，启用显式 `basePose.metresPerMapUnit=1.0`，不提交初值、不发送运动命令。
+尺度 1.0 只是本次诊断假设，不代表实测标定。
+
+- 收到 3,239 条 IMU、163 帧雷达；完成 3,398 条消息，停止时丢弃尾部 4 条，拒收 0。
+- 原生处理 161 次扫描，输出 131 个里程计位姿，create/close 各 1 次。
+- 接收 2 个静态 TF、2,280 个动态 TF；160 个有效扫描时间中，159 次精确时间查询可用，
+  1 次不可用并拒绝，没有用最新值或单位矩阵填补；无无效时间、无效变换或查询异常。
+- 暂停、停止、旧代次拒绝通过；停止后 220 次查询未恢复位姿。两进程退出 0，
+  无强杀、无残留进程，扫描时间和动态 TF 缓存均清空。
+- 修复父进程收尾校验漏传可选尺度的问题；子进程与父进程现在使用同一显式配置。
+
+此次通过的是传感器和坐标输入接线，不是保存地图中的底盘位姿精度。
+尚未提交初值，`localizationReady`、`navigationReady` 和当前现场地图关联均为 false。
+源文件哈希、计数及退出记录见 [追加实测摘要](slam-live-base-arm64-evidence.json)，
+不含机器人 IP、私有路径、坐标、会话凭据或证书。
+
+使用同一执行源码可离线复核，命令沿用上文的证据导出工具；追加保留报告测试时设置
+`LINGXI_LIVE_LOCALIZATION_EVIDENCE_TRIAL` 为新私有采集目录，并设置
+`LINGXI_LIVE_LOCALIZATION_PUBLISHED=docs/slam-live-base-arm64-evidence.json`。
+原有实测报告保留，不覆盖不同源码版本的历史结果。
+
+当前源码 Linux Python 全量运行 1,029 项，1,019 通过、10 项显式跳过，
+耗时约 168 秒，包含上述追加实测报告的 5 项离线复核。
+使用 `LINGXI_GLIM_UPSTREAM_ROOT` 指向已核验干净的 Linux 上游副本，
+避免 Windows 工作树换行差异；未修改原副本或放宽源码完整性校验。
+首次回归发现的过期 TF2 证据哈希和配置换行问题均已处理，当前复跑无失败。
+
+### 此前阶段记录
+
 - Linux 真实进程测试 19/19，通过到期、中断、双方故障、错误/缺失报告和输入变化清理。
 - 定位 API 的 Windows Vitest 36 通过、9 项 Linux 专用检查跳过。
   随后全量 Vitest 258 通过、9 项跳过。

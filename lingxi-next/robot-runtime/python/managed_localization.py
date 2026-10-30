@@ -89,7 +89,8 @@ def run(args):
             return verify_live(
                 strict_json((owner.native_output / "child-report.json").read_bytes()),
                 strict_json((owner.native_output / "localization-final.json").read_bytes()),
-                frozen=platform.frozen, binding=binding, sources=sources, config_hash=config_hash)
+                frozen=platform.frozen, binding=binding, sources=sources, config_hash=config_hash,
+                base_scale=config.get("basePose", {}).get("metresPerMapUnit"))
         verify_completion(
             strict_json((owner.native_output / "child-report.json").read_bytes()),
             strict_json((owner.native_output / "localization-final.json").read_bytes()),

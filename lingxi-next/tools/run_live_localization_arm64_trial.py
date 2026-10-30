@@ -1,6 +1,7 @@
 """Bounded passive live check reusing preserved ARM64 libraries and Python."""
 import argparse
 import json
+import math
 import os
 from pathlib import Path, PurePosixPath
 import re
@@ -47,6 +48,10 @@ def prepare(plan_file):
 
 
 def collect(args):
+    if (args.base_metres_per_map_unit is not None
+            and (not math.isfinite(args.base_metres_per_map_unit)
+                 or not 1e-6 <= args.base_metres_per_map_unit <= 1e6)):
+        raise ValueError("finite_positive_bounded_map_scale_required")
     output = args.output.resolve()
     if (output.exists() or not output.is_relative_to((ROOT / ".local").resolve())
             or output == ROOT / ".local" or args.user == "root"
@@ -78,6 +83,8 @@ def collect(args):
             config.update(inputMode="live", root=str(live), maxSeconds=90.)
             config.pop("reference")
             config.pop("rate")
+            if args.base_metres_per_map_unit is not None:
+                config["basePose"] = {"metresPerMapUnit": args.base_metres_per_map_unit}
             result = home / ".cache/lingxi-next" / args.run_name
             if (len({baseline, live, source, PurePosixPath(plan["consumer"])}) != 4
                     or len(os.fsencode(result / "run/native/localization.sock")) >= 100):
@@ -152,6 +159,9 @@ def collect(args):
             if report["result"] == "failed":
                 raise RuntimeError("live_localization_check_failed_see_private_reports")
             check = json.loads((output / "check-report.json").read_bytes())
+            if args.base_metres_per_map_unit is not None:
+                if check.get("basePoseInputChecked") is not True:
+                    raise ValueError("live_base_pose_input_verification_required")
             if (check["result"] != "managed_live_unseeded_localization_https_checked"
                     or not all(check[key] is True for key in (
                         "pauseConfirmed", "stopConfirmed", "staleGenerationRejected", "singleNativeWorker"))
@@ -185,6 +195,7 @@ def main():
         run.add_argument("--" + name, required=True)
     for name in ("api-bundle", "output"):
         run.add_argument("--" + name, type=Path, required=True)
+    run.add_argument("--base-metres-per-map-unit", type=float)
     args = parser.parse_args()
     previous = os.umask(0o077)
     try:

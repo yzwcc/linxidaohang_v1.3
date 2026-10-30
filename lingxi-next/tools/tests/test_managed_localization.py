@@ -119,6 +119,41 @@ class LauncherAdmission(unittest.TestCase):
             self.assertEqual(1, runtime.run(args))
         self.assertFalse(args.output.exists())
 
+    def test_live_completion_receives_configured_base_scale_or_none(self):
+        saved = self.root / "maps" / "map"
+        saved.mkdir(parents=True)
+        config, node, bundle, profile = [self.root / name for name in (
+            "config.json", "node", "bundle.mjs", "private-profile.json")]
+        for file in (config, node, bundle, profile):
+            file.write_bytes(b"synthetic")
+        args = SimpleNamespace(seconds=5., config=config, node=node, api_bundle=bundle,
+            node_sha256=runtime.digest(node.read_bytes()), api_sha256=runtime.digest(bundle.read_bytes()),
+            saved_map=saved, output=self.root / "new", map_id="synthetic",
+            receipt_sha256="b" * 64, profile_sha256="c" * 64)
+        platform = Mock(profile=profile, frozen={})
+        owner = Mock(native_output=self.root)
+        owner.native.session = "d" * 32
+        for name in ("child-report.json", "localization-final.json"):
+            (self.root / name).write_bytes(b"{}")
+
+        def execute(*_, **kwargs):
+            kwargs["verify_complete"]()
+            return {"result": "completed"}
+
+        owner.run.side_effect = execute
+        for scale in (None, 1., .01):
+            value = {"inputMode": "live", "maxSeconds": 90.}
+            if scale is not None:
+                value["basePose"] = {"metresPerMapUnit": scale}
+            with self.subTest(scale=scale), patch.dict(os.environ, self.environment, clear=True), patch.object(
+                    runtime, "verified_configuration", return_value=(value, {})), patch.object(
+                    runtime, "MappingPlatform", return_value=platform), patch.object(
+                    runtime, "load_map", return_value=(Mock(), None)), patch.object(
+                    runtime, "ManagedLocalizationOwner", return_value=owner), patch(
+                    "live_localization.verify_completion") as verify:
+                self.assertEqual(0, runtime.run(args))
+                self.assertEqual(scale, verify.call_args.kwargs["base_scale"])
+
 
 if __name__ == "__main__":
     unittest.main()

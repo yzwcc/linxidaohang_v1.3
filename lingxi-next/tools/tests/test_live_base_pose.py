@@ -134,7 +134,7 @@ class LiveBaseInput(unittest.TestCase):
 
     def test_owner_carries_original_time_to_frame_projection_and_closes_all_caches(self):
         session, owner = self.owner()
-        owner.projector = object()
+        owner.projector = NS(lookup=lambda stamp: None)
         owner.sensor("imu", imu())
         owner.sensor("cloud", cloud())
         owner.frame(self.EPOCH + 40_000_000, 1000.04, np.eye(4), None)
@@ -145,6 +145,41 @@ class LiveBaseInput(unittest.TestCase):
         self.assertEqual(0, owner.summary()["retainedDynamicTransforms"])
         owner.sensor("cloud", cloud(100))
         self.assertEqual(0, len(owner.times.frames))
+
+    def test_unseeded_lookup_observations_survive_close_without_creating_pose(self):
+        session, owner = self.owner()
+        calls = []
+        owner.projector = NS(lookup=lambda stamp: calls.append(stamp) or object())
+        owner.sensor("imu", imu())
+        owner.sensor("cloud", cloud())
+        owner.frame(self.EPOCH + 40_000_000, 1000.04, None, None)
+        owner.close()
+        self.assertEqual([], session.projected)
+        self.assertEqual([self.EPOCH + 40_000_000], calls)
+        observed = owner.summary()["observations"]
+        self.assertEqual(1, observed["timedFrames"])
+        self.assertEqual(1, observed["tfLookupsAvailable"])
+        self.assertEqual(1, observed["imuMessages"])
+        self.assertEqual(1, observed["cloudMessages"])
+        owner.sensor("cloud", cloud(100))
+        self.assertEqual(observed, owner.summary()["observations"])
+        observed["cloudMessages"] = 99
+        self.assertEqual(1, owner.summary()["observations"]["cloudMessages"])
+
+    def test_missing_or_invalid_lookup_never_fabricates_unseeded_pose(self):
+        for failure in (False, True):
+            session, owner = self.owner()
+            def lookup(stamp):
+                if failure:
+                    raise ValueError("synthetic invalid lookup")
+                return None
+            owner.projector = NS(lookup=lookup)
+            owner.sensor("imu", imu())
+            owner.sensor("cloud", cloud())
+            owner.frame(self.EPOCH + 40_000_000, 1000.04, None, None)
+            self.assertEqual([], session.projected)
+            observations = owner.summary()["observations"]
+            self.assertEqual(1, observations["lookupErrors" if failure else "tfLookupsUnavailable"])
 
     def test_owner_tf_input_failure_revokes_without_sending_controls(self):
         session, owner = self.owner()

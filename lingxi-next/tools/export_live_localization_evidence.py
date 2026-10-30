@@ -12,6 +12,7 @@ from localization_control import LocalizationBinding, strict_json
 from run_live_localization_arm64_trial import RESULT
 from run_localization_arm64_trial import FILES
 from verify_slam_capture import sha256
+from check_managed_live_localization import verify_base_input
 
 FLAGS = ("motionCommandsSent", "localizationReady", "navigationReady", "mapProfileAssociationVerified")
 SOURCES = (*source_hashes(), "robot-runtime/python/managed_localization.py",
@@ -30,8 +31,14 @@ def evidence(directory):
     frozen = collection["prepare"]["frozenInputs"]
     binding = LocalizationBinding(**integrity["localizationBinding"])
     sources = {name: sha256(ROOT / name) for name in SOURCES}
+    base = child.get("basePoseInput")
+    if base is not None:
+        verify_base_input(base)
+        if check.get("basePoseInputChecked") is not True or check.get("basePoseInput") != base:
+            raise ValueError("identical_verified_live_base_input_required")
     verify_completion(child, final, frozen=frozen, binding=binding,
-        sources=source_hashes(), config_hash=integrity["localizationConfigSha256"])
+        sources=source_hashes(), config_hash=integrity["localizationConfigSha256"],
+        base_scale=base["metresPerMapUnit"] if base is not None else None)
     api = dict(exitCode=0, forcedTermination=False, processAlive=False, groupAlive=False)
     native = dict(state="stopped", exitCode=0, forcedTermination=False,
                   cleanupComplete=True, processAlive=False, monitorAlive=False)
@@ -83,7 +90,7 @@ def evidence(directory):
     for name, digest in sources.items():
         if collection["uploadedFiles"][name]["sha256"] != digest:
             raise ValueError("identical_uploaded_and_executed_live_sources_required")
-    return {
+    report = {
         "schemaVersion": 1, "observedDate": "2026-10-30", "result": RESULT,
         "platform": "linux-aarch64-humble", "inputMode": "live", "robotContacted": True,
         **dict.fromkeys(FLAGS, False),
@@ -110,6 +117,16 @@ def evidence(directory):
             "short_bounded_trial_not_long_run_or_product_acceptance",
         ],
     }
+    if base is not None:
+        report.update(basePoseInputChecked=True, basePoseInput=base)
+        report["limitations"] = [value for value in report["limitations"] if value not in (
+            "copied_x64_saved_map_not_arm64_native_reload_or_current_site_association",
+            "raw_imu_coordinates_no_base_calibration_or_navigation_tf")]
+        report["limitations"].extend((
+            "saved_map_not_verified_as_current_site",
+            "exact_time_tf_input_only_no_seeded_live_base_pose_or_physical_calibration",
+            "unavailable_tf_refused_no_latest_or_identity_fallback"))
+    return report
 
 
 def main():

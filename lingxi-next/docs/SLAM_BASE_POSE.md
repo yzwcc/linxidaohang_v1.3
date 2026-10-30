@@ -76,6 +76,34 @@ includes `basePose`, a full 3D matrix, integer nanosecond timestamps encoded as
 strings and the declared scale. Both `physicalScaleValidated` and `navigationReady`
 remain fixed to false. This is not an approved navigation position.
 
+## Live ARM64 Input Verification
+
+The 2026-10-30 passive live trial enabled this option at the explicitly assumed
+scale of 1.0. Its [source-bound aggregate](slam-live-base-arm64-evidence.json)
+records 3,239 IMU messages, 163 clouds, two static transforms and 2,280 admitted
+dynamic transforms. Of 160 timed frames, 159 had exact-time chain coverage;
+one unavailable lookup was refused without a latest/identity fallback. Invalid
+scan times, invalid transforms, missing scan timing and lookup errors were zero.
+The counters survive shutdown while pending scan metadata and retained dynamic
+transforms are cleared. Unseeded frames exercise the timestamped lookup without
+inventing a saved-map or base pose.
+
+The managed HTTPS owner passed pause, stop and stale-generation refusal, with
+220 stopped-state queries showing no pose revival. Both processes exited zero
+without forced termination or process/thread residue. A discovered parent-side
+completion bug was fixed: the same optional scale must reach child and parent
+verification. Regression covers absent, metre and centimetre-scale options.
+The current Linux Python suite ran 1,029 tests: 1,019 passed and ten were
+explicitly skipped, including five passing retained-live-report checks. It used
+the verified clean Linux upstream configuration without changing the Windows
+checkout or relaxing integrity checks.
+
+This is live input/lifecycle evidence, not seeded base-pose accuracy. The trial
+submitted no initial pose or motion request. Current-site association, hardware
+time semantics, measured scale, gravity/map direction and navigation remain
+unaccepted. The native IMU quality and SciPy/NumPy compatibility warnings remain
+open. No APK or production installation was rebuilt or replaced.
+
 ## ARM64 TF2 Verification
 
 On 2026-10-30 the current source passed a bounded check on the robot's ARM64
@@ -155,9 +183,10 @@ current-site association, live tracking or navigation readiness. It does not
 extend the newer ARM64 map receipt into a physical-frame acceptance result.
 
 Original scan timing and same-generation projection are now integrated as the
-optional diagnostic path described above. The current Linux Python regression
-passes 1,018 cases with 14 explicit skips; the four additional target-report
-contract tests also pass. This is software regression coverage, not live sensor
-acceptance. Field dimension/direction references, hardware scan-time semantics,
+optional diagnostic path described above. The earlier Linux regression ran
+1,018 cases with 14 explicit skips; the four additional target-report contract
+tests also passed. Current live-input evidence is described separately above,
+not inferred from that software regression. Field dimension/direction references,
+hardware scan-time semantics,
 gravity alignment and current-map association are still required before using a
 base pose for controlled navigation. Product and APK remain 0.1.19.
