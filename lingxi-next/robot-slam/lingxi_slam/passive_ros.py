@@ -23,7 +23,8 @@ class Topics:
             raise ValueError("distinct_cloud_and_imu_topics_required")
 
 
-def run_passive(worker, topics, seconds, *, stop_event=None, admission=None, on_input_closed=None):
+def run_passive(worker, topics, seconds, *, stop_event=None, admission=None, on_input_closed=None,
+                setup=None, on_sensor=None):
     """Run isolated subscriptions; optional finalization follows clean ROS teardown.
 
     A mapping caller provides its own admission and completion callback. Failure
@@ -37,6 +38,8 @@ def run_passive(worker, topics, seconds, *, stop_event=None, admission=None, on_
             or type(seconds) not in (int, float) or not math.isfinite(seconds) or not 0 < seconds <= 300
             or worker.snapshot()["state"] != "new"
             or (stop_event is not None and not isinstance(stop_event, threading.Event))
+            or setup is not None and not callable(setup)
+            or on_sensor is not None and not callable(on_sensor)
             or (admission is None) != (on_input_closed is None)
             or admission is not None and (
                 not isinstance(admission, SensorAdmission) or admission.worker is not worker
@@ -52,7 +55,7 @@ def run_passive(worker, topics, seconds, *, stop_event=None, admission=None, on_
     from sensor_msgs.msg import Imu, PointCloud2
 
     context = Context()
-    node = executor = None
+    node = executor = extra_cleanup = None
     started = time.monotonic()
     reason, input_completed, finalization = "duration_reached", False, None
     receiver = worker if admission is None else admission
@@ -64,15 +67,25 @@ def run_passive(worker, topics, seconds, *, stop_event=None, admission=None, on_
         )
         executor = SingleThreadedExecutor(context=context)
         executor.add_node(node)
-        for message_type, topic, callback, depth in (
-            (PointCloud2, topics.cloud, receiver.offer_cloud, 8),
-            (Imu, topics.imu, receiver.offer_imu, 256),
+        def receive(kind, callback, message):
+            if on_sensor is not None:
+                on_sensor(kind, message)
+            return callback(message)
+
+        for message_type, topic, callback, depth, kind in (
+            (PointCloud2, topics.cloud, receiver.offer_cloud, 8, "cloud"),
+            (Imu, topics.imu, receiver.offer_imu, 256, "imu"),
         ):
             qos = QoSProfile(
                 history=HistoryPolicy.KEEP_LAST, depth=depth,
                 reliability=ReliabilityPolicy.BEST_EFFORT, durability=DurabilityPolicy.VOLATILE,
             )
-            node.create_subscription(message_type, topic, callback, qos)
+            node.create_subscription(message_type, topic,
+                                     lambda message, k=kind, cb=callback: receive(k, cb, message), qos)
+        if setup is not None:
+            extra_cleanup = setup(node)
+            if not callable(extra_cleanup):
+                raise ValueError("owned_ros_setup_cleanup_required")
         if stop_event is None or not stop_event.is_set():
             receiver.start()
         while time.monotonic() - started < seconds:
@@ -92,6 +105,11 @@ def run_passive(worker, topics, seconds, *, stop_event=None, admission=None, on_
     finally:
         # Attempt every cleanup even if an earlier ROS teardown fails.
         cleanup_failed = False
+        if extra_cleanup is not None:
+            try:
+                extra_cleanup()
+            except BaseException:
+                cleanup_failed = True
         if admission is not None:
             admission.close()
         cleanups = (() if admission is not None else (worker.stop,)) + (

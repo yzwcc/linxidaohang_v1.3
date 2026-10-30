@@ -143,6 +143,81 @@ class SessionTests(unittest.TestCase):
                                    atol=.005, rtol=0)
         return state
 
+    def base_projection(self, *, threaded=False):
+        from lingxi_slam.base_pose import BaseLidarTransform, BasePoseProjector, ScanTime
+        self.session = LocalizationSession(self.binding, self.session.factory, clock=lambda: self.now,
+                                           base_metres_per_map_unit=1.)
+        self.tracking(threaded=threaded)
+        tf = np.eye(4)
+        tf[0, 3] = .25
+        projector = BasePoseProjector(lambda stamp: BaseLidarTransform(stamp, tf), metres_per_map_unit=1.)
+        timing = ScanTime(1_700_000_000_400_000_000, 18_000_000,
+                          1_700_000_000_000_000_000, "header_is_scan_start")
+        return timing, projector
+
+    def test_base_projection_is_owned_current_frame_full_3d_and_clears_on_next_frame(self):
+        timing, projector = self.base_projection()
+        self.session.project_base(timing, projector, algorithm_stamp=1000.4)
+        state = self.session.state()
+        self.assertEqual("available", state["basePose"]["status"])
+        self.assertEqual(4, state["basePose"]["lastFrame"])
+        self.assertEqual(str(timing.effective_ns), state["basePose"]["effectiveScanNs"])
+        expected = np.array(state["mapFromSensor"])
+        expected[:3, 3] -= expected[:3, 0] * .25
+        np.testing.assert_allclose(state["basePose"]["mapFromBase"], expected, atol=1e-12)
+        state["basePose"]["mapFromBase"][0][3] = 999
+        self.assertNotEqual(999, self.session.state()["basePose"]["mapFromBase"][0][3])
+        self.assertIsNone(self.observe(5)["basePose"]["mapFromBase"])
+
+    def test_base_projection_missing_tf_does_not_cancel_lidar_tracking_or_enable_navigation(self):
+        from lingxi_slam.base_pose import BasePoseProjector
+        timing, _ = self.base_projection()
+        self.session.project_base(timing, BasePoseProjector(lambda _: None, metres_per_map_unit=1.),
+                                  algorithm_stamp=1000.4)
+        state = self.session.state()
+        self.assertEqual("tracking", state["state"])
+        self.assertEqual("unavailable", state["basePose"]["status"])
+        self.assertFalse(state["navigationReady"])
+        self.assertFalse(state["basePose"]["physicalScaleValidated"])
+
+    def test_base_projection_expiry_withdraws_both_pose_caches(self):
+        timing, projector = self.base_projection()
+        self.session.project_base(timing, projector, algorithm_stamp=1000.4)
+        self.now += 2
+        state = self.session.state()
+        self.assertIsNone(state["mapFromSensor"])
+        self.assertIsNone(state["basePose"]["mapFromBase"])
+        self.assertEqual("lost", state["state"])
+
+    def test_inflight_base_projection_cannot_publish_after_pause_or_tf_revocation(self):
+        from lingxi_slam.base_pose import BaseLidarTransform, BasePoseProjector
+        for action in ("pause", "tf_revoke"):
+            if self.harness is not None:
+                self.harness.close()
+                self.harness = None
+            self.entered.clear()
+            self.release.clear()
+            self.calls.clear()
+            timing, _ = self.base_projection(threaded=True)
+            def lookup(stamp):
+                self.entered.set()
+                if not self.release.wait(5):
+                    raise RuntimeError("synthetic projection wait")
+                return BaseLidarTransform(stamp, np.eye(4))
+            projector = BasePoseProjector(lookup, metres_per_map_unit=1.)
+            future = self.harness.call(lambda: self.session.project_base(timing, projector, algorithm_stamp=1000.4))
+            self.assertTrue(self.entered.wait(5))
+            if action == "pause":
+                self.command("pause")
+            else:
+                self.session.revoke_base("invalid_kinematic_tf")
+            self.assertIsNone(self.session.state()["basePose"]["mapFromBase"])
+            self.release.set()
+            future.result(10)
+            state = self.session.state()
+            self.assertIsNone(state["basePose"]["mapFromBase"])
+            self.assertEqual("paused" if action == "pause" else "tracking", state["state"])
+
     def test_actual_native_seed_is_applied_only_on_worker_and_confirms_three_frames(self):
         self.session.open_worker()
         self.observe(1)

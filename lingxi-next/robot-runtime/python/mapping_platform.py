@@ -44,11 +44,18 @@ def configuration(file):
         if mode == "recorded":
             paths += ("reference",)
         from glim_point_target_probe import digest
+        if mode == "live" and "basePose" in value:
+            fields.add("basePose")
         valid = (mode in ("recorded", "live") and set(value) == fields
                  and digest(value.get("pointManifestSha256")))
         if mode == "live":
             seconds = value.get("maxSeconds")
             valid = valid and type(seconds) in (int, float) and math.isfinite(seconds) and 5 <= seconds <= 300
+            if "basePose" in value:
+                options = value["basePose"]
+                scale = options.get("metresPerMapUnit") if type(options) is dict else None
+                valid = (valid and type(options) is dict and set(options) == {"metresPerMapUnit"}
+                         and type(scale) in (int, float) and math.isfinite(scale) and scale > 0)
     else:
         fields = {"inputMode", "work", "adapter", "mappingAdapter", "bundle", "reference", "hypothesis", "rate"}
         paths = ("work", "adapter", "mappingAdapter", "bundle", "reference")

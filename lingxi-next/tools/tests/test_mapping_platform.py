@@ -78,6 +78,18 @@ class PlatformConfiguration(unittest.TestCase):
         with self.assertRaises(ValueError):
             configuration(self.file)
 
+    def test_base_pose_requires_explicit_valid_scale_and_live_arm_input(self):
+        with patch("live_points.environment", return_value={}):
+            value = {**self.arm(), "basePose": {"metresPerMapUnit": 1.}}
+            self.assertEqual(value, self.read(value)[0])
+        for options in ({}, {"metresPerMapUnit": True}, {"metresPerMapUnit": 0},
+                        {"metresPerMapUnit": float("nan")}, {"metresPerMapUnit": "1"},
+                        {"metresPerMapUnit": 1., "navigationReady": True}, None):
+            with self.subTest(options=options), self.assertRaises(ValueError):
+                self.read({**self.arm(), "basePose": options})
+        with self.assertRaises(ValueError):
+            self.read({**self.arm("recorded"), "basePose": {"metresPerMapUnit": 1.}})
+
     def test_arm_library_paths_keep_sensor_and_mapper_bundles_separate(self):
         value = self.arm("recorded")
         value["mappingRoot"] = str(self.root / "mapper")

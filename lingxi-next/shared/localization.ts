@@ -27,6 +27,27 @@ export const localizationBindingSchema = z.object({
   profile_sha256: z.string().regex(/^[a-f0-9]{64}$/),
 }).strict();
 
+const sensorNs = z.string().regex(/^[1-9][0-9]{0,18}$/);
+export const basePoseStateSchema = z.object({
+  status: z.enum(["available", "unavailable"]),
+  reason: z.enum(["diagnostic_quality_only", "localization_not_tracking", "awaiting_scan_time",
+    "invalid_scan_time", "invalid_kinematic_tf", "input_closed", "timestamped_projection_unavailable"]),
+  mapFromBase: rigidMatrixSchema.nullable(),
+  lastFrame: counter,
+  scanHeaderNs: sensorNs.nullable(),
+  effectiveScanNs: sensorNs.nullable(),
+  metresPerMapUnit: z.number().finite().positive(),
+  coordinateUnits: z.literal("metres-at-declared-scale"),
+  coordinateFrame: z.literal("lingxi_saved_map"),
+  bodyFrame: z.literal("base_link"),
+  physicalScaleValidated: z.literal(false),
+  navigationReady: z.literal(false),
+}).strict().refine((value) => value.status === "available"
+  ? value.reason === "diagnostic_quality_only" && value.mapFromBase !== null && value.lastFrame > 0 &&
+    value.scanHeaderNs !== null && value.effectiveScanNs !== null
+  : value.mapFromBase === null && value.lastFrame === 0 && value.scanHeaderNs === null && value.effectiveScanNs === null,
+"机身诊断位姿状态不一致");
+
 export const localizationStateSchema = z.object({
   binding: localizationBindingSchema,
   generation: counter,
@@ -42,11 +63,14 @@ export const localizationStateSchema = z.object({
   mapFromSensor: rigidMatrixSchema.nullable(),
   coordinateUnits: z.literal("native-raw"),
   sourceFrame: z.literal("IMU"),
+  basePose: basePoseStateSchema.optional(),
   localizationReady: z.literal(false),
   navigationReady: z.literal(false),
 }).strict().refine((state) => {
   if (state.workerClosed && state.workerReady) return false;
   if (state.cleanupComplete && !state.workerClosed) return false;
+  if (state.basePose?.status === "available" &&
+    (state.state !== "tracking" || state.basePose.lastFrame !== state.lastFrame)) return false;
   if (state.state === "tracking") {
     return state.workerReady && !state.workerClosed && !state.requestPending &&
       state.consecutiveMatches >= 3 && state.mapFromSensor !== null;

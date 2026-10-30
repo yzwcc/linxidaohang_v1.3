@@ -251,5 +251,6 @@ class LocalizationControlServer(getattr(socketserver, "UnixStreamServer", socket
             self.endpoint.unlink()
 
 
-def make_session(binding, points):
-    return LocalizationSession(binding, lambda: SeededMapRegistration(points))
+def make_session(binding, points, *, base_metres_per_map_unit=None):
+    return LocalizationSession(binding, lambda: SeededMapRegistration(points),
+                               base_metres_per_map_unit=base_metres_per_map_unit)

@@ -55,11 +55,17 @@ class LocalizationSession:
     """
 
     def __init__(self, binding, registrar_factory, *, clock=time.monotonic,
-                 maximum_age_seconds=1.):
+                 maximum_age_seconds=1., base_metres_per_map_unit=None):
         if (not isinstance(binding, LocalizationBinding) or not callable(registrar_factory)
                 or not callable(clock) or type(maximum_age_seconds) not in (float, int)
                 or not math.isfinite(maximum_age_seconds) or not 0 < maximum_age_seconds <= 5):
             raise ValueError("bounded_localization_session_configuration_required")
+        if base_metres_per_map_unit is not None and (
+                type(base_metres_per_map_unit) not in (float, int)
+                or not math.isfinite(base_metres_per_map_unit) or base_metres_per_map_unit <= 0):
+            raise ValueError("explicit_positive_base_pose_unit_scale_required")
+        self.base_scale = base_metres_per_map_unit
+        self.base_record, self.base_revision, self.base_reason = None, 0, "localization_not_tracking"
         self.binding, self.factory, self.clock = binding, registrar_factory, clock
         self.maximum_age = maximum_age_seconds
         self.lock = threading.Lock()
@@ -72,6 +78,7 @@ class LocalizationSession:
         self.pose, self.matches, self.last_frame, self.reference = None, 0, 0, None
 
     def _revoke_locked(self, state, reason):
+        self._clear_base_locked("localization_not_tracking")
         self.generation += 1
         self.phase, self.reason = state, reason
         self.pose, self.matches, self.last_frame, self.freshness_at = None, 0, 0, None
@@ -110,7 +117,63 @@ class LocalizationSession:
             "mapFromSensor": deepcopy(self.pose),
             "coordinateUnits": "native-raw", "sourceFrame": "IMU",
             "localizationReady": False, "navigationReady": False,
+            **({"basePose": self._base_state_locked()} if self.base_scale is not None else {}),
         }
+
+    def _clear_base_locked(self, reason):
+        self.base_record, self.base_reason = None, reason
+        self.base_revision += 1
+
+    def _base_state_locked(self):
+        record = self.base_record
+        return {
+            "status": "available" if record is not None else "unavailable",
+            "reason": "diagnostic_quality_only" if record is not None else self.base_reason,
+            "mapFromBase": deepcopy(record[0]) if record is not None else None,
+            "lastFrame": record[1] if record is not None else 0,
+            "scanHeaderNs": str(record[2]) if record is not None else None,
+            "effectiveScanNs": str(record[3]) if record is not None else None,
+            "metresPerMapUnit": self.base_scale, "coordinateUnits": "metres-at-declared-scale",
+            "coordinateFrame": "lingxi_saved_map", "bodyFrame": "base_link",
+            "physicalScaleValidated": False, "navigationReady": False,
+        }
+
+    def revoke_base(self, reason):
+        if reason not in ("invalid_scan_time", "invalid_kinematic_tf", "input_closed",
+                          "timestamped_projection_unavailable", "awaiting_scan_time"):
+            raise ValueError("fixed_base_pose_rejection_reason_required")
+        with self.lock:
+            self._clear_base_locked(reason)
+
+    def project_base(self, timing, projector, *, algorithm_stamp):
+        """Original-time callback on the point owner; never perform TF work under the state lock."""
+        from .base_pose import BasePoseProjector
+        self._owner()
+        if (self.base_scale is None or not isinstance(projector, BasePoseProjector)
+                or projector.scale != self.base_scale):
+            raise ValueError("same_explicit_base_projection_scale_required")
+        with self.lock:
+            now = self._now_locked()
+            self._expire_locked(now)
+            reference = self.latest
+            if (self.phase != "tracking" or self.pose is None or reference is None
+                    or reference[0].native_frame_id != self.last_frame
+                    or reference[0].algorithm_stamp != algorithm_stamp):
+                self._clear_base_locked("localization_not_tracking")
+                return
+            generation, revision, frame = self.generation, self.base_revision, self.last_frame
+            pose = np.array(self.pose, dtype=np.float64)
+        try:
+            value = projector.project(pose, timing, algorithm_stamp=algorithm_stamp)
+            record = (value.tolist(), frame, timing.header_ns, timing.effective_ns)
+            reason = "diagnostic_quality_only"
+        except Exception:
+            record, reason = None, "timestamped_projection_unavailable"
+        with self.lock:
+            self._expire_locked(self._now_locked())
+            if (generation == self.generation and revision == self.base_revision
+                    and self.phase == "tracking" and self.last_frame == frame and self.pending is None):
+                self.base_record, self.base_reason = record, reason
 
     def state(self):
         """Read cached status only, including expiry if the worker is blocked."""
@@ -196,6 +259,9 @@ class LocalizationSession:
             now = self._now_locked()
             if generation != self.generation or self.pending is not None:
                 return
+            if self.last_frame != result.last_frame or result.map_from_sensor is None:
+                self._clear_base_locked("awaiting_scan_time" if result.map_from_sensor is not None
+                                        else "localization_not_tracking")
             self.phase, self.reason = result.state, result.reason
             self.matches, self.last_frame = result.consecutive_matches, result.last_frame
             self.pose = None if result.map_from_sensor is None else result.map_from_sensor.tolist()

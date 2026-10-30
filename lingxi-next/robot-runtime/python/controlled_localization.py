@@ -32,6 +32,9 @@ SOURCES = (
     "robot-slam/lingxi_slam/passive_ros.py",
     "robot-slam/lingxi_slam/worker.py",
     "robot-slam/lingxi_slam/map_provenance.py",
+    "robot-slam/lingxi_slam/base_pose.py",
+    "robot-slam/lingxi_slam/base_pose_input.py",
+    "robot-runtime/python/live_base_pose.py",
 )
 
 

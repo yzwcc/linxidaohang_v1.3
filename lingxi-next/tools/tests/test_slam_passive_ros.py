@@ -190,6 +190,22 @@ class PassiveHumble(unittest.TestCase):
         self.run_session()
         self.assertLess(self.calls.index("native_close"), self.calls.index("executor_shutdown"))
 
+    def test_extra_setup_uses_owned_node_and_cleanup_precedes_native_teardown(self):
+        def setup(node):
+            self.calls.append("extra_setup")
+            return lambda: self.calls.append("extra_cleanup")
+        run_passive(self.worker, self.topics, 1, stop_event=self.stop, setup=setup)
+        self.assertLess(self.calls.index("node_added"), self.calls.index("extra_setup"))
+        self.assertLess(self.calls.index("extra_cleanup"), self.calls.index("native_close"))
+
+    def test_optional_metadata_hook_runs_before_the_original_receiver(self):
+        values = []
+        with patch.object(self.worker, "offer_cloud", side_effect=lambda message: values.append("receiver")):
+            run_passive(self.worker, self.topics, 1, stop_event=self.stop,
+                        on_sensor=lambda kind, message: values.append(kind))
+        self.subscriptions[0][2](object())
+        self.assertEqual(["cloud", "receiver"], values)
+
     def mapping_session(self):
         admission = SensorAdmission(self.worker)
 

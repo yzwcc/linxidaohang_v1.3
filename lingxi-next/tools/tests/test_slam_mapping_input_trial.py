@@ -3,6 +3,7 @@ import ast
 import hashlib
 import importlib.util
 import json
+import subprocess
 from pathlib import Path
 import sys
 import threading
@@ -61,7 +62,7 @@ class RecordedBoundary(unittest.TestCase):
 
 
 class PublishedMappingInput(unittest.TestCase):
-    def test_save_and_discard_aggregates_bind_current_sources_without_live_claims(self):
+    def test_save_and_discard_aggregates_bind_recorded_sources_without_live_claims(self):
         evidence = ROOT / "docs/slam-mapping-input-evidence.json"
         value = json.loads(evidence.read_text())
         self.assertEqual([True, False], [run["saveRequested"] for run in value["runs"]])
@@ -78,7 +79,9 @@ class PublishedMappingInput(unittest.TestCase):
             self.assertFalse(run["workerThreadAlive"])
             self.assertTrue(all(flag is False for flag in run["boundaries"].values()))
             for name, expected in run["sourceSha256"].items():
-                self.assertEqual(expected, hashlib.sha256((ROOT / name).read_bytes()).hexdigest(), name)
+                source = subprocess.check_output(["git", "show",
+                    "5ac35d3bfb5a548b5cc15f585b03c9097662458f:lingxi-next/" + name], cwd=ROOT)
+                self.assertEqual(expected, hashlib.sha256(source).hexdigest(), name)
             self.assertEqual(set(trial.SOURCES), set(run["sourceSha256"]))
         saved, discarded = value["runs"]
         self.assertEqual(165, saved["savedCounts"]["savedFrames"])

@@ -93,6 +93,33 @@ class LiveCompletion(unittest.TestCase):
             with self.subTest(key=key), self.assertRaises(ValueError):
                 self.verify(final=final)
 
+    def test_optional_base_projection_requires_revoked_pose_and_empty_closed_inputs(self):
+        self.final["state"]["basePose"] = {
+            "status": "unavailable", "mapFromBase": None, "lastFrame": 0,
+            "scanHeaderNs": None, "effectiveScanNs": None, "metresPerMapUnit": 1.,
+            "coordinateFrame": "lingxi_saved_map", "bodyFrame": "base_link",
+            "physicalScaleValidated": False, "navigationReady": False,
+        }
+        self.report["basePoseInput"] = {
+            "closed": True, "pendingScanTimes": 0, "retainedDynamicTransforms": 0,
+            "metresPerMapUnit": 1., "physicalScaleValidated": False, "navigationReady": False,
+        }
+        def check():
+            verify_completion(self.report, self.final, frozen=self.frozen, binding=self.binding,
+                              sources=self.sources, config_hash=self.config_hash, base_scale=1.)
+        check()
+        with self.assertRaises(ValueError):
+            self.verify()
+        for container, key, value in ((self.final["state"]["basePose"], "mapFromBase", [[1]]),
+                                       (self.report["basePoseInput"], "closed", False),
+                                       (self.report["basePoseInput"], "pendingScanTimes", 1),
+                                       (self.report["basePoseInput"], "retainedDynamicTransforms", 1)):
+            before = container[key]
+            container[key] = value
+            with self.assertRaises(ValueError):
+                check()
+            container[key] = before
+
 
 if __name__ == "__main__":
     unittest.main()

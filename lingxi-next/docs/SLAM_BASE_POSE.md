@@ -46,12 +46,58 @@ coverage verifier for every dynamic edge. A matching tf2 response stamp alone
 does not prove a sufficiently small interpolation gap. A failed coverage check
 prevents the lookup. A missing TF produces no pose.
 
-The live owner must additionally bind timing, TF, profile and pose to the same
-session, enforce freshness and management generation, and retire all resources.
-These responsibilities are deliberately not replaced by this stateless helper.
-The adapter has synthetic contract tests, not a target tf2 execution result.
-It is not yet wired into the live localization owner or exposed as an approved
-navigation position. The current diagnostic localization state remains unchanged.
+## Optional Live Integration
+
+The existing live localization owner now supports an explicit diagnostic option:
+
+```json
+"basePose": { "metresPerMapUnit": 1.0 }
+```
+
+This belongs in the private live runtime configuration, not in a motion request.
+Recorded-input configurations reject this option. Leaving it absent preserves the
+previous state contract and starts no extra subscriptions. The scale is a declared
+assumption, not a measured calibration.
+
+`live_base_pose.py` reuses the existing passive ROS node and adds only `/tf` and
+`/tf_static` subscriptions. Its TF2 buffer retains five seconds. `base_pose_input.py`
+keeps bounded original cloud header/offset metadata and the first IMU timestamp;
+the frozen worker and native time formulas remain unchanged. Only the fixed X2
+chain is admitted. Each moving edge needs an exact sample or an interpolation
+bracket no wider than 50 ms. Parent changes, conflicting duplicates, malformed
+transforms and changed static edges invalidate coverage instead of substituting
+an identity or latest transform.
+
+The localization session projects only its current tracking frame and generation.
+TF work runs outside the management lock. Pause, stop, expiry, a new frame and TF
+revocation prevent a late result from republishing an old pose. Shutdown clears
+timing/coverage caches and revokes the result. The paired state contract optionally
+includes `basePose`, a full 3D matrix, integer nanosecond timestamps encoded as
+strings and the declared scale. Both `physicalScaleValidated` and `navigationReady`
+remain fixed to false. This is not an approved navigation position.
+
+## ARM64 TF2 Verification
+
+On 2026-10-30 the current source passed a bounded check on the robot's ARM64
+Python 3.10.12 and installed ROS Humble TF2. The public, source-bound
+[report](slam-base-tf2-arm64-evidence.json) contains synthetic transforms only;
+the check initialized no ROS context or node, read no sensors and sent no motion.
+It verifies exact integer-time lookup, midpoint interpolation, no extrapolation,
+both scan-time hypotheses, full 3D composition, translation-only scale conversion,
+read-only output, oversized-gap refusal and closed-coverage refusal. Maximum
+matrix-element error was `4.440892098500626e-16`.
+
+`tools/run_base_pose_tf2_target.py` uses an explicit ordinary-user target and a
+fresh private directory, verifies uploaded/downloaded SHA-256 hashes, applies a
+30-second limit and separates JSON output from warning logs. It does not install
+dependencies, modify vendor services or start the live localization owner. The
+private collection and full warnings stay outside version control.
+
+The existing target environment reported NumPy 1.26.1 with SciPy 1.8.0, whose
+declared NumPy requirement is below 1.25. The computation passed, but that warning
+is an unresolved dependency-compatibility limitation. No vendor or existing
+environment was changed to hide it. Synthetic TF2 success does not establish
+live base-pose acceptance, physical accuracy or navigation readiness.
 
 ## Recorded Verification
 
@@ -87,7 +133,7 @@ used dynamic interval is 23.9995 ms. Reconstructing the original LiDAR matrix
 from the projected base pose and the same-time transform has maximum element
 error about 1.55e-15. This is an algebraic consistency check, not physical error.
 
-The final regression scope covers 219 Linux Python cases, including 15 new
+The earlier recorded-projection regression scope covered 219 Linux Python cases, including 15 new
 projection/recorded-join cases and two portable evidence checks. Windows passes
 10 collector/evidence cases; the 15 scientific cases are explicitly skipped
 without those dependencies. No frontend
@@ -108,7 +154,10 @@ does not establish physical accuracy, gravity alignment, factory calibration,
 current-site association, live tracking or navigation readiness. It does not
 extend the newer ARM64 map receipt into a physical-frame acceptance result.
 
-Next integration is to carry original scan timing alongside live input and
-consume this projection within the same localization owner/generation. Field
-dimension/direction references and current-map association are still required
-before using a base pose for controlled navigation.
+Original scan timing and same-generation projection are now integrated as the
+optional diagnostic path described above. The current Linux Python regression
+passes 1,018 cases with 14 explicit skips; the four additional target-report
+contract tests also pass. This is software regression coverage, not live sensor
+acceptance. Field dimension/direction references, hardware scan-time semantics,
+gravity alignment and current-map association are still required before using a
+base pose for controlled navigation. Product and APK remain 0.1.19.

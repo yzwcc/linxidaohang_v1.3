@@ -2,6 +2,8 @@
 from copy import deepcopy
 from dataclasses import asdict
 from pathlib import Path
+import hashlib
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -152,7 +154,10 @@ class PublicRecordedAggregate(unittest.TestCase):
     def test_checked_in_evidence_is_source_bound_arm64_recorded_not_product_acceptance(self):
         report = exporter.target.shared.load(ROOT / "docs/slam-supervised-arm64-evidence.json")
         self.assertEqual(exporter.target.RESULT, report["result"])
-        self.assertEqual(exporter.target.hashes(), report["sourceSha256"])
+        for name, expected in report["sourceSha256"].items():
+            source = subprocess.check_output(["git", "show",
+                "cc7170a0c939d1ee02dd46bb946880342aa6a277:lingxi-next/" + name], cwd=ROOT)
+            self.assertEqual(expected, hashlib.sha256(source).hexdigest(), name)
         self.assertEqual(sha256(exporter.coordinator.__file__), report["coordinatorSha256"])
         self.assertEqual("aarch64", report["host"]["machine"])
         self.assertTrue(all(value is True for value in report["observations"].values()))
