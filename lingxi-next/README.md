@@ -186,9 +186,12 @@ See [the complete recorded localization boundary](docs/SLAM_RECORDED_LOCALIZATIO
 Localization now also has a reusable worker-owned session core with immutable
 map/profile/input binding, explicit reference-frame seeds, immediate revocation
 and generation-checked management requests. Actual GICP concurrency tests cover
-pause, stop, reseed and expiry during an in-flight call. This core has not yet
-been wired into the management API, a runtime launcher or an ARM64 package.
+pause, stop, reseed and expiry during an in-flight call.
 See [the localization session contract](docs/SLAM_LOCALIZATION_SESSION.md).
+A separate x64 recorded-input launcher now composes verified saved-map loading,
+the native point worker and private same-user Unix controls under process
+supervision. It has no automatic seed, HTTP exposure or ARM64/live-input support.
+See [the localization runtime boundary](docs/SLAM_LOCALIZATION_RUNTIME.md).
 An independent full-recording range audit records returns beyond 5 raw-coordinate
 units. The roughly 5 m travel estimate is not calibration truth; travel,
 scan coverage and map accuracy are different quantities.

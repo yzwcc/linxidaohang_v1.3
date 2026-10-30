@@ -33,7 +33,9 @@
 
 ## 内部请求约定
 
-`dispatch(session, value)` 接受严格 JSON 形状，尚未开放 HTTP 或 Unix socket。
+`dispatch(session, value)` 接受严格 JSON 形状，核心本身不开放网络接口。
+现有离线运行接入通过私有 Unix socket 使用它，详见 `SLAM_LOCALIZATION_RUNTIME.md`；
+尚未开放 HTTP。
 状态查询为 `{"action":"state"}`；返回绑定身份、管理代次、状态、
 新鲜参考帧、确认次数及诊断位姿的独立副本。
 所有状态始终包含 `localizationReady=false`、`navigationReady=false`。
@@ -84,11 +86,13 @@ python -B -m unittest discover -s tools/tests -p test_slam_localization_session.
 完整命令与范围见 `VALIDATION.md`。
 没有修改测试门槛、放宽定位质量要求或将首轮失败计为通过。
 
-这是一段可复用的定位会话核心，尚未接入管理 API、网页初值设置、
-实际持续运行的定位子进程或 ARM64 交付包。此前录制序列结果仍是
+这是一段可复用的定位会话核心；后续已加入受监督的离线录制定位子进程和私有
+Unix 控制，见 `SLAM_LOCALIZATION_RUNTIME.md`。尚未接入管理 API、网页初值设置
+或 ARM64 交付包。此前录制序列结果仍是
 `SLAM_RECORDED_LOCALIZATION.md` 记载的独立历史阶段，本轮没有重跑或
 宣称其覆盖新模块。产品与 APK 保持 0.1.19。
 
-下一阶段将该核心接入已有进程监督和地图目录校验，再接网页初值与状态显示。
+进程监督和地图目录校验的后续结果见运行链路文档，下一阶段接管理 API、
+网页初值与状态显示。
 实机阶段仍需核对时间、外参和传感器到底座坐标，验证独立位置对照、
 重复场景拒绝及 ARM64 资源；本次并发测试不替代这些验收。

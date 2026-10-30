@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 1,
+  "observedDate": "2026-10-30",
+  "result": "recorded_localization_control_checked",
+  "platform": "linux-x86_64",
+  "inputMode": "recorded",
+  "robotContacted": false,
+  "motionCommandsSent": false,
+  "localizationReady": false,
+  "navigationReady": false,
+  "mapProfileAssociationVerified": false,
+  "seedSource": "explicit_preserved_recorded_pose_not_independent_truth",
+  "seedRequests": 2,
+  "firstTrackingFrameObserved": 6,
+  "secondTrackingFrameObserved": 11,
+  "pauseConfirmed": true,
+  "staleGenerationRejected": true,
+  "stopConfirmed": true,
+  "stoppedQueries": 2887,
+  "completedMessages": 4144,
+  "processedScans": 196,
+  "estimatedPoses": 165,
+  "nativeCalls": {
+    "create": 1,
+    "imu": 3930,
+    "frame": 196,
+    "close": 1
+  },
+  "singleNativeWorker": true,
+  "process": {
+    "state": "stopped",
+    "exitCode": 0,
+    "forcedTermination": false,
+    "cleanupComplete": true,
+    "processAlive": false,
+    "monitorAlive": false
+  },
+  "sourceSha256": {
+    "robot-runtime/python/controlled_localization.py": "e67b7d32d980759ad09aff703cf96ebfc0ddffb6c59806267c075e1a22cf4382",
+    "robot-runtime/python/localization_control.py": "26743f6e37c206a73f1c092eed881f8d277b3dee8cd5e78bf7a45314a6f15316",
+    "robot-runtime/python/mapping_platform.py": "e40e662a005ccddf7f2e96dea8001a7511d6445f9148d6c3e79b515c1f9764e4",
+    "robot-slam/lingxi_slam/localization_session.py": "4fa1e856b9d5796c71d569fb35bbd12f914b36686d3c8a36c1f22628ef289fa0",
+    "robot-slam/lingxi_slam/localization_tracking.py": "c4b99640f0c9380bcc44f0daa0b1f2c37b760ba2559cf5f636483ec253444611",
+    "robot-slam/lingxi_slam/seeded_localization.py": "563bebbe0710ba07b96e4721d12b033443e0a317834b117c0b2697fe003f8a8f"
+  },
+  "checkSourceSha256": "ed86dd68b019d8ec68ff0c1160cc1c851f83eaca56346dc8ed8254f9e147a120",
+  "privateCheckReportSha256": "a0e3634f53222b8e16bca90c6e8818185f69d2d186562bae449fba03946072d5",
+  "inputJournalSha256": "492a5b33f04edfc85b5e5c18fbf5e9e0e5005b68480c6e3cfd191927d7d98bf8",
+  "receiptSha256": "f6bf5c1494f3782a3659c5767e29d7c32202ab228b5baefedbe91cd6b6f5e3b2",
+  "profileSha256": "201194cf0d07fedf0a3a22b6cc17081575505469d8cbd72f14f626cf3d95e633",
+  "seedSampleSha256": "1c404fe4420d774bc8eb2e0f69a443c73c244bb92a348a44a4b1c09d293c91a7",
+  "privateReportsSha256": {
+    "localization-runtime-report.json": "522e33523303f4fe79b5a8052a3d73e983b561cedb6c3e55cb2e78ed66c75e21",
+    "child-report.json": "7638c3e82b1b81b2c57b3e97f92b981ed96b1f2ec4230cc76aec3907b37f8243",
+    "localization-final.json": "929175d2af27704d1df98b62a6d3a3156ef1b513f7cae88f2f1d3725e4cd290b"
+  },
+  "limitations": [
+    "selected_aggregate_from_private_report_not_independent_accuracy_audit",
+    "physical_motion_not_independently_confirmed",
+    "map_may_reuse_input_recording",
+    "no_base_frame_calibration_or_global_relocalization",
+    "no_http_ui_arm64_live_input_or_navigation_acceptance"
+  ]
+}
