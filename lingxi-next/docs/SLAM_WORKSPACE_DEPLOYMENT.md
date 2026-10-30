@@ -23,6 +23,9 @@ existing port-3000 console. It is not a final product release or APK update.
 - Existing isolated GLIM/native libraries, point adapter and verified sensor
   configuration remain external requirements. The target must be ordinary-user
   Linux AArch64 with the matching Humble Python 3.10 environment.
+- A separately verified [isolated Python runtime](SLAM_PYTHON_RUNTIME.md) is
+  available for future live commissioning. Its pinned wheels are external,
+  not retroactively added to r7; the old recorded-input version guard remains.
 - The launcher verifies the entire archive inventory and refuses developer
   source, alternate web assets, port 3000 and environment data-directory overrides.
   `--check-only` validates inputs without starting workers or creating run output.

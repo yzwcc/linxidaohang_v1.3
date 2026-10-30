@@ -31,6 +31,7 @@ METADATA = (
     "docs/slam-supervised-arm64-evidence.json", "docs/slam-point-arm64-target-evidence.json",
     "docs/slam-point-consumer-preparation-evidence.json", "docs/slam-native-point-pipe-evidence.json",
     "docs/slam-stream-input-evidence.json",
+    "robot-slam/runtime-arm64-cp310.lock.json",
 )
 
 @dataclass(frozen=True)

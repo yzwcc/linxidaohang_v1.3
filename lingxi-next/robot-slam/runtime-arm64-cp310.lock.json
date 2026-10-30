@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "platform": "linux-aarch64-cp310",
+  "packages": [
+    {
+      "name": "numpy",
+      "version": "1.26.4",
+      "filename": "numpy-1.26.4-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl",
+      "bytes": 14219016,
+      "sha256": "d209d8969599b27ad20994c8e41936ee0964e6da07478d6c35016bc386b66ad4",
+      "url": "https://files.pythonhosted.org/packages/fc/a5/4beee6488160798683eed5bdb7eead455892c3b4e1f78d79d8d3f3b084ac/numpy-1.26.4-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl"
+    },
+    {
+      "name": "scipy",
+      "version": "1.11.4",
+      "filename": "scipy-1.11.4-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl",
+      "bytes": 32922489,
+      "sha256": "b9999c008ccf00e8fbcce1236f85ade5c569d13144f77a1946bef8863e8f6eb4",
+      "url": "https://files.pythonhosted.org/packages/13/e5/8012be7857db6cbbbdbeea8a154dbacdfae845e95e1e19c028e82236d4a0/scipy-1.11.4-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl"
+    },
+    {
+      "name": "small-gicp",
+      "version": "1.0.1",
+      "filename": "small_gicp-1.0.1-cp310-cp310-manylinux_2_26_aarch64.manylinux_2_28_aarch64.whl",
+      "bytes": 350312,
+      "sha256": "0a68868802b1a37dd945beb9b941678a294ab2a775e3d4887bb6d010c11ca544",
+      "url": "https://files.pythonhosted.org/packages/d1/8c/0f37327b616212ba82e064cc3f89da17de4b2b3511d7fbdee421960e7f08/small_gicp-1.0.1-cp310-cp310-manylinux_2_26_aarch64.manylinux_2_28_aarch64.whl"
+    },
+    {
+      "name": "PyYAML",
+      "version": "6.0.2",
+      "filename": "PyYAML-6.0.2-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl",
+      "bytes": 718463,
+      "sha256": "8824b5a04a04a047e72eea5cec3bc266db09e35de6bdfe34c9436ac5ee27d237",
+      "url": "https://files.pythonhosted.org/packages/49/ee/14c54df452143b9ee9f0f29074d7ca5516a36edb0b4cc40c3f280131656f/PyYAML-6.0.2-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl"
+    },
+    {
+      "name": "json5",
+      "version": "0.12.1",
+      "filename": "json5-0.12.1-py3-none-any.whl",
+      "bytes": 36119,
+      "sha256": "d9c9b3bc34a5f54d43c35e11ef7cb87d8bdd098c6ace87117a7b7e83e705c1d5",
+      "url": "https://files.pythonhosted.org/packages/85/e2/05328bd2621be49a6fed9e3030b1e51a2d04537d3f816d211b9cc53c5262/json5-0.12.1-py3-none-any.whl"
+    }
+  ]
+}

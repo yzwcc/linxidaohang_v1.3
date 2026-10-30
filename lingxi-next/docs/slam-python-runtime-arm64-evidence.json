@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 1,
+  "observedDate": "2026-10-31",
+  "result": "isolated_arm64_numerical_ros_compatibility_passed",
+  "inputClassification": "synthetic_geometry_and_transforms_no_sensors",
+  "robotContacted": true,
+  "machine": "aarch64",
+  "python": "3.10.12",
+  "lockSha256": "71d74391a6edc9e6e87a4e79ba7f91a60c82daac1b57506fc3041bd9a6915cd9",
+  "wheelBytes": 48246399,
+  "versions": {
+    "numpy": "1.26.4",
+    "scipy": "1.11.4",
+    "small-gicp": "1.0.1",
+    "PyYAML": "6.0.2",
+    "json5": "0.12.1"
+  },
+  "modulesIsolated": true,
+  "systemSitePackages": false,
+  "numericalImportWarnings": 0,
+  "installExitCode": 0,
+  "checkExitCode": 0,
+  "connectionClosed": true,
+  "syntheticGicpMaximumMatrixError": 0.00014049160599949317,
+  "syntheticTfMaximumMatrixError": 5.551115123125783e-16,
+  "checks": {
+    "knownSeedGicp": true,
+    "wrongSeedRejected": true,
+    "scipyTreeRotation": true,
+    "exactTimeHumbleTf": true
+  },
+  "sourceSha256": {
+    "tools/check_base_pose_tf2.py": "fedfb912f16a98a298b7e79beb1f84f41eb47f66296e0e24f6f6b61db0d000dc",
+    "robot-slam/lingxi_slam/__init__.py": "9a59075191196952798a68b31564f2fc148727cbcfa59ae715657865894c4226",
+    "robot-slam/lingxi_slam/base_pose.py": "2361f3c64c5d4e47473a610f3c1f0c8677421da8ec72f0488217b6d3b994f51d",
+    "robot-slam/lingxi_slam/base_pose_input.py": "75e48cafe1a870b4da67ba4869e5f1ea6894dc7f7f73856ca7339b93110de1df",
+    "robot-slam/lingxi_slam/messages.py": "bb52d293b2d839ecb80bc51d0b5dcff17b533911b17c9ab462d86f255c1dc336",
+    "robot-slam/lingxi_slam/seeded_localization.py": "563bebbe0710ba07b96e4721d12b033443e0a317834b117c0b2697fe003f8a8f",
+    "tools/arm64_python_runtime.py": "9c38ce91496aeba951f90f1d545e55463953e6bffdd18536c888e25afa93044f",
+    "tools/check_arm64_python_runtime.py": "6a0f686f290846fba4a1175ce6879e977030424ffc566fb647561035db6c1ec7",
+    "robot-slam/runtime-arm64-cp310.lock.json": "71d74391a6edc9e6e87a4e79ba7f91a60c82daac1b57506fc3041bd9a6915cd9"
+  },
+  "privateReports": {
+    "reportSha256": "83ee5e2cc32ff78b8c119f2c4282df5cf197a83c1889c97b2b8e909fae48f286"
+  },
+  "boundaries": {
+    "sensorsSubscribed": false,
+    "rosNodeCreated": false,
+    "motionCommandsSent": false,
+    "vendorPackagesChanged": false,
+    "existingServiceSwitched": false,
+    "nativeGlimWithNewPythonValidated": false,
+    "recordedInputWithNewPythonValidated": false,
+    "physicalCalibrationAccepted": false,
+    "navigationReady": false,
+    "productAccepted": false
+  },
+  "limitations": [
+    "synthetic_numerical_and_humble_tf_only_not_live_mapping",
+    "historical_recorded_input_requires_numpy_1_26_1_guard_preserved",
+    "no_vendor_system_site_packages_or_services_modified",
+    "not_a_new_shared_workspace_archive_or_android_delivery"
+  ]
+}

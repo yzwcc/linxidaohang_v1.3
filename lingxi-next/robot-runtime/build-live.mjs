@@ -10,7 +10,8 @@ export const metadataFiles = ["package.json", "package-lock.json", "vite.config.
   "tsconfig.json", "tsconfig.api.json", "tsconfig.runtime.json", "robot-runtime/build-live.mjs",
   "docs/slam-humble-live-evidence.json", "docs/slam-supervised-arm64-evidence.json",
   "docs/slam-point-arm64-target-evidence.json", "docs/slam-point-consumer-preparation-evidence.json",
-  "docs/slam-native-point-pipe-evidence.json", "docs/slam-stream-input-evidence.json"];
+  "docs/slam-native-point-pipe-evidence.json", "docs/slam-stream-input-evidence.json",
+  "robot-slam/runtime-arm64-cp310.lock.json"];
 
 export const digest = (bytes) => createHash("sha256").update(bytes).digest("hex");
 
