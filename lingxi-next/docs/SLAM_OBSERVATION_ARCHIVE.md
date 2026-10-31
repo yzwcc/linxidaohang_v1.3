@@ -77,7 +77,9 @@ metric/ground frame. It does not establish ground support, drop-off clearance,
 footprint inflation, moving localization, local avoidance or stopping semantics.
 The current OctoMap `ObservationBatch` remains a separate metric contract; these
 archives cannot be relabeled as metres merely by supplying a digest. ARM64
-execution, live package wiring and calibrated real-map occupancy integration
+synthetic callback execution is now verified separately; see
+[SLAM_OBSERVATION_ARM64.md](SLAM_OBSERVATION_ARM64.md). Full ARM64 recorded/live
+map save, live package wiring and calibrated real-map occupancy integration
 remain required before a new field scan or navigation acceptance.
 
 ## Verified Offline Milestone
