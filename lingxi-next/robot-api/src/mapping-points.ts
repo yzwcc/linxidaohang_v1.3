@@ -5,8 +5,10 @@ import type { Readable } from "node:stream";
 import type { LidarEvent } from "../../shared/contracts";
 import type { MappingBackend } from "./mapping-backend";
 import { SlamPointPipeSource, type PointInputMode } from "./slam-points";
+import { readCorrectedMapPreview, type CorrectedMapPreview } from "./corrected-map-preview";
 
-type Connection = { session: string; mode: PointInputMode; name: string; pipe?: Readable; source?: SlamPointPipeSource };
+type Connection = { session: string; mode: PointInputMode; name: string; pipe?: Readable; source?: SlamPointPipeSource;
+  corrected?: CorrectedMapPreview };
 type Connector = (endpoint: string) => Promise<Readable>;
 
 async function privateConnection(endpoint: string): Promise<Readable> {
@@ -45,6 +47,7 @@ export class MappingPointSource {
     private readonly directory: string,
     private readonly connect: Connector = privateConnection,
     private readonly clock?: () => number,
+    private readonly readMap = readCorrectedMapPreview,
   ) {
     if (!path.isAbsolute(directory)) throw new Error("absolute_mapping_point_directory_required");
   }
@@ -95,7 +98,19 @@ export class MappingPointSource {
         this.current = { session: state.session, mode: state.inputMode, name: state.pointStream.socket };
       }
       const owned = this.current!;
-      if (owned.source) { this.visible = true; return; } // EOF stays closed for this session.
+      if (owned.source) {
+        const corrected = await this.readMap(this.directory, owned.session);
+        if (this.closed || this.current !== owned) return;
+        if (corrected) {
+          if (corrected.inputMode !== owned.mode || corrected.session !== owned.session ||
+              owned.corrected && corrected.revision < owned.corrected.revision) {
+            throw new Error("same_mapping_revision_and_provenance_required");
+          }
+          owned.corrected = corrected;
+        }
+        this.visible = true;
+        return;
+      } // EOF stays closed for this session.
       this.visible = false;
       const pipe = await this.connect(path.join(this.directory, owned.name));
       if (this.closed || this.current !== owned) { pipe.destroy(); return; }
@@ -123,7 +138,15 @@ export class MappingPointSource {
 
   getPointEvent(): LidarEvent {
     if (this.closed || !this.visible || !this.current?.source) throw new Error("current_mapping_points_unavailable");
-    return this.current.source.getPointEvent();
+    const scan = this.current.source.getPointEvent(); // Fresh sensor input is required even for unchanged map revisions.
+    const corrected = this.current.corrected;
+    if (!corrected || scan.type !== "slam-preview") return scan;
+    return { type: "slam-map", inputMode: this.current.mode, coordinateUnits: "native-raw",
+      revision: corrected.revision, submaps: corrected.submaps, totalPoints: corrected.totalPoints,
+      updatedAtMs: corrected.updatedAtMs,
+      frame: { ...scan.frame, sequence: corrected.revision, frameId: "lingxi_glim_map",
+        stampMs: corrected.updatedAtMs, points: corrected.points,
+        detail: "Revisioned globally corrected submaps; display sample only, not a robot-base pose." } };
   }
 
   async close() {

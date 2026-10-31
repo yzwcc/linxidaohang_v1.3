@@ -46,7 +46,7 @@ export function lidarMeasureGesture(view: LidarViewport, start: CanvasPoint, end
 
 export function appendScan(history: ScanHistory, frame: LidarFrame, accumulate: boolean): ScanHistory {
   const key = `${frame.epoch}:${frame.frameId}:${frame.fixedFrame}`;
-  if (!accumulate || !frame.fixedFrame) return { key, frames: [frame] };
+  if (!accumulate || !frame.fixedFrame || frame.frameId === "lingxi_glim_map") return { key, frames: [frame] };
   if (history.key !== key) return { key, frames: [frame] };
   const previous = history.frames.at(-1);
   // A delayed/out-of-order packet cannot restore an older robot pose or trace.

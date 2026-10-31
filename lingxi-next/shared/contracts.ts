@@ -43,6 +43,8 @@ export type LidarFrame = {
 export type LidarEvent =
   | { type: "lidar"; frame: LidarFrame }
   | { type: "slam-preview"; inputMode: "live" | "recorded" | "synthetic"; coordinateUnits: "native-raw"; frame: LidarFrame }
+  | { type: "slam-map"; inputMode: "live" | "recorded" | "synthetic"; coordinateUnits: "native-raw";
+      revision: number; submaps: number; totalPoints: number; updatedAtMs: number; frame: LidarFrame }
   | { type: "lidar-unavailable"; message: string };
 
 export type RobotMap = {
@@ -68,6 +70,7 @@ export type SavedSlamMap = {
   navigationReady: false;
   geometricAccuracyValidated: false;
   sensorProvenance?: SensorProvenance;
+  mappingEngine?: "glim-full-async-v1";
 };
 
 export type SensorProvenance = {
@@ -140,6 +143,12 @@ export type RobotState = {
   mappingCaptureLimitSeconds?: number;
   mappingSession?: string;
   mappingProgress?: { completedMessages: number; processedScans: number; estimatedPoses: number };
+  mappingOptimization?: {
+    engine: "glim-full-async-v1";
+    acceptedFrames: number; completedFrames: number; pendingFrames: number; frameCapacity: number;
+    pendingImu: number; imuCapacity: number; maximumWaitMs: number; maximumTaskMs: number;
+    observationAgeMs: number;
+  };
   mappingFailure?: MappingFailure;
   mappingCleanupComplete?: boolean;
   mappingControlReady?: boolean;

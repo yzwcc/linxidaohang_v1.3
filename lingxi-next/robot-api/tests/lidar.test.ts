@@ -30,6 +30,11 @@ describe("live lidar transport and rendering data", () => {
     expect(appendScan(first, frame(3, { stampMs: 10_000 }), true)).toBe(first);
     expect(appendScan(first, frame(3, { stampMs: 40_000 }), true).frames).toHaveLength(1);
   });
+  it("replaces globally corrected map revisions instead of stacking old geometry", () => {
+    const first = appendScan({ key: "", frames: [] }, frame(1, { frameId: "lingxi_glim_map" }), true);
+    const corrected = frame(2, { frameId: "lingxi_glim_map", points: [8, 9, 0] });
+    expect(appendScan(first, corrected, true).frames).toEqual([corrected]);
+  });
   it("bounds retained point count and computes metres from actual coordinates", () => {
     let history = { key: "", frames: [] } as ReturnType<typeof appendScan>;
     for (let index = 0; index < 100; index += 1) history = appendScan(history, frame(index, { points: Array(24_000).fill(1) }), true);

@@ -39,8 +39,8 @@ def load_map(directory, map_id, receipt_sha256, profile, profile_sha256, *, sess
              input_mode, config=None, sensor_provenance=None):
     """Load owned point bytes from an integrity-checked map, never a client path.
 
-    Version 2 binds the current profile and configuration bytes to mapping.
-    Version 1 remains diagnostic-only; neither version proves calibration.
+    Versions 2/3 bind current sensor provenance; v3 selects full optimized maps.
+    Version 1 remains diagnostic-only; no version proves physical calibration.
     """
     config = RegistrationConfig() if config is None else config
     if not isinstance(config, RegistrationConfig):
@@ -62,7 +62,7 @@ def load_map(directory, map_id, receipt_sha256, profile, profile_sha256, *, sess
     if (type(counts) is not dict or type(inventory) is not dict
             or any(type(counts.get(key)) is not int or counts[key] < 1
                    for key in ("points", "savedFrames", "finalizedFrames", "submaps"))
-            or type(receipt.get("schemaVersion")) is not int or receipt["schemaVersion"] not in (1, 2)
+            or type(receipt.get("schemaVersion")) is not int or receipt["schemaVersion"] not in (1, 2, 3)
             or receipt.get("inputMode") not in ("recorded", "live")
             or input_mode not in ("recorded", "live")
             or map_id != "slam-" + str(receipt.get("session"))
@@ -75,7 +75,10 @@ def load_map(directory, map_id, receipt_sha256, profile, profile_sha256, *, sess
             or not config.minimum_points <= counts["points"] <= config.maximum_map_points
             or direct(points_file).st_size != counts["points"] * 24):
         raise ValueError("complete_saved_localization_map_required")
-    if receipt["schemaVersion"] == 2:
+    if (receipt["schemaVersion"] == 3 and receipt.get("mappingEngine") != "glim-full-async-v1"
+            or receipt["schemaVersion"] != 3 and "mappingEngine" in receipt):
+        raise ValueError("explicit_versioned_localization_mapping_engine_required")
+    if receipt["schemaVersion"] in (2, 3):
         recorded = checked_provenance(receipt.get("sensorProvenance"))
         expected = checked_provenance(sensor_provenance)
         if recorded != expected or recorded["profileSha256"] != profile_sha256:
@@ -105,7 +108,11 @@ def load_map(directory, map_id, receipt_sha256, profile, profile_sha256, *, sess
                         raise ValueError("bounded_saved_localization_map_required")
                 else:
                     raise ValueError("direct_saved_localization_map_required")
-    if inventory_map(map_root) != inventory:
+    inspect_map = inventory_map
+    if receipt["schemaVersion"] == 3:
+        from refine_saved_map import inventory as full_inventory
+        inspect_map = full_inventory
+    if inspect_map(map_root) != inventory:
         raise ValueError("unchanged_saved_localization_map_required")
     point_bytes = points_file.read_bytes()
     binding = LocalizationBinding(
@@ -116,7 +123,7 @@ def load_map(directory, map_id, receipt_sha256, profile, profile_sha256, *, sess
     if not np.isfinite(points).all():
         raise ValueError("finite_saved_localization_points_required")
     if (receipt_file.read_bytes() != receipt_bytes or profile.read_bytes() != profile_bytes
-            or inventory_map(map_root) != inventory):
+            or inspect_map(map_root) != inventory):
         raise ValueError("localization_inputs_changed_during_load")
     points.flags.writeable = False
     return binding, points

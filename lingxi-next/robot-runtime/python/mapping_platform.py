@@ -36,6 +36,16 @@ def configuration(file):
         raise ValueError("explicit_mapping_configuration_required")
     arm64 = value.get("platform") == "arm64-humble"
     mode = value.get("inputMode")
+    full_fields = {"fullMapping"} if "fullMapping" in value else set()
+    if full_fields:
+        from async_mapping_bundle import digest
+        selection = value["fullMapping"]
+        if (type(selection) is not dict or set(selection) != {"root", "manifestSha256"}
+                or not digest(selection.get("manifestSha256")) or type(selection.get("root")) is not str):
+            raise ValueError("explicit_full_mapping_bundle_selection_required")
+        entry = Path(selection["root"])
+        if not entry.is_absolute() or entry.resolve(strict=True) != entry or not entry.is_dir():
+            raise ValueError("direct_full_mapping_bundle_selection_required")
     if arm64:
         fields = {"platform", "inputMode", "root", "coreRoot", "mappingRoot",
                   "pointAdapter", "pointManifestSha256", "hypothesis"}
@@ -46,7 +56,7 @@ def configuration(file):
         from glim_point_target_probe import digest
         if mode == "live" and "basePose" in value:
             fields.add("basePose")
-        valid = (mode in ("recorded", "live") and set(value) == fields
+        valid = (mode in ("recorded", "live") and set(value) == fields | full_fields
                  and digest(value.get("pointManifestSha256")))
         if mode == "live":
             seconds = value.get("maxSeconds")
@@ -61,7 +71,7 @@ def configuration(file):
         paths = ("work", "adapter", "mappingAdapter", "bundle", "reference")
         if "pointAdapter" in value:
             paths += ("pointAdapter",)
-        valid = mode == "recorded" and set(value) in (fields, fields | {"pointAdapter"})
+        valid = mode == "recorded" and set(value) in (fields | full_fields, fields | full_fields | {"pointAdapter"})
     if (not valid or value.get("hypothesis") not in HYPOTHESES
             or mode == "recorded" and (
                 type(value.get("rate")) not in (int, float) or value["rate"] not in (.5, 1.))):
@@ -90,6 +100,7 @@ class MappingPlatform:
         self.arm64 = value.get("platform") == "arm64-humble"
         self.mode, self.hypothesis = value["inputMode"], value["hypothesis"]
         self.points_enabled = "pointAdapter" in value
+        self.full_mapping = "fullMapping" in value
         if self.arm64:
             self.args = argparse.Namespace(
                 root=Path(value["root"]), core_root=Path(value["coreRoot"]),
@@ -118,6 +129,13 @@ class MappingPlatform:
             self.cpu_library = self.args.work / "prefix/lib/libodometry_estimation_cpu.so"
             self.point_library = (self.args.points / "build/liblingxi_glim_point_output.so"
                                   if self.points_enabled else None)
+        self.baseline_config_dir = self.config_dir
+        self.legacy_mapping_library = self.mapping_library
+        if self.full_mapping:
+            from async_mapping_bundle import LIBRARY
+            self.full_mapping_root = Path(value["fullMapping"]["root"])
+            self.config_dir = self.full_mapping_root / "config"
+            self.mapping_library = self.full_mapping_root / "lib" / LIBRARY
         self.frozen = self.verify()
 
     def sensor_provenance(self):
@@ -131,6 +149,25 @@ class MappingPlatform:
         })
 
     def verify(self):
+        frozen = self._verify_baseline()
+        if not self.full_mapping:
+            return frozen
+        from async_mapping_bundle import CORE_LIBRARIES, verify_bundle
+        from verify_slam_capture import sha256
+        core_directory = self.args.core_root / "lib" if self.arm64 else self.args.work / "prefix/lib"
+        core_manifest = (frozen["coreManifestSha256"] if self.arm64
+                         else sha256(self.args.work / "build-report.json"))
+        baseline = self.args.root if self.arm64 else self.args.bundle
+        manifest = verify_bundle(
+            self.full_mapping_root, self.value["fullMapping"]["manifestSha256"], baseline=baseline,
+            core_manifest=core_manifest,
+            core_libraries={name: sha256(core_directory / name) for name in CORE_LIBRARIES},
+            platform="linux-aarch64" if self.arm64 else "linux-x86_64")
+        return {**frozen, "legacyMappingLibrarySha256": frozen["mappingLibrarySha256"],
+                "mappingLibrarySha256": manifest["files"]["lib/" + self.mapping_library.name]["sha256"],
+                "fullMappingManifestSha256": self.value["fullMapping"]["manifestSha256"]}
+
+    def _verify_baseline(self):
         from verify_slam_capture import sha256
         if self.arm64:
             if (sys.platform != "linux" or platform.machine() != "aarch64"
@@ -156,9 +193,9 @@ class MappingPlatform:
             evidence = json.loads((ROOT / "docs/slam-point-arm64-target-evidence.json").read_text())
             core_digest = sha256(args.core_root / "bundle-manifest.json")
             if (mapper["coreBundleManifestSha256"] != core_digest
-                    or configuration_files(args.mapping_root / "config") != configuration_files(self.config_dir)
+                    or configuration_files(args.mapping_root / "config") != configuration_files(self.baseline_config_dir)
                     or mapper["odometryAdapterSha256"] != sha256(self.odometry_library)
-                    or mapper["mappingAdapterSha256"] != sha256(self.mapping_library)
+                    or mapper["mappingAdapterSha256"] != sha256(self.legacy_mapping_library)
                     or evidence["bundleManifestSha256"] != args.point_manifest_sha256
                     or evidence["coreManifestSha256"] != core_digest
                     or evidence["actualLoadedLibrariesSha256"][LIBRARY] != sha256(self.point_library)
@@ -167,7 +204,7 @@ class MappingPlatform:
                 raise ValueError("same_verified_arm64_mapping_point_core_and_configuration_required")
             return {**frozen, "coreManifestSha256": core_digest,
                     "mappingManifestSha256": sha256(args.mapping_root / "replay-manifest.json"),
-                    "mappingLibrarySha256": sha256(self.mapping_library),
+                    "mappingLibrarySha256": sha256(self.legacy_mapping_library),
                     "odometryLibrarySha256": sha256(self.odometry_library),
                     "pointManifestSha256": args.point_manifest_sha256,
                     "pointLibrarySha256": sha256(self.point_library),
@@ -179,7 +216,7 @@ class MappingPlatform:
         from run_glim_mapping_trial import verify_extension
         frozen = integrity(self.args) if self.points_enabled else inputs(self.args)
         verify_extension(self.args.mapping_adapter, self.args.work)
-        return {**frozen, "mappingLibrarySha256": sha256(self.mapping_library)}
+        return {**frozen, "mappingLibrarySha256": sha256(self.legacy_mapping_library)}
 
     def loaded(self, *, mapping=False, points=False, odometry=True):
         if not self.arm64 and odometry:
@@ -203,6 +240,13 @@ class MappingPlatform:
                 "pointLibrarySha256" if self.arm64 else "pointExtensionLibrarySha256"]
             required.add(self.point_library)
         verify_loaded_libraries(expected, Path("/proc/self/maps").read_text(), required=required)
+        if self.full_mapping:
+            # The pinned full mapper must not coexist with the old plugin implementations.
+            prohibited = {"liblingxi_glim_mapping.so", "libsub_mapping.so",
+                          "libsub_mapping_passthrough.so", "libglobal_mapping_pose_graph.so"}
+            if any(len(fields := line.split(None, 5)) == 6 and Path(fields[5]).name in prohibited
+                   for line in Path("/proc/self/maps").read_text().splitlines()):
+                raise ValueError("legacy_mapping_modules_must_not_be_loaded_with_full_mapper")
 
     def native(self, record):
         from run_glim_offline_trial import Native
@@ -211,10 +255,21 @@ class MappingPlatform:
                            record, self.loaded)
 
     def mapper(self):
-        from run_glim_mapping_trial import MappingLibrary
-        library = MappingLibrary(self.mapping_library)
+        if self.full_mapping:
+            from lingxi_slam.async_mapping import AsyncMappingLibrary
+            library = AsyncMappingLibrary(self.mapping_library)
+        else:
+            from run_glim_mapping_trial import MappingLibrary
+            library = MappingLibrary(self.mapping_library)
         self.loaded(mapping=True, points=self.points_enabled)
         return library
+
+    def inspect_map(self, path):
+        if self.full_mapping:
+            from refine_saved_map import inventory
+            return inventory(path)
+        from run_glim_mapping_trial import inventory_map
+        return inventory_map(path)
 
     def decoder(self):
         if self.arm64:
@@ -241,23 +296,34 @@ def reload_saved(config_file, saved):
         raise ValueError("unchanged_reviewed_native_environment_required")
     binding = MappingPlatform(value)
     provenance = binding.sensor_provenance()
-    before = inventory_map(saved / "map")
-    stats = (ctypes.c_double * 4)()
-    MappingLibrary(binding.mapping_library).call(
-        "reload", os.fsencode(binding.config_dir), os.fsencode(saved / "map"),
-        os.fsencode(saved / "private-reloaded-points.f64"), stats)
+    before = binding.inspect_map(saved / "map")
+    if binding.full_mapping:
+        from lingxi_slam.async_mapping import AsyncMappingLibrary
+        counts = AsyncMappingLibrary(binding.mapping_library).reload(
+            binding.config_dir, saved / "map", saved / "private-reloaded-points.f64")
+        if counts["submaps"] != before["num_submaps"] or counts["frames"] != before["num_all_frames"]:
+            raise ValueError("complete_full_mapping_reload_required")
+        loaded_counts = {"loadedSubmaps": counts["submaps"], "loadedFrames": counts["frames"]}
+        point_count = counts["points"]
+    else:
+        stats = (ctypes.c_double * 4)()
+        MappingLibrary(binding.mapping_library).call(
+            "reload", os.fsencode(binding.config_dir), os.fsencode(saved / "map"),
+            os.fsencode(saved / "private-reloaded-points.f64"), stats)
+        if (any(not math.isfinite(value) or value <= 0 or value != int(value) for value in stats)
+                or any(int(stats[index]) != before["num_submaps"] for index in (0, 2, 3))):
+            raise ValueError("complete_saved_graph_reload_required")
+        loaded_counts = {"loadedSubmaps": int(stats[0]), "loadedGraphFactors": int(stats[2]),
+                         "loadedGraphValues": int(stats[3])}
+        point_count = int(stats[1])
     binding.loaded(mapping=True, odometry=False)
-    if (any(not math.isfinite(value) or value <= 0 or value != int(value) for value in stats)
-            or any(int(stats[index]) != before["num_submaps"] for index in (0, 2, 3))):
-        raise ValueError("complete_saved_graph_reload_required")
     comparison = compare_points(saved / "private-saved-points.f64",
-                                saved / "private-reloaded-points.f64", int(stats[1]))
-    if (inventory_map(saved / "map") != before or binding.verify() != binding.frozen
+                                saved / "private-reloaded-points.f64", point_count)
+    if (binding.inspect_map(saved / "map") != before or binding.verify() != binding.frozen
             or binding.sensor_provenance() != provenance):
         raise ValueError("saved_map_or_platform_changed_during_reload")
     private_json(saved / "reload-report.json", {
-        "pid": os.getpid(), "loadedSubmaps": int(stats[0]),
-        "loadedGraphFactors": int(stats[2]), "loadedGraphValues": int(stats[3]),
+        "pid": os.getpid(), **loaded_counts,
         "comparison": comparison, "mapInventory": before,
         "sensorProvenance": provenance,
     })

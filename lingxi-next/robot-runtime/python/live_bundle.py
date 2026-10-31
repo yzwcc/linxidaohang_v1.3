@@ -24,7 +24,7 @@ BOUNDARIES = ("robotContacted", "arm64RuntimeExecuted", "sensorsSubscribed", "mo
               "navigationReady", "productAccepted")
 DIRECTORIES = ("web", "robot-api/src", "robot-runtime/src", "robot-runtime/python",
                "robot-slam/lingxi_slam", "robot-slam/native-point-output", "tools/glim-replay",
-               "tools/glim-mapping", "shared")
+               "tools/glim-mapping", "tools/glim-full-mapping", "tools/glim-async-mapping", "shared")
 METADATA = (
     "package.json", "package-lock.json", "vite.config.ts", "tsconfig.json", "tsconfig.api.json",
     "tsconfig.runtime.json", "robot-runtime/build-live.mjs", "docs/slam-humble-live-evidence.json",

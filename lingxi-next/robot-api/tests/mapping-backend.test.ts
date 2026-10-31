@@ -156,6 +156,22 @@ describe("independent recorded mapping controls", () => {
     expect((await mappingGuard(adapter, backend).getSnapshot()).mappingCaptureLimitSeconds).toBeUndefined();
   });
 
+  it("keeps full mapper backlog and observation age distinct from input progress", async () => {
+    state = { ...idle, phase: "running", session: identity, mapping: true,
+      completedMessages: 1000, processedScans: 100, estimatedPoses: 90,
+      mapper: { engine: "glim-full-async-v1", acceptedFrames: 70, completedFrames: 60, frameCapacity: 128,
+        acceptedImu: 800, completedImu: 780, imuCapacity: 8192,
+        maximumWaitMs: 6000, maximumTaskMs: 5000, ageSeconds: .2 } };
+    const snapshot = (await app!.inject({ url: "/api/v1/state", headers: headers() })).json();
+    expect(snapshot.mappingProgress).toEqual({ completedMessages: 1000, processedScans: 100, estimatedPoses: 90 });
+    expect(snapshot.mappingOptimization).toMatchObject({
+      engine: "glim-full-async-v1", acceptedFrames: 70, completedFrames: 60, pendingFrames: 10,
+      frameCapacity: 128, pendingImu: 20, imuCapacity: 8192, maximumWaitMs: 6000, observationAgeMs: 200,
+    });
+    vi.mocked(backend.state).mockRejectedValue(new Error("Synthetic disconnect"));
+    expect((await mappingGuard(adapter, backend).getSnapshot()).mappingOptimization).toBeUndefined();
+  });
+
   it("rejects a recorded receipt for a live session", async () => {
     state = { ...idle, inputMode: "live", phase: "running", mapping: true, session: identity };
     vi.mocked(backend.finish).mockImplementation(async (session, save, name) => {

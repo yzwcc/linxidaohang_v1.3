@@ -22,7 +22,6 @@ def run(args, sink):
     from lingxi_slam.mapping_input import MappingInput
     from lingxi_slam.mapping_worker import MappingWorker
     from lingxi_slam.messages import SensorProfile
-    from run_glim_mapping_trial import inventory_map
     from run_glim_supervised_replay import StopPipe
     import subprocess
 
@@ -108,7 +107,7 @@ def run(args, sink):
         factory, binding.mapper,
         SensorProfile("lidar_chest_front", "lidar_imu_chest_front", "frame_relative_nanoseconds_hypothesis"),
         binding.hypothesis, args.output, name="Pending map", session=session, input_mode=binding.mode,
-        inspect_map=inventory_map, reload_map=reload_map,
+        inspect_map=binding.inspect_map, reload_map=reload_map,
         sensor_provenance=binding.sensor_provenance(), verify_sensor_provenance=binding.sensor_provenance,
         verify_save=verify_save)
     mapping = MappingInput(controller)
@@ -119,7 +118,7 @@ def run(args, sink):
                 selector.register(0, selectors.EVENT_READ)
                 while not done.is_set():
                     state = controller.worker.snapshot()
-                    emitter.emit(state)
+                    emitter.emit(state, mapper=controller.mapper_health())
                     if state["state"] == "failed" or any(channel.writer.failed for channel in channels):
                         controller.cancel_save()
                         failed.set()
@@ -198,7 +197,7 @@ def run(args, sink):
         private_json(args.output.parent / (args.output.name + ".private-report.json"), report)
         if report["result"] == "failed":
             state = {**state, "state": "failed", "failure": "controlled_mapping_failed"}
-        emitter.emit(state)
+        emitter.emit(state, mapper=controller.mapper_health())
     return 0 if report["result"] != "failed" else 1
 
 

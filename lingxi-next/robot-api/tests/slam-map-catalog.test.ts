@@ -68,6 +68,26 @@ describe("saved SLAM receipt catalog", () => {
     expect(references.last.mapFromSensor[0][3]).toBe(1);
   });
 
+  it("reads full async v3 maps with verified nonadjacent graph constraints without promoting navigation readiness", async () => {
+    const fixture = await savedSlamFixture(maps, { fullMapping: true, sensorProvenance: {
+      schemaVersion: 1, profileSha256: "a".repeat(64), timingHypothesis: "header_is_scan_start",
+      configurationSha256: { "lidar.json": "b".repeat(64) },
+    } });
+    const [map] = await catalog.list();
+    expect(map).toMatchObject({ id: fixture.id, mappingEngine: "glim-full-async-v1",
+      counts: { submaps: 3, savedFrames: 3 }, localizationReady: false, navigationReady: false });
+    expect((await catalog.preview(map.id)).totalPoints).toBe(1440);
+    expect((await catalog.preview(map.id)).seedReferences?.frames).toBe(3);
+    for (const changed of [
+      { schemaVersion: 2 }, { mappingEngine: "unknown" }, { sensorProvenance: undefined },
+      { mapInventory: { ...fixture.receipt.mapInventory, nonAdjacentMatchingPairs: 0 } },
+      { mapInventory: { ...fixture.receipt.mapInventory, num_matching_cost_factors: 1 } },
+    ]) {
+      await writeFile(fixture.ready, JSON.stringify({ ...fixture.receipt, ...changed }));
+      expect(await catalog.list()).toEqual([]);
+    }
+  });
+
   it("omits endpoint references rather than inventing a pose for a valid map with unusable trajectory metadata", async () => {
     const fixture = await savedSlamFixture(maps, { lidarTrajectory: "0 0 0 0 0 0 0 1\n1 1 0 0 0 0 0 0\n",
       sensorProvenance: { schemaVersion: 1, profileSha256: "a".repeat(64), timingHypothesis: "header_is_scan_start",

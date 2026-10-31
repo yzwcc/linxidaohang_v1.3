@@ -123,3 +123,13 @@ class MappingWorker:
         worker = self.worker.snapshot()
         with self.phase_lock:
             return {**self.snapshot_unlocked(), "worker": worker}
+
+    def mapper_health(self):
+        from .process_protocol import MAPPER_FIELDS, mapper_health
+        with self.phase_lock:
+            session = self.native_session
+        mapping = None if session is None else session.mapping
+        if not callable(getattr(mapping, "cached_health", None)):
+            return None
+        cached = mapping.cached_health()
+        return None if cached is None else mapper_health({key: cached[key] for key in MAPPER_FIELDS})

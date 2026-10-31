@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { MappingPointSource } from "../src/mapping-points";
 import type { MappingBackend, MappingBackendState } from "../src/mapping-backend";
 import type { PointInputMode } from "../src/slam-points";
+import type { CorrectedMapPreview } from "../src/corrected-map-preview";
 
 const fixture = JSON.parse(readFileSync("shared/fixtures/slam-point-v1.synthetic.json", "utf8"));
 const first = fixture.session as string, second = "f".repeat(32);
@@ -27,7 +28,8 @@ describe("persistent mapping point consumer with isolated protocol fixtures", ()
   let source: MappingPointSource | undefined;
   afterEach(async () => { await source?.close(); vi.useRealTimers(); });
 
-  async function start(connect = vi.fn(async () => new PassThrough()), mode: PointInputMode = "recorded") {
+  async function start(connect = vi.fn(async () => new PassThrough()), mode: PointInputMode = "recorded",
+    readMap?: () => Promise<CorrectedMapPreview | undefined>) {
     vi.useFakeTimers();
     let state = running(first, mode);
     let unavailable = false;
@@ -35,12 +37,48 @@ describe("persistent mapping point consumer with isolated protocol fixtures", ()
       if (unavailable) throw new Error("synthetic unavailable backend");
       return state;
     }) } as unknown as MappingBackend;
-    source = new MappingPointSource(backend, directory, connect, () => 10);
+    source = new MappingPointSource(backend, directory, connect, () => 10, readMap);
     source.start();
     await vi.advanceTimersByTimeAsync(0);
     return { connect, state: (next: MappingBackendState) => { state = next; },
       unavailable: () => { unavailable = true; } };
   }
+
+  it("replaces provisional scans with complete revisions while requiring fresh sensor input", async () => {
+    const pipe = new PassThrough();
+    let corrected: CorrectedMapPreview | undefined;
+    const context = await start(vi.fn(async () => pipe), "recorded", async () => corrected);
+    pipe.write(bytes());
+    expect(source!.getPointEvent().type).toBe("slam-preview");
+    corrected = { schemaVersion: 1, session: first, inputMode: "recorded", revision: 2, submaps: 3,
+      totalPoints: 20000, matchingFactors: 2, nonAdjacentMatchingFactors: 1,
+      coordinateFrame: "lingxi_glim_map", coordinateUnits: "native-raw", updatedAtMs: 100000,
+      points: [1, 2, 3, 4, 5, 6] };
+    await vi.advanceTimersByTimeAsync(100);
+    expect(source!.getPointEvent()).toMatchObject({ type: "slam-map", revision: 2, totalPoints: 20000,
+      frame: { frameId: "lingxi_glim_map", sequence: 2, points: [1, 2, 3, 4, 5, 6] } });
+    corrected = { ...corrected, revision: 3, points: [7, 8, 9] };
+    await vi.advanceTimersByTimeAsync(100);
+    expect(source!.getPointEvent()).toMatchObject({ revision: 3, frame: { points: [7, 8, 9] } });
+    context.state({ ...running(), phase: "saving" });
+    await vi.advanceTimersByTimeAsync(100);
+    expect(() => source!.getPointEvent()).toThrow();
+    expect(pipe.destroyed).toBe(false);
+  });
+
+  it("does not expose an old map after point input ends or provenance changes", async () => {
+    const pipe = new PassThrough();
+    const corrected = { schemaVersion: 1, session: first, inputMode: "live", revision: 1, submaps: 1,
+      totalPoints: 1, matchingFactors: 0, nonAdjacentMatchingFactors: 0,
+      coordinateFrame: "lingxi_glim_map", coordinateUnits: "native-raw", updatedAtMs: 100000,
+      points: [1, 2, 3] } as CorrectedMapPreview;
+    await start(vi.fn(async () => pipe), "live", async () => corrected);
+    pipe.write(bytes(first, 1, "live"));
+    await vi.advanceTimersByTimeAsync(100);
+    expect(source!.getPointEvent().type).toBe("slam-map");
+    pipe.emit("end");
+    expect(() => source!.getPointEvent()).toThrow();
+  });
 
   it("follows two sessions and drains hidden finalization without restarting the API", async () => {
     const pipes: PassThrough[] = [];

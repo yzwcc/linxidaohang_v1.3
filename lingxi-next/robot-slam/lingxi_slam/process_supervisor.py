@@ -71,6 +71,7 @@ class ProcessSupervisor:
         self.last_clock = self.started_at = self.progress_at = None
         self.sequence, self.counters = -1, (0, 0, 0)
         self.worker_state = None
+        self.mapper = None
         self.events = self.retired_events = 0
         self.forced_termination = self.cleanup_complete = False
 
@@ -145,6 +146,7 @@ class ProcessSupervisor:
         elif self.state == "running":
             self._fault("unexpected_worker_state")
         self.counters = counters
+        self.mapper = event.get("mapper")
 
     def _consume(self, buffer, data):
         buffer.extend(data)
@@ -312,6 +314,7 @@ class ProcessSupervisor:
                 "monitorAlive": self.thread is not None and self.thread.is_alive(),
                 "forcedTermination": self.forced_termination, "cleanupComplete": self.cleanup_complete,
                 "mappingReady": False, "localizationReady": False, "navigationReady": False,
+                **({"mapper": self.mapper.copy()} if self.mapper is not None else {}),
             }
 
     def stop(self):

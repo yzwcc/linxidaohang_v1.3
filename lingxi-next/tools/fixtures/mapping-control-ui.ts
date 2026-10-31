@@ -31,7 +31,10 @@ async function main() {
     start: async () => {
       assert.equal(state.mapping, false);
       state = { ...state, session: randomUUID().replaceAll("-", ""), phase: "running",
-        mapping: true, cleanupComplete: false };
+        mapping: true, cleanupComplete: false,
+        mapper: { engine: "glim-full-async-v1", acceptedFrames: 20, completedFrames: 16, frameCapacity: 128,
+          acceptedImu: 200, completedImu: 180, imuCapacity: 8192, maximumWaitMs: 1200,
+          maximumTaskMs: 1400, ageSeconds: .1 } };
       return state;
     },
     finish: async (session, save, name) => {

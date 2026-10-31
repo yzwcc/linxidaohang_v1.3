@@ -5,7 +5,8 @@ import { fileURLToPath } from "node:url";
 
 export const root = fileURLToPath(new URL("../", import.meta.url));
 export const sourceDirectories = ["web", "robot-api/src", "robot-runtime/src", "robot-runtime/python",
-  "robot-slam/lingxi_slam", "robot-slam/native-point-output", "tools/glim-replay", "tools/glim-mapping", "shared"];
+  "robot-slam/lingxi_slam", "robot-slam/native-point-output", "tools/glim-replay", "tools/glim-mapping",
+  "tools/glim-full-mapping", "tools/glim-async-mapping", "shared"];
 export const metadataFiles = ["package.json", "package-lock.json", "vite.config.ts",
   "tsconfig.json", "tsconfig.api.json", "tsconfig.runtime.json", "robot-runtime/build-live.mjs",
   "docs/slam-humble-live-evidence.json", "docs/slam-supervised-arm64-evidence.json",

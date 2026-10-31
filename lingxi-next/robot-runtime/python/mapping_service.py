@@ -9,6 +9,7 @@ import socketserver
 import struct
 import sys
 import threading
+import time
 import uuid
 
 
@@ -91,6 +92,10 @@ class MappingManager:
                     else "mapping_process_failed"} if phase == "failed" else {}),
                 "completedMessages": state["completedMessages"],
                 "processedScans": state["processedScans"], "estimatedPoses": state["estimatedPoses"],
+                **({"mapper": {**{key: value for key, value in state["mapper"].items()
+                                   if key != "observedAtSeconds"},
+                               "ageSeconds": max(0., time.monotonic() - state["mapper"]["observedAtSeconds"])}}
+                   if state.get("mapper") is not None else {}),
                 **({"pointStream": {"socket": current["output"].name + ".points.sock"}}
                    if self.points_enabled and phase in ("requested", "running") else {}),
             }

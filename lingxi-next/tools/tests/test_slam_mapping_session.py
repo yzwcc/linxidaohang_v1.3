@@ -207,6 +207,36 @@ class MappingSaveLifecycle(unittest.TestCase):
         self.assertFalse((self.output / "map-ready.json").exists())
         self.assertFalse(self.decision.request_save())
 
+    def test_full_mapper_receives_real_imu_before_lio_and_observes_returned_pose(self):
+        session = self.make()
+        session.mapping.feed_imu = lambda *args: self.calls.append("mapping-imu")
+        session.mapping.observe_frame = lambda result: self.calls.append(("observed-frame", result))
+        session.imu(1)
+        session.frame(2)
+        session.close()
+        self.assertEqual(["open", "mapping-imu", "imu", "frame", ("observed-frame", (2,)),
+                          "native-close", "shutdown"], self.calls)
+
+    def test_mapping_input_failure_revokes_save_without_forwarding_imu_to_lio(self):
+        session = self.make()
+        def failed(*args):
+            raise RuntimeError("synthetic_mapping_backlog")
+        session.mapping.feed_imu = failed
+        self.decision.request_save()
+        with self.assertRaisesRegex(RuntimeError, "mapping_backlog"):
+            session.imu(1)
+        session.close()
+        self.assertEqual(["open", "native-close", "shutdown"], self.calls)
+        self.assertFalse((self.output / "map-ready.json").exists())
+
+    def test_full_mapping_cannot_publish_a_receipt_without_sensor_provenance(self):
+        session = self.make()
+        session.mapping.engine = "glim-full-async-v1"
+        self.decision.request_save()
+        with self.assertRaisesRegex(ValueError, "requires_sensor_provenance"):
+            session.close()
+        self.assertFalse((self.output / "map-ready.json").exists())
+
     def test_discard_revokes_pending_save(self):
         session = self.make()
         self.decision.request_save()

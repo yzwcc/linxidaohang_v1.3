@@ -449,6 +449,11 @@ function Mapping({
               <span className="tag mono">位姿 {state.mappingProgress.estimatedPoses}</span>
               <span className="tag mono">消息 {state.mappingProgress.completedMessages}</span>
             </>}
+            {state.mapping && state.mappingOptimization && <span className="inline" data-testid="mapping-optimization">
+              <span className="tag mono">待优化 {state.mappingOptimization.pendingFrames} / {state.mappingOptimization.frameCapacity} 帧</span>
+              <span className="tag mono">历史最大排队 {(state.mappingOptimization.maximumWaitMs / 1000).toFixed(1)} 秒</span>
+              {state.mappingOptimization.observationAgeMs > 2000 && <span className="tag">优化状态待更新</span>}
+            </span>}
             {state.pose && <span className="tag mono">x {state.pose.x.toFixed(2)} · y {state.pose.y.toFixed(2)}</span>}
           </div>
         </Section>

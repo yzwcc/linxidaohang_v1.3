@@ -99,6 +99,8 @@ class MappingSession:
         try:
             self.mapping = mapping_factory()
             self.mapping.call("open")
+            if callable(getattr(self.mapping, "start_preview", None)):
+                self.mapping.start_preview(self.output / "corrected-preview.json", self.session, self.input_mode)
         except BaseException:
             decision.discard()
             try:
@@ -123,7 +125,14 @@ class MappingSession:
     def _call(self, method, *args):
         self._active()
         try:
-            return getattr(self.native, method)(*args)
+            # Full mapping consumes the same real IMU before LIO; legacy mappers
+            # already subscribe internally and must not receive a second copy.
+            if method == "imu" and callable(getattr(self.mapping, "feed_imu", None)):
+                self.mapping.feed_imu(*args)
+            result = getattr(self.native, method)(*args)
+            if method == "frame" and callable(getattr(self.mapping, "observe_frame", None)):
+                self.mapping.observe_frame(result)
+            return result
         except BaseException:
             self.failed = True
             self.decision.discard()
@@ -181,6 +190,8 @@ class MappingSession:
     def _verify_and_publish(self, counts):
         map_path, points_path = self.output / "map", self.output / "private-saved-points.f64"
         before = self.inspect_map(map_path)
+        if callable(getattr(self.mapping, "verify_inventory", None)):
+            self.mapping.verify_inventory(before)
         if (before["num_submaps"] != counts["submaps"]
                 or before["num_all_frames"] != counts["savedFrames"]
                 or points_path.stat().st_size != counts["points"] * 24):
@@ -208,14 +219,18 @@ class MappingSession:
             self.decision.discard()
 
         def publish():
+            full_mapping = getattr(self.mapping, "engine", None) == "glim-full-async-v1"
+            if full_mapping and self.sensor_provenance is None:
+                raise ValueError("full_mapping_receipt_requires_sensor_provenance")
             receipt = {
-                "schemaVersion": 2 if self.sensor_provenance is not None else 1,
+                "schemaVersion": 3 if full_mapping else 2 if self.sensor_provenance is not None else 1,
                 "session": self.session, "name": self.name,
                 "inputMode": self.input_mode, "counts": counts, "mapInventory": before,
                 "savedPointsSha256": point_digest, "freshProcessReloadPassed": True,
                 "navigationReady": False, "localizationReady": False,
                 "geometricAccuracyValidated": False,
                 **({"sensorProvenance": self.sensor_provenance} if self.sensor_provenance is not None else {}),
+                **({"mappingEngine": "glim-full-async-v1"} if full_mapping else {}),
             }
             temporary = self.output / "map-ready.pending"
             with temporary.open("x", encoding="utf-8") as stream:

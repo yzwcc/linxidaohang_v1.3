@@ -101,6 +101,32 @@ class MapInputs(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "versioned_saved_map_sensor_provenance_required"):
             self.load()
 
+    def test_v3_full_map_retains_matching_graph_and_requires_engine_and_provenance(self):
+        from refine_saved_map import inventory
+        native = self.saved / "map"
+        for name in ("000001", "000002"):
+            (native / name).mkdir()
+        (native / "graph.txt").write_text(
+            "num_submaps: 3\nnum_all_frames: 3\nnum_matching_cost_factors: 2\n"
+            "matching_cost vgicp 0 1\nmatching_cost gicp 0 2\n")
+        provenance = {"schemaVersion": 1, "profileSha256": control.digest(self.profile.read_bytes()),
+                      "timingHypothesis": "header_is_scan_end", "configurationSha256": {"lidar.json": "a" * 64}}
+        self.receipt["counts"]["submaps"] = 3
+        self.receipt.update(schemaVersion=3, mappingEngine="glim-full-async-v1",
+                            sensorProvenance=provenance, mapInventory=inventory(native))
+        self.write_receipt()
+        _, points = self.load(sensor_provenance=provenance)
+        self.assertEqual(len(self.points), len(points))
+        self.assertFalse(points.flags.writeable)
+        self.assertEqual(1, self.receipt["mapInventory"]["nonAdjacentMatchingPairs"])
+        with self.assertRaises(ValueError):
+            self.load()
+        for version, engine in ((3, None), (3, "other"), (2, "glim-full-async-v1")):
+            self.receipt.update(schemaVersion=version, mappingEngine=engine)
+            self.write_receipt()
+            with self.subTest(version=version, engine=engine), self.assertRaises(ValueError):
+                self.load(sensor_provenance=provenance)
+
     def test_load_owns_immutable_points_and_binds_actual_bytes(self):
         binding, points = self.load()
         np.testing.assert_array_equal(self.points, points)

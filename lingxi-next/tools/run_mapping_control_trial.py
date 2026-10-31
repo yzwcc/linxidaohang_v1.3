@@ -20,6 +20,7 @@ SOURCE_NAMES = (
     "docs/slam-stream-input-evidence.json", "docs/slam-point-arm64-target-evidence.json",
     "robot-runtime/python/mapping_service.py", "robot-runtime/python/controlled_mapping.py",
     "robot-runtime/python/mapping_points.py", "robot-runtime/python/mapping_platform.py",
+    "robot-runtime/python/async_mapping_bundle.py", "robot-slam/lingxi_slam/async_mapping.py",
     "robot-runtime/python/localization_control.py",
     "robot-slam/lingxi_slam/map_provenance.py", "robot-slam/lingxi_slam/mapping_worker.py", "robot-slam/lingxi_slam/mapping_session.py",
     "robot-slam/lingxi_slam/mapping_input.py", "robot-slam/lingxi_slam/sensor_admission.py",
@@ -51,6 +52,8 @@ def recorded_inputs(config, machine):
     roots = [Path(config[name]) for name in names]
     if "pointAdapter" in config:
         roots.append(Path(config["pointAdapter"]))
+    if "fullMapping" in config:
+        roots.append(Path(config["fullMapping"]["root"]))
     return roots, Path(config["root" if arm else "bundle"]) / "private-profile.json"
 
 
@@ -116,7 +119,8 @@ def run(args):
             with (args.output / "private-probe.log").open("xb") as probe_log:
                 result = subprocess.run([
                     str(args.node), str(probe), str(socket), str(maps), str(args.output), "4144",
-                    *(["points"] if points_enabled else []),
+                    *(["points"] if points_enabled else ["no-points"] if "fullMapping" in config else []),
+                    *(["glim-full-async-v1"] if "fullMapping" in config else []),
                 ], stdout=probe_log, stderr=probe_log, timeout=300, check=False)
             if result.returncode:
                 raise RuntimeError("recorded_mapping_api_probe_failed")
@@ -149,15 +153,17 @@ def run(args):
                 raise RuntimeError("exact_one_ready_map_required")
             receipt = json.loads(receipts[0].read_text())
             from localization_control import load_map
-            from glim_target_controlled_mapping import configuration_files
+            from async_mapping_bundle import configuration_hashes
             from lingxi_slam.map_provenance import sensor_provenance
+            full_mapping = "fullMapping" in config
+            config_dir = Path(config["fullMapping"]["root"]) / "config" if full_mapping else profile.parent / "config"
             provenance = sensor_provenance({
-                "schemaVersion": 1, "profileSha256": digest(profile),
-                "timingHypothesis": config["hypothesis"],
-                "configurationSha256": configuration_files(profile.parent / "config"),
+                "schemaVersion": 1, "profileSha256": digest(profile), "timingHypothesis": config["hypothesis"],
+                "configurationSha256": configuration_hashes(config_dir),
             })
             reloaded = json.loads((receipts[0].parent / "reload-report.json").read_text())
-            if (receipt.get("schemaVersion") != 2 or receipt.get("sensorProvenance") != provenance
+            version = 3 if full_mapping else 2
+            if (receipt.get("schemaVersion") != version or receipt.get("sensorProvenance") != provenance
                     or reloaded.get("sensorProvenance") != provenance):
                 raise RuntimeError("versioned_matching_sensor_provenance_required")
             options = dict(directory=receipts[0].parent, map_id="slam-" + receipt["session"],
@@ -178,8 +184,12 @@ def run(args):
                 except ValueError:
                     continue
                 raise RuntimeError("mismatched_localization_provenance_was_accepted")
-            from run_glim_mapping_trial import compare_points, inventory_map
-            if inventory_map(receipts[0].parent / "map") != receipt["mapInventory"]:
+            from run_glim_mapping_trial import compare_points
+            if full_mapping:
+                from refine_saved_map import inventory as inspect_map
+            else:
+                from run_glim_mapping_trial import inventory_map as inspect_map
+            if inspect_map(receipts[0].parent / "map") != receipt["mapInventory"]:
                 raise RuntimeError("unchanged_saved_map_inventory_required")
             comparison = compare_points(receipts[0].parent / "private-saved-points.f64",
                                         receipts[0].parent / "private-reloaded-points.f64",
@@ -187,7 +197,7 @@ def run(args):
             report.update(result=api["result"], sessions=api["sessions"], children=children,
                           savedMapDirectory=receipts[0].parent.name,
                           roundTrip=comparison, apiReportSha256=digest(args.output / "private-api-report.json"),
-                          sensorProvenance={"receiptSchemaVersion": 2, "freshReloadMatches": True,
+                          sensorProvenance={"receiptSchemaVersion": version, "freshReloadMatches": True,
                                             "currentConfigurationMatches": True,
                                             "localizationPointsLoaded": len(localized_points),
                                             "missingOrMismatchedRejected": 4})

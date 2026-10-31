@@ -6,6 +6,18 @@ import { mappingFailureSchema } from "../../shared/mapping";
 import type { RobotAdapter, RobotSnapshot } from "./domain";
 
 const session = z.string().regex(/^[a-f0-9]{32}$/);
+const mapperSchema = z.object({
+  engine: z.literal("glim-full-async-v1"),
+  acceptedFrames: z.number().int().nonnegative().safe(), completedFrames: z.number().int().nonnegative().safe(),
+  frameCapacity: z.literal(128),
+  acceptedImu: z.number().int().nonnegative().safe(), completedImu: z.number().int().nonnegative().safe(),
+  imuCapacity: z.literal(8192), maximumWaitMs: z.number().finite().nonnegative(),
+  maximumTaskMs: z.number().finite().nonnegative(),
+  ageSeconds: z.number().finite().nonnegative().max(Number.MAX_SAFE_INTEGER / 1000),
+}).strict().refine((value) => value.completedFrames <= value.acceptedFrames &&
+  value.acceptedFrames - value.completedFrames <= value.frameCapacity &&
+  value.completedImu <= value.acceptedImu && value.acceptedImu - value.completedImu <= value.imuCapacity,
+"consistent_bounded_full_mapper_progress_required");
 const stateSchema = z.object({
   backend: z.literal("glim"), inputMode: z.enum(["recorded", "live"]),
   phase: z.enum(["idle", "requested", "running", "saving", "stopping", "failed"]),
@@ -15,6 +27,7 @@ const stateSchema = z.object({
   completedMessages: z.number().int().nonnegative().safe().optional(),
   processedScans: z.number().int().nonnegative().safe().optional(),
   estimatedPoses: z.number().int().nonnegative().safe().optional(),
+  mapper: mapperSchema.optional(),
   pointStream: z.object({ socket: z.string().regex(/^[a-f0-9]{32}\.points\.sock$/) }).strict().optional(),
 }).strict();
 export type MappingBackendState = z.infer<typeof stateSchema>;
@@ -152,6 +165,15 @@ export function mappingGuard(
         mappingCaptureLimitSeconds: mapping.inputMode === "live" ? mapping.captureLimitSeconds : undefined,
         mappingCleanupComplete: mapping.cleanupComplete,
         mappingFailure: mapping.phase === "failed" ? mapping.failureCode ?? "mapping_process_failed" : undefined,
+        ...(mapping.mapper ? { mappingOptimization: {
+          engine: mapping.mapper.engine, acceptedFrames: mapping.mapper.acceptedFrames,
+          completedFrames: mapping.mapper.completedFrames,
+          pendingFrames: mapping.mapper.acceptedFrames - mapping.mapper.completedFrames,
+          frameCapacity: mapping.mapper.frameCapacity,
+          pendingImu: mapping.mapper.acceptedImu - mapping.mapper.completedImu, imuCapacity: mapping.mapper.imuCapacity,
+          maximumWaitMs: mapping.mapper.maximumWaitMs, maximumTaskMs: mapping.mapper.maximumTaskMs,
+          observationAgeMs: mapping.mapper.ageSeconds * 1000,
+        } } : {}),
         ...(mapping.completedMessages !== undefined && mapping.processedScans !== undefined &&
           mapping.estimatedPoses !== undefined ? { mappingProgress: {
             completedMessages: mapping.completedMessages, processedScans: mapping.processedScans,

@@ -9,11 +9,13 @@ import { buildServer } from "../robot-api/src/server";
 import type { LidarEvent } from "../shared/contracts";
 
 async function main() {
-  const [socket, maps, output, countText, pointMode] = process.argv.slice(2);
+  const [socket, maps, output, countText, pointMode, engine] = process.argv.slice(2);
   const count = Number(countText);
   assert(socket && maps && output && Number.isSafeInteger(count) && count > 0 &&
-    (pointMode === undefined || pointMode === "points"));
+    (pointMode === undefined || pointMode === "points" || pointMode === "no-points") &&
+    (engine === undefined || engine === "glim-full-async-v1"));
   const pointsEnabled = pointMode === "points";
+  const fullMapping = engine === "glim-full-async-v1";
   const backend = new UnixMappingBackend(socket);
   const app = await buildServer({
     demoMode: true, mappingBackend: backend, savedSlamDirectory: maps,
@@ -58,6 +60,17 @@ async function main() {
           if (event.type === "lidar-unavailable") {
             assert(!("frame" in event));
             unavailable++;
+          } else if (event.type === "slam-map") {
+            assert(fullMapping, "corrected_submaps_require_full_mapper");
+            assert.equal(event.inputMode, "recorded");
+            assert.equal(event.coordinateUnits, "native-raw");
+            assert.equal(event.frame.epoch, expectedSession);
+            assert.equal(event.frame.frameId, "lingxi_glim_map");
+            assert.equal(event.frame.sequence, event.revision);
+            assert(event.submaps > 0 && event.totalPoints >= event.frame.points.length / 3);
+            assert(event.frame.points.length > 0 && event.frame.points.length <= 24_000 &&
+              event.frame.points.every(Number.isFinite));
+            report.correctedMapRevisionObserved = Math.max(Number(report.correctedMapRevisionObserved ?? 0), event.revision);
           } else {
             assert.equal(event.type, "slam-preview", "recorded_points_must_never_be_live_or_demo");
             if (event.type !== "slam-preview") throw new Error("explicit_preview_required");
@@ -116,6 +129,10 @@ async function main() {
         if (streamFailure) throw streamFailure;
       }
       assert.equal(state.completedMessages, count);
+      if (fullMapping) {
+        assert.equal(state.mapper?.engine, engine);
+        assert(state.mapper.acceptedFrames > 0 && state.mapper.completedFrames <= state.mapper.acceptedFrames);
+      }
       if (pointsEnabled) {
         assert(browserReconnected);
         assert((pointRuns.get(identity)?.uniqueFrames ?? 0) >= 3);
@@ -123,6 +140,12 @@ async function main() {
       const snapshot = (await app.inject({ url: "/api/v1/state", headers })).json();
       assert.equal(snapshot.mappingSession, identity);
       assert.equal(snapshot.mappingInputMode, "recorded");
+      if (fullMapping) {
+        assert.equal(snapshot.mappingOptimization?.engine, engine);
+        assert.equal(snapshot.mappingOptimization.pendingFrames,
+          snapshot.mappingOptimization.acceptedFrames - snapshot.mappingOptimization.completedFrames);
+        assert(snapshot.mappingOptimization.observationAgeMs >= 0);
+      }
       const name = "Recorded service map";
       const response = await app.inject({
         method: "POST", url: `/api/v1/mapping/${save ? "stop-save" : "stop-discard"}`, headers,
@@ -144,6 +167,7 @@ async function main() {
       if (pointsEnabled) Object.assign(operation, {
         points: pointRuns.get(identity), browserReconnected, unavailableAfterStop: true,
       });
+      if (fullMapping) Object.assign(operation, { optimization: snapshot.mappingOptimization });
       sessions.push(operation);
       if (save) {
         const map = response.json().savedSlamMap;
@@ -151,6 +175,11 @@ async function main() {
         assert.equal(map.name, name);
         assert.equal(map.inputMode, "recorded");
         assert.equal(map.navigationReady, false);
+        if (fullMapping) {
+          assert.equal(map.mappingEngine, engine);
+          assert.equal(terminal.mapper?.acceptedFrames, terminal.mapper?.completedFrames);
+          assert.equal(terminal.mapper?.acceptedImu, terminal.mapper?.completedImu);
+        }
         const preview = await app.inject({ url: `/api/v1/slam/maps/${map.id}/points`, headers });
         assert.equal(preview.statusCode, 200, preview.body);
         assert.equal(preview.json().points.length / 3, map.counts.points);

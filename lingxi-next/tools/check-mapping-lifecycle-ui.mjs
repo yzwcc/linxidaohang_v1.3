@@ -66,6 +66,7 @@ async function capture(name) {
       startColors: startStyle && [startStyle.color, startStyle.backgroundColor],
       placeholder: document.querySelector('.map-empty-label')?.innerText,
       captureLimit: document.querySelector('[data-testid="mapping-capture-limit"]')?.innerText,
+      optimization: document.querySelector('[data-testid="mapping-optimization"]')?.innerText,
       measurement: document.querySelector('[data-testid="lidar-measurement"]')?.innerText,
       savedMessage: document.querySelector('[data-testid="mapping-save-result"]')?.innerText,
       footer: document.querySelector('.lidar-footer').innerText,
@@ -137,6 +138,13 @@ try {
   assert.equal(idle.nonBackground, 0);
   await click("开始采集");
   await wait("window.__lifecycleSockets.length > 0 && Boolean(document.querySelector('#map-name'))");
+  await wait("document.querySelector('[data-testid=\"mapping-optimization\"]')?.innerText.includes('待优化 4 / 128 帧')");
+  const running = await capture("running-desktop");
+  assert(running.optimization.includes("历史最大排队 1.2 秒"));
+  await run("set", "viewport", "844", "390");
+  await evaluate("document.querySelector('[data-testid=\"mapping-optimization\"]').scrollIntoView({block:'center'})");
+  await capture("running-landscape");
+  await run("set", "viewport", "1440", "900");
   if (inputMode === "live") {
     assert((await evaluate("document.querySelector('[data-testid=\"mapping-capture-limit\"]').innerText"))
       .includes(`${captureLimitSeconds} 秒`));
@@ -147,6 +155,7 @@ try {
   await wait("Boolean(document.querySelector('[data-testid=\"mapping-save-result\"]'))");
   await wait("!document.querySelector('.toast')");
   const saved = await capture("saved-desktop");
+  assert.equal(saved.optimization, undefined);
   assert.equal(saved.placeholder, "等待开始采集");
   assert.equal(saved.liveLidarSockets, 0);
   assert(saved.savedMessage.includes(name));

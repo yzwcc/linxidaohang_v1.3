@@ -38,6 +38,14 @@ const receiptFields = {
 const receiptSchema = z.union([
   z.object({ schemaVersion: z.literal(1), ...receiptFields }).strict(),
   z.object({ schemaVersion: z.literal(2), ...receiptFields, sensorProvenance: provenanceSchema }).strict(),
+  z.object({ schemaVersion: z.literal(3), ...receiptFields,
+    mappingEngine: z.literal("glim-full-async-v1"), sensorProvenance: provenanceSchema,
+    mapInventory: receiptFields.mapInventory.extend({
+      num_submaps: positive.max(512),
+      num_matching_cost_factors: z.number().int().nonnegative().max(130816),
+      nonAdjacentMatchingPairs: z.number().int().nonnegative().max(130816),
+    }).strict(),
+  }).strict(),
 ]);
 
 const MAX_POINTS = 2_000_000;
@@ -123,12 +131,41 @@ export class SavedSlamMapCatalog {
         await digest(pointsFile) !== receipt.savedPointsSha256) {
       throw new Error("unchanged_saved_slam_artifacts_required");
     }
+    if (receipt.schemaVersion === 3) {
+      const metadata = receipt.mapInventory;
+      const graphFile = path.join(mapRoot, "graph.txt");
+      if ((await direct(graphFile, true)).size > 8 * 1024 * 1024) throw new Error("bounded_full_slam_graph_required");
+      const bytes = await readFile(graphFile);
+      if (createHash("sha256").update(bytes).digest("hex") !== entries.find(([file]) => file === "graph.txt")![2]) {
+        throw new Error("unchanged_full_slam_graph_required");
+      }
+      const lines = bytes.toString("utf8").trimEnd().split(/\r?\n/);
+      const expected = [`num_submaps: ${metadata.num_submaps}`, `num_all_frames: ${metadata.num_all_frames}`,
+        `num_matching_cost_factors: ${metadata.num_matching_cost_factors}`];
+      if (expected.some((line, index) => lines[index] !== line) || lines.length !== 3 + metadata.num_matching_cost_factors) {
+        throw new Error("complete_full_slam_graph_metadata_required");
+      }
+      const pairs = new Set<string>();
+      let nonadjacent = 0;
+      for (const line of lines.slice(3)) {
+        const match = /^matching_cost (vgicp|gicp) (\d+) (\d+)$/.exec(line);
+        const a = Number(match?.[2]), b = Number(match?.[3]);
+        if (!match || !Number.isSafeInteger(a) || !Number.isSafeInteger(b) ||
+            a < 0 || a >= b || b >= metadata.num_submaps || pairs.has(`${a}:${b}`)) {
+          throw new Error("unique_ordered_full_slam_matching_pairs_required");
+        }
+        pairs.add(`${a}:${b}`);
+        if (b > a + 1) nonadjacent += 1;
+      }
+      if (nonadjacent !== metadata.nonAdjacentMatchingPairs) throw new Error("complete_full_slam_matching_counts_required");
+    }
     const map: SavedSlamMap = {
       id: `slam-${receipt.session}`, name: receipt.name, source: "glim",
       inputMode: receipt.inputMode, counts, freshProcessReloadPassed: true,
       localizationReady: false, navigationReady: false, geometricAccuracyValidated: false,
       coordinateUnits: "native-raw",
-      ...(receipt.schemaVersion === 2 ? { sensorProvenance: receipt.sensorProvenance } : {}),
+      ...(receipt.schemaVersion !== 1 ? { sensorProvenance: receipt.sensorProvenance } : {}),
+      ...(receipt.schemaVersion === 3 ? { mappingEngine: receipt.mappingEngine } : {}),
     };
     return { map, pointsFile, trajectoryFile: path.join(mapRoot, "traj_lidar.txt"),
       trajectorySha256: entries.find(([file]) => file === "traj_lidar.txt")![2],
