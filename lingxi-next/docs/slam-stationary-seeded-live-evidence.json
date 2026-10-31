@@ -1,0 +1,78 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-31",
+  "result": "arm64_stationary_seeded_live_checked_not_physical_accuracy",
+  "purpose": "operator_confirmed_stationary_lidar_tracking_not_navigation_acceptance",
+  "package": {
+    "archiveSha256": "aba782a8ebb10a5545c209087e8814a5f4652ae1734ee2045422ec1900f65534",
+    "archiveBytes": 54258303,
+    "manifestSha256": "5eda2c0155be24b2ec36a38a86384923cedcf4dded34c6335580c2b7348b474a",
+    "buildManifestSha256": "898ba08887999476147a9cf005a80391ce948f7cc35fb5e5c9b3ae779c0e3c83",
+    "nodeVersionPrepared": "22.23.4",
+    "sourceFiles": 222,
+    "bundleFiles": 7798,
+    "installedPackageCount": 95,
+    "allArchiveMemberBytesVerified": true
+  },
+  "target": {
+    "machine": "aarch64",
+    "python": "3.10.12",
+    "versions": { "numpy": "1.26.4", "scipy": "1.11.4", "small-gicp": "1.0.1" }
+  },
+  "sourceSha256": {
+    "tools/check_stationary_seeded_live.py": "5a01716ef89a113eef0acd8be4ac81aa05a38967e8396e05238c0cdfc928cea9",
+    "robot-api/src/slam-map-references.ts": "0ac664c213369c3d373eba57757a5ad794a90259a3d4f3f3874093cebdde0d38",
+    "shared/slam-reference.ts": "73cdcbd27fafda57aee350b00d455d1dbbd51925502c76a0f235df6131ba4abd"
+  },
+  "operatorConfirmedStationary": true,
+  "seedRequests": 1,
+  "seedSource": "new_stationary_map_last_lidar_pose",
+  "mapping": {
+    "savedCounts": { "finalizedFrames": 90, "savedFrames": 90, "submaps": 1, "points": 2779 },
+    "freshProcessReloadPassed": true,
+    "receiptSha256": "4b5ebafb6e747fbe11ff62c9232a1e8ec3a2e05034006df19440ea3fa4a109c1",
+    "trajectorySha256": "6bdd8491d52ab0deea8e15673c7ba2fe3229f236c9ae83aa904fd711aa48d222"
+  },
+  "tracking": {
+    "firstTrackingSecondsAfterSubmission": 0.32706230599433184,
+    "distinctFrames": 91,
+    "firstFrame": 4,
+    "lastFrame": 105,
+    "observedSeconds": 10.085165176002192,
+    "maxTranslationFromFirstRaw": 0.0116702044529291,
+    "maxRotationFromFirstDegrees": 0.1787187139480206,
+    "physicalAccuracyMeasured": false,
+    "observationMethod": "paired_https_polling_not_every_processed_frame"
+  },
+  "localizationCounts": {
+    "receivedImu": 2896, "receivedClouds": 145, "insertedImu": 2896,
+    "processedScans": 144, "initializationScans": 31, "estimatedPoses": 113,
+    "skippedBeforeImu": 1, "skippedAfterImuAtEndOfInput": 0, "discardedOnFailure": 0,
+    "maximumPendingImu": 36, "maximumPendingClouds": 1, "maximumPendingBytes": 791264
+  },
+  "nativeCalls": { "create": 1, "imu": 2896, "frame": 144, "close": 1 },
+  "pauseConfirmed": true,
+  "stopConfirmed": true,
+  "staleSeedRejected": true,
+  "stoppedQueries": 10,
+  "allProcessesCleaned": true,
+  "privateReportSha256": "ab405a089f07b67a0e357138992252b8d36c35f9decda39d5aff390d35cbbeb0",
+  "collectionReportSha256": "59e78de35a9ca686647e25f7b28a115b0da394effbe39e5b248ab3870afdc8cb",
+  "trackingSamplesSha256": "b65541247a6ee1d438fc4eb726d098ecccd9bbaf66819eae9c385cd535b5d92e",
+  "childReportSha256": "641ae547ebdd3182d1c84d950aa40978b5f29bd8e90490784bc3856b4bc958c3",
+  "ownerReportSha256": "87f03a9afa52459b794076652adbcd4b003ed5214ff8f959d50966445c4b93aa",
+  "finalObservationSha256": "8855dc0b1c8b687f2b98099fa6f4b60c006505dd6535cb7626176b3f28922e5c",
+  "finalObservation": { "remainingTrialProcesses": 0, "testPortClosed": true, "existingConsoleListening": true },
+  "boundaries": {
+    "motionCommandsSent": false,
+    "formalServicesChanged": false,
+    "physicalCalibrationAccepted": false,
+    "dynamicWalkingLocalizationAccepted": false,
+    "globalRelocalizationAccepted": false,
+    "localizationReady": false,
+    "navigationReady": false,
+    "androidDeviceAccepted": false,
+    "voiceLatencyAccepted": false,
+    "productAccepted": false
+  }
+}
