@@ -1,6 +1,29 @@
-import { rigidMatrixSchema, type RigidMatrix } from "../../shared/localization";
+import type { SavedSlamPointPreview } from "../../shared/contracts";
+import { rigidMatrixSchema, sameLocalizationBinding, type LocalizationState, type RigidMatrix } from "../../shared/localization";
+import type { PlanarLidarPose } from "./lidar-view";
 
 export type SeedFields = Record<"x" | "y" | "z" | "roll" | "pitch" | "yaw", string>;
+export const emptySeedFields = (): SeedFields => ({ x: "", y: "", z: "", roll: "", pitch: "", yaw: "" });
+
+export function withPlanarSeed(fields: SeedFields, pose: PlanarLidarPose): SeedFields {
+  if (![pose.x, pose.y, pose.yaw].every(Number.isFinite)) throw new Error("invalid_planar_seed");
+  return { ...fields, x: String(pose.x), y: String(pose.y), yaw: String(pose.yaw * 180 / Math.PI) };
+}
+
+export function planarSeedDraft(fields: SeedFields): PlanarLidarPose | undefined {
+  if ([fields.x, fields.y, fields.yaw].some((value) => !value.trim() || !Number.isFinite(Number(value)))) return;
+  return { x: Number(fields.x), y: Number(fields.y), yaw: Number(fields.yaw) * Math.PI / 180 };
+}
+
+export function seedDraftReady(fields: SeedFields, binding: LocalizationState["binding"] | undefined,
+  state: LocalizationState | undefined, preview: SavedSlamPointPreview | undefined): boolean {
+  if (!binding || !state || !preview || !sameLocalizationBinding(binding, state.binding) ||
+      preview.mapId !== binding.map_id || preview.receiptSha256 !== binding.receipt_sha256 ||
+      preview.pointsSha256 !== binding.points_sha256 || preview.inputMode !== binding.input_mode ||
+      !state.workerReady || state.workerClosed || state.requestPending || state.referenceFrame === null ||
+      ["stopped", "failed"].includes(state.state)) return false;
+  try { seedMatrix(fields); return true; } catch { return false; }
+}
 
 /** Intrinsic ZYX: mapFromLidar = translation * Rz(yaw) * Ry(pitch) * Rx(roll). */
 export function seedMatrix(fields: SeedFields): RigidMatrix {

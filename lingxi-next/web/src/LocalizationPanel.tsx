@@ -8,7 +8,9 @@ import {
 } from "../../shared/localization";
 import { api, ApiError, jsonBody, type Connection } from "./api";
 import LidarCanvas from "./LidarCanvas";
-import { planarLidarPose, seedMatrix, type SeedFields } from "./localization-view";
+import { emptySeedFields, planarLidarPose, planarSeedDraft, seedDraftReady, seedMatrix,
+  withPlanarSeed, type SeedFields } from "./localization-view";
+import type { PlanarLidarPose } from "./lidar-view";
 
 const labels: Record<LocalizationState["state"], string> = {
   unseeded: "等待初始位姿", seed_requested: "初始位姿已提交，等待确认", acquiring: "正在建立连续匹配",
@@ -23,7 +25,7 @@ const reasons: Record<string, string> = {
   runtime_stopping: "定位进程正在停止",
   seed_application_failed: "初始位姿应用失败",
 };
-const initial: SeedFields = { x: "0", y: "0", z: "0", roll: "0", pitch: "0", yaw: "0" };
+const initial = emptySeedFields();
 const runtimeLabels: Record<LocalizationRuntime["phase"], string> = {
   idle: "未启动定位进程", starting: "定位进程启动中", running: "定位进程运行中",
   stopping: "定位进程关闭中", stopped: "定位进程已关闭", failed: "定位进程异常",
@@ -40,6 +42,7 @@ export default function LocalizationPanel({ connection, maps, mappingActive = fa
   const [selectedMapId, setSelectedMapId] = useState("");
   const [preview, setPreview] = useState<SavedSlamPointPreview>();
   const [fields, setFields] = useState<SeedFields>(initial);
+  const [draftBinding, setDraftBinding] = useState<LocalizationState["binding"]>();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
@@ -47,6 +50,7 @@ export default function LocalizationPanel({ connection, maps, mappingActive = fa
   const current = useRef<{ value: LocalizationState; at: number } | undefined>(undefined);
   const currentRuntime = useRef<{ value: LocalizationRuntime; at: number } | undefined>(undefined);
   const rememberedRun = useRef("");
+  const rememberedBinding = useRef("");
   const request = useRef<AbortController | undefined>(undefined);
   const commandRequest = useRef<AbortController | undefined>(undefined);
   const latestRequest = useRef(0);
@@ -56,7 +60,7 @@ export default function LocalizationPanel({ connection, maps, mappingActive = fa
     ++connectionEpoch.current;
     commandRequest.current?.abort(); commandRequest.current = undefined;
     setBusy(false); setError(""); setMessage(""); setMode("unknown"); setSelectedMapId("");
-    setFields(initial); rememberedRun.current = "";
+    setFields(initial); setDraftBinding(undefined); rememberedRun.current = ""; rememberedBinding.current = "";
     return () => { ++connectionEpoch.current; commandRequest.current?.abort(); };
   }, [connection]);
 
@@ -131,8 +135,17 @@ export default function LocalizationPanel({ connection, maps, mappingActive = fa
   useEffect(() => {
     if (!runtime?.runId) return;
     const identity = runtime.serviceId + runtime.runId;
-    if (identity !== rememberedRun.current) { rememberedRun.current = identity; setFields(initial); }
+    if (identity !== rememberedRun.current) {
+      rememberedRun.current = identity; setFields(initial); setDraftBinding(undefined);
+    }
   }, [runtime?.serviceId, runtime?.runId]);
+
+  const bindingKey = snapshot ? JSON.stringify(snapshot.binding) : "";
+  useEffect(() => {
+    if (bindingKey !== rememberedBinding.current) {
+      rememberedBinding.current = bindingKey; setFields(initial); setDraftBinding(undefined);
+    }
+  }, [bindingKey]);
 
   const choosing = runtime && canStart(runtime);
   const selection = runtime?.selectedMap;
@@ -164,6 +177,9 @@ export default function LocalizationPanel({ connection, maps, mappingActive = fa
     const state = source.value;
     let body: Omit<LocalizationCommand, "action">;
     try {
+      if (action === "seed" && !seedDraftReady(fields, draftBinding, state, preview)) {
+        throw new Error("请完整填写当前地图与会话的初始雷达位姿");
+      }
       body = {
         binding: state.binding, expectedGeneration: state.generation,
         ...(action === "seed" ? { sourceFrame: state.sourceFrame,
@@ -241,6 +257,23 @@ export default function LocalizationPanel({ connection, maps, mappingActive = fa
     matchedPreview.receiptSha256 === snapshot.binding.receipt_sha256 &&
     matchedPreview.pointsSha256 === snapshot.binding.points_sha256
     ? planarLidarPose(snapshot.mapFromSensor) : undefined;
+  const pickEnabled = Boolean(!busy && !terminal && snapshot?.workerReady && !snapshot.requestPending &&
+    snapshot.referenceFrame !== null && matchedPreview?.mapId === snapshot.binding.map_id &&
+    matchedPreview?.receiptSha256 === snapshot.binding.receipt_sha256 &&
+    matchedPreview?.pointsSha256 === snapshot.binding.points_sha256 && matchedPreview?.inputMode === snapshot.binding.input_mode);
+  const draftPose = snapshot && draftBinding && sameLocalizationBinding(draftBinding, snapshot.binding) &&
+    matchedPreview?.receiptSha256 === draftBinding.receipt_sha256 && matchedPreview?.pointsSha256 === draftBinding.points_sha256
+    ? planarSeedDraft(fields) : undefined;
+  const seedReady = seedDraftReady(fields, draftBinding, snapshot, matchedPreview);
+
+  function editSeed(change: (value: SeedFields) => SeedFields) {
+    const source = current.current;
+    if (!pickEnabled || !source || !snapshot || performance.now() - source.at > 900 ||
+        !sameLocalizationBinding(snapshot.binding, source.value.binding)) return;
+    setFields(change); setDraftBinding(source.value.binding); setError("");
+  }
+
+  function pickSeed(value: PlanarLidarPose) { editSeed((previous) => withPlanarSeed(previous, value)); }
   const map = maps?.find((item) => item.id === mapId);
   const inputMode = snapshot?.binding.input_mode ?? runtime?.inputMode;
   const inputLabel = inputMode === "live" ? "实时传感器" : inputMode === "recorded" ? "录制数据" : "等待输入状态";
@@ -256,7 +289,8 @@ export default function LocalizationPanel({ connection, maps, mappingActive = fa
       <section className="localization-cloud">
         <div className="inline localization-heading"><h2>{map?.name ?? "当前会话地图"}</h2>
           <span className="tag">{matchedPreview ? "已保存点云" : "点云暂不可用"}</span></div>
-        {matchedPreview ? <LidarCanvas preview={matchedPreview} overlayPose={pose} /> :
+        {matchedPreview ? <LidarCanvas key={bindingKey} preview={matchedPreview} overlayPose={pose}
+          seedSelection={{ enabled: pickEnabled, pose: draftPose, onSelect: pickSeed }} /> :
           <div className="empty">等待定位服务与地图点云</div>}
         {pose && <div className="helper mono" data-testid="localization-pose">
           雷达 · X {pose.x.toFixed(3)} / Y {pose.y.toFixed(3)} / Z {snapshot!.mapFromSensor![2][3].toFixed(3)} raw
@@ -305,11 +339,14 @@ export default function LocalizationPanel({ connection, maps, mappingActive = fa
             {(Object.keys(initial) as (keyof SeedFields)[]).map((key) => <div className="field" key={key}>
               <label htmlFor={`seed-${key}`}>{({ x: "X / raw", y: "Y / raw", z: "Z / raw",
                 roll: "横滚 / °", pitch: "俯仰 / °", yaw: "朝向 / °" })[key]}</label>
-              <input id={`seed-${key}`} type="number" step="any" required disabled={busy}
-                value={fields[key]} onChange={(event) => setFields({ ...fields, [key]: event.target.value })} />
+              <input id={`seed-${key}`} type="number" step="any" required disabled={!pickEnabled}
+                value={fields[key]} onChange={(event) => {
+                  const value = event.target.value;
+                  editSeed((previous) => ({ ...previous, [key]: value }));
+                }} />
             </div>)}
           </div>
-          <button className="btn primary" type="submit" disabled={busy || terminal || !snapshot?.workerReady || snapshot.requestPending || snapshot.referenceFrame === null}>
+          <button className="btn primary" type="submit" disabled={busy || !seedReady}>
             <Compass size={14} />提交初始位姿
           </button>
         </form>

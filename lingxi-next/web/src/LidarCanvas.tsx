@@ -1,13 +1,15 @@
 import { useEffect, useRef, useState } from "react";
-import { Maximize, Minus, Plus, Trash2 } from "lucide-react";
+import { Maximize, Minus, Move, Navigation2, Plus, Trash2 } from "lucide-react";
 import type { LidarFrame, SavedSlamPointPreview } from "../../shared/contracts";
 import { openLidarEvents, type Connection } from "./api";
-import { appendScan, lidarBounds, type ScanHistory } from "./lidar-view";
+import { appendScan, lidarBounds, lidarViewport, lidarToScreen, lidarSeedGesture,
+  type CanvasPoint, type LidarViewport, type PlanarLidarPose, type ScanHistory } from "./lidar-view";
 
 type Props = ({ connection: Connection; preview?: never } | { preview: SavedSlamPointPreview; connection?: never }) &
-  { overlayPose?: { x: number; y: number; yaw: number } };
+  { overlayPose?: PlanarLidarPose;
+    seedSelection?: { enabled: boolean; pose?: PlanarLidarPose; onSelect: (pose: PlanarLidarPose) => void } };
 
-export default function LidarCanvas({ connection, preview, overlayPose }: Props) {
+export default function LidarCanvas({ connection, preview, overlayPose, seedSelection }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const historyRef = useRef<ScanHistory>({ key: "", frames: [] });
   const [frame, setFrame] = useState<LidarFrame>();
@@ -18,9 +20,27 @@ export default function LidarCanvas({ connection, preview, overlayPose }: Props)
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [revision, setRevision] = useState(0);
-  const drag = useRef<{ x: number; y: number } | undefined>(undefined);
+  const [interaction, setInteraction] = useState<"pan" | "seed">("pan");
+  const [gesturePose, setGesturePose] = useState<PlanarLidarPose>();
+  const drag = useRef<{ pointerId: number; start: CanvasPoint; last: CanvasPoint;
+    mode: "pan" | "seed"; key: string; view: LidarViewport } | undefined>(undefined);
+  const viewRef = useRef<LidarViewport | undefined>(undefined);
   const boundsRef = useRef<ReturnType<typeof lidarBounds> | undefined>(undefined);
   const contextKey = useRef("");
+  const previewKey = preview ? `${preview.mapId}:${preview.receiptSha256}:${preview.pointsSha256}` : "";
+
+  function cancelGesture() { drag.current = undefined; setGesturePose(undefined); }
+
+  useEffect(() => {
+    drag.current = undefined; setGesturePose(undefined); setInteraction("pan");
+    viewRef.current = undefined; boundsRef.current = undefined;
+    historyRef.current = { key: "", frames: [] };
+    setZoom(1); setPan({ x: 0, y: 0 });
+  }, [previewKey]);
+
+  useEffect(() => {
+    if (!seedSelection?.enabled) { drag.current = undefined; setGesturePose(undefined); setInteraction("pan"); }
+  }, [seedSelection?.enabled]);
 
   useEffect(() => {
     if (preview) {
@@ -72,7 +92,9 @@ export default function LidarCanvas({ connection, preview, overlayPose }: Props)
     canvas.height = Math.max(1, Math.round(rect.height * dpr));
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.fillStyle = "#fafbfc"; ctx.fillRect(0, 0, rect.width, rect.height);
-    if (!frame) { historyRef.current = { key: "", frames: [] }; return; }
+    if (!frame || rect.width <= 48 || rect.height <= 48) {
+      viewRef.current = undefined; historyRef.current = { key: "", frames: [] }; return;
+    }
     const history = appendScan(historyRef.current, frame, accumulate);
     historyRef.current = history;
     if (contextKey.current !== history.key) {
@@ -87,9 +109,13 @@ export default function LidarCanvas({ connection, preview, overlayPose }: Props)
       maxX: Math.max(previous.maxX, currentBounds.maxX), maxY: Math.max(previous.maxY, currentBounds.maxY),
     } : currentBounds;
     boundsRef.current = bounds;
-    const scale = zoom * Math.min((rect.width - 48) / (bounds.maxX - bounds.minX), (rect.height - 48) / (bounds.maxY - bounds.minY));
-    const centerX = (bounds.minX + bounds.maxX) / 2, centerY = (bounds.minY + bounds.maxY) / 2;
-    const screen = (x: number, y: number) => [rect.width / 2 + pan.x + (x - centerX) * scale, rect.height / 2 + pan.y - (y - centerY) * scale];
+    const view = lidarViewport(bounds, rect.width, rect.height, zoom, pan);
+    viewRef.current = view;
+    const { scale } = view;
+    const screen = (x: number, y: number) => {
+      const point = lidarToScreen(view, { x, y });
+      return [point.x, point.y];
+    };
     for (const item of history.frames) {
       const current = item.sequence === frame.sequence;
       ctx.fillStyle = current ? "#607387" : "#bac4d3";
@@ -120,6 +146,16 @@ export default function LidarCanvas({ connection, preview, overlayPose }: Props)
       ctx.fillStyle = "#286d9b"; ctx.beginPath(); ctx.moveTo(18, 0); ctx.lineTo(-7, -7); ctx.lineTo(-3, 0); ctx.lineTo(-7, 7); ctx.closePath(); ctx.fill();
       ctx.restore();
     }
+    const candidate = gesturePose ?? seedSelection?.pose;
+    if (preview && candidate) {
+      const [x, y] = screen(candidate.x, candidate.y);
+      ctx.save(); ctx.translate(x, y); ctx.rotate(-candidate.yaw);
+      ctx.strokeStyle = "#ba6038"; ctx.fillStyle = "#ba6038"; ctx.lineWidth = 2;
+      ctx.setLineDash([4, 3]); ctx.beginPath(); ctx.arc(0, 0, 17, 0, Math.PI * 2); ctx.stroke();
+      ctx.setLineDash([]); ctx.beginPath(); ctx.moveTo(-8, 0); ctx.lineTo(30, 0); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(30, 0); ctx.lineTo(20, -6); ctx.lineTo(20, 6); ctx.closePath(); ctx.fill();
+      ctx.restore();
+    }
     const targetUnits = 90 / scale;
     const unit = 10 ** Math.floor(Math.log10(targetUnits));
     const distance = (targetUnits / unit >= 5 ? 5 : targetUnits / unit >= 2 ? 2 : 1) * unit;
@@ -127,7 +163,7 @@ export default function LidarCanvas({ connection, preview, overlayPose }: Props)
     ctx.strokeStyle = "#526371"; ctx.fillStyle = "#526371"; ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(18, rect.height - 20); ctx.lineTo(18 + bar, rect.height - 20); ctx.stroke();
     ctx.font = "11px sans-serif"; ctx.fillText(`${distance} ${preview || coordinateUnits === "native-raw" ? "raw" : "m"}`, 18, rect.height - 27);
-  }, [frame, accumulate, zoom, pan, revision, preview, coordinateUnits, overlayPose]);
+  }, [frame, accumulate, zoom, pan, revision, preview, coordinateUnits, overlayPose, gesturePose, seedSelection?.pose]);
 
   function clearHistory() {
     historyRef.current = { key: "", frames: [] }; boundsRef.current = undefined;
@@ -136,18 +172,49 @@ export default function LidarCanvas({ connection, preview, overlayPose }: Props)
 
   return <div className="lidar-view">
     <div className="map-canvas-wrap lidar-canvas-wrap">
-      <canvas ref={canvasRef} aria-label={preview ? "已保存 SLAM 地图点云" : inputMode === "live" ? "激光雷达实时扫描点云" : inputMode === "recorded" ? "录制数据建图点云" : "合成测试点云"} onPointerDown={(event) => {
-        drag.current = { x: event.clientX, y: event.clientY }; event.currentTarget.setPointerCapture(event.pointerId);
+      <canvas ref={canvasRef} data-interaction={interaction} tabIndex={seedSelection ? 0 : undefined}
+        onKeyDown={(event) => { if (event.key === "Escape") { event.preventDefault(); cancelGesture(); } }}
+        aria-label={preview ? "已保存 SLAM 地图点云" : inputMode === "live" ? "激光雷达实时扫描点云" : inputMode === "recorded" ? "录制数据建图点云" : "合成测试点云"} onPointerDown={(event) => {
+        if (event.button !== 0 || !event.isPrimary || !viewRef.current || drag.current ||
+            interaction === "seed" && !seedSelection?.enabled) return;
+        const rect = event.currentTarget.getBoundingClientRect();
+        const point = { x: event.clientX - rect.left, y: event.clientY - rect.top };
+        drag.current = { pointerId: event.pointerId, start: point, last: point, mode: interaction,
+          key: previewKey, view: viewRef.current };
+        event.currentTarget.focus({ preventScroll: true });
+        event.currentTarget.setPointerCapture(event.pointerId);
       }} onPointerMove={(event) => {
-        if (!drag.current || !event.buttons) return;
-        const dx = event.clientX - drag.current.x, dy = event.clientY - drag.current.y;
-        drag.current = { x: event.clientX, y: event.clientY };
-        setPan((value) => ({ x: value.x + dx, y: value.y + dy }));
-      }} onPointerUp={() => { drag.current = undefined; }} onPointerCancel={() => { drag.current = undefined; }} />
+        const active = drag.current;
+        if (!active || active.pointerId !== event.pointerId) return;
+        const rect = event.currentTarget.getBoundingClientRect();
+        const point = { x: event.clientX - rect.left, y: event.clientY - rect.top };
+        if (active.mode === "seed") setGesturePose(lidarSeedGesture(active.view, active.start, point));
+        else setPan((value) => ({ x: value.x + point.x - active.last.x, y: value.y + point.y - active.last.y }));
+        active.last = point;
+      }} onPointerUp={(event) => {
+        const active = drag.current, view = viewRef.current;
+        if (!active || active.pointerId !== event.pointerId) return;
+        if (active.mode === "seed" && seedSelection?.enabled && active.key === previewKey && view &&
+            view.width === active.view.width && view.height === active.view.height && view.scale === active.view.scale &&
+            view.centerX === active.view.centerX && view.centerY === active.view.centerY &&
+            view.pan.x === active.view.pan.x && view.pan.y === active.view.pan.y) {
+          const rect = event.currentTarget.getBoundingClientRect();
+          const pose = lidarSeedGesture(active.view, active.start, { x: event.clientX - rect.left, y: event.clientY - rect.top });
+          if (pose) seedSelection.onSelect(pose);
+        }
+        cancelGesture();
+      }} onPointerCancel={cancelGesture} onLostPointerCapture={cancelGesture} />
       <div className="map-tools">
-        <button className="btn icon" title="放大扫描视图" onClick={() => setZoom((value) => Math.min(8, value * 1.3))}><Plus size={16} /></button>
-        <button className="btn icon" title="缩小扫描视图" onClick={() => setZoom((value) => Math.max(0.5, value / 1.3))}><Minus size={16} /></button>
-        <button className="btn icon" title="适应扫描范围" onClick={() => { boundsRef.current = undefined; setZoom(1); setPan({ x: 0, y: 0 }); setRevision((value) => value + 1); }}><Maximize size={16} /></button>
+        {seedSelection && <>
+          <button className="btn icon" title="平移地图" aria-label="平移地图" aria-pressed={interaction === "pan"}
+            onClick={() => { cancelGesture(); setInteraction("pan"); }}><Move size={16} /></button>
+          <button className="btn icon" title="设置初始位置与朝向" aria-label="设置初始位置与朝向"
+            disabled={!seedSelection.enabled} aria-pressed={interaction === "seed"}
+            onClick={() => { cancelGesture(); setInteraction("seed"); }}><Navigation2 size={16} /></button>
+        </>}
+        <button className="btn icon" title="放大扫描视图" onClick={() => { cancelGesture(); setZoom((value) => Math.min(8, value * 1.3)); }}><Plus size={16} /></button>
+        <button className="btn icon" title="缩小扫描视图" onClick={() => { cancelGesture(); setZoom((value) => Math.max(0.5, value / 1.3)); }}><Minus size={16} /></button>
+        <button className="btn icon" title="适应扫描范围" onClick={() => { cancelGesture(); boundsRef.current = undefined; setZoom(1); setPan({ x: 0, y: 0 }); setRevision((value) => value + 1); }}><Maximize size={16} /></button>
         {!preview && <button className="btn icon" title="清除累计点迹" onClick={clearHistory}><Trash2 size={16} /></button>}
       </div>
       {notice && <span className="map-empty-label" role="status">{notice}</span>}
@@ -158,6 +225,7 @@ export default function LidarCanvas({ connection, preview, overlayPose }: Props)
       {frame && <span className="tag">{preview ? "已保存点云" : inputMode === "recorded" ? "录制数据验证" : inputMode === "synthetic" ? "合成测试" : coordinateUnits === "native-raw" ? "实时 SLAM" : frame.source === "point-cloud" ? "PointCloud2" : "LaserScan"}</span>}
       {frame && (preview || coordinateUnits === "native-raw") && <span className="tag">原始坐标 / 未标定</span>}
       {preview?.sampled && <span className="tag">抽样预览 / 共 {preview.totalPoints.toLocaleString()} 点</span>}
+      {preview && (gesturePose || seedSelection?.pose) && <span className="tag seed-draft-label">初值草稿</span>}
       {!preview && <label className="inline" title="保留近15秒扫描点迹"><input type="checkbox" checked={accumulate} onChange={(event) => { clearHistory(); setAccumulate(event.target.checked); }} />累计点迹</label>}
     </div>
     {frame && !frame.fixedFrame && <div className="helper lidar-detail" role="status">{frame.detail ?? "当前为雷达坐标，点迹不累计"}</div>}

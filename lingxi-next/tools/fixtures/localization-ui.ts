@@ -112,6 +112,7 @@ async function main() {
     else if (action === "recover") outage = false;
     else if (action === "map-mismatch") state.binding = { ...state.binding, receipt_sha256: "f".repeat(64) };
     else if (action === "map-restore") state.binding = { ...state.binding, receipt_sha256: receiptSha256 };
+    else if (action === "session-change") state.binding = { ...state.binding, session: randomUUID().replaceAll("-", "") };
     else if (action === "conflict-next") conflictNext = true;
     else if (action === "conflict-service-next") conflictServiceNext = true;
     else if (action === "ready") runtime = { ...runtime, phase: "running" };

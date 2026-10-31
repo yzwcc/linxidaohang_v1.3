@@ -186,6 +186,10 @@ button:disabled { cursor: not-allowed; opacity: .48; }
 }
 .portrait-warning { display: none; position: fixed; z-index: 30; top: 8px; left: 50%; transform: translateX(-50%); background: #17211f; color: #fff; border-radius: 4px; padding: 7px 10px; font-size: 10px; align-items: center; gap: 6px; white-space: nowrap; }
 
+.map-tools .btn[aria-pressed="true"] { background: #e7f2f0; color: #167c70; border-color: #9bc9c0; }
+.lidar-canvas-wrap canvas[data-interaction="seed"] { cursor: crosshair; }
+.seed-draft-label { color: #984624; background: #fbf0e8; }
+
 @media (pointer: coarse) {
   .btn, .btn.small, .btn.icon { min-height: 44px; }
   .btn.icon { min-width: 44px; width: 44px; }

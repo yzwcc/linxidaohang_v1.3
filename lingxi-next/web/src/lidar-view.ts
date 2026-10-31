@@ -1,6 +1,39 @@
 import type { LidarFrame } from "../../shared/contracts";
 
 export type ScanHistory = { key: string; frames: LidarFrame[] };
+export type PlanarLidarPose = { x: number; y: number; yaw: number };
+export type CanvasPoint = { x: number; y: number };
+export type LidarViewport = {
+  width: number; height: number; scale: number; centerX: number; centerY: number; pan: CanvasPoint;
+};
+
+export function lidarViewport(bounds: ReturnType<typeof lidarBounds>, width: number, height: number,
+  zoom: number, pan: CanvasPoint): LidarViewport {
+  if (![...Object.values(bounds), width, height, zoom, pan.x, pan.y].every(Number.isFinite) ||
+      width <= 48 || height <= 48 || zoom <= 0 || bounds.maxX <= bounds.minX || bounds.maxY <= bounds.minY) {
+    throw new Error("invalid_lidar_viewport");
+  }
+  return { width, height, pan: { ...pan }, centerX: (bounds.minX + bounds.maxX) / 2,
+    centerY: (bounds.minY + bounds.maxY) / 2,
+    scale: zoom * Math.min((width - 48) / (bounds.maxX - bounds.minX), (height - 48) / (bounds.maxY - bounds.minY)) };
+}
+
+export function lidarToScreen(view: LidarViewport, point: CanvasPoint): CanvasPoint {
+  return { x: view.width / 2 + view.pan.x + (point.x - view.centerX) * view.scale,
+    y: view.height / 2 + view.pan.y - (point.y - view.centerY) * view.scale };
+}
+
+export function lidarFromScreen(view: LidarViewport, point: CanvasPoint): CanvasPoint {
+  return { x: (point.x - view.width / 2 - view.pan.x) / view.scale + view.centerX,
+    y: -(point.y - view.height / 2 - view.pan.y) / view.scale + view.centerY };
+}
+
+export function lidarSeedGesture(view: LidarViewport, start: CanvasPoint, end: CanvasPoint): PlanarLidarPose | undefined {
+  if ([start, end].some((point) => !Number.isFinite(point.x) || !Number.isFinite(point.y) ||
+      point.x < 0 || point.x > view.width || point.y < 0 || point.y > view.height) ||
+      Math.hypot(end.x - start.x, end.y - start.y) < 12) return undefined;
+  return { ...lidarFromScreen(view, start), yaw: Math.atan2(start.y - end.y, end.x - start.x) };
+}
 
 export function appendScan(history: ScanHistory, frame: LidarFrame, accumulate: boolean): ScanHistory {
   const key = `${frame.epoch}:${frame.frameId}:${frame.fixedFrame}`;

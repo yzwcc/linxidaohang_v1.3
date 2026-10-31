@@ -131,7 +131,9 @@ class PublishedSharedLivePackageTests(unittest.TestCase):
         import live_bundle
         self.assertEqual(self.value["package"]["archiveSha256"], live_bundle.sha256(archive))
         manifest = live_bundle.verify_archive(archive, self.value["package"]["manifestSha256"], profile=live_bundle.SLAM)
-        self.assertEqual(manifest["sourceSha256"], live_bundle.source_hashes(profile=live_bundle.SLAM))
+        # r8 is frozen evidence; newer UI sources need not equal that historical archive.
+        for name, expected in self.value["sourceSha256"].items():
+            self.assertEqual(expected, manifest["sourceSha256"][name])
 
 
 if __name__ == "__main__":

@@ -222,6 +222,12 @@ including native map save/reload, restart persistence and complete localization
 shutdown. Live accuracy, motion and full-product acceptance remain outstanding.
 See [the shared workspace](docs/SLAM_WORKSPACE.md).
 See [the actual ARM64 workspace check](docs/SLAM_WORKSPACE_ARM64.md).
+The localization point-cloud view now supports position/heading picking as an
+explicit draft, with blank initial fields and full map/session binding. Picking
+never submits a command; height, roll and pitch remain explicit inputs. Desktop
+and landscape synthetic checks passed for both service and fixed-map consoles.
+This source update does not change the retained r8 archive or ship a new APK.
+See [point-cloud initial pose picking](docs/SLAM_POSE_PICKER.md).
 A new ordinary-user recorded-input launcher now owns the native localization
 worker and paired HTTPS API together, with bounded startup, peer-failure cleanup
 and end-of-run input verification. Thirteen Linux process cases and 87 focused

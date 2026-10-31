@@ -40,6 +40,11 @@ const run = (...args) => {
 const evaluate = (source) => run("eval", "-b", Buffer.from(source).toString("base64")).result;
 const wait = (source) => run("wait", "--fn", source);
 const click = (name) => run("find", "role", "button", "click", "--name", name, "--exact");
+const fillSeed = () => {
+  for (const [key, value] of Object.entries({ x: "1.25", y: "-0.5", z: "0.1", roll: "5", pitch: "-10", yaw: "90" })) {
+    run("fill", `#seed-${key}`, value);
+  }
+};
 const control = (command) => {
   const result = evaluate(`(async () => {
     const response = await fetch('/__synthetic/${command}', {signal:AbortSignal.timeout(3000)});
@@ -49,7 +54,7 @@ const control = (command) => {
   assert.equal(result.body.classification, "isolated_synthetic_ui_fixture");
   return result.body;
 };
-const report = { schemaVersion: 1, date: "2026-10-30", classification: "isolated_synthetic_ui_fixture",
+const report = { schemaVersion: 1, date: new Date().toISOString().slice(0, 10), classification: "isolated_synthetic_ui_fixture",
   robotContacted: false, nativeSlamExecuted: false, targetRenderingValidated: false,
   motionCommandsSent: false, result: "failed", stages: {}, screenshots: {} };
 
@@ -123,11 +128,54 @@ try {
     assert.deepEqual(control("status").lifecycleCommands, ["start"]);
     control("ready");
   }
-  wait("window.__localizationMetric().nonBackground > 100 && !window.__localizationMetric().seedDisabled");
+  wait("window.__localizationMetric().nonBackground > 100 && !document.querySelector('#seed-x').disabled");
+  assert.equal(evaluate("window.__localizationMetric().seedDisabled"), true);
   await capture("unseeded", false);
-  for (const [key, value] of Object.entries({ x: "1.25", y: "-0.5", z: "0.1", roll: "5", pitch: "-10", yaw: "90" })) {
-    run("fill", `#seed-${key}`, value);
-  }
+  const draftFields = () => evaluate(`Object.fromEntries([...document.querySelectorAll('input[id^="seed-"]')]
+    .map(input => [input.id.slice(5), input.value]))`);
+  const beginDrag = (dx, dy) => {
+    const point = evaluate(`(() => { const r=document.querySelector('.localization-cloud canvas').getBoundingClientRect();
+      return {x:r.left+r.width*.45,y:r.top+r.height*.55}; })()`);
+    run("mouse", "move", String(Math.round(point.x)), String(Math.round(point.y))); run("mouse", "down", "left");
+    run("mouse", "move", String(Math.round(point.x + dx)), String(Math.round(point.y + dy)));
+  };
+  run("snapshot", "-i");
+  for (const [key, value] of Object.entries({ z: "0.4", roll: "7", pitch: "-3" })) run("fill", `#seed-${key}`, value);
+  click("设置初始位置与朝向");
+  const beforePicking = control("status").commands.length;
+  beginDrag(0, -50); run("mouse", "up", "left");
+  const picked = draftFields();
+  assert(Number.isFinite(Number(picked.x)) && Number.isFinite(Number(picked.y)));
+  assert(Math.abs(Number(picked.yaw) - 90) < 1e-6);
+  assert.deepEqual([picked.z, picked.roll, picked.pitch], ["0.4", "7", "-3"]);
+  assert.equal(control("status").commands.length, beforePicking);
+  run("click", ".localization-cloud canvas");
+  assert.deepEqual(draftFields(), picked);
+  beginDrag(40, 0); run("press", "Escape"); run("mouse", "up", "left");
+  assert.deepEqual(draftFields(), picked);
+  click("平移地图"); beginDrag(25, 12); run("mouse", "up", "left");
+  assert.deepEqual(draftFields(), picked);
+  click("放大扫描视图");
+  click("设置初始位置与朝向"); beginDrag(40, 0); run("mouse", "up", "left");
+  assert.equal(Number(draftFields().yaw), 0);
+  assert.equal(control("status").commands.length, beforePicking);
+  evaluate("window.__oldSeedCanvas = document.querySelector('.localization-cloud canvas'); true");
+  beginDrag(0, -40);
+  control("session-change");
+  wait("!window.__oldSeedCanvas.isConnected && [...document.querySelectorAll('input[id^=\"seed-\"]')].every(input => input.value === '')");
+  run("mouse", "up", "left");
+  assert(Object.values(draftFields()).every(value => value === ""));
+  assert.equal(control("status").commands.length, beforePicking);
+  for (const [key, value] of Object.entries({ z: "0.4", roll: "7", pitch: "-3" })) run("fill", `#seed-${key}`, value);
+  click("设置初始位置与朝向"); beginDrag(40, 0); run("mouse", "up", "left");
+  await capture("seed-draft", false);
+  run("set", "viewport", "844", "390");
+  await capture("seed-draft-landscape", false);
+  run("set", "viewport", "1440", "900");
+  report.pointCloudPicking = { explicitOnly: true, headingChecked: true, clickIgnored: true,
+    escapeCancelled: true, panPreservedDraft: true, zoomedPickChecked: true, nonPlanarFieldsPreserved: true,
+    sameMapSessionChangeCancelsGesture: true };
+  fillSeed();
   click("提交初始位姿");
   wait("window.__localizationMetric().status?.includes('初始位姿已提交')");
   await capture("pending", false);
@@ -145,6 +193,8 @@ try {
   await capture("map-mismatch", false, serviceMode);
   control("map-restore");
   wait("Boolean(window.__localizationMetric().pose)");
+  assert.equal(evaluate("document.querySelector('#seed-x').value"), "");
+  fillSeed();
   evaluate(`(() => {
     const original = window.fetch;
     window.__restoreFetch = () => { window.fetch = original; };
@@ -178,6 +228,8 @@ try {
   report.lateQueryAfterPauseRejected = true;
   await capture("late-query", false);
   control("ack");
+  wait("!document.querySelector('#seed-x').disabled");
+  fillSeed();
   wait("!window.__localizationMetric().seedDisabled");
   click("提交初始位姿");
   control("track");
@@ -190,6 +242,7 @@ try {
   control("recover");
   wait("Boolean(window.__localizationMetric().pose)");
   await capture("recovered", true);
+  fillSeed();
   control("conflict-next");
   const before = control("status").commands.length;
   click("提交初始位姿");
@@ -224,9 +277,10 @@ try {
     wait("window.__localizationMetric().runtime?.includes('启动中')");
     assert.notEqual(control("status").runtime.runId, firstRun);
     control("ready");
-    wait("!window.__localizationMetric().seedDisabled");
+    wait("!document.querySelector('#seed-x').disabled");
     await capture("service-restarted", false);
-    assert.equal(evaluate("document.querySelector('#seed-x').value"), "0");
+    assert.equal(evaluate("document.querySelector('#seed-x').value"), "");
+    assert.equal(evaluate("window.__localizationMetric().seedDisabled"), true);
     click("关闭定位进程");
     control("cleanup-failed");
     wait("window.__localizationMetric().runtime?.includes('进程异常')");
