@@ -62,9 +62,11 @@ Inspection of pinned GLIM explains why the merged saved cloud is insufficient:
 
 Do not raycast map 1.2's fused points from A, the map center, or successive saved
 frame poses. Do not promote blank display space to free space. The existing
-map and its receipt remain unchanged. Next integrate bounded source-backed
-observation persistence into mapping; do not request another field scan until
-that producer and its reload/provenance checks are ready.
+map and its receipt remain unchanged. A separate source-backed observation
+extension now passes offline recorded save/reload checks; see
+[SLAM_OBSERVATION_ARCHIVE.md](SLAM_OBSERVATION_ARCHIVE.md). ARM64 execution,
+live package wiring and metric registration remain unfinished. Do not request
+another field scan until the actual product producer is ready.
 
 ## Reproduction
 
