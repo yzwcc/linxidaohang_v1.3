@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "repository": "ros-navigation/navigation2",
+  "commit": "3c3db59d6969d8ecee8e68468693d006397f4a0c",
+  "license": "BSD-3-Clause; retain the notices in both upstream source files",
+  "files": {
+    "nav2_navfn_planner/src/navfn.cpp": "863446230ae83fb19b1543228c2791b2ff7dec3a997ea57e67322a02bee2d266",
+    "nav2_navfn_planner/include/nav2_navfn_planner/navfn.hpp": "4d6dcd616c40b5c0b366f62cf9156cdae2f8b3e0163b08b7e1b28648ad1956d7"
+  }
+}
