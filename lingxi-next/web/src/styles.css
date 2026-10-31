@@ -61,6 +61,18 @@ button:disabled { cursor: not-allowed; opacity: .48; }
 .lidar-footer { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding-top: 12px; font-size: 12px; }
 .lidar-footer label { margin-left: auto; white-space: nowrap; }
 .lidar-detail { margin-top: 9px; color: #815a12; }
+.lidar-measurement { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 10px; font-size: 12px; }
+.lidar-measurement strong { font-variant-numeric: tabular-nums; }
+.lidar-canvas-wrap canvas[data-interaction="measure"] { cursor: crosshair; }
+.lidar-view .map-tools { max-width: calc(100% - 20px); flex-wrap: wrap; justify-content: flex-end; }
+.lidar-display-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; font-size: 11px; }
+.segmented { display: inline-flex; border: 1px solid #d7e0dc; border-radius: 4px; overflow: hidden; }
+.segmented button { min-height: 32px; padding: 0 10px; border: 0; background: #fff; color: #52615c; font-size: 11px; }
+.segmented button + button { border-left: 1px solid #d7e0dc; }
+.segmented button[aria-pressed="true"] { background: #e7f2f0; color: #12685e; font-weight: 700; }
+.lidar-z-fields { display: flex; align-items: end; flex-wrap: wrap; gap: 8px; }
+.lidar-z-fields label { display: grid; gap: 3px; font-size: 10px; color: #52615c; }
+.lidar-z-fields input { width: 92px; min-height: 32px; border: 1px solid #d7e0dc; border-radius: 4px; padding: 5px 7px; font-size: 11px; }
 .mapping-save-result { padding-bottom: 12px; border-bottom: 1px solid #e0e7e3; }
 .mapping-save-result > div { display: flex; align-items: flex-start; gap: 7px; color: #12685e; font-size: 12px; }
 .mapping-save-result svg { flex-shrink: 0; }

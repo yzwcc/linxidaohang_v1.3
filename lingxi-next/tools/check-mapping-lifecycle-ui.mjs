@@ -66,6 +66,7 @@ async function capture(name) {
       startColors: startStyle && [startStyle.color, startStyle.backgroundColor],
       placeholder: document.querySelector('.map-empty-label')?.innerText,
       captureLimit: document.querySelector('[data-testid="mapping-capture-limit"]')?.innerText,
+      measurement: document.querySelector('[data-testid="lidar-measurement"]')?.innerText,
       savedMessage: document.querySelector('[data-testid="mapping-save-result"]')?.innerText,
       footer: document.querySelector('.lidar-footer').innerText,
       lidarSockets: window.__lifecycleSockets.length,
@@ -110,17 +111,23 @@ try {
   await run("fill", "#pairing-code", info.pairingCode);
   await run("click", "button[type=submit]");
   await wait("Boolean(document.querySelector('.demo-banner'))");
-  await evaluate(`(() => { window.__lifecycleSockets=[]; const Original=window.WebSocket;
+  await evaluate(`(() => { window.__lifecycleSockets=[]; window.__lifecycleControls=[]; const Original=window.WebSocket;
     window.WebSocket=class extends Original { constructor(...args) { super(...args);
       if (String(args[0]).endsWith('/api/v1/lidar/events')) window.__lifecycleSockets.push(this); } };
     const originalFetch=window.fetch;
     window.fetch=async (...args) => { const response=await originalFetch(...args);
       const pathname=new URL(String(args[0]),location.href).pathname;
+      if (args[1]?.method && args[1].method !== 'GET') window.__lifecycleControls.push(pathname);
       if (pathname.endsWith('/mapping/stop-save') && response.ok) {
         window.__lifecycleSavedId=(await response.clone().json()).savedSlamMap?.id;
       }
       const match=pathname.match(/^\\/api\\/v1\\/slam\\/maps\\/(slam-[a-f0-9]{32})\\/points$/);
-      if (match) window.__lifecyclePreviewId=match[1];
+      if (match) {
+        window.__lifecyclePreviewId=match[1];
+        const preview=await response.clone().json();
+        const zs=preview.points.filter((_,index)=>index%3===2);
+        window.__lifecyclePreviewCounts={available:zs.length,sliced:zs.filter(z=>z>=0&&z<=.15).length};
+      }
       return response;
     }; })()`);
   await click("实时建图");
@@ -159,6 +166,98 @@ try {
   report.savedMapIdentityMatched = true;
   await run("set", "viewport", "1440", "900");
   assert.equal((await capture("preview-desktop")).canvasInViewport, true);
+  const controlsBeforeMeasurement = await evaluate("window.__lifecycleControls.length");
+  const readMeasurement = () => evaluate(`(() => { const el=document.querySelector('[data-testid="lidar-measurement"]');
+    return el ? {distance:Number(el.dataset.distance),text:el.innerText} : null; })()`);
+  async function beginMeasurement(dx, dy) {
+    const point = await evaluate(`(() => { const r=document.querySelector('.lidar-view canvas').getBoundingClientRect();
+      return {x:Math.round(r.left+r.width*.4),y:Math.round(r.top+r.height*.5)}; })()`);
+    await run("mouse", "move", String(point.x), String(point.y));
+    await run("mouse", "down", "left");
+    await run("mouse", "move", String(point.x + dx), String(point.y + dy));
+    return point;
+  }
+  await click("测量 XY 投影距离");
+  await beginMeasurement(60, -40); await run("mouse", "up", "left");
+  const measured = await readMeasurement();
+  assert(measured.distance > 0 && measured.text.includes("raw") && measured.text.includes("非米制标定"));
+  await capture("measurement-desktop");
+  await click("放大扫描视图");
+  assert.deepEqual(await readMeasurement(), measured);
+  await click("平移地图");
+  await beginMeasurement(20, 10); await run("mouse", "up", "left");
+  assert.deepEqual(await readMeasurement(), measured);
+  await click("测量 XY 投影距离");
+  await beginMeasurement(40, 20); await run("press", "Escape"); await run("mouse", "up", "left");
+  assert.deepEqual(await readMeasurement(), measured);
+  await run("click", ".lidar-view canvas");
+  assert.deepEqual(await readMeasurement(), measured);
+  await run("set", "viewport", "844", "390");
+  await evaluate("document.querySelector('.lidar-view').scrollIntoView({block:'center'})");
+  await capture("measurement-landscape");
+  assert.deepEqual(await readMeasurement(), measured);
+  const measurementPoint = await beginMeasurement(40, 20);
+  await run("mouse", "move", String(measurementPoint.x - 1000), String(measurementPoint.y));
+  await run("mouse", "up", "left");
+  assert.deepEqual(await readMeasurement(), measured);
+  await click("清除测距");
+  assert.equal(await readMeasurement(), null);
+  await click("测量 XY 投影距离");
+  await beginMeasurement(40, 20); await run("mouse", "up", "left");
+  assert((await readMeasurement()).distance > 0);
+  assert.equal(await evaluate("window.__lifecycleControls.length"), controlsBeforeMeasurement);
+  report.measurement = { classification: "raw_xy_projection_only", motionOrCalibrationRequested: false,
+    preservedAcrossZoomPanResize: true, cancellationPreservesPrevious: true, clearPassed: true };
+  await run("set", "viewport", "1440", "900");
+  await click("主体范围");
+  assert.equal(await readMeasurement(), null);
+  assert.equal(await evaluate("document.querySelector('.segmented button[aria-pressed=true]').textContent"), "主体范围");
+  await run("find", "label", "原始 Z 分层", "check");
+  await wait("document.querySelector('.map-empty-label')?.innerText === '请输入有效的原始 Z 范围'");
+  await run("find", "label", "原始 Z 下限", "fill", "0");
+  await run("find", "label", "原始 Z 上限", "fill", ".15");
+  const expected = await evaluate("window.__lifecyclePreviewCounts");
+  assert(expected.sliced > 0 && expected.sliced < expected.available);
+  const sliceCounts = () => evaluate(`(() => {const el=document.querySelector('[data-testid="lidar-slice-count"]');
+    return el ? {visible:Number(el.dataset.visible),available:Number(el.dataset.available)} : null;})()`);
+  await wait(`document.querySelector('[data-testid="lidar-slice-count"]')?.dataset.visible === '${expected.sliced}'`);
+  assert.deepEqual(await sliceCounts(), { visible: expected.sliced, available: expected.available });
+  const sliced = await capture("sliced-desktop");
+  assert(sliced.nonBackground > 100);
+  await run("set", "viewport", "844", "390");
+  await evaluate("document.querySelector('.lidar-view').scrollIntoView({block:'center'})");
+  assert.equal((await capture("sliced-landscape")).canvasInViewport, true);
+  assert.deepEqual(await sliceCounts(), { visible: expected.sliced, available: expected.available });
+  await run("set", "viewport", "1440", "900");
+  await run("find", "label", "原始 Z 下限", "fill", "100");
+  await run("find", "label", "原始 Z 上限", "fill", "101");
+  await wait("document.querySelector('.map-empty-label')?.innerText === '当前原始 Z 范围内没有点'");
+  assert.deepEqual(await sliceCounts(), { visible: 0, available: expected.available });
+  assert.equal((await capture("slice-empty-desktop")).nonBackground, 0);
+  await run("find", "label", "原始 Z 上限", "fill", "-1");
+  await wait("document.querySelector('.map-empty-label')?.innerText === '请输入有效的原始 Z 范围'");
+  await run("uncheck", 'input[aria-label="原始 Z 分层"]');
+  assert.equal(await sliceCounts(), null);
+  assert((await capture("slice-restored-desktop")).nonBackground > 100);
+  await click("全部范围");
+  assert.equal(await evaluate("document.querySelector('.segmented button[aria-pressed=true]').textContent"), "全部范围");
+  assert.equal(await evaluate("window.__lifecycleControls.length"), controlsBeforeMeasurement);
+  report.display = { classification: "display_only_raw_coordinates", explicitBandRequired: true,
+    sourceCountsMatched: true, emptyAndInvalidBandsDistinct: true, disableRestoresPoints: true,
+    rangeTogglePassed: true, displayChangeClearsMeasurement: true, controlRequestsSent: 0 };
+  await click("主体范围");
+  await run("find", "label", "原始 Z 分层", "check");
+  await click("实时建图");
+  assert.equal(await readMeasurement(), null);
+  await click("地图管理");
+  await click(`查看 ${name} 点云`);
+  await wait("document.querySelector('.lidar-footer')?.innerText.includes('已保存点云')");
+  assert.equal(await readMeasurement(), null);
+  assert.equal(await evaluate("document.querySelector('.lidar-view canvas').dataset.interaction"), "pan");
+  assert.equal(await evaluate("document.querySelector('.segmented button[aria-pressed=true]').textContent"), "全部范围");
+  assert.equal(await evaluate("document.querySelector('input[aria-label=\"原始 Z 分层\"]').checked"), false);
+  report.display.resetOnReopenPassed = true;
+  report.measurement.resetOnReopenPassed = true;
   await click("实时建图");
   await click("开始采集");
   await wait("Boolean(document.querySelector('#map-name'))");

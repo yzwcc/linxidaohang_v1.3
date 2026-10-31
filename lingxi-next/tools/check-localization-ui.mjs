@@ -131,6 +131,16 @@ try {
   wait("window.__localizationMetric().nonBackground > 100 && !document.querySelector('#seed-x').disabled");
   assert.equal(evaluate("window.__localizationMetric().seedDisabled"), true);
   await capture("unseeded", false);
+  assert.equal(evaluate("Boolean(document.querySelector('button[aria-label=\"测量 XY 投影距离\"]'))"), false);
+  const beforeDisplay = control("status").commands.length;
+  click("主体范围");
+  run("find", "label", "原始 Z 分层", "check");
+  run("find", "label", "原始 Z 下限", "fill", "-.15");
+  run("find", "label", "原始 Z 上限", "fill", ".15");
+  wait("Number(document.querySelector('[data-testid=lidar-slice-count]')?.dataset.visible)>0");
+  assert.equal(control("status").commands.length, beforeDisplay);
+  assert.equal(evaluate("window.__localizationMetric().seedDisabled"), true);
+  report.display = { noCommandsSent: true, measurementAbsentInSeedPicker: true, slicedSeedPickerChecked: true };
   const draftFields = () => evaluate(`Object.fromEntries([...document.querySelectorAll('.seed-fields input[type="number"]')]
     .map(input => [input.id.slice(5), input.value]))`);
   const beforeReference = control("status").commands.length;
