@@ -1,0 +1,148 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-31",
+  "result": "arm64_live_shared_package_checked_not_physical_accuracy",
+  "purpose": "packaged_shared_live_lifecycle_not_navigation_acceptance",
+  "package": {
+    "archiveSha256": "d431eebf42ebfe9a7b227af8ebb50d4251d9588a2221f2bca71f6e331b36e446",
+    "archiveBytes": 54242746,
+    "manifestSha256": "193af333dd40567135613eeab1eee565bcdab47769e2e4da3298c17fef8c9a7b",
+    "buildManifestSha256": "4795b927ceebd0f5618ecd09a687bc523ccd7a8da28461e92a818e41b052fcb8",
+    "consumerManifestSha256": "e35d411cf7cde7b8bca4b76717accaf2a137ca5512c2f1fe8fcf3f6f1a106521",
+    "nodeBinarySha256": "7e48183361053f039294fbbc3ba586722fe756bf296d6cb8195356d10819cd16",
+    "nodeVersionPrepared": "22.23.4",
+    "packageLockSha256": "9c49e9ed55c0f6c9d2a1ad257a5f39f1125b31c31a5a882ecf30fae148cf40ba",
+    "sourceFiles": 219,
+    "bundleFiles": 7795,
+    "installedPackageCount": 95,
+    "allArchiveMemberBytesVerified": true
+  },
+  "lockSha256": "71d74391a6edc9e6e87a4e79ba7f91a60c82daac1b57506fc3041bd9a6915cd9",
+  "target": {
+    "machine": "aarch64",
+    "python": "3.10.12",
+    "versions": {
+      "numpy": "1.26.4",
+      "scipy": "1.11.4",
+      "small-gicp": "1.0.1",
+      "PyYAML": "6.0.2",
+      "json5": "0.12.1"
+    },
+    "systemSitePackages": false,
+    "numericalImportWarnings": 0
+  },
+  "sourceSha256": {
+    "tools/check_shared_slam_live_package.py": "9e50dd827e8308be571138e6286a2c4ece17dbafbd9750dc7f354e0c665572cb",
+    "robot-slam/lingxi_slam/passive_ros.py": "1d7889f74d15e860b04f19ebfda7f9fc5367e21fb925afeb41b050d62f6c28a2",
+    "robot-slam/lingxi_slam/worker.py": "d160a448b50d63d902a8963e62ed370d37851cae865f61dca3286eb97c2228a5",
+    "robot-runtime/python/launch_slam_bundle.py": "e6c1588ba939ded523c9929841376913a56ee97994b278f2428c01486d32b5f7",
+    "robot-runtime/python/live_bundle.py": "429306c99ea6ba92045c63de9f78ba7b8a5ffded7d2bb84b7e546aad71a08fd6",
+    "robot-runtime/python/managed_slam.py": "e28c51c7ffe84b09f3c4097d229476ce9ceb049c714ea4703620d1788c414533",
+    "robot-runtime/python/slam_owner.py": "caeeb799afc52fe362466ab8668efbd8e3009770f4256a53568094c00db2148e",
+    "robot-runtime/python/slam_service.py": "ba80fcef87f44f73f19b6d74cc3bfa2d549d332ad97eb13b562c67ddbfd84961",
+    "robot-runtime/python/mapping_service.py": "d0f86c97f3ec2b607ab9580dfd2198925a6d6ba008da847ed0130f523c3a5ebf",
+    "robot-runtime/python/localization_service.py": "c3798a4dea79e6cbf7720002c22850ce6ca76bfacf6f984c9259372c840db49a",
+    "robot-runtime/python/live_localization.py": "ae201f23ae6fea1f74d65955147036f4926ba17ca93eccd4b35ff7fed275dc14",
+    "robot-runtime/python/mapping_platform.py": "633edf5876efd05c440cb2f0c6a7312c9e9650dd8acb2683b592dfc0e8072a41"
+  },
+  "staticAssetsChecked": 2,
+  "mapping": {
+    "observedProgress": {
+      "completedMessages": 2545,
+      "processedScans": 120,
+      "estimatedPoses": 89
+    },
+    "savedCounts": {
+      "finalizedFrames": 90,
+      "submaps": 1,
+      "points": 2732,
+      "savedFrames": 90
+    },
+    "schemaVersion": 2,
+    "inputMode": "live",
+    "freshProcessReloadPassed": true,
+    "receiptSha256": "d78a630baed635efa9ab851802c1a4badc41b941d4422c1184cc162172c1bb77",
+    "restartPreservedMap": true
+  },
+  "localization": {
+    "referenceFramesObserved": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "pauseConfirmed": true,
+    "stopConfirmed": true,
+    "staleGenerationRejected": true,
+    "stoppedQueries": 10,
+    "counts": {
+      "receivedImu": 897,
+      "receivedClouds": 45,
+      "insertedImu": 888,
+      "processedScans": 44,
+      "initializationScans": 31,
+      "estimatedPoses": 13,
+      "skippedBeforeImu": 1,
+      "skippedAfterImuAtEndOfInput": 0,
+      "discardedOnFailure": 0,
+      "maximumPendingImu": 28,
+      "maximumPendingClouds": 1,
+      "maximumPendingBytes": 791712
+    },
+    "nativeCalls": {
+      "create": 1,
+      "imu": 888,
+      "frame": 44,
+      "close": 1
+    },
+    "childReportSha256": "488fcb20f69111dca96b2eb632ef2d770c5be8e1eb459d4005b13800e3f9a7fb"
+  },
+  "basePoseInput": {
+    "observations": {
+      "imuMessages": 898,
+      "cloudMessages": 45,
+      "staticTransforms": 2,
+      "dynamicTransforms": 666,
+      "timedFrames": 44,
+      "tfLookupsAvailable": 44,
+      "tfLookupsUnavailable": 0,
+      "scanTimeUnavailable": 0,
+      "invalidScanTimes": 0,
+      "invalidTransforms": 0,
+      "lookupErrors": 0
+    },
+    "closed": true,
+    "physicalScaleValidated": false,
+    "metresPerMapUnitIsDiagnosticOnly": true
+  },
+  "mappingLocalizationExclusionChecked": true,
+  "mappingAdmissionRestored": true,
+  "seedRequests": 0,
+  "cleanOwnerLaunches": 2,
+  "ownerReportsSha256": [
+    "87f03a9afa52459b794076652adbcd4b003ed5214ff8f959d50966445c4b93aa",
+    "87f03a9afa52459b794076652adbcd4b003ed5214ff8f959d50966445c4b93aa"
+  ],
+  "privateReportSha256": "d685c3c77212dea7874ecb0b0dd5dd29557006dca42096e956a57247b3f4ff26",
+  "collectionReportSha256": "1f92fe5e1943cab9016a25f6a7948745b7b818a3da42c8337df23853483aee38",
+  "finalObservationSha256": "2fb82e57921c566c1e4356996732a1e434aa135a2f24dca4265972c2ac67a49d",
+  "finalObservation": {
+    "remainingTrialProcesses": 0,
+    "existingConsoleListening": true,
+    "testPortClosed": true,
+    "allProcessesCleaned": true
+  },
+  "boundaries": {
+    "motionCommandsSent": false,
+    "formalServicesChanged": false,
+    "vendorPackagesChanged": false,
+    "physicalCalibrationAccepted": false,
+    "localizationReady": false,
+    "navigationReady": false,
+    "productAccepted": false,
+    "lanCertificateTrustValidated": false,
+    "androidRenderingValidated": false,
+    "systemdInstallUpgradeValidated": false
+  }
+}

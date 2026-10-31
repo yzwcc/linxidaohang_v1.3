@@ -135,7 +135,11 @@ identity separately from this explicitly recorded live successor.
 
 ## Integration Boundary
 
-Keep the existing shared service stopped while preparing a future live trial.
+The separate [r8 shared-package live check](SLAM_WORKSPACE_LIVE_ARM64.md) now
+verifies the extracted management package with this Python, including live save,
+catalog retention across restart and unseeded localization. It did not install,
+upgrade or switch the existing shared service. Keep that service stopped while
+preparing an isolated live trial.
 The deployment tool's `--python /absolute/new-slam-python/env/bin/python`
 selects an environment for a separately verified install; it is not an implicit
 upgrade of a running release. Recheck the installed native libraries, private

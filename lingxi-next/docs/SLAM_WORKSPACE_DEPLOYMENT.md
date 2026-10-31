@@ -5,6 +5,11 @@ point-cloud mapping and on-demand saved-map localization workspace. It does not
 install vendor SLAM, change AIMDK, provide walking commands, or replace the
 existing port-3000 console. It is not a final product release or APK update.
 
+A separate [r8 live package check](SLAM_WORKSPACE_LIVE_ARM64.md) now verifies
+the packaged live API, persistent catalog and unseeded localization with the
+isolated Python runtime. It uses direct isolated launches, not systemd installation
+or a release switch. The r7 recorded-input installation record below is retained.
+
 本包用于独立点云建图与保存地图定位的集中联调，包含安装、升级、回滚工具。
 地图与配对信息独立保留，不覆盖 AIMDK，不接管旧控制台，也不包含行走指令。
 这是可核验的阶段包，不是最终产品交付或 Android 更新。
@@ -37,7 +42,7 @@ The separate [actual ARM64 recorded-input check](SLAM_WORKSPACE_ARM64.md)
 records r7 commissioning and the earlier unsuccessful attempts. Preparation
 flags are deliberately not promoted to physical or product acceptance flags.
 
-The final generated archive is
+The recorded-input commissioning archive is
 `artifacts/lingxi-next-shared-slam-20261031-r7-arm64.tar.gz`, with an adjacent
 `.sha256` file. These generated artifacts are intentionally excluded from Git.
 Earlier development archives are superseded; their target observations are
