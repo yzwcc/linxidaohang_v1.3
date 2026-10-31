@@ -76,7 +76,12 @@ class SavedMapResolver:
                 if digest(payload) != receipt_sha256:
                     continue
                 receipt = strict_json(payload)
-                if (type(receipt) is not dict or receipt.get("schemaVersion") != 2
+                if (type(receipt) is not dict
+                        or type(receipt.get("schemaVersion")) is not int
+                        or receipt["schemaVersion"] not in (2, 3)
+                        or (receipt["schemaVersion"] == 3
+                            and receipt.get("mappingEngine") != "glim-full-async-v1")
+                        or (receipt["schemaVersion"] == 2 and "mappingEngine" in receipt)
                         or map_id != "slam-" + str(receipt.get("session"))
                         or receipt.get("inputMode") not in ("recorded", "live")
                         or receipt.get("freshProcessReloadPassed") is not True

@@ -74,3 +74,61 @@ acceptance. Live multi-submap updates, measured scale/heading, loop closure,
 localization, navigation, Android and voice remain unaccepted. The next product
 priority is stationary saved-map localization, followed by supervised short-route
 navigation only after localization and motion-interface prerequisites pass.
+
+## Saved-Map Localization Integration
+
+The service resolver now admits strictly typed receipt versions 2 and 3. Version
+3 requires `glim-full-async-v1`; version 2 must not carry a mapping engine. It
+retains receipt identity, point digest, fresh reload and current sensor-provenance
+checks. Full inventory and point loading remain in the child. The earlier
+schema-2-only resolver rejected map 1.2 before launching a localization child;
+that integration failure is not a localization-quality result.
+
+With the user confirming the robot stationary at A, live map-1.2 localization
+started and accepted a single explicit seed from the saved final LiDAR pose.
+The diagnostic run entered tracking about 0.453 seconds after seed submission,
+then stopped tracking when GICP exhausted its 40-iteration budget. The private
+quality summary recorded 118 accepted estimates followed by one rejection:
+native convergence was false, despite overlap 0.998228, inlier RMS 0.141654 raw,
+inlier P95 0.230138 raw, and nondegenerate geometry. This trial did not meet its
+sustained-tracking requirement. Its owned process cleaned up and map digests
+remained unchanged; no movement commands were sent.
+
+Registration now has an 80-iteration computation ceiling, within the existing
+bounded native worker and process supervision. Explicit native convergence,
+overlap, residual, correction, geometry and freshness requirements are unchanged.
+A regression test confirms that even a high-overlap estimate exhausting the
+larger budget has no accepted pose. Live child reports retain bounded scalar
+quality summaries, including at most eight initial rejected estimates, without
+point coordinates or poses. This diagnostic record does not enable readiness.
+
+Focused Linux checks: 146 tests passed, with 11 environment-dependent skips
+(157 discovered). The source-bound shared API/Web build also passed. Real-robot sustained
+tracking with the larger budget is a separate acceptance check, not implied by
+these tests or the earlier short tracking observation.
+
+## Sixty-Second Stationary Tracking Observation
+
+The rebuilt source-bound ARM64 runtime was tested with the same map 1.2, the
+robot stationary at A, unchanged sensor provenance, and one explicit seed from
+the saved final LiDAR pose. No automatic reseeding or motion was used.
+
+- First diagnostic tracking was observed 0.328 seconds after seed submission.
+  Across 60.047 seconds, all 604 native registration estimates were accepted,
+  with zero registration rejections. The HTTPS observer sampled 429 distinct
+  tracked frames and saw a timestamped base projection on all 429 samples.
+- Maximum sampled displacement from the first tracked LiDAR pose was 0.036526
+  raw units, and maximum sampled relative rotation was 0.526995 degrees. These
+  are stationary repeatability observations, not absolute position accuracy,
+  physical scale validation, or measured robot-base displacement.
+- The child reported normal live-runtime closure with 639 accepted clouds and
+  12,783 accepted IMU callbacks. The manager confirmed owned process cleanup.
+  Receipt and saved-point digests remained identical after the trial.
+- Runtime manifest SHA-256:
+  `e8f69ea53ae5e2739b571533fe92ecc3f56ba9e13694394397c157109cc4ba04`.
+
+This passes the bounded local stationary-tracking trial only. It does not prove
+that the larger iteration budget eliminates every convergence failure, and it
+does not replace moving localization, measured frame/scale checks, loop closure,
+navigation or product acceptance. Both `localizationReady` and `navigationReady`
+remain false. Private trial reports and map/sensor data are not committed.

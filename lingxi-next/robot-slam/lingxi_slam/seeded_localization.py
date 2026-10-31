@@ -28,7 +28,7 @@ class RegistrationConfig:
     minimum_points: int = 64
     maximum_map_points: int = 2_000_000
     maximum_scan_points: int = 100_000
-    maximum_iterations: int = 40
+    maximum_iterations: int = 80
 
     def __post_init__(self):
         for name in (
@@ -112,6 +112,40 @@ class RegistrationEstimate:
     metrics: dict
 
 
+class RegistrationDiagnostics:
+    """Bounded private quality evidence; no coordinates or change to acceptance."""
+
+    METRICS = ("scanPoints", "mapPoints", "downsampledScanPoints", "downsampledMapPoints",
+               "nativeConverged", "nativeInliers", "iterations", "overlap", "inlierRmsRaw",
+               "inlierP95Raw", "seedTranslationCorrectionRaw", "seedRotationCorrectionRadians",
+               "geometryInformationRatio", "nativeInformationRatio", "milliseconds")
+
+    def __init__(self):
+        self.attempts, self.accepted = 0, 0
+        self.rejections, self.first_rejected, self.last = {}, [], None
+
+    def record(self, estimate):
+        self.attempts += 1
+        self.accepted += int(estimate.accepted)
+        event = {"attempt": self.attempts, "accepted": estimate.accepted,
+                 "reasons": list(estimate.reasons),
+                 "metrics": {key: estimate.metrics[key] for key in self.METRICS if key in estimate.metrics}}
+        self.last = event
+        if not estimate.accepted:
+            for reason in estimate.reasons:
+                self.rejections[reason] = self.rejections.get(reason, 0) + 1
+            if len(self.first_rejected) < 8:
+                self.first_rejected.append(event)
+
+    def summary(self):
+        def copy(event):
+            return {**event, "reasons": list(event["reasons"]), "metrics": dict(event["metrics"])}
+        return {"attempts": self.attempts, "accepted": self.accepted,
+                "rejected": self.attempts - self.accepted, "rejectionReasons": dict(self.rejections),
+                "firstRejected": [copy(event) for event in self.first_rejected],
+                "last": copy(self.last) if self.last is not None else None}
+
+
 class SeededMapRegistration:
     """Cache one map, use explicit nearby seeds, and reject weak estimates.
 
@@ -121,10 +155,13 @@ class SeededMapRegistration:
     runtime integration must retain the existing process supervisor.
     """
 
-    def __init__(self, map_points, config=None):
+    def __init__(self, map_points, config=None, *, diagnostics=None):
         self.config = RegistrationConfig() if config is None else config
         if not isinstance(self.config, RegistrationConfig):
             raise ValueError("registration_config_required")
+        if diagnostics is not None and not isinstance(diagnostics, RegistrationDiagnostics):
+            raise ValueError("registration_diagnostics_required")
+        self.diagnostics = diagnostics
         if version("small-gicp") != SMALL_GICP_VERSION:
             raise RuntimeError("pinned_small_gicp_1_0_1_required")
         import small_gicp
@@ -166,7 +203,7 @@ class SeededMapRegistration:
             pose = rigid_pose(result.T_target_source)
         except ValueError:
             metrics["milliseconds"] = (time.perf_counter() - started) * 1000
-            return RegistrationEstimate(False, ("invalid_native_transform",), None, metrics)
+            return self._finish(RegistrationEstimate(False, ("invalid_native_transform",), None, metrics))
         transformed = scan @ pose[:3, :3].T + pose[:3, 3]
         distances, _ = self.map_tree.query(transformed, workers=1)
         inliers = distances <= c.correspondence_raw
@@ -198,9 +235,14 @@ class SeededMapRegistration:
         if geometry_ratio < c.minimum_geometry_ratio or native_ratio < c.minimum_native_information_ratio:
             reasons.append("degenerate_registration_geometry")
         if reasons:
-            return RegistrationEstimate(False, tuple(reasons), None, metrics)
+            return self._finish(RegistrationEstimate(False, tuple(reasons), None, metrics))
         pose.flags.writeable = False
-        return RegistrationEstimate(True, (), pose, metrics)
+        return self._finish(RegistrationEstimate(True, (), pose, metrics))
+
+    def _finish(self, estimate):
+        if self.diagnostics is not None:
+            self.diagnostics.record(estimate)
+        return estimate
 
     def _geometry_ratio(self, source, pose):
         points = np.asarray(source.points())[:, :3] @ pose[:3, :3].T + pose[:3, 3]

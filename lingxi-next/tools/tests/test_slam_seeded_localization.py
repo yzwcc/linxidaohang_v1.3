@@ -19,7 +19,8 @@ AVAILABLE = all(importlib.util.find_spec(name) is not None
 if AVAILABLE:
     import numpy as np
     from lingxi_slam.seeded_localization import (
-        RegistrationConfig, SeededMapRegistration, rigid_pose, sensor_scan_from_world)
+        RegistrationConfig, RegistrationDiagnostics, RegistrationEstimate,
+        SeededMapRegistration, rigid_pose, sensor_scan_from_world)
 if AVAILABLE and sys.platform == "linux":
     import run_seeded_localization_trial as trial
 
@@ -65,6 +66,52 @@ class SeededRegistrationTests(unittest.TestCase):
         result = SeededMapRegistration(self.points).register(scan, self.seed)
         self.assertTrue(result.accepted, (result.reasons, result.metrics))
         np.testing.assert_allclose(result.map_from_sensor, self.truth, atol=.012, rtol=0)
+
+    def test_private_diagnostics_preserve_quality_decisions_and_omit_coordinates(self):
+        diagnostics = RegistrationDiagnostics()
+        registration = SeededMapRegistration(self.points, diagnostics=diagnostics)
+        good = registration.register(self.scan, self.seed)
+        bad_seed = self.seed.copy()
+        bad_seed[:3, 3] += 100
+        bad = registration.register(self.scan, bad_seed)
+        self.assertTrue(good.accepted)
+        self.assertFalse(bad.accepted)
+        summary = diagnostics.summary()
+        self.assertEqual((2, 1, 1), (summary["attempts"], summary["accepted"], summary["rejected"]))
+        self.assertEqual(list(bad.reasons), summary["firstRejected"][0]["reasons"])
+        self.assertEqual(bad.metrics, summary["last"]["metrics"])
+        self.assertNotIn("map_from_sensor", json.dumps(summary))
+        self.assertIsNone(bad.map_from_sensor)
+        summary["last"]["metrics"].clear()
+        summary["firstRejected"][0]["reasons"].clear()
+        self.assertEqual(bad.metrics, diagnostics.summary()["last"]["metrics"])
+        self.assertEqual(list(bad.reasons), diagnostics.summary()["firstRejected"][0]["reasons"])
+
+    def test_private_diagnostic_samples_are_bounded_and_scalar_metrics_only(self):
+        diagnostics = RegistrationDiagnostics()
+        for _ in range(30):
+            diagnostics.record(RegistrationEstimate(False, ("insufficient_scan_map_overlap",), None,
+                {"overlap": .2, "unrecognizedCoordinates": [[123., 456.]]}))
+        summary = diagnostics.summary()
+        self.assertEqual(30, summary["rejected"])
+        self.assertEqual(8, len(summary["firstRejected"]))
+        self.assertEqual({"insufficient_scan_map_overlap": 30}, summary["rejectionReasons"])
+        self.assertNotIn("unrecognizedCoordinates", json.dumps(summary))
+        with self.assertRaisesRegex(ValueError, "registration_diagnostics_required"):
+            SeededMapRegistration(self.points, diagnostics={})
+
+    def test_larger_iteration_budget_still_requires_explicit_native_convergence(self):
+        registration = SeededMapRegistration(self.points)
+        self.assertEqual(80, registration.config.maximum_iterations)
+        exhausted = SimpleNamespace(converged=False, num_inliers=500, iterations=79,
+                                    T_target_source=self.truth, H=np.eye(6))
+        with patch.object(registration.native, "align", return_value=exhausted) as align:
+            result = registration.register(self.scan, self.truth)
+        self.assertEqual(80, align.call_args.kwargs["max_iterations"])
+        self.assertFalse(result.accepted)
+        self.assertIsNone(result.map_from_sensor)
+        self.assertIn("native_not_converged_or_insufficient_inliers", result.reasons)
+        self.assertGreater(result.metrics["overlap"], .99)
 
     def test_wrong_seed_no_overlap_has_no_usable_pose(self):
         seed = self.seed.copy()

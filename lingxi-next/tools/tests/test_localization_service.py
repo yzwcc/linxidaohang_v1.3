@@ -570,14 +570,38 @@ class ResolverTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "unambiguous"):
             self.resolver(MAP, digest)
 
-    def test_legacy_unreloaded_or_different_provenance_requires_new_valid_map(self):
-        original = json.loads(json.dumps(self.receipt))
-        for changes in ({"schemaVersion": 1}, {"freshProcessReloadPassed": False},
-                        {"sensorProvenance": {**self.provenance, "timingHypothesis": "header_is_scan_end"}},
-                        {"savedPointsSha256": "invalid"}):
+    def test_full_async_map_resolves_without_loading_or_claiming_readiness(self):
+        self.receipt.update(schemaVersion=3, mappingEngine="glim-full-async-v1")
+        receipt_sha256 = self.write()
+        result = self.resolver(MAP, receipt_sha256)
+        self.assertEqual(self.folder, result.directory)
+        self.assertEqual(MAP, result.binding.map_id)
+        self.assertEqual(receipt_sha256, result.binding.receipt_sha256)
+        self.assertEqual("d" * 64, result.binding.points_sha256)
+        self.assertFalse((self.folder / "map").exists())
+
+    def test_version_and_mapping_engine_must_match_exactly(self):
+        original = self.receipt.copy()
+        for changes in ({"schemaVersion": 2.0}, {"schemaVersion": 3.0},
+                        {"schemaVersion": True}, {"schemaVersion": "3"},
+                        {"schemaVersion": 3},
+                        {"schemaVersion": 3, "mappingEngine": None},
+                        {"schemaVersion": 3, "mappingEngine": "unknown"},
+                        {"schemaVersion": 2, "mappingEngine": "glim-full-async-v1"},
+                        {"schemaVersion": 2, "mappingEngine": None}):
             self.receipt = {**original, **changes}
             with self.subTest(changes=changes), self.assertRaises(ValueError):
                 self.resolver(MAP, self.write())
+
+    def test_legacy_unreloaded_or_different_provenance_requires_new_valid_map(self):
+        original = json.loads(json.dumps(self.receipt))
+        for version in ({}, {"schemaVersion": 3, "mappingEngine": "glim-full-async-v1"}):
+            for changes in ({"schemaVersion": 1}, {"freshProcessReloadPassed": False},
+                            {"sensorProvenance": {**self.provenance, "timingHypothesis": "header_is_scan_end"}},
+                            {"savedPointsSha256": "invalid"}):
+                self.receipt = {**original, **version, **changes}
+                with self.subTest(version=version, changes=changes), self.assertRaises(ValueError):
+                    self.resolver(MAP, self.write())
 
 
 if __name__ == "__main__":

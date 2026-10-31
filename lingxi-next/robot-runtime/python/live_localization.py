@@ -84,6 +84,7 @@ def child(args, sink, platform):
     from lingxi_slam.passive_ros import Topics, run_passive
     from lingxi_slam.point_output import NativePointOutput, PointOutputNative
     from lingxi_slam.worker import SensorWorker
+    from lingxi_slam.seeded_localization import RegistrationDiagnostics
     from slam_bag_audit import CLOUD, IMU
 
     if not platform.arm64 or platform.mode != "live":
@@ -93,8 +94,10 @@ def child(args, sink, platform):
         args.saved_map, args.map_id, args.receipt_sha256, platform.profile, args.profile_sha256,
         session=child_session, input_mode="live", sensor_provenance=platform.sensor_provenance())
     options = platform.value.get("basePose")
+    registration_diagnostics = RegistrationDiagnostics()
     session = make_session(binding, points, base_metres_per_map_unit=(
-        options["metresPerMapUnit"] if options is not None else None))
+        options["metresPerMapUnit"] if options is not None else None),
+        registration_diagnostics=registration_diagnostics)
     base_owner = None
     if options is not None:
         from live_base_pose import LiveBasePose
@@ -174,7 +177,8 @@ def child(args, sink, platform):
         final = {"state": session.state(), "robotContacted": True, "motionCommandsSent": False,
                  "mapProfileAssociationVerified": False}
         report.update(nativeCalls=calls, nativeOwnerIsSingleNonMainThread=len(owners) == 1,
-                      actualLoadedLibrariesSha256=libraries)
+                      actualLoadedLibrariesSha256=libraries,
+                      registrationDiagnostics=registration_diagnostics.summary())
         if report["result"] == "live_sensor_session_closed":
             report["result"] = "live_localization_runtime_closed"
         private_json(args.output / "localization-final.json", final)
