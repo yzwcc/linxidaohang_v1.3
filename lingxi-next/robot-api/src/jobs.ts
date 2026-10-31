@@ -241,8 +241,9 @@ export class JobManager {
     if (mapId !== activeMapId) throw new Error("目标不属于当前活动地图");
     const snapshot = await this.adapter.getSnapshot();
     if (!snapshot.connected || !snapshot.checks.find((check) => check.id === "navigation")?.ready) {
-      throw new Error("X2 原生导航接口尚未就绪");
+      throw new Error("导航接口尚未就绪");
     }
+    if (snapshot.navigation.requiresStop) throw new Error("导航状态未确认，请先停止任务");
     if (snapshot.actionBusy) throw new Error("机器人仍在执行或等待确认一个动作");
     if (snapshot.mapping) throw new Error("建图期间不能开始导航");
     if (["requested", "running", "paused"].includes(snapshot.navigation.status)) {
@@ -395,6 +396,7 @@ export class JobManager {
       if (!this.isCurrent(job)) return false;
       const nav = snapshot.navigation;
       if (nav.taskId === taskId) {
+        if (nav.requiresStop) throw new Error("导航执行器状态未确认，禁止重试或推进任务");
         if (nav.status === "finished") return true;
         if (nav.status === "failed") return false;
         job.status = nav.status === "paused" ? "paused" : nav.status === "running" ? "running" : "requested";

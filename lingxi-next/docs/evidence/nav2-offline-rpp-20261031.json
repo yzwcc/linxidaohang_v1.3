@@ -1,0 +1,100 @@
+{
+  "schemaVersion": 1,
+  "purpose": "synthetic_planar_nav2_integration_not_field_acceptance",
+  "date": "2026-10-31",
+  "upstream": {
+    "repository": "https://github.com/ros-navigation/navigation2",
+    "commit": "3c3db59d6969d8ecee8e68468693d006397f4a0c",
+    "controller": "nav2_regulated_pure_pursuit_controller::RegulatedPurePursuitController",
+    "smoother": "nav2_velocity_smoother::VelocitySmoother",
+    "installedBinaryMatchesPinnedSourceVerified": false
+  },
+  "installedPackages": [
+    "ros-humble-nav2-controller 1.1.20-1jammy.20260915.232401",
+    "ros-humble-nav2-navfn-planner 1.1.20-1jammy.20260915.232217",
+    "ros-humble-nav2-regulated-pure-pursuit-controller 1.1.20-1jammy.20260915.232155",
+    "ros-humble-nav2-velocity-smoother 1.1.20-1jammy.20260915.230155"
+  ],
+  "sourceSha256": {
+    "robot-navigation/lingxi_navigation/nav2_profile.py": "30559adec3148a1ea91c715c455492e5458b7369fc3d972f0396d363e8021a2e",
+    "robot-navigation/lingxi_navigation/runtime.py": "8fd3111f363c3aacdebe620404ad5beccda0a1aee16045d73fa97f7a526f6f25",
+    "robot-navigation/nav2_offline.launch.py": "d1ca97db1a34e3740f4630c49de9247e49d00a945196b26bf9ebca298fc55738",
+    "tools/prepare_nav2_offline.py": "1f884df16ef58685fe316fb8b6560903cd0bb2c761a17063651dcd349b3862d5",
+    "tools/run_nav2_offline.py": "d3bf363bf45d93579cb7758cfd6a07f01445c91e4e8ba3d96ac3d891937f51f6"
+  },
+  "dynamicObstaclePolicy": "mark_only_latched_no_automatic_clearing",
+  "requiredEnvelopeRadiusMetres": 0.4,
+  "goal": [2.0, 0.0, 0.0],
+  "goalPositionToleranceMetres": 0.15,
+  "goalHeadingToleranceRadians": 0.15,
+  "cases": [
+    {
+      "case": "open",
+      "passed": true,
+      "checks": {
+        "actionExpected": true, "sourceRetired": true, "noLatchedFault": true,
+        "commandsBounded": true, "sweptObstacleClearance": true, "fullEnvelopeSupported": true,
+        "controllerProducedMotion": true, "planned": true, "metricGoalReached": true, "headingReached": true
+      },
+      "finalPose": [1.8536737855062675, 3.1329887814817925e-8, -1.5112287272110258e-7],
+      "minimumSweptObstacleDistanceMetres": null,
+      "maximumAbsY": 4.6638201209271155e-8,
+      "commandCount": 236,
+      "elapsedSeconds": 16.14839488,
+      "reportSha256": "fb64079e8f6d57a4c51640bdeb5f645eacec6dfaf46ff60b59a9b3480971ba55"
+    },
+    {
+      "case": "blocked",
+      "passed": true,
+      "checks": {
+        "actionExpected": true, "sourceRetired": true, "noLatchedFault": true,
+        "commandsBounded": true, "sweptObstacleClearance": true, "fullEnvelopeSupported": true,
+        "noNonzeroCommands": true, "stayedAtStart": true
+      },
+      "finalPose": [0.0, 0.0, 0.0],
+      "minimumSweptObstacleDistanceMetres": 1.0,
+      "maximumAbsY": 0.0,
+      "commandCount": 0,
+      "elapsedSeconds": 4.294427875,
+      "reportSha256": "96edede4f13651338190c6d274a5d25a1bcc0cbe1b065ac79c61710fd26d2ca8"
+    },
+    {
+      "case": "detour",
+      "passed": true,
+      "checks": {
+        "actionExpected": true, "sourceRetired": true, "noLatchedFault": true,
+        "commandsBounded": true, "sweptObstacleClearance": true, "fullEnvelopeSupported": true,
+        "controllerProducedMotion": true, "planned": true, "metricGoalReached": true,
+        "headingReached": true, "obstacleActuallyBypassed": true
+      },
+      "finalPose": [1.9851577585179598, 0.14083275911954674, -0.12766986797541782],
+      "minimumSweptObstacleDistanceMetres": 0.722831900727814,
+      "maximumAbsY": 1.0447411409284622,
+      "commandCount": 563,
+      "elapsedSeconds": 32.684158342,
+      "reportSha256": "10b97a1fe849335ed073a761c732cb58ead0dfd1c983470ff06d418911b04a04"
+    },
+    {
+      "case": "appearing-wall",
+      "passed": true,
+      "checks": {
+        "actionExpected": true, "sourceRetired": true, "noLatchedFault": true,
+        "commandsBounded": true, "sweptObstacleClearance": true, "fullEnvelopeSupported": true,
+        "controllerProducedMotion": true, "planned": true, "obstacleIntroduced": true, "stoppedBeforeWall": true
+      },
+      "finalPose": [0.3013444126193392, 2.4202692341293102e-8, 9.478842347071123e-8],
+      "minimumSweptObstacleDistanceMetres": 0.6986555873806612,
+      "maximumAbsY": 2.4202692341293102e-8,
+      "commandCount": 42,
+      "elapsedSeconds": 3.630926336999999,
+      "reportSha256": "4fe80e24bf7d3c0c293b2efd4da13c4d9fd42fde316550a181dcf359ed1e20c5"
+    }
+  ],
+  "syntheticInputs": true,
+  "controllerExecuted": true,
+  "groundSupportMeasured": false,
+  "observedTwistHasSourceTimestamp": false,
+  "productionCommandAgeProven": false,
+  "physicalMotionSent": false,
+  "navigationReady": false
+}

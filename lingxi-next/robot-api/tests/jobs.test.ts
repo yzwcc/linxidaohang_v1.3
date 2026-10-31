@@ -60,6 +60,32 @@ describe("navigation and tour lifecycle", () => {
     expect(jobs.state().status).toBe("failed");
     await expect(jobs.startTour(tour)).rejects.toThrow();
   });
+  it("rejects new work when the navigation backend still requires an explicit stop", async () => {
+    nav = { status: "failed", requiresStop: true };
+    await expect(jobs.startPoint(point)).rejects.toThrow("先停止");
+    await expect(jobs.startTour(tour)).rejects.toThrow("先停止");
+    expect(adapter.startNavigation).not.toHaveBeenCalled();
+  });
+  it.each(["point", "tour"] as const)("halts a %s on a backend fault without retry, skip or return", async (kind) => {
+    store.state.idleReturnSeconds = 30;
+    if (kind === "point") await jobs.startPoint(point);
+    else await jobs.startTour(tour);
+    await vi.advanceTimersByTimeAsync(20);
+    const taskId = nav.taskId;
+    nav = { status: "failed", taskId, requiresStop: true };
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(adapter.startNavigation).toHaveBeenCalledTimes(1);
+    expect(speak).not.toHaveBeenCalled();
+    expect(jobs.state()).toMatchObject({ status: "failed", requiresStop: true });
+    expect(jobs.hasActiveJob()).toBe(true);
+    await expect(jobs.control("resume")).rejects.toThrow("先停止");
+    nav = { status: "finished", taskId };
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(adapter.startNavigation).toHaveBeenCalledTimes(1);
+    expect(speak).not.toHaveBeenCalled();
+    await jobs.control("stop");
+    expect(jobs.state().status).toBe("idle");
+  });
   it("manual pause cannot be resumed by wake or elapsed quiet time", async () => {
     await jobs.startTour(tour);
     await vi.advanceTimersByTimeAsync(20);
