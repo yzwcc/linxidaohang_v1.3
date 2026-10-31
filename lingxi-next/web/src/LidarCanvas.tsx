@@ -5,11 +5,12 @@ import { openLidarEvents, type Connection } from "./api";
 import { appendScan, lidarBounds, lidarViewport, lidarToScreen, lidarSeedGesture,
   type CanvasPoint, type LidarViewport, type PlanarLidarPose, type ScanHistory } from "./lidar-view";
 
-type Props = ({ connection: Connection; preview?: never } | { preview: SavedSlamPointPreview; connection?: never }) &
+type Props = ({ connection: Connection; preview?: never; inactiveNotice?: string } |
+  { preview: SavedSlamPointPreview; connection?: never; inactiveNotice?: never }) &
   { overlayPose?: PlanarLidarPose;
     seedSelection?: { enabled: boolean; pose?: PlanarLidarPose; onSelect: (pose: PlanarLidarPose) => void } };
 
-export default function LidarCanvas({ connection, preview, overlayPose, seedSelection }: Props) {
+export default function LidarCanvas({ connection, preview, inactiveNotice, overlayPose, seedSelection }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const historyRef = useRef<ScanHistory>({ key: "", frames: [] });
   const [frame, setFrame] = useState<LidarFrame>();
@@ -61,6 +62,7 @@ export default function LidarCanvas({ connection, preview, overlayPose, seedSele
       boundsRef.current = undefined;
       setFrame(undefined); setNotice(message);
     };
+    if (inactiveNotice) { unavailable(inactiveNotice); return; }
     const subscription = openLidarEvents(connection, (event) => {
       if (event.type === "lidar-unavailable") { unavailable(event.message); return; }
       if (previous?.epoch === event.frame.epoch &&
@@ -75,7 +77,7 @@ export default function LidarCanvas({ connection, preview, overlayPose, seedSele
       if (lastReceived && performance.now() - lastReceived > 2000) unavailable("扫描数据已中断");
     }, 250);
     return () => { subscription.close(); clearInterval(freshness); };
-  }, [connection, preview]);
+  }, [connection, preview, inactiveNotice]);
 
   useEffect(() => {
     if (!canvasRef.current) return;

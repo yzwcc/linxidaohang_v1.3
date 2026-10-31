@@ -1,6 +1,26 @@
 import type { RobotState } from "../../shared/contracts";
 import type { MappingFailure } from "../../shared/mapping";
 
+export function inactiveMappingScanNotice(state: Pick<RobotState,
+  "mappingBackend" | "mappingStatus">): string | undefined {
+  if (!state.mappingBackend) return undefined;
+  if (state.mappingStatus === "requested" || state.mappingStatus === "running") return undefined;
+  if (state.mappingStatus === "idle") return "等待开始采集";
+  if (state.mappingStatus === "saving") return "正在结束采集并处理地图";
+  if (state.mappingStatus === "failed") return "建图状态异常，请查看采集控制";
+  return "等待建图状态确认";
+}
+
+export function confirmedMappingSave(result: unknown, session: string | undefined,
+  name: string): { id: string; name: string } | undefined {
+  if (!session || !/^[a-f0-9]{32}$/.test(session) || !result || typeof result !== "object") return undefined;
+  const response = result as Record<string, unknown>;
+  if (response.confirmed !== true || !response.savedSlamMap || typeof response.savedSlamMap !== "object") return undefined;
+  const map = response.savedSlamMap as Record<string, unknown>;
+  if (map.id !== `slam-${session}` || map.name !== name.trim()) return undefined;
+  return { id: map.id as string, name: map.name as string };
+}
+
 const failures: Record<MappingFailure, string> = {
   process_start_failed: "建图进程未能启动",
   process_startup_deadline_exceeded: "建图进程启动超时",

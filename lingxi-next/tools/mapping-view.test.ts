@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mappingFeedback } from "../web/src/mapping-view";
+import { confirmedMappingSave, inactiveMappingScanNotice, mappingFeedback } from "../web/src/mapping-view";
 
 type ViewState = Parameters<typeof mappingFeedback>[0];
 const running: ViewState = {
@@ -7,6 +7,47 @@ const running: ViewState = {
 };
 const progress = (completedMessages: number, processedScans: number, estimatedPoses: number) => ({
   completedMessages, processedScans, estimatedPoses,
+});
+
+describe("mapping scan lifecycle", () => {
+  it("keeps vendor scans independent of the mapping lifecycle", () => {
+    for (const mappingStatus of [undefined, "idle", "requested", "running", "saving", "failed"] as const) {
+      expect(inactiveMappingScanNotice({ mappingStatus })).toBeUndefined();
+    }
+  });
+
+  it.each(["requested", "running"] as const)("allows GLIM frames while %s", (mappingStatus) => {
+    expect(inactiveMappingScanNotice({ mappingBackend: "glim", mappingStatus })).toBeUndefined();
+  });
+
+  it.each([
+    ["idle", "等待开始采集"], ["saving", "正在结束采集并处理地图"],
+    ["failed", "建图状态异常，请查看采集控制"], [undefined, "等待建图状态确认"],
+  ] as const)("uses a lifecycle placeholder while %s, not a sensor error", (mappingStatus, notice) => {
+    expect(inactiveMappingScanNotice({ mappingBackend: "glim", mappingStatus })).toBe(notice);
+  });
+});
+
+describe("confirmed saved-map handoff", () => {
+  const session = "a".repeat(32), map = { id: `slam-${session}`, name: "大厅" };
+  const result = { confirmed: true, savedSlamMap: map };
+
+  it("opens only the map confirmed for this exact session and trimmed name", () => {
+    expect(confirmedMappingSave(result, session, " 大厅 ")).toEqual(map);
+  });
+
+  it.each([undefined, null, {}, { confirmed: "true", savedSlamMap: map },
+    { confirmed: false, savedSlamMap: map }, { confirmed: true },
+    { confirmed: true, savedSlamMap: { ...map, id: `slam-${"b".repeat(32)}` } },
+    { confirmed: true, savedSlamMap: { ...map, name: "其他地图" } },
+    { confirmed: true, savedSlamMap: null }, { confirmed: true, savedSlamMap: "map" },
+  ])("does not invent a saved-map target from an unconfirmed or mismatched result: %j", (value) => {
+    expect(confirmedMappingSave(value, session, "大厅")).toBeUndefined();
+  });
+
+  it.each([undefined, "", "x".repeat(32), "a".repeat(31)])("rejects a missing or invalid session: %s", (value) => {
+    expect(confirmedMappingSave(result, value, "大厅")).toBeUndefined();
+  });
 });
 
 describe("mapping startup and failure feedback", () => {

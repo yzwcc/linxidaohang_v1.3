@@ -61,6 +61,13 @@ button:disabled { cursor: not-allowed; opacity: .48; }
 .lidar-footer { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding-top: 12px; font-size: 12px; }
 .lidar-footer label { margin-left: auto; white-space: nowrap; }
 .lidar-detail { margin-top: 9px; color: #815a12; }
+.mapping-save-result { padding-bottom: 12px; border-bottom: 1px solid #e0e7e3; }
+.mapping-save-result > div { display: flex; align-items: flex-start; gap: 7px; color: #12685e; font-size: 12px; }
+.mapping-save-result svg { flex-shrink: 0; }
+.mapping-save-result span { min-width: 0; overflow-wrap: anywhere; }
+.saved-map-preview, .saved-map-preview .section-title { min-width: 0; }
+.saved-map-preview h2 { overflow-wrap: anywhere; }
+.saved-map-preview .section-title svg { flex-shrink: 0; }
 .map-tools { position: absolute; top: 10px; right: 10px; display: flex; gap: 4px; }
 .map-canvas-wrap canvas.map-clickable { cursor: crosshair; }
 .map-empty-label { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); color: #677772; background: rgba(255,255,255,.88); padding: 7px 10px; border-radius: 4px; font-size: 11px; }
@@ -70,6 +77,7 @@ button:disabled { cursor: not-allowed; opacity: .48; }
 .btn.primary { color: #fff; background: #167c70; border-color: #167c70; }
 .btn.primary:hover:not(:disabled) { background: #12685e; }
 .btn.accent { color: #fff; background: #b94529; border-color: #b94529; }
+.btn.accent:hover:not(:disabled) { background: #9f3b23; }
 .btn.danger { color: #b63c2a; border-color: #edc9c2; background: #fff; }
 .btn.icon { width: 34px; min-width: 34px; padding: 0; }
 .btn.small { min-height: 29px; padding: 0 9px; font-size: 10px; }
@@ -163,6 +171,7 @@ button:disabled { cursor: not-allowed; opacity: .48; }
   .page-heading h1 { font-size: 20px; }
   .heading-actions { width: 100%; }
   .content-grid.two, .content-grid.three { grid-template-columns: 1fr; }
+  .maps-layout.has-slam-preview > .saved-map-preview { order: -1; }
   .map-canvas-wrap { height: 42vh; min-height: 245px; }
   .task-step { grid-template-columns: 25px minmax(0, 1fr) 80px 34px; }
   .task-step .field:nth-of-type(3) { grid-column: 2 / 4; grid-row: 2; }
@@ -199,6 +208,8 @@ button:disabled { cursor: not-allowed; opacity: .48; }
 }
 @media (max-width: 1000px) and (orientation: landscape) {
   .content-grid.two { grid-template-columns: minmax(0, 1fr); }
+  .maps-layout.has-slam-preview > .saved-map-preview { order: -1; }
+  .maps-layout.has-slam-preview .lidar-canvas-wrap { height: calc(100dvh - 160px); min-height: 150px; max-height: none; }
   .page { padding: 16px; }
   .map-canvas-wrap { height: 58vh; min-height: 220px; }
   .modal { max-height: 92dvh; overflow-y: auto; }

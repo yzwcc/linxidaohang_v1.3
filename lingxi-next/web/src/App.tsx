@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Capacitor } from "@capacitor/core";
 import { ScreenOrientation } from "@capacitor/screen-orientation";
 import {
@@ -45,7 +45,7 @@ import { api, ApiError, jsonBody, openEvents, pairRobot, type Connection } from 
 import MapCanvas from "./MapCanvas";
 import LidarCanvas from "./LidarCanvas";
 import LocalizationPanel from "./LocalizationPanel";
-import { mappingFeedback } from "./mapping-view";
+import { confirmedMappingSave, inactiveMappingScanNotice, mappingFeedback } from "./mapping-view";
 
 type View = "overview" | "mapping" | "maps" | "localization" | "navigation" | "tours" | "settings";
 
@@ -360,13 +360,16 @@ function Mapping({
   state,
   run,
   connection,
+  onShowMap,
 }: {
   state: RobotState;
   run: (path: string, body?: unknown, method?: string) => Promise<unknown>;
   connection: Connection;
+  onShowMap: (mapId: string) => void;
 }) {
   const [mapName, setMapName] = useState("");
   const [busy, setBusy] = useState(false);
+  const [savedMap, setSavedMap] = useState<{ id: string; name: string }>();
   const activeMap = state.maps.find((map) => map.id === state.activeMapId);
   const canStart = !navigationBusy(state) &&
     !state.actionBusy &&
@@ -383,15 +386,16 @@ function Mapping({
 
   async function start() {
     setBusy(true);
-    try { await run("/api/v1/mapping/start"); } finally { setBusy(false); }
+    try { await run("/api/v1/mapping/start"); setSavedMap(undefined); } finally { setBusy(false); }
   }
   async function stopAndSave(event: React.FormEvent) {
     event.preventDefault();
     setBusy(true);
     try {
-      await run("/api/v1/mapping/stop-save", {
+      const result = await run("/api/v1/mapping/stop-save", {
         name: mapName, ...(state.mappingBackend ? { session: state.mappingSession } : {}),
       }, "POST");
+      setSavedMap(confirmedMappingSave(result, state.mappingSession, mapName));
       setMapName("");
     } finally { setBusy(false); }
   }
@@ -435,10 +439,11 @@ function Mapping({
             ? <span className="tag"><StatusDot ready={state.mappingStatus === "running"} />{mappingLabel}</span>
             : <span className="tag"><StatusDot ready={state.checks.some((check) => check.id === "lidar" && check.ready)} />雷达点迹</span>}
         >
-          <LidarCanvas connection={connection} />
+          <LidarCanvas connection={connection} inactiveNotice={inactiveMappingScanNotice(state)} />
           <div className="inline mapping-summary" style={{ marginTop: 12 }}>
             <span className="tag">{state.mappingBackend ? "GLIM 独立建图" : `当前地图 ${activeMap?.name ?? "未选择"}`}</span>
             {state.mappingProgress && <>
+              {!state.mapping && <span className="tag">上次采集</span>}
               <span className="tag mono">扫描 {state.mappingProgress.processedScans}</span>
               <span className="tag mono">位姿 {state.mappingProgress.estimatedPoses}</span>
               <span className="tag mono">消息 {state.mappingProgress.completedMessages}</span>
@@ -452,6 +457,11 @@ function Mapping({
             <div className="stack">
               {feedback && <div className={`notice ${feedback.tone}`} role={feedback.tone === "error" ? "alert" : "status"}
                 data-testid="mapping-feedback">{feedback.text}</div>}
+              {savedMap && !state.mapping && savedMap.id === `slam-${state.mappingSession}` &&
+                <div className="mapping-save-result stack" data-testid="mapping-save-result">
+                <div role="status"><Check size={14} /><span>已保存：{savedMap.name}</span></div>
+                <button className="btn" type="button" onClick={() => onShowMap(savedMap.id)}><Map size={14} />查看点云</button>
+              </div>}
               <div className="helper">建图期间由现场人员使用外置遥控器移动机器人。</div>
               {!state.mapping ? (
                 <button className="btn accent" disabled={!canStart || busy} onClick={start}><Play size={13} />开始采集</button>
@@ -488,20 +498,27 @@ function Maps({
   state,
   run,
   refresh,
+  initialPreviewId,
 }: {
   state: RobotState;
   run: (path: string, body?: unknown, method?: string) => Promise<unknown>;
   refresh: () => void;
+  initialPreviewId?: string;
 }) {
   const [selected, setSelected] = useState<MapPoint | null>(null);
   const [mapGrid, setMapGrid] = useState<OccupancyGrid>();
   const [savedPreview, setSavedPreview] = useState<SavedSlamPointPreview>();
-  const [previewId, setPreviewId] = useState("");
+  const [previewId, setPreviewId] = useState(initialPreviewId ?? "");
   const [previewBusy, setPreviewBusy] = useState(false);
+  const previewRef = useRef<HTMLDivElement>(null);
   const [pointName, setPointName] = useState("");
   const [coordinates, setCoordinates] = useState({ x: "0", y: "0", yaw: "0" });
   const activeMap = state.maps.find((map) => map.id === state.activeMapId);
   const readOnly = state.slamLocalization !== undefined;
+
+  useEffect(() => {
+    if (savedPreview) previewRef.current?.scrollIntoView({ block: "nearest", behavior: "auto" });
+  }, [savedPreview]);
 
   useEffect(() => {
     setSavedPreview(undefined);
@@ -553,7 +570,7 @@ function Maps({
   return (
     <div className="page">
       <PageHeading title="地图管理" description="地图切换、点位编辑与起始位姿" actions={<button className="btn" onClick={refresh}><RefreshCw size={13} />刷新</button>} />
-      <div className="content-grid two">
+      <div className={`content-grid two maps-layout${previewId ? " has-slam-preview" : ""}`}>
         <div className="stack">
           {state.savedSlamCatalogStatus && (
             <Section title="独立 SLAM 地图" icon={Radio}>
@@ -627,6 +644,7 @@ function Maps({
             <div className="helper" style={{ marginTop: 8 }}>定位前确认机器人实际位置与所填坐标、朝向一致。</div>
           </Section></>}
         </div>
+        <div ref={previewRef} className="saved-map-preview">
         <Section title={previewId ? `点云 · ${state.savedSlamMaps?.find((map) => map.id === previewId)?.name ?? "已保存地图"}` : "地图与点位"} icon={Compass}
           actions={previewId ? <button className="btn icon small" title="返回导航地图" onClick={() => setPreviewId("")}><X size={14} /></button> : undefined}>
           {previewId ? (
@@ -649,6 +667,7 @@ function Maps({
           </div>
           </>}
         </Section>
+        </div>
       </div>
       {selected && (
         <PointEditor point={selected} onClose={() => setSelected(null)} onSave={async (patch) => {
@@ -1051,10 +1070,12 @@ export default function App() {
   const [state, setState] = useState<RobotState | null>(null);
   const [settings, setSettings] = useState<PublicSettings>();
   const [view, setView] = useState<View>("overview");
+  const [mapPreviewId, setMapPreviewId] = useState<string>();
   const [toast, setToast] = useState("");
   const clock = useClock();
 
   useEffect(() => { window.scrollTo({ top: 0, behavior: "auto" }); }, [view]);
+  useEffect(() => { setMapPreviewId(undefined); }, [connection]);
 
   useEffect(() => {
     if (Capacitor.isNativePlatform()) {
@@ -1173,8 +1194,10 @@ export default function App() {
         </header>
         {state.demoMode && <div className="demo-banner">模拟设备 · 页面中的状态与控制不会作用于真实机器人</div>}
         {effectiveView === "overview" && <Overview state={state} setView={setView} onRefresh={() => void refresh().catch((error) => notify((error as Error).message))} />}
-        {effectiveView === "mapping" && <Mapping state={state} run={run} connection={connection} />}
-        {effectiveView === "maps" && <Maps state={state} run={run} refresh={() => void refresh().catch(() => undefined)} />}
+        {effectiveView === "mapping" && <Mapping state={state} run={run} connection={connection}
+          onShowMap={(mapId) => { setMapPreviewId(mapId); setView("maps"); }} />}
+        {effectiveView === "maps" && <Maps state={state} run={run} initialPreviewId={mapPreviewId}
+          refresh={() => void refresh().catch(() => undefined)} />}
         {effectiveView === "localization" && <LocalizationPanel connection={connection} maps={state.savedSlamMaps}
           mappingActive={state.slamWorkspace && (state.mapping || state.mappingCleanupComplete !== true)} />}
         {effectiveView === "navigation" && <NavigationPage state={state} run={run} />}
