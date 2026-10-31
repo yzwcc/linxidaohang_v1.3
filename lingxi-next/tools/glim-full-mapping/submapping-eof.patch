@@ -1,0 +1,39 @@
+diff --git a/include/glim/mapping/sub_mapping.hpp b/include/glim/mapping/sub_mapping.hpp
+--- a/include/glim/mapping/sub_mapping.hpp
++++ b/include/glim/mapping/sub_mapping.hpp
+@@ -75,6 +75,7 @@
+ private:
+   void insert_keyframe(const int current, const EstimationFrame::ConstPtr& odom_frame);
++  void insert_finalized_frame(const EstimationFrame::Ptr& odom_frame);
+ 
+   SubMap::Ptr create_submap(bool force_create = false) const;
+ 
+ private:
+diff --git a/src/glim/mapping/sub_mapping.cpp b/src/glim/mapping/sub_mapping.cpp
+--- a/src/glim/mapping/sub_mapping.cpp
++++ b/src/glim/mapping/sub_mapping.cpp
+@@ -158,6 +158,10 @@
+     }
+   }
+ 
++  insert_finalized_frame(odom_frame);
++}
++
++void SubMapping::insert_finalized_frame(const EstimationFrame::Ptr& odom_frame) {
+ #ifdef GTSAM_POINTS_USE_CUDA
+   if (params.enable_gpu && !odom_frame->frame->points_gpu) {
+     if (params.enable_gpu) {
+@@ -525,6 +529,12 @@
+ std::vector<SubMap::Ptr> SubMapping::submit_end_of_sequence() {
+-  std::vector<SubMap::Ptr> submaps;
++  while (!delayed_input_queue.empty()) {
++    // No future measurement exists: retain the finalized LIO pose without extrapolation.
++    auto frame = delayed_input_queue.front()->clone();
++    delayed_input_queue.pop_front();
++    insert_finalized_frame(frame);
++  }
++  auto submaps = get_submaps();
+   if (!odom_frames.empty()) {
+     auto new_submap = create_submap(true);
+ 
+     if (new_submap) {
