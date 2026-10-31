@@ -23,6 +23,20 @@ class Topics:
             raise ValueError("distinct_cloud_and_imu_topics_required")
 
 
+def wait_for_publishers(node, topics, deadline, stop_event):
+    """Allow bounded DDS discovery before starting the sensor-silence watchdog."""
+    while stop_event is None or not stop_event.is_set():
+        if all(node.count_publishers(topic) > 0 for topic in (topics.cloud, topics.imu)):
+            return True
+        if time.monotonic() >= deadline:
+            raise TimeoutError("sensor_publisher_discovery_deadline_exceeded")
+        if stop_event is None:
+            time.sleep(.02)
+        else:
+            stop_event.wait(.02)
+    return False
+
+
 def run_passive(worker, topics, seconds, *, stop_event=None, admission=None, on_input_closed=None,
                 setup=None, on_sensor=None):
     """Run isolated subscriptions; optional finalization follows clean ROS teardown.
@@ -58,6 +72,7 @@ def run_passive(worker, topics, seconds, *, stop_event=None, admission=None, on_
     node = executor = extra_cleanup = None
     started = time.monotonic()
     reason, input_completed, finalization = "duration_reached", False, None
+    discovery_seconds = 0.
     receiver = worker if admission is None else admission
     try:
         rclpy.init(args=[], context=context)
@@ -68,6 +83,9 @@ def run_passive(worker, topics, seconds, *, stop_event=None, admission=None, on_
         executor = SingleThreadedExecutor(context=context)
         executor.add_node(node)
         def receive(kind, callback, message):
+            # Discard cold-start callbacks, not a queue of stale work behind native loading.
+            if worker.snapshot()["state"] != "running":
+                return False
             if on_sensor is not None:
                 on_sensor(kind, message)
             return callback(message)
@@ -87,7 +105,10 @@ def run_passive(worker, topics, seconds, *, stop_event=None, admission=None, on_
             if not callable(extra_cleanup):
                 raise ValueError("owned_ros_setup_cleanup_required")
         if stop_event is None or not stop_event.is_set():
-            receiver.start()
+            discovery_started = time.monotonic()
+            if wait_for_publishers(node, topics, min(started + seconds, discovery_started + 10.), stop_event):
+                discovery_seconds = time.monotonic() - discovery_started
+                receiver.start()
         while time.monotonic() - started < seconds:
             if stop_event is not None and stop_event.is_set():
                 reason = "requested_stop"
@@ -143,6 +164,7 @@ def run_passive(worker, topics, seconds, *, stop_event=None, admission=None, on_
         "purpose": ("passive_humble_sensor_session_not_mapping_or_navigation_acceptance"
                     if admission is None else "passive_humble_mapping_input_not_navigation_acceptance"),
         "stopReason": "worker_failed" if summary["state"] == "failed" else reason,
+        "publisherDiscoverySeconds": discovery_seconds,
         "elapsedWallSecondsIncludingCleanup": time.monotonic() - started,
         "worker": summary,
         **({} if admission is None else {"inputFinalization": finalization}),

@@ -1,0 +1,78 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-31",
+  "purpose": "isolated_arm64_live_lifecycle_not_navigation_acceptance",
+  "result": "two_consecutive_fresh_process_live_checks_passed",
+  "target": {"machine": "aarch64", "python": "3.10.12", "systemSitePackages": false},
+  "lockSha256": "71d74391a6edc9e6e87a4e79ba7f91a60c82daac1b57506fc3041bd9a6915cd9",
+  "sourceSha256": {
+    "tools/check_arm64_live_runtime.py": "aa4922da22c931ebe1d10b7493f8600a9768ba2e9dbe22a8fe11ef63e25dcbab",
+    "robot-slam/lingxi_slam/worker.py": "d160a448b50d63d902a8963e62ed370d37851cae865f61dca3286eb97c2228a5",
+    "robot-slam/lingxi_slam/passive_ros.py": "1d7889f74d15e860b04f19ebfda7f9fc5367e21fb925afeb41b050d62f6c28a2"
+  },
+  "historicalSourceSha256": {
+    "robot-slam/lingxi_slam/worker.py": "59beea9c8c9015dc1b24f09fc010ccb86f59eda469a0d9af990777c715ff5cea"
+  },
+  "historicalRecordedEvidenceReplaced": false,
+  "earlierTrials": {
+    "b": "checker_missing_required_point_consumer",
+    "c": "failed_before_save_not_accepted",
+    "d": "native_save_reload_passed_checker_confused_session_and_storage_identity",
+    "e": "mapping_passed_localization_sensor_arrival_deadline_exceeded",
+    "f": "mapping_passed_localization_sensor_arrival_deadline_exceeded",
+    "g": "unsupported_subscription_api_replaced_with_installed_humble_node_api",
+    "h": "passed_before_startup_admission_fix_not_reliability_acceptance",
+    "i": "mapping_passed_localization_startup_callback_queue_age_exceeded"
+  },
+  "runs": [
+    {
+      "trial": "j",
+      "privateReportSha256": "fbb7f8b20f1d5155b19bef98a85eed00af8e546e3eae257bc58f6a7ffeb2ef7b",
+      "collectionReportSha256": "fd5075437b6df9bf3208a5b17289bb973e0386bb140017acd8d988efe7469871",
+      "sourceHashAndCollectionVerified": true,
+      "mapping": {"savedFrames": 90, "submaps": 1, "points": 2753, "visualPointFrames": 89,
+        "freshProcessReloadPassed": true, "schemaVersion": 2,
+        "receiptSha256": "1e7da216dd63b4f8bf77c241c1abeba39aa3eadbbdb758ee3a993d19879376d6"},
+      "localization": {"completedMessages": 3315, "processedScans": 157, "estimatedPoses": 126,
+        "referenceFramesObserved": [1, 2, 3, 4, 5], "seedRequests": 0,
+        "pauseConfirmed": true, "stopConfirmed": true, "staleGenerationRejected": true, "stoppedQueries": 215,
+        "timedFrames": 157, "tfLookupsAvailable": 157, "tfLookupsUnavailable": 0,
+        "invalidScanTimes": 0, "invalidTransforms": 0, "lookupErrors": 0,
+        "closedBasePoseInputs": true, "retainedDynamicTransforms": 0, "pendingScanTimes": 0},
+      "mappingAndLocalizationExitCodes": [0, 0, 0],
+      "allProcessesCleaned": true,
+      "forcedTermination": false
+    },
+    {
+      "trial": "k",
+      "privateReportSha256": "81f23cff06fd7df5bfa47434a68fe9567b574cb17d99980cf995503b32d73c54",
+      "collectionReportSha256": "753025c5415a3a3340fc233732147937d7133fb2dd0d5cf4f61a28f9adcd1c5e",
+      "sourceHashAndCollectionVerified": true,
+      "mapping": {"savedFrames": 90, "submaps": 1, "points": 2761, "visualPointFrames": 89,
+        "freshProcessReloadPassed": true, "schemaVersion": 2,
+        "receiptSha256": "508a5fe95fdb630e8cf4a8a6e99be6a0a3bcd036b688b4e15aa48a7f93cd63e9"},
+      "localization": {"completedMessages": 3296, "processedScans": 156, "estimatedPoses": 125,
+        "referenceFramesObserved": [1, 2, 3, 4, 5], "seedRequests": 0,
+        "pauseConfirmed": true, "stopConfirmed": true, "staleGenerationRejected": true, "stoppedQueries": 212,
+        "timedFrames": 155, "tfLookupsAvailable": 155, "tfLookupsUnavailable": 0,
+        "invalidScanTimes": 0, "invalidTransforms": 0, "lookupErrors": 0,
+        "closedBasePoseInputs": true, "retainedDynamicTransforms": 0, "pendingScanTimes": 0},
+      "mappingAndLocalizationExitCodes": [0, 0, 0],
+      "allProcessesCleaned": true,
+      "forcedTermination": false
+    }
+  ],
+  "independentFinalInspection": {"ownedTrialProcessCount": 0, "originalConsole3000Listening": true,
+    "trial3443Listening": false},
+  "boundaries": {
+    "motionCommandsSent": false,
+    "formalServicesChanged": false,
+    "vendorPackagesChanged": false,
+    "recordedCommissioningRepeated": false,
+    "physicalCalibrationAccepted": false,
+    "seededLivePositioningAccepted": false,
+    "navigationReady": false,
+    "productAccepted": false,
+    "deploymentArchiveReplaced": false
+  }
+}

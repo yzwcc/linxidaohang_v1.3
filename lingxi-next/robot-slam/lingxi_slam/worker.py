@@ -3,8 +3,11 @@ from collections import deque
 from copy import deepcopy
 from dataclasses import asdict, dataclass
 import math
+from pathlib import Path
+import sys
 import threading
 import time
+import traceback
 
 from .messages import SensorProfile, cloud_snapshot, decode_cloud, imu_snapshot
 from .stream import Limits, SensorStream
@@ -216,7 +219,13 @@ class SensorWorker:
                     self.progress_at = now
                     self.stream_summary = stream.snapshot()
                 packet = None
-        except BaseException:
+        except BaseException as error:
+            origin = traceback.extract_tb(error.__traceback__)[-1]
+            # Private stderr includes code location, never exception text or sensor values.
+            print(f"sensor_worker_failure:{type(error).__name__}:"
+                  f"{Path(origin.filename).name}:{origin.lineno}", file=sys.stderr, flush=True)
+            if stream is not None:
+                print(f"sensor_stream_failure:{stream.failure}", file=sys.stderr, flush=True)
             with self.condition:
                 self._fail_locked("sensor_stream_or_native_failed")
         finally:

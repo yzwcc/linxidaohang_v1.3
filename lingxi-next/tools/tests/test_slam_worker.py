@@ -1,6 +1,7 @@
 """Isolated synthetic packets and concurrency checks; no ROS or native SLAM."""
 import ast
 import importlib.util
+import io
 from pathlib import Path
 import struct
 import sys
@@ -398,6 +399,20 @@ class CallbackWorker(unittest.TestCase):
         clock[0] -= 1
         self.assertFalse(worker.offer_imu(imu()))
         self.assertEqual("monotonic_worker_clock_required", worker.snapshot()["failure"])
+
+    def test_failure_diagnostics_never_print_exception_text(self):
+        def failed_factory():
+            raise RuntimeError("private-sensor-or-native-input")
+
+        log = io.StringIO()
+        worker = SensorWorker(failed_factory, self.profile, "header_is_scan_start")
+        self.addCleanup(worker.stop)
+        with patch.object(module.sys, "stderr", log):
+            worker.start()
+            self.wait_for(lambda: not worker.snapshot()["threadAlive"])
+        self.assertIn("sensor_worker_failure:RuntimeError:test_slam_worker.py:", log.getvalue())
+        self.assertNotIn("private-sensor-or-native-input", log.getvalue())
+        self.assertEqual("sensor_stream_or_native_failed", worker.snapshot()["failure"])
 
 
 class WorkerBoundaries(unittest.TestCase):

@@ -141,10 +141,18 @@ class PublicWorkerEvidence(unittest.TestCase):
             for key in ("sameEstimatedHeaderDomain", "sameAlgorithmTimestamps", "sameScanCounters"):
                 self.assertTrue(comparison[key])
 
-    def test_published_actual_sources_and_frozen_baseline_digests_match_current_files(self):
+    def test_historical_sources_and_current_live_successor_have_separate_identities(self):
         evidence = self.value
+        live = json.loads((ROOT / "docs/slam-python-runtime-live-arm64-evidence.json").read_text())
         for source, digest in evidence["actualRuntimeSourceSha256"].items():
-            self.assertEqual(digest, hashlib.sha256((ROOT / source).read_bytes()).hexdigest())
+            current = hashlib.sha256((ROOT / source).read_bytes()).hexdigest()
+            if source == "robot-slam/lingxi_slam/worker.py":
+                self.assertEqual(digest, live["historicalSourceSha256"][source])
+                self.assertEqual(current, live["sourceSha256"][source])
+                self.assertFalse(live["historicalRecordedEvidenceReplaced"])
+                self.assertFalse(live["boundaries"]["recordedCommissioningRepeated"])
+            else:
+                self.assertEqual(digest, current)
         for source, digest in evidence["toolSourcesSha256"].items():
             self.assertEqual(digest, hashlib.sha256((ROOT / "tools" / source).read_bytes()).hexdigest())
         for filename, key in (("slam-capture-evidence.json", "captureManifestSha256"),

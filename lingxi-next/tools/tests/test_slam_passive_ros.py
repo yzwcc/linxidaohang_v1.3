@@ -7,7 +7,7 @@ import sys
 import threading
 from types import ModuleType, SimpleNamespace as NS
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 
 ROOT = Path(__file__).parents[2]
@@ -15,7 +15,8 @@ AVAILABLE = importlib.util.find_spec("numpy") is not None
 if AVAILABLE:
     with patch.object(sys, "path", [str(ROOT / "robot-slam")] + sys.path):
         from lingxi_slam.messages import SensorProfile
-        from lingxi_slam.passive_ros import Topics, run_passive
+        from lingxi_slam.passive_ros import Topics, run_passive, wait_for_publishers
+        from lingxi_slam import passive_ros
         from lingxi_slam.sensor_admission import SensorAdmission
         from lingxi_slam.worker import SensorWorker
 
@@ -53,11 +54,14 @@ class PassiveHumble(unittest.TestCase):
                 owner.calls.append("context_shutdown")
 
         class Node:
+            def count_publishers(self, topic):
+                return 1
+
             def create_subscription(self, type_, topic, callback, qos):
                 owner.subscriptions.append((type_, topic, callback, qos))
                 if subscription_error:
                     raise RuntimeError("synthetic subscription failure")
-                return object()
+                return NS(get_publisher_count=lambda: 1)
 
             def destroy_node(self):
                 owner.calls.append("node_destroy")
@@ -203,8 +207,20 @@ class PassiveHumble(unittest.TestCase):
         with patch.object(self.worker, "offer_cloud", side_effect=lambda message: values.append("receiver")):
             run_passive(self.worker, self.topics, 1, stop_event=self.stop,
                         on_sensor=lambda kind, message: values.append(kind))
-        self.subscriptions[0][2](object())
+        with patch.object(self.worker, "snapshot", return_value={"state": "running"}):
+            self.subscriptions[0][2](object())
         self.assertEqual(["cloud", "receiver"], values)
+
+    def test_starting_or_terminal_worker_does_not_admit_stale_ros_callbacks(self):
+        values = []
+        with patch.object(self.worker, "offer_cloud", side_effect=lambda message: values.append("receiver")):
+            run_passive(self.worker, self.topics, 1, stop_event=self.stop,
+                        on_sensor=lambda kind, message: values.append("metadata"))
+        for state in ("new", "starting", "stopping", "stopped", "failed"):
+            with self.subTest(state=state), \
+                    patch.object(self.worker, "snapshot", return_value={"state": state}):
+                self.assertFalse(self.subscriptions[0][2](object()))
+        self.assertEqual([], values)
 
     def mapping_session(self):
         admission = SensorAdmission(self.worker)
@@ -260,6 +276,35 @@ class PassiveHumble(unittest.TestCase):
         with self.assertRaises(ValueError):
             run_passive(self.worker, self.topics, 1, on_input_closed=lambda reason: None)
         self.assertEqual([], self.calls)
+
+    def test_discovery_waits_for_both_sensor_publishers_without_starting_native(self):
+        node = Mock()
+        node.count_publishers.side_effect = [0, 1, 1]
+        with patch.object(passive_ros.time, "monotonic", return_value=0.), \
+                patch.object(self.stop, "wait") as waiting:
+            self.assertTrue(wait_for_publishers(node, self.topics, 1., self.stop))
+        waiting.assert_called_once_with(.02)
+        self.assertEqual([self.topics.cloud, self.topics.cloud, self.topics.imu],
+                         [call.args[0] for call in node.count_publishers.call_args_list])
+        self.assertNotIn("native_create", self.calls)
+
+    def test_discovery_timeout_or_cancel_never_starts_native(self):
+        node = Mock()
+        node.count_publishers.return_value = 0
+        with patch.object(passive_ros.time, "monotonic", return_value=2.):
+            with self.assertRaisesRegex(TimeoutError, "publisher_discovery"):
+                wait_for_publishers(node, self.topics, 1., self.stop)
+        self.stop.set()
+        self.assertFalse(wait_for_publishers(node, self.topics, 1., self.stop))
+        self.assertNotIn("native_create", self.calls)
+
+    def test_failed_discovery_cleans_ros_without_opening_worker(self):
+        with patch.object(passive_ros, "wait_for_publishers", side_effect=TimeoutError("discovery")):
+            with self.assertRaises(TimeoutError):
+                self.run_session()
+        self.assertNotIn("native_create", self.calls)
+        self.assertIn("context_shutdown", self.calls)
+        self.assertFalse(self.worker.snapshot()["threadAlive"])
 
 
 class PassiveBoundaries(unittest.TestCase):
