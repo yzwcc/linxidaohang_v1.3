@@ -1,6 +1,13 @@
 import type { RobotState } from "../../shared/contracts";
 import type { MappingFailure } from "../../shared/mapping";
 
+export function mappingCaptureLimit(state: Pick<RobotState,
+  "mappingBackend" | "mappingInputMode" | "mappingCaptureLimitSeconds">): number | undefined {
+  const limit = state.mappingCaptureLimitSeconds;
+  return state.mappingBackend === "glim" && state.mappingInputMode === "live" &&
+    typeof limit === "number" && Number.isFinite(limit) && limit >= 5 && limit <= 300 ? limit : undefined;
+}
+
 export function inactiveMappingScanNotice(state: Pick<RobotState,
   "mappingBackend" | "mappingStatus">): string | undefined {
   if (!state.mappingBackend) return undefined;

@@ -138,6 +138,24 @@ describe("independent recorded mapping controls", () => {
     });
   });
 
+  it("exposes the configured live limit before and during a session without guessing a countdown", async () => {
+    state = { ...idle, inputMode: "live", captureLimitSeconds: 73.25 };
+    let snapshot = (await app!.inject({ url: "/api/v1/state", headers: headers() })).json();
+    expect(snapshot.mappingCaptureLimitSeconds).toBe(73.25);
+    expect(snapshot).not.toHaveProperty("mappingRemainingSeconds");
+    state = { ...state, phase: "running", session: identity, mapping: true };
+    snapshot = (await app!.inject({ url: "/api/v1/state", headers: headers() })).json();
+    expect(snapshot.mappingCaptureLimitSeconds).toBe(73.25);
+    expect(snapshot.mappingSession).toBe(identity);
+  });
+
+  it("does not show a capture limit for recorded or disconnected backends", async () => {
+    state = { ...idle, captureLimitSeconds: 300 };
+    expect((await mappingGuard(adapter, backend).getSnapshot()).mappingCaptureLimitSeconds).toBeUndefined();
+    vi.mocked(backend.state).mockRejectedValue(new Error("Synthetic unavailable"));
+    expect((await mappingGuard(adapter, backend).getSnapshot()).mappingCaptureLimitSeconds).toBeUndefined();
+  });
+
   it("rejects a recorded receipt for a live session", async () => {
     state = { ...idle, inputMode: "live", phase: "running", mapping: true, session: identity };
     vi.mocked(backend.finish).mockImplementation(async (session, save, name) => {

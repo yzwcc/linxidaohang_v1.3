@@ -45,7 +45,7 @@ import { api, ApiError, jsonBody, openEvents, pairRobot, type Connection } from 
 import MapCanvas from "./MapCanvas";
 import LidarCanvas from "./LidarCanvas";
 import LocalizationPanel from "./LocalizationPanel";
-import { confirmedMappingSave, inactiveMappingScanNotice, mappingFeedback } from "./mapping-view";
+import { confirmedMappingSave, inactiveMappingScanNotice, mappingCaptureLimit, mappingFeedback } from "./mapping-view";
 
 type View = "overview" | "mapping" | "maps" | "localization" | "navigation" | "tours" | "settings";
 
@@ -383,6 +383,7 @@ function Mapping({
     failed: state.mappingBackend ? "建图未完成" : "保存未确认",
   }[state.mappingStatus ?? (state.mapping ? "requested" : "idle")];
   const feedback = mappingFeedback(state);
+  const captureLimit = mappingCaptureLimit(state);
 
   async function start() {
     setBusy(true);
@@ -463,6 +464,9 @@ function Mapping({
                 <button className="btn" type="button" onClick={() => onShowMap(savedMap.id)}><Map size={14} />查看点云</button>
               </div>}
               <div className="helper">建图期间由现场人员使用外置遥控器移动机器人。</div>
+              {captureLimit !== undefined && <div className="notice warn" data-testid="mapping-capture-limit">
+                <AlertTriangle size={14} /><span>本轮采集上限 {captureLimit} 秒，请提前停止并保存。</span>
+              </div>}
               {!state.mapping ? (
                 <button className="btn accent" disabled={!canStart || busy} onClick={start}><Play size={13} />开始采集</button>
               ) : (

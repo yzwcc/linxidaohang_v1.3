@@ -14,7 +14,7 @@ from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "robot-runtime/python"))
-from mapping_service import ControlError, MappingManager, MappingSocketServer, dispatch
+from mapping_service import ControlError, MappingManager, MappingSocketServer, create_manager, dispatch
 from lingxi_slam.activity_lease import ActivityBusy, ActivityGate
 
 
@@ -81,6 +81,43 @@ class MappingControl(unittest.TestCase):
             callback()
         self.assertEqual(code, raised.exception.code)
         return raised.exception
+
+    def test_live_capture_limit_is_visible_before_start_and_after_stop(self):
+        manager = MappingManager(self.maps, lambda output: [str(output)], {}, owner_factory=self.owner_type,
+                                 input_mode="live", capture_limit_seconds=120.5)
+        self.addCleanup(manager.close)
+        self.assertEqual(120.5, manager.state()["captureLimitSeconds"])
+        self.assertEqual(120.5, manager.start()["captureLimitSeconds"])
+        manager.finish(self.owners[-1].session, save=False)
+        self.assertEqual(120.5, manager.state()["captureLimitSeconds"])
+
+    def test_unknown_limit_is_not_replaced_with_a_guessed_default(self):
+        self.assertNotIn("captureLimitSeconds", self.manager.state())
+        manager = MappingManager(self.maps, lambda output: [str(output)], {}, input_mode="live")
+        self.addCleanup(manager.close)
+        self.assertNotIn("captureLimitSeconds", manager.state())
+
+    def test_capture_limits_are_bounded_live_configuration_not_arbitrary_metadata(self):
+        for value in (True, False, "300", 0, 4.99, 300.01, float("nan"), float("inf"), -float("inf"), 10 ** 400):
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                MappingManager(self.maps, lambda _: [], {}, input_mode="live", capture_limit_seconds=value)
+        with self.assertRaises(ValueError):
+            MappingManager(self.maps, lambda _: [], {}, capture_limit_seconds=300)
+        self.assertEqual([], self.owners)
+
+    def test_service_factory_forwards_the_verified_configuration_limit_only_for_live_input(self):
+        for mode in ("live", "recorded"):
+            config = {"inputMode": mode, **({"maxSeconds": 73.25} if mode == "live" else {})}
+            with patch("mapping_service.configuration", return_value=(config, {})), \
+                    patch("mapping_service.ActivityGate") as gate:
+                manager = create_manager(self.maps / "synthetic-config.json", self.maps)
+            gate.assert_called_once_with(self.maps / ".slam-activity.lock")
+            self.assertIs(manager.activity_gate, gate.return_value)
+            self.addCleanup(manager.close)
+            if mode == "live":
+                self.assertEqual(73.25, manager.state()["captureLimitSeconds"])
+            else:
+                self.assertNotIn("captureLimitSeconds", manager.state())
 
     @unittest.skipUnless(sys.platform == "linux" and os.geteuid() != 0,
                          "requires ordinary-user Linux file locks")

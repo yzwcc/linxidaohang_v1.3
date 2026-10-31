@@ -14,11 +14,16 @@ async function main() {
   const allowed = path.resolve(".local");
   assert(root.startsWith(allowed + path.sep) && !path.relative(allowed, root).startsWith(".."));
   assert(Number.isInteger(seconds) && seconds >= 30 && seconds <= 900);
+  const inputMode = process.argv[4] ?? "recorded";
+  assert(inputMode === "recorded" || inputMode === "live");
+  const captureLimitSeconds = process.argv[5] === undefined ? undefined : Number(process.argv[5]);
+  assert(inputMode === "live" ? Number.isFinite(captureLimitSeconds) && captureLimitSeconds! >= 5 && captureLimitSeconds! <= 300
+    : captureLimitSeconds === undefined);
   await mkdir(root, { mode: 0o700 });
   const maps = path.join(root, "maps");
   await mkdir(maps);
   let state: MappingBackendState = {
-    backend: "glim", inputMode: "recorded", session: null,
+    backend: "glim", inputMode, session: null, captureLimitSeconds,
     phase: "idle", mapping: false, cleanupComplete: true,
   };
   const backend: MappingBackend = {
@@ -33,7 +38,7 @@ async function main() {
       assert.equal(state.session, session);
       assert.equal(state.mapping, true);
       if (save) {
-        const fixture = await savedSlamFixture(maps, { directory: session, session, inputMode: "recorded" });
+        const fixture = await savedSlamFixture(maps, { directory: session, session, inputMode });
         await writeFile(fixture.ready, JSON.stringify({ ...fixture.receipt, name }));
       }
       state = { ...state, phase: "idle", mapping: false, cleanupComplete: true };

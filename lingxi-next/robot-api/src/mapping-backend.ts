@@ -10,6 +10,7 @@ const stateSchema = z.object({
   backend: z.literal("glim"), inputMode: z.enum(["recorded", "live"]),
   phase: z.enum(["idle", "requested", "running", "saving", "stopping", "failed"]),
   session: session.nullable(), mapping: z.boolean(), cleanupComplete: z.boolean(),
+  captureLimitSeconds: z.number().finite().min(5).max(300).optional(),
   failureCode: mappingFailureSchema.optional(),
   completedMessages: z.number().int().nonnegative().safe().optional(),
   processedScans: z.number().int().nonnegative().safe().optional(),
@@ -148,6 +149,7 @@ export function mappingGuard(
         ...original, mapping: mapping.mapping,
         mappingStatus: mapping.phase === "stopping" ? "saving" : mapping.phase,
         mappingBackend: "glim", mappingInputMode: mapping.inputMode, mappingSession: mapping.session ?? undefined,
+        mappingCaptureLimitSeconds: mapping.inputMode === "live" ? mapping.captureLimitSeconds : undefined,
         mappingCleanupComplete: mapping.cleanupComplete,
         mappingFailure: mapping.phase === "failed" ? mapping.failureCode ?? "mapping_process_failed" : undefined,
         ...(mapping.completedMessages !== undefined && mapping.processedScans !== undefined &&

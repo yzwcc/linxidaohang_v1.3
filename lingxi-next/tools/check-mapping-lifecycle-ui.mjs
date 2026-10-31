@@ -10,10 +10,13 @@ import { createServer } from "vite";
 const output = path.resolve(".local", `mapping-lifecycle-ui-${randomUUID()}`);
 await mkdir(output, { recursive: true });
 const session = `mapping-lifecycle-${randomUUID()}`;
+const inputMode = process.argv[2] ?? "recorded";
+assert(["recorded", "live"].includes(inputMode));
+const captureLimitSeconds = inputMode === "live" ? 120 : undefined;
 const browser = process.env.LINGXI_POINT_BROWSER_BIN ??
   "C:/Users/李伟铭/AppData/Roaming/npm/node_modules/agent-browser/bin/agent-browser-win32-x64.exe";
 const report = { classification: "isolated_synthetic_ui_fixture", robotContacted: false,
-  nativeSlamExecuted: false, motionCommandsSent: false, result: "failed", stages: {} };
+  nativeSlamExecuted: false, motionCommandsSent: false, inputMode, result: "failed", stages: {} };
 let fixture, web;
 
 async function run(...args) {
@@ -62,6 +65,7 @@ async function capture(name) {
         return r.width > 0 && r.height > 0 && r.left >= 0 && r.right <= innerWidth && r.top >= 0 && r.bottom <= innerHeight; }),
       startColors: startStyle && [startStyle.color, startStyle.backgroundColor],
       placeholder: document.querySelector('.map-empty-label')?.innerText,
+      captureLimit: document.querySelector('[data-testid="mapping-capture-limit"]')?.innerText,
       savedMessage: document.querySelector('[data-testid="mapping-save-result"]')?.innerText,
       footer: document.querySelector('.lidar-footer').innerText,
       lidarSockets: window.__lifecycleSockets.length,
@@ -71,6 +75,10 @@ async function capture(name) {
   assert.equal(metrics.resultOverflow, false);
   assert.equal(metrics.buttonsWithinViewport, true);
   if (metrics.startColors) assert.notEqual(...metrics.startColors);
+  if (name.startsWith("idle") || name.startsWith("saved") || name.startsWith("discarded")) {
+    if (inputMode === "live") assert(metrics.captureLimit.includes(`${captureLimitSeconds} 秒`));
+    else assert.equal(metrics.captureLimit, undefined);
+  }
   report.stages[name] = metrics;
   await run("screenshot", path.join(output, name + ".png"));
   return metrics;
@@ -78,7 +86,8 @@ async function capture(name) {
 
 try {
   fixture = spawn(process.execPath, ["--import", "tsx", "tools/fixtures/mapping-control-ui.ts",
-    path.join(output, "fixture"), "600"], { windowsHide: true, stdio: ["ignore", "pipe", "pipe"] });
+    path.join(output, "fixture"), "600", inputMode, ...(captureLimitSeconds === undefined ? [] : [String(captureLimitSeconds)])],
+    { windowsHide: true, stdio: ["ignore", "pipe", "pipe"] });
   const info = await new Promise((resolve, reject) => {
     let text = "", errors = "";
     const timer = setTimeout(() => reject(new Error("Fixture startup deadline: " + errors)), 15_000);
@@ -121,6 +130,10 @@ try {
   assert.equal(idle.nonBackground, 0);
   await click("开始采集");
   await wait("window.__lifecycleSockets.length > 0 && Boolean(document.querySelector('#map-name'))");
+  if (inputMode === "live") {
+    assert((await evaluate("document.querySelector('[data-testid=\"mapping-capture-limit\"]').innerText"))
+      .includes(`${captureLimitSeconds} 秒`));
+  }
   const name = "横屏与桌面点云保存验证-" + "展厅".repeat(20);
   await run("fill", "#map-name", name);
   await click("停止并保存");

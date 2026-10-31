@@ -48,25 +48,31 @@ class MappingManager:
     """One slot, explicit session ownership and no native calls in request handlers."""
 
     def __init__(self, maps, command_factory, environment, *, owner_factory=ProcessSupervisor,
-                 points_enabled=False, input_mode="recorded", activity_gate=None):
+                 points_enabled=False, input_mode="recorded", activity_gate=None, capture_limit_seconds=None):
         self.maps = Path(maps)
         if (not self.maps.is_absolute() or self.maps.resolve(strict=True) != self.maps
                 or not self.maps.is_dir() or not callable(command_factory) or type(points_enabled) is not bool
                 or input_mode not in ("recorded", "live")):
             raise ValueError("direct_existing_mapping_catalog_required")
+        if capture_limit_seconds is not None and (input_mode != "live"
+                or type(capture_limit_seconds) not in (int, float)
+                or not 5 <= capture_limit_seconds <= 300):
+            raise ValueError("validated_live_capture_limit_required")
         self.command_factory, self.environment, self.owner_factory = command_factory, environment, owner_factory
         self.lock, self.operation = threading.Lock(), threading.Lock()
         self.current, self.closed = None, False
         self.points_enabled = points_enabled
         self.input_mode = input_mode
         self.activity_gate = activity_gate
+        self.capture_limit_seconds = capture_limit_seconds
 
     def state(self):
         with self.lock:
             current = self.current
             if current is None:
                 return {"backend": "glim", "inputMode": self.input_mode, "phase": "idle",
-                        "session": None, "mapping": False, "cleanupComplete": True}
+                        "session": None, "mapping": False, "cleanupComplete": True,
+                        **self._capture_limit()}
             state = current["owner"].snapshot()
             self._release_cleaned(current, state)
             phase = current["phase"]
@@ -80,6 +86,7 @@ class MappingManager:
                 "mapping": phase in ("requested", "running", "saving", "stopping")
                 or not state["cleanupComplete"] and state["state"] in ("stopped", "failed"),
                 "cleanupComplete": state["cleanupComplete"],
+                **self._capture_limit(),
                 **({"failureCode": state.get("failure") if state.get("failure") in PUBLIC_FAILURES
                     else "mapping_process_failed"} if phase == "failed" else {}),
                 "completedMessages": state["completedMessages"],
@@ -87,6 +94,9 @@ class MappingManager:
                 **({"pointStream": {"socket": current["output"].name + ".points.sock"}}
                    if self.points_enabled and phase in ("requested", "running") else {}),
             }
+
+    def _capture_limit(self):
+        return {} if self.capture_limit_seconds is None else {"captureLimitSeconds": self.capture_limit_seconds}
 
     def start(self):
         if not self.operation.acquire(blocking=False):
@@ -342,7 +352,8 @@ def create_manager(config_file, maps):
         sys.executable, "-B", str(ROOT / "robot-runtime/python/controlled_mapping.py"),
         "--config", str(config_file), "--output", str(output),
     ], environment, points_enabled="pointAdapter" in config, input_mode=config["inputMode"],
-        activity_gate=ActivityGate(maps / ".slam-activity.lock"))
+        activity_gate=ActivityGate(maps / ".slam-activity.lock"),
+        capture_limit_seconds=config["maxSeconds"] if config["inputMode"] == "live" else None)
 
 
 def main():

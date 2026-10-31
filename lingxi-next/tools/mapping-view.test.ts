@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { confirmedMappingSave, inactiveMappingScanNotice, mappingFeedback } from "../web/src/mapping-view";
+import { confirmedMappingSave, inactiveMappingScanNotice, mappingCaptureLimit, mappingFeedback } from "../web/src/mapping-view";
 
 type ViewState = Parameters<typeof mappingFeedback>[0];
 const running: ViewState = {
@@ -10,6 +10,21 @@ const progress = (completedMessages: number, processedScans: number, estimatedPo
 });
 
 describe("mapping scan lifecycle", () => {
+  it.each([5, 73.25, 300])("displays the configured live capture limit unchanged: %s", (mappingCaptureLimitSeconds) => {
+    expect(mappingCaptureLimit({ mappingBackend: "glim", mappingInputMode: "live", mappingCaptureLimitSeconds }))
+      .toBe(mappingCaptureLimitSeconds);
+  });
+
+  it.each([undefined, NaN, Infinity, -Infinity, 0, 4.99, 300.01])("does not invent a limit from invalid or absent metadata: %s", (mappingCaptureLimitSeconds) => {
+    expect(mappingCaptureLimit({ mappingBackend: "glim", mappingInputMode: "live", mappingCaptureLimitSeconds }))
+      .toBeUndefined();
+  });
+
+  it("does not apply the live limit to recorded or vendor input", () => {
+    expect(mappingCaptureLimit({ mappingBackend: "glim", mappingInputMode: "recorded", mappingCaptureLimitSeconds: 300 }))
+      .toBeUndefined();
+    expect(mappingCaptureLimit({ mappingInputMode: "live", mappingCaptureLimitSeconds: 300 })).toBeUndefined();
+  });
   it("keeps vendor scans independent of the mapping lifecycle", () => {
     for (const mappingStatus of [undefined, "idle", "requested", "running", "saving", "failed"] as const) {
       expect(inactiveMappingScanNotice({ mappingStatus })).toBeUndefined();

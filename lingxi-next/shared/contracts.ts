@@ -137,6 +137,7 @@ export type RobotState = {
   mappingStatus?: "idle" | "requested" | "running" | "saving" | "failed";
   mappingBackend?: "glim";
   mappingInputMode?: "live" | "recorded";
+  mappingCaptureLimitSeconds?: number;
   mappingSession?: string;
   mappingProgress?: { completedMessages: number; processedScans: number; estimatedPoses: number };
   mappingFailure?: MappingFailure;
