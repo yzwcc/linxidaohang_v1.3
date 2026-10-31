@@ -27,6 +27,14 @@ def canonical(value):
     return json.dumps(value, sort_keys=True, separators=(",", ":"), allow_nan=False).encode()
 
 
+def ordered_scans(scans):
+    return (type(scans) is tuple and 1 <= len(scans) <= 4096
+            and all(type(scan) is ScanObservation for scan in scans)
+            and sum(len(scan.returns) for scan in scans) <= MAXIMUM_RAYS
+            and all(scan.ordinal == index for index, scan in enumerate(scans))
+            and all(b.stamp > a.stamp for a, b in zip(scans, scans[1:])))
+
+
 @dataclass(frozen=True)
 class LidarReturn:
     origin_metres: tuple
@@ -81,12 +89,35 @@ class ObservationBatch:
                 or type(self.revision) is not int or not 0 <= self.revision < 2**53
                 or self.frame != "lingxi_saved_map" or self.units != "metres"
                 or self.source_kind not in ("registered_per_return_lidar", "isolated_synthetic_rays")
-                or type(self.scans) is not tuple or not 1 <= len(self.scans) <= 4096
-                or any(type(scan) is not ScanObservation for scan in self.scans)
-                or sum(len(scan.returns) for scan in self.scans) > MAXIMUM_RAYS
-                or any(scan.ordinal != index for index, scan in enumerate(self.scans))
-                or any(b.stamp <= a.stamp for a, b in zip(self.scans, self.scans[1:]))):
+                or not ordered_scans(self.scans)):
             raise ValueError("complete_ordered_map_bound_metric_observations_required")
+
+    @property
+    def sha256(self):
+        fields = {key: getattr(self, key) for key in self.__dataclass_fields__ if key != "scans"}
+        return hashlib.sha256(canonical({**fields, "scans": [scan.sha256 for scan in self.scans]})).hexdigest()
+
+
+@dataclass(frozen=True)
+class DeclaredObservationBatch:
+    """Offline evaluation only. A declaration is NOT metric calibration evidence."""
+    map_id: str
+    receipt_sha256: str
+    revision: int
+    binding_sha256: str
+    geometry_declaration_sha256: str
+    selection_sha256: str
+    scans: tuple
+    frame: str = field(default="lingxi_offline_declared_map", init=False)
+    units: str = field(default="declared-metres", init=False)
+
+    def __post_init__(self):
+        if (type(self.map_id) is not str or re.fullmatch(r"slam-[0-9a-f]{32}", self.map_id) is None
+                or not all(map(digest_value, (self.receipt_sha256, self.binding_sha256,
+                    self.geometry_declaration_sha256, self.selection_sha256)))
+                or type(self.revision) is not int or not 1 <= self.revision < 2**53
+                or not ordered_scans(self.scans)):
+            raise ValueError("source_bound_offline_declared_observations_required")
 
     @property
     def sha256(self):
@@ -183,16 +214,31 @@ class OctomapProjector:
         self.native, self.owner = native, threading.get_ident()
 
     def project(self, observations, projection, *, maximum_work_units=4000000):
+        if type(observations) is not ObservationBatch:
+            raise ValueError("typed_metric_observations_required_not_offline_declaration")
+        costs, stats = self._project(observations.scans, projection, maximum_work_units)
+        grid = CostmapSnapshot(observations.map_id, observations.receipt_sha256, observations.revision,
+            projection.width, projection.height, projection.resolution_metres,
+            projection.origin_x_metres, projection.origin_y_metres, costs)
+        return OccupancyResult(grid, observations.sha256, projection, *stats)
+
+    def project_declared(self, observations, projection, *, maximum_work_units=4000000):
+        if type(observations) is not DeclaredObservationBatch:
+            raise ValueError("offline_declared_batch_required")
+        costs, stats = self._project(observations.scans, projection, maximum_work_units)
+        return DeclaredClearanceResult(observations.sha256, projection, costs, tuple(stats))
+
+    def _project(self, scans, projection, maximum_work_units):
         if threading.get_ident() != self.owner:
             raise RuntimeError("single_octomap_projector_owner_required")
-        if (type(observations) is not ObservationBatch or type(projection) is not ClearanceProjection
+        if (type(projection) is not ClearanceProjection
                 or type(maximum_work_units) is not int or not 1 <= maximum_work_units <= 16000000):
             raise ValueError("typed_observations_projection_and_work_budget_required")
-        count = sum(len(scan.returns) for scan in observations.scans)
+        count = sum(len(scan.returns) for scan in scans)
         rays = (ctypes.c_double * (count * 6))()
-        ends = (ctypes.c_uint32 * len(observations.scans))()
+        ends = (ctypes.c_uint32 * len(scans))()
         offset = 0
-        for index, scan in enumerate(observations.scans):
+        for index, scan in enumerate(scans):
             for ray in scan.returns:
                 rays[offset * 6:offset * 6 + 6] = ray.origin_metres + ray.endpoint_metres
                 offset += 1
@@ -211,7 +257,23 @@ class OctomapProjector:
                 or tuple(stats[3:6]) != tuple(costs.count(value) for value in (0, 254, 255))
                 or sum(stats[3:6]) != size or stats[6] > maximum_work_units):
             raise RuntimeError("complete_octomap_projection_accounting_required")
-        grid = CostmapSnapshot(observations.map_id, observations.receipt_sha256, observations.revision,
-            projection.width, projection.height, projection.resolution_metres,
-            projection.origin_x_metres, projection.origin_y_metres, costs)
-        return OccupancyResult(grid, observations.sha256, projection, *stats)
+        return costs, stats
+
+
+@dataclass(frozen=True)
+class DeclaredClearanceResult:
+    """Deliberately not a CostmapSnapshot: cannot feed the metric planner contract."""
+    observations_sha256: str
+    projection: ClearanceProjection
+    costs: bytes
+    statistics: tuple
+    offline_only: bool = field(default=True, init=False)
+    physical_scale_validated: bool = field(default=False, init=False)
+    navigation_ready: bool = field(default=False, init=False)
+
+    @property
+    def sha256(self):
+        return hashlib.sha256(canonical({"observations": self.observations_sha256,
+            "projection": self.projection.__dict__, "statistics": self.statistics,
+            "octomapVersion": VERSION, "offlineOnly": True,
+            "physicalScaleValidated": False, "navigationReady": False}) + b"\n" + self.costs).hexdigest()

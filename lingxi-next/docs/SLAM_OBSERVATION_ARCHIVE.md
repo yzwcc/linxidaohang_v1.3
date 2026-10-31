@@ -75,12 +75,52 @@ arm, including its inverse and its composition with the acquisition reference.
 This extension still emits **native raw map coordinates**, not an approved
 metric/ground frame. It does not establish ground support, drop-off clearance,
 footprint inflation, moving localization, local avoidance or stopping semantics.
-The current OctoMap `ObservationBatch` remains a separate metric contract; these
+The OctoMap `ObservationBatch` remains a separate metric contract; these
 archives cannot be relabeled as metres merely by supplying a digest. ARM64
 synthetic callback execution is now verified separately; see
 [SLAM_OBSERVATION_ARM64.md](SLAM_OBSERVATION_ARM64.md). Full ARM64 recorded/live
 map save, live package wiring and calibrated real-map occupancy integration
 remain required before a new field scan or navigation acceptance.
+
+## Recorded OctoMap Evaluation
+
+`tools/evaluate_recorded_clearance.py` now evaluates recorded observation
+archives through the real OctoMap 1.9.7 adapter. It requires an explicitly
+declared scale/rigid transform, pinned map receipt, binding, implementation,
+native library and dependencies. Actual saved-map inventory and all archived
+observations are verified before and after conversion. Corrected per-return
+origins and endpoints are transformed together. Deterministic selection covers
+every scan and reports selected and omitted returns; it does not invent rays
+for omitted returns or turn unobserved space into free space.
+
+`DeclaredObservationBatch` and `DeclaredClearanceResult` deliberately cannot
+substitute for metric `ObservationBatch` and `CostmapSnapshot`. Declarations
+do not prove physical calibration. The report retains false scale, ground-frame,
+ground-support, obstacle-completeness and navigation acceptance flags. Default
+clearance Z is 0.1--1.4 declared metres; raw observations are unchanged.
+
+The supervisor enforces a 1--300 second wall deadline. The Linux worker has
+3 GiB address-space, 300 CPU-second and 20 MiB output-file limits; native work
+is capped at 16 million units. Only a normal worker exit with matching current
+sources/configuration, pinned dependencies and a verified complete clearance
+artifact can publish `report.json`. Timeouts, native failures and partial or
+changed artifacts do not publish a successful report. Private intermediate
+files may remain for diagnosis and must not be consumed as accepted output.
+
+`tools/build_octomap_offline.py` builds a separate x86-64 evaluation library
+from explicitly selected local OctoMap 1.9.7 headers/libraries, verifies their
+identities and tests a fresh-process load without `LD_LIBRARY_PATH`. It does
+not replace the ARM64 library or its lock file. Reproduction requires private
+recorded-map paths and digests, a numerical Python environment, and an unused
+private output directory. No robot connection or sensors are used.
+
+The [2026-11-01 evidence](RECORDED_CLEARANCE_VERIFICATION_20261101.json) records
+two actual GLIM replay archives and a moving-archive repeat. The 31 focused
+tests had 30 passes and one explicit skip: the optional OctoMap/NavFn joint test
+did not have a selected host NavFn library. The recorded runs verified repeat
+identity, native work exhaustion and a one-second worker timeout. These are
+offline integration checks, not acceptance of field map 1.2 or physical
+navigation; the broad regression limitations below still apply.
 
 ## Verified Offline Milestone
 

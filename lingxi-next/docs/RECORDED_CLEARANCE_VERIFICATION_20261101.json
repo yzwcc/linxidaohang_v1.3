@@ -1,0 +1,84 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-11-01",
+  "scope": "Recorded GLIM acquisition archives through actual x86-64 OctoMap; aggregate offline evidence only",
+  "robotContacted": false,
+  "sensorsSubscribed": false,
+  "physicalMotionSent": false,
+  "offlineOnly": true,
+  "physicalScaleValidated": false,
+  "groundFrameValidated": false,
+  "groundSupportValidated": false,
+  "obstacleCompletenessValidated": false,
+  "navigationReady": false,
+  "octomapVersion": "1.9.7",
+  "nativeSha256": "26dd1f8965a84a12a786263b82717724267d47f436a1adcbd2d3a5d0aea8d2e3",
+  "declaration": {
+    "metresPerRawUnit": 1,
+    "transform": "identity; explicit evaluation assumption, not calibration",
+    "width": 128,
+    "height": 128,
+    "resolutionDeclaredMetres": 0.1,
+    "minimumZDeclaredMetres": 0.1,
+    "maximumZDeclaredMetres": 1.4
+  },
+  "static": {
+    "scans": 313,
+    "sourceReturns": 2012279,
+    "selectedReturns": 130834,
+    "omittedReturns": 1881445,
+    "freeCells": 1828,
+    "occupiedCells": 168,
+    "unknownCells": 14388,
+    "workUnits": 14145559,
+    "nativeDurationSeconds": 2.4136744679999538,
+    "workerDurationSeconds": 11.506215106000127,
+    "peakRssKiB": 133144,
+    "clearanceSha256": "f8642d4973ed047c7a94f4929e577426a0dab585e6e9ab0bef8f688653dc3c34",
+    "artifactSha256": "c9e569d5338b4548a65be3236a70612a9275a209b8ffab9d18be3ce8812d9857",
+    "privateReportSha256": "cec70e3789e5318992f54a7b685d581f10390d222d5954f37070c1f80fc55f34"
+  },
+  "moving": {
+    "scans": 1190,
+    "sourceReturns": 7709051,
+    "selectedReturns": 130900,
+    "omittedReturns": 7578151,
+    "freeCells": 5651,
+    "occupiedCells": 943,
+    "unknownCells": 9790,
+    "workUnits": 14777670,
+    "nativeDurationSeconds": 3.233501470000192,
+    "workerDurationSeconds": 33.309573610999905,
+    "peakRssKiB": 157660,
+    "clearanceSha256": "3ba82ae9fe1df1d2cb2b7d8511e0cadfa381d67b23d3ddeb5e8dcf946ef383c1",
+    "artifactSha256": "b7dd5eb86954f4050133298e52f8c028da1944e038c29fb764b96324254e2eda",
+    "privateReportSha256": "a89d5b5f2a618e240bb388b6bf51fe6883cd3a5700b7b55bbe9417ce0992f094"
+  },
+  "movingRepeat": {
+    "statisticsIdentical": true,
+    "clearanceDigestIdentical": true,
+    "nativeDurationSeconds": 3.2801437070002066,
+    "workerDurationSeconds": 33.02491577699993,
+    "peakRssKiB": 158408,
+    "privateReportSha256": "5479e0a375ce355c1325307f0254b2194ceffb4a7fa5839f748db024c4e4059f"
+  },
+  "failureChecks": {
+    "oneWorkUnitBudget": "native octomap_work_budget_exhausted; no report.json",
+    "oneSecondWallTimeout": "worker terminated; no report.json"
+  },
+  "focusedTests": {
+    "modules": ["test_octomap", "test_recorded_occupancy", "test_recorded_clearance_runner"],
+    "total": 31,
+    "passed": 30,
+    "skipped": 1,
+    "skipReason": "Optional host OctoMap to NavFn joint test requires an explicitly selected actual NavFn library"
+  },
+  "runnerSourcesSha256": {
+    "robot-navigation/lingxi_navigation/occupancy.py": "9807c3b12077dcd314d3413134f34248c1c9ebfcc9a11e8af10c8d549a088710",
+    "robot-navigation/lingxi_navigation/recorded_occupancy.py": "af26d7a34ac77b484c976065c5340c7b1ed414eab2b2da5a0541f4f5e678511a",
+    "robot-slam/lingxi_slam/observation_archive.py": "d1501d16a0bbe62624a55dbf644af96b878cef4cf8297d57f8bb4620abfa9efe",
+    "robot-slam/lingxi_slam/observation_binding.py": "b0ae111c3aa1ebcc115509b4d9f03f2689dcdaf0b5aecb7c5504b4d69cc8d214",
+    "tools/refine_saved_map.py": "012070b10915d88c63c2656705d85499c3ad1bcee7236b949c32ef103d29d1a4",
+    "tools/evaluate_recorded_clearance.py": "4b2adbb65215a43a0d14dffe195477a8623e874cd4dc54d97f3543fb809f3675"
+  }
+}
