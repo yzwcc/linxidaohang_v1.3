@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "upstream": "https://github.com/OctoMap/octomap/tree/v1.9.7",
+  "version": "1.9.7",
+  "targetPackage": "liboctomap1.9:arm64=1.9.7+dfsg-3",
+  "dependencies": {
+    "liboctomap.so.1.9.7": "eb6ad52453751b876e4c37d1d2bd73602bfc724b8096392a6aa6c791d84d7f3f",
+    "liboctomath.so.1.9.7": "a98310dd54c2e51c9d488f9761409850bae6be89297d1efb75fa95793d8d23c4"
+  },
+  "sensorModel": {"hit": 0.7, "miss": 0.4, "clampMin": 0.1192, "clampMax": 0.971, "occupied": 0.5}
+}

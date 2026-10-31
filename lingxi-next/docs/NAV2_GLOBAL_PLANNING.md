@@ -65,6 +65,12 @@ internal planning costmaps do not change that display requirement.
 `navigation_ready` remains false in every global-plan result. This milestone is
 native global-planner compatibility, not field navigation or product acceptance.
 
+An observed-ray OctoMap component now supplies a conservative, three-dimensional
+clearance projection to this exact planner in actual ARM64 synthetic integration
+tests. See [OCTOMAP_OCCUPANCY.md](OCTOMAP_OCCUPANCY.md). This closes the isolated
+occupancy-to-planner contract, not the missing GLIM observation archive, live
+costmap/control integration or field navigation gates above.
+
 ## Reproduction
 
 Obtain the two files at the exact commit in the lock file, retaining their names
