@@ -81,11 +81,21 @@ class ProfileTests(unittest.TestCase):
             p.acceleration_metres_per_second_squared + .3)
         smoother = self.config['velocity_smoother']['ros__parameters']
         self.assertEqual('CLOSED_LOOP', smoother['feedback'])
+        self.assertFalse(smoother['scale_velocities'])
         self.assertEqual([.2, 0., .3], smoother['max_velocity'])
         self.assertEqual([0., 0., -.3], smoother['min_velocity'])
         self.assertEqual([.2, .2, .4], smoother['max_accel'])
         self.assertEqual([-.2, -.2, -.4], smoother['max_decel'])
         self.assertEqual(.15, smoother['velocity_timeout'])
+
+    def test_upstream_proportional_scaling_can_retain_observed_roundoff(self):
+        # Humble applyConstraints returns current + clamp(eta * (cmd-current)).
+        # This observed Web failure is not a reason to relax runtime limits.
+        current, command = .20000000000000043, .2
+        scaled = current + .05 * (command - current)
+        independent = current + (command - current)
+        self.assertGreater(scaled, command + 8 * math.ulp(command))
+        self.assertEqual(command, independent)
 
     def test_no_spin_backup_clear_or_recovery_in_either_loaded_tree(self):
         allowed = {'root', 'BehaviorTree', 'PipelineSequence', 'RateController',

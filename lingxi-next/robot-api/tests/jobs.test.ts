@@ -60,6 +60,22 @@ describe("navigation and tour lifecycle", () => {
     expect(jobs.state().status).toBe("failed");
     await expect(jobs.startTour(tour)).rejects.toThrow();
   });
+  it("retains completed tour state only for its own terminal navigation callback", async () => {
+    await jobs.startTour(tour);
+    await vi.advanceTimersByTimeAsync(20);
+    nav = { status: "finished", taskId: nav.taskId, detail: "action_succeeded" };
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(jobs.state(nav)).toMatchObject({ status: "finished", detail: "讲解已完成" });
+    expect(jobs.state({ ...nav, taskId: "external-task" })).toEqual({ ...nav, taskId: "external-task" });
+    expect(jobs.state({ ...nav, status: "running" })).toEqual({ ...nav, status: "running" });
+    const fault = { ...nav, status: "failed" as const, requiresStop: true, detail: "executor_lost" };
+    expect(jobs.state(fault)).toEqual(fault);
+  });
+  it("never hides an executor fault behind an active job's last polled state", async () => {
+    await jobs.startPoint(point);
+    const fault = { ...nav, status: "failed" as const, requiresStop: true, detail: "executor_lost" };
+    expect(jobs.state(fault)).toEqual(fault);
+  });
   it("rejects new work when the navigation backend still requires an explicit stop", async () => {
     nav = { status: "failed", requiresStop: true };
     await expect(jobs.startPoint(point)).rejects.toThrow("先停止");

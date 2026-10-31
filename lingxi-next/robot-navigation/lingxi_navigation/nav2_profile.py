@@ -139,7 +139,9 @@ def parameters(platform, behavior_tree_path, through_poses_tree_path, namespace)
                            use_astar=False, allow_unknown=False))),
         controller_server=dict(ros__parameters=controller),
         velocity_smoother=dict(ros__parameters=dict(use_sim_time=True,
-            smoothing_frequency=20., scale_velocities=True, feedback='CLOSED_LOOP',
+            # Proportional dv scaling can retain closed-loop odometry roundoff
+            # above a speed bound. Keep independently constrained axes instead.
+            smoothing_frequency=20., scale_velocities=False, feedback='CLOSED_LOOP',
             max_velocity=[vx, 0., wz], min_velocity=[0., 0., -wz],
             max_accel=[accel, accel, yaw_accel], max_decel=[-accel, -accel, -yaw_accel],
             odom_topic=topic + 'odom', odom_duration=.05,

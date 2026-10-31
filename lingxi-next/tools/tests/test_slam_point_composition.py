@@ -441,7 +441,7 @@ class PublishedArm64ResultTests(unittest.TestCase):
         result = self.result()
         # Historical hardware evidence binds that run's committed sources.
         revised = {
-            "robot-api/src/domain.ts", "robot-api/src/server.ts", "robot-api/src/slam-points.ts",
+            "robot-api/src/domain.ts", "robot-api/src/server.ts", "robot-api/src/jobs.ts", "robot-api/src/slam-points.ts",
             "robot-slam/lingxi_slam/process_supervisor.py", "shared/contracts.ts"}
         revision = "dff9855896feaa44eb233f44aebcd52c8a9703a8"
         for name, expected in result["sourceSha256"].items():

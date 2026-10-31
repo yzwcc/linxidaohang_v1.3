@@ -112,6 +112,7 @@ export type RobotSnapshot = Pick<
   | "actionStatus"
   | "pose"
   | "navigation"
+  | "navigationExecution"
   | "mapGrid"
   | "motionPresets"
   | "expressions"

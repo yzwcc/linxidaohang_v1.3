@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { RobotState } from "../../shared/contracts";
-import { api, openEvents, type Connection } from "../../web/src/api";
+import { api, openEvents, pairRobot, type Connection } from "../../web/src/api";
+import { Capacitor } from "@capacitor/core";
 
 class FakeWebSocket {
   static instances: FakeWebSocket[] = [];
@@ -49,7 +50,38 @@ afterEach(() => {
   vi.useRealTimers();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
   FakeWebSocket.instances = [];
+});
+
+describe("built offline workspace pairing", () => {
+  function browser(origin: string, native = false) {
+    vi.stubEnv("DEV", false);
+    vi.stubGlobal("window", { location: new URL(origin) });
+    vi.stubGlobal("localStorage", { setItem: vi.fn() });
+    vi.spyOn(Capacitor, "isNativePlatform").mockReturnValue(native);
+    return vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ token: "test-session", demoMode: true }))));
+  }
+  it("permits same-origin loopback HTTP in the built browser workspace", async () => {
+    browser("http://127.0.0.1:3018");
+    expect((await pairRobot("http://127.0.0.1:3018", "test-code")).baseUrl).toBe("http://127.0.0.1:3018");
+  });
+  it.each(["http://192.168.0.128:3018", "http://127.0.0.1:3019", "http://localhost:3018", "http://127.0.0.1.evil.test:3018"])(
+    "does not extend the HTTP exception to %s", async (address) => {
+      browser("http://127.0.0.1:3018");
+      await expect(pairRobot(address, "test-code")).rejects.toThrow("HTTPS");
+      expect(fetch).not.toHaveBeenCalled();
+    });
+  it("keeps native Android connections HTTPS-only", async () => {
+    browser("http://127.0.0.1:3018", true);
+    await expect(pairRobot("http://127.0.0.1:3018", "test-code")).rejects.toThrow("HTTPS");
+    expect(fetch).not.toHaveBeenCalled();
+  });
+  it("does not permit a LAN page to pair to an HTTP loopback endpoint", async () => {
+    browser("http://192.168.0.128:3018");
+    await expect(pairRobot("http://127.0.0.1:3018", "test-code")).rejects.toThrow("HTTPS");
+    expect(fetch).not.toHaveBeenCalled();
+  });
 });
 
 describe("mapping control request budgets", () => {

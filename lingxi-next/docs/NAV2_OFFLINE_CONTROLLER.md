@@ -1,6 +1,6 @@
 # Offline Nav2 Controller Integration
 
-Verified 2026-10-31. This is an actual ROS Humble integration in a synthetic
+Verified 2026-11-01. This is an actual ROS Humble integration in a synthetic
 planar world, not an X2 dynamics test and not permission to deploy or walk.
 
 ## Selection
@@ -8,6 +8,9 @@ planar world, not an X2 dynamics test and not permission to deploy or walk.
 - Global planner: Nav2 NavFn; controller: Regulated Pure Pursuit (RPP).
 - Closed-loop Nav2 VelocitySmoother limits forward/yaw speed and acceleration.
   This first composition does not command reverse or lateral motion.
+  Proportional cross-axis scaling is disabled: its eta scaling retained a
+  floating-point odometry overshoot beyond the runtime's strict 8-ULP bound.
+  Per-axis speed/acceleration limits remain enabled; no runtime bound was relaxed.
 - DWB was evaluated first. Low-speed startup, oscillation rejection, local
   minima and final-heading failures were not repeatable enough for this
   fixture. One successful detour did not meet the repeatability criterion.
@@ -33,14 +36,14 @@ X2 profile. Goal tolerances are 0.15 m and 0.15 rad.
 
 | Scene | Final result | Independent observation |
 | --- | --- | --- |
-| Open, goal (2, 0, 0) | Arrived | Position error 0.1464 m; 236 commands |
+| Open, goal (2, 0, 0) | Arrived | Position error 0.1453 m; 235 commands |
 | Full wall at x=1 | Rejected | Stayed at start; zero nonzero commands |
-| Box across direct path | Arrived by detour | Minimum swept obstacle distance 0.7228 m; 563 commands |
-| Wall appears after x=0.25 | Stopped, action failed | Final x=0.3013 m; minimum distance 0.6987 m |
+| Box across direct path | Arrived by detour | Minimum swept obstacle distance 0.7235 m; 566 commands |
+| Wall appears after x=0.25 | Stopped, action failed | Final x=0.3049 m; minimum distance 0.6951 m |
 
-Two complete RPP rounds passed. The public evidence file records the final
-round and its exact source/report hashes; the first round used an earlier
-runner before final cleanup. Full local reports also retain plans, commands
+The four-scene round above was rerun after the smoother fix. The new public
+evidence file records its exact source/report hashes; the earlier 2026-10-31
+receipt remains unchanged. Full local reports also retain plans, commands
 and trajectories, but are not bundled with business data or workstation paths.
 
 ## Offline Reproduction
@@ -77,8 +80,13 @@ or physical interface is part of the wrapper.
   pause/resume ownership, and action-plus-velocity retirement. A retirement
   timeout stays faulted even after a late drain. JobManager halts instead of
   retrying/skipping when the backend requires an explicit stop.
-- Product API/backend wiring, recorded localization plus occupancy integration,
-  support-preserving dynamic clearing, ARM64 budgets, physical scale/clearance
+- Product API/backend wiring now passes actual Nav2 integration, including
+  concurrent Web polling, pause/resume epochs, voice dispatch, Q&A without
+  cancellation and a two-point tour without automatic return. Playback is stubbed
+  and cloud access disabled in this workspace, not an acoustic latency result.
+- Recorded localization plus occupancy integration, support-preserving dynamic
+  clearing, ARM64 budgets, physical scale/clearance
   and ground support remain incomplete. `navigationReady` stays false.
 
-Evidence: [nav2-offline-rpp-20261031.json](evidence/nav2-offline-rpp-20261031.json).
+Evidence: [nav2-offline-rpp-20261101.json](evidence/nav2-offline-rpp-20261101.json).
+Product workspace: [startup and limits](OFFLINE_NAVIGATION_WORKSPACE.md).

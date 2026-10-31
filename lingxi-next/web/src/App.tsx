@@ -265,10 +265,12 @@ function CheckList({ checks }: { checks: RobotState["checks"] }) {
 
 function Overview({
   state,
+  connection,
   setView,
   onRefresh,
 }: {
   state: RobotState;
+  connection: Connection;
   setView: (view: View) => void;
   onRefresh: () => void;
 }) {
@@ -301,7 +303,8 @@ function Overview({
       </div>
       <div className="content-grid two" style={{ marginTop: 14 }}>
         <Section title="实时地图" icon={Map} actions={<button className="btn small" onClick={() => setView("mapping")}>打开建图</button>}>
-          <MapCanvas grid={state.mapGrid} pose={state.pose} points={activePoints} activeMapName={state.activeMapId} />
+          {state.navigationExecution ? <LidarCanvas connection={connection} synthetic /> :
+            <MapCanvas grid={state.mapGrid} pose={state.pose} points={activePoints} activeMapName={state.activeMapId} />}
           <div className="inline" style={{ marginTop: 12 }}>
             <span className="tag"><StatusDot ready={Boolean(state.activeMapId)} />{activeMap?.name ?? "未加载地图"}</span>
             <span className="tag"><StatusDot ready={Boolean(state.pose)} />定位 {state.pose ? "正常" : "等待"}</span>
@@ -440,7 +443,7 @@ function Mapping({
             ? <span className="tag"><StatusDot ready={state.mappingStatus === "running"} />{mappingLabel}</span>
             : <span className="tag"><StatusDot ready={state.checks.some((check) => check.id === "lidar" && check.ready)} />雷达点迹</span>}
         >
-          <LidarCanvas connection={connection} inactiveNotice={inactiveMappingScanNotice(state)} />
+          <LidarCanvas connection={connection} synthetic={Boolean(state.navigationExecution)} inactiveNotice={inactiveMappingScanNotice(state)} />
           <div className="inline mapping-summary" style={{ marginTop: 12 }}>
             <span className="tag">{state.mappingBackend ? "GLIM 独立建图" : `当前地图 ${activeMap?.name ?? "未选择"}`}</span>
             {state.mappingProgress && <>
@@ -505,11 +508,13 @@ function Mapping({
 
 function Maps({
   state,
+  connection,
   run,
   refresh,
   initialPreviewId,
 }: {
   state: RobotState;
+  connection: Connection;
   run: (path: string, body?: unknown, method?: string) => Promise<unknown>;
   refresh: () => void;
   initialPreviewId?: string;
@@ -542,7 +547,7 @@ function Maps({
   }, [previewId, run]);
 
   useEffect(() => {
-    if (!activeMap) {
+    if (!activeMap || state.navigationExecution) {
       setMapGrid(undefined);
       return;
     }
@@ -555,7 +560,7 @@ function Maps({
         if (!cancelled) setMapGrid(undefined);
       });
     return () => { cancelled = true; };
-  }, [activeMap?.id, run]);
+  }, [activeMap?.id, state.navigationExecution?.backend, run]);
 
   async function addPoint(event: React.FormEvent) {
     event.preventDefault();
@@ -609,9 +614,9 @@ function Maps({
                 {state.maps.map((map) => (
                   <tr key={map.id}>
                     <td><strong>{map.name}</strong></td>
-                    <td className="mono">{map.mapId ?? "未查询"}</td>
+                    <td className="mono">{state.navigationExecution ? "合成场景" : map.mapId ?? "未查询"}</td>
                     <td>{map.active ? <span className="tag">当前使用</span> : <span className="muted">可用</span>}</td>
-                    <td><button className="btn small" disabled={state.mapping || navigationBusy(state)} onClick={() => run(`/api/v1/maps/${encodeURIComponent(map.id)}/activate`, {})}>从建图起点定位</button></td>
+                    <td>{!state.navigationExecution && <button className="btn small" disabled={state.mapping || navigationBusy(state)} onClick={() => run(`/api/v1/maps/${encodeURIComponent(map.id)}/activate`, {})}>从建图起点定位</button>}</td>
                   </tr>
                 ))}
                 {!state.maps.length && <tr><td colSpan={4} className="empty">未发现已保存地图</td></tr>}
@@ -643,14 +648,14 @@ function Maps({
               <div className="field"><label htmlFor="new-point-yaw">朝向（弧度）</label><input id="new-point-yaw" type="number" step="0.01" value={coordinates.yaw} onChange={(event) => setCoordinates({ ...coordinates, yaw: event.target.value })} required /></div>
               <div className="field full"><button className="btn primary" type="submit" disabled={!activeMap}><Plus size={13} />添加点位</button></div>
             </form>
-            <div className="inline" style={{ marginTop: 12 }}>
+            {!state.navigationExecution && <><div className="inline" style={{ marginTop: 12 }}>
               <button className="btn" disabled={!activeMap || state.mapping || navigationBusy(state)} onClick={() => {
                 if (activeMap) void run(`/api/v1/maps/${encodeURIComponent(activeMap.id)}/activate`, {
                   initialPose: { x: Number(coordinates.x), y: Number(coordinates.y), yaw: Number(coordinates.yaw) },
                 });
               }}><Compass size={13} />按所填位姿重定位</button>
             </div>
-            <div className="helper" style={{ marginTop: 8 }}>定位前确认机器人实际位置与所填坐标、朝向一致。</div>
+            <div className="helper" style={{ marginTop: 8 }}>定位前确认机器人实际位置与所填坐标、朝向一致。</div></>}
           </Section></>}
         </div>
         <div ref={previewRef} className="saved-map-preview">
@@ -659,7 +664,9 @@ function Maps({
           {previewId ? (
             savedPreview ? <><LidarCanvas key={previewId} preview={savedPreview} /><div className="helper" style={{ marginTop: 10 }}>GLIM 原始坐标单位；标定、定位和导航尚未验证。</div></>
               : <div className="empty" role="status">{previewBusy ? "正在读取点云" : "点云不可用，请刷新后重试"}</div>
-          ) : readOnly ? <div className="empty">选择已保存地图查看点云</div> : <>
+          ) : readOnly ? <div className="empty">选择已保存地图查看点云</div> : state.navigationExecution ? (
+            <LidarCanvas connection={connection} synthetic />
+          ) : <>
           <MapCanvas
             grid={mapGrid ?? (activeMap?.active ? state.mapGrid : undefined)}
             pose={state.pose}
@@ -721,16 +728,18 @@ function PointEditor({
 
 function NavigationPage({
   state,
+  connection,
   run,
 }: {
   state: RobotState;
+  connection: Connection;
   run: (path: string, body?: unknown, method?: string) => Promise<unknown>;
 }) {
   const points = state.points.filter((point) => point.mapId === state.activeMapId);
   const ready = state.checks.find((item) => item.id === "navigation")?.ready;
   return (
     <div className="page">
-      <PageHeading title="导航管理" description="基于 X2 原生点到点导航与安全链路" />
+      <PageHeading title="导航管理" description={state.navigationExecution ? "离线 Nav2 · 合成场景" : "基于 X2 原生点到点导航与安全链路"} />
       {state.actionBusy && (
         <div className={state.actionStatus === "uncertain" ? "notice error" : "notice warn"} style={{ marginBottom: 14 }}>
           <AlertTriangle size={14} />
@@ -742,7 +751,7 @@ function NavigationPage({
           </span>
         </div>
       )}
-      <div className="content-grid two">
+      <div className="content-grid two" style={{ alignItems: "start" }}>
         <div className="stack">
           <Section title="当前导航" icon={Navigation}>
             <div className="inline">
@@ -767,9 +776,12 @@ function NavigationPage({
                 ))}
               </tbody>
             </table>
-            {!ready && <div className="notice warn" style={{ marginTop: 12 }}><AlertTriangle size={14} />未检测到 X2 原生导航组件，导航命令已禁用。</div>}
+            {!ready && <div className="notice warn" style={{ marginTop: 12 }}><AlertTriangle size={14} />{state.navigationExecution
+              ? "离线导航状态未确认，请停止任务并检查后端。" : "未检测到 X2 原生导航组件，导航命令已禁用。"}</div>}
           </Section>
         </div>
+        <div className="stack">
+        {state.navigationExecution && <Section title="导航点云" icon={Radio}><LidarCanvas connection={connection} synthetic /></Section>}
         <Section title="运行条件" icon={ShieldCheck}>
           <CheckList checks={state.checks.filter((item) => ["navigation", "slam", "odom"].includes(item.id))} />
           <hr className="divider" />
@@ -781,6 +793,7 @@ function NavigationPage({
             <span className="helper">讲解任务结束不自动返航。</span>
           </div>
         </Section>
+        </div>
       </div>
     </div>
   );
@@ -1192,8 +1205,8 @@ export default function App() {
         <header className="topbar">
           <div className="topbar-title">{activeItem?.label ?? "运行总览"}</div>
           <div className="topbar-right">
-            {state.demoMode && <span className="status-pill"><span className="status-dot warn" />演示数据</span>}
-            <span className="status-pill"><StatusDot ready={isolatedLocalization || state.connected} />{state.slamWorkspace ? "SLAM 工作区" : isolatedLocalization ? "独立定位控制台" : state.connected ? "机器人在线" : "连接中断"}</span>
+            {state.demoMode && <span className="status-pill"><span className="status-dot warn" />{state.navigationExecution ? "离线 Nav2" : "演示数据"}</span>}
+            <span className="status-pill"><StatusDot ready={isolatedLocalization || state.connected} />{state.navigationExecution ? state.connected ? "仿真后端在线" : "仿真后端中断" : state.slamWorkspace ? "SLAM 工作区" : isolatedLocalization ? "独立定位控制台" : state.connected ? "机器人在线" : "连接中断"}</span>
             {isolatedLocalization && <button className="btn icon" title="断开并清除会话" onClick={() => {
               void api(connection, "/api/v1/session/revoke", { method: "POST" }).catch(() => undefined);
               setConnection(null); setState(null); setSettings(undefined);
@@ -1201,15 +1214,17 @@ export default function App() {
             <span className="status-pill"><span className="mono">{clock}</span></span>
           </div>
         </header>
-        {state.demoMode && <div className="demo-banner">模拟设备 · 页面中的状态与控制不会作用于真实机器人</div>}
-        {effectiveView === "overview" && <Overview state={state} setView={setView} onRefresh={() => void refresh().catch((error) => notify((error as Error).message))} />}
+        {state.demoMode && <div className="demo-banner">{state.navigationExecution
+          ? "离线 Nav2 · 合成场景 · 未连接机器人 · 未通过实机导航验收"
+          : "模拟设备 · 页面中的状态与控制不会作用于真实机器人"}</div>}
+        {effectiveView === "overview" && <Overview state={state} connection={connection} setView={setView} onRefresh={() => void refresh().catch((error) => notify((error as Error).message))} />}
         {effectiveView === "mapping" && <Mapping state={state} run={run} connection={connection}
           onShowMap={(mapId) => { setMapPreviewId(mapId); setView("maps"); }} />}
-        {effectiveView === "maps" && <Maps state={state} run={run} initialPreviewId={mapPreviewId}
+          {effectiveView === "maps" && <Maps state={state} connection={connection} run={run} initialPreviewId={mapPreviewId}
           refresh={() => void refresh().catch(() => undefined)} />}
         {effectiveView === "localization" && <LocalizationPanel connection={connection} maps={state.savedSlamMaps}
           mappingActive={state.slamWorkspace && (state.mapping || state.mappingCleanupComplete !== true)} />}
-        {effectiveView === "navigation" && <NavigationPage state={state} run={run} />}
+        {effectiveView === "navigation" && <NavigationPage state={state} connection={connection} run={run} />}
         {effectiveView === "tours" && <Tours state={state} run={run} refresh={() => void refresh().catch(() => undefined)} />}
         {effectiveView === "settings" && <SettingsPage connection={connection} settings={settings} run={run} refresh={() => void refresh().catch(() => undefined)} onDisconnect={() => {
           void api(connection, "/api/v1/session/revoke", { method: "POST" }).catch(() => undefined);

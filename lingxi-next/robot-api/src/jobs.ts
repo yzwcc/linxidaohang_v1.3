@@ -15,6 +15,7 @@ type ActiveJob = {
   kind: "point" | "tour";
   tourId?: string;
   taskId?: string;
+  lastNavigationTaskId?: string;
   pointId?: string;
   manualPaused: boolean;
   cancelled: boolean;
@@ -42,6 +43,7 @@ export class JobManager {
   private dialogueCount = 0;
   private readonly records: JobRecord[] = [];
   private lastState: NavigationState = { status: "idle", detail: "无活动任务" };
+  private lastNavigationTaskId?: string;
 
   constructor(
     private readonly adapter: RobotAdapter,
@@ -50,9 +52,15 @@ export class JobManager {
     private readonly timing = { pollMs: 250, navigationTimeoutMs: 120_000, quietResumeMs: 5000 },
   ) {}
 
-  state(): NavigationState {
+  state(backend?: NavigationState): NavigationState {
+    if (backend?.requiresStop) return { ...backend };
     const job = this.current;
-    if (!job) return { ...this.lastState };
+    if (!job) {
+      const ownedTerminal = backend?.taskId && backend.taskId === this.lastNavigationTaskId &&
+        ["finished", "failed"].includes(backend.status);
+      if (backend && backend.status !== "idle" && !ownedTerminal) return { ...backend };
+      return { ...this.lastState };
+    }
     return {
       status: job.manualPaused ? "paused" : job.status,
       requiresStop: job.phase === "halted" || job.cancelled,
@@ -154,6 +162,7 @@ export class JobManager {
         if (this.current === job) {
           this.current = undefined;
           this.lastState = { status: "idle", detail: "任务已停止" };
+          this.lastNavigationTaskId = job.taskId ?? job.lastNavigationTaskId;
         }
       } catch (error) {
         job.manualPaused = false;
@@ -387,6 +396,7 @@ export class JobManager {
   }
 
   private async waitForCompletion(job: ActiveJob, taskId: string): Promise<boolean> {
+    job.lastNavigationTaskId = taskId;
     let remaining = this.timing.navigationTimeoutMs;
     while (this.isCurrent(job)) {
       await this.waitReady(job, false);
@@ -450,6 +460,7 @@ export class JobManager {
   private end(job: ActiveJob, detail: string, status: NavigationState["status"] = "finished") {
     if (!this.isCurrent(job)) return;
     this.lastState = { status, detail, taskId: job.tourId ?? job.runId, pointId: job.pointId };
+    this.lastNavigationTaskId = job.taskId ?? job.lastNavigationTaskId;
     this.current = undefined;
   }
 

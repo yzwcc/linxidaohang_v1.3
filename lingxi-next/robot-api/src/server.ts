@@ -12,6 +12,8 @@ import type { LidarEvent, MapPoint, RobotMap, RobotState, TourTask, VoiceDiagnos
 import { extractBearer, pairingCodeHash, SessionManager, websocketBearer } from "./auth";
 import { AimdkAdapter } from "./adapters/aimdk";
 import { DemoAdapter } from "./adapters/demo";
+import { OfflineNavigationAdapter } from "./adapters/offline-navigation";
+import type { OfflineNavigationBackend } from "./offline-navigation-backend";
 import {
   aiSettingsSchema,
   pointSchema,
@@ -57,6 +59,7 @@ type ServerOptions = {
   localizationBackend?: LocalizationBackend;
   localizationConsole?: boolean;
   slamConsole?: boolean;
+  offlineNavigationBackend?: OfflineNavigationBackend;
 };
 
 const emptySnapshot: RobotSnapshot = {
@@ -112,7 +115,8 @@ class HttpAgentSpeaker implements SpeechOutput {
 }
 
 export async function buildServer(options: ServerOptions = {}): Promise<FastifyInstance> {
-  const demoMode = options.demoMode ?? process.env.LINGXI_DEMO_MODE === "1";
+  const offlineNavigation = options.offlineNavigationBackend;
+  const demoMode = !!offlineNavigation || (options.demoMode ?? process.env.LINGXI_DEMO_MODE === "1");
   const mappingBackend = options.mappingBackend ?? (process.env.LINGXI_MAPPING_SOCKET
     ? new UnixMappingBackend(process.env.LINGXI_MAPPING_SOCKET) : undefined);
   const slamConsole = options.slamConsole === true;
@@ -130,10 +134,14 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
     throw new Error("isolated_localization_console_requires_only_own_backend");
   }
   const isolatedConsole = mappingConsole || localizationConsole;
+  if (offlineNavigation && (isolatedConsole || mappingBackend || localizationBackend || options.adapter ||
+      options.lidarSource || options.agentSpeaker || options.savedSlamDirectory || process.env.LINGXI_SAVED_SLAM_DIR)) {
+    throw new Error("isolated_offline_navigation_requires_only_own_backend");
+  }
   if (mappingConsole && (!mappingBackend || options.adapter || options.lidarSource)) {
     throw new Error("isolated_mapping_console_requires_own_backend_without_robot_adapter");
   }
-  const baseAdapter = isolatedConsole ? mappingConsoleAdapter() :
+  const baseAdapter = offlineNavigation ? new OfflineNavigationAdapter(offlineNavigation) : isolatedConsole ? mappingConsoleAdapter() :
     options.adapter ?? (demoMode ? new DemoAdapter() : new AimdkAdapter(process.env.AIMDK_BRIDGE_URL));
   const savedSlamDirectory = options.savedSlamDirectory ?? process.env.LINGXI_SAVED_SLAM_DIR;
   const slamCatalog = savedSlamDirectory ? new SavedSlamMapCatalog(savedSlamDirectory) : undefined;
@@ -154,7 +162,9 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
       }
     : new HttpAgentSpeaker(process.env.LINGXI_AGENT_URL ?? "http://127.0.0.1:18180", agentToken));
   const jobs = new JobManager(adapter, store, speaker);
-  const answerer = new Answerer(store, adapter);
+  const answerer = new Answerer(store, adapter, offlineNavigation ? {
+    fetcher: async () => { throw new Error("offline_workspace_cloud_disabled"); },
+  } : {});
   const voiceRouter = new VoiceRouter(Number(process.env.LINGXI_ASR_CONFIDENCE_THRESHOLD ?? "0.78"));
   const events = new Set<{ send(data: string): void; close(): void }>();
   const lidarClients = new Set<{ send(data: string): void; close(): void; bufferedAmount: number }>();
@@ -213,7 +223,7 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
   });
   await app.register(websocket);
 
-  if (demoMode && !isolatedConsole) await seedDemoData(store);
+  if (demoMode && !isolatedConsole && !offlineNavigation) await seedDemoData(store);
 
   function secureRequest(request: FastifyRequest): boolean {
     if ((request.raw.socket as TLSSocket).encrypted === true) return true;
@@ -232,6 +242,7 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
 
   app.addHook("preHandler", async (request) => {
     if (!request.url.startsWith("/api/v1/")) return;
+    if (offlineNavigation && !isLoopback(request.ip)) throw deny(403, "离线导航工作区仅允许本机访问");
     if (request.url.startsWith("/api/v1/session/pair")) return;
     if (request.url.startsWith("/api/v1/agent/events")) return;
     if (request.url.startsWith("/api/v1/events")) {
@@ -298,6 +309,11 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
     } catch (error) {
       return {
         ...emptySnapshot,
+        ...(offlineNavigation ? {
+          navigationExecution: { backend: "nav2-offline" as const, syntheticInputs: true as const,
+            physicalMotionSent: false as const, navigationReady: false as const },
+          navigation: { status: "failed" as const, requiresStop: true, detail: "离线导航后端未确认，任务不得推进" },
+        } : {}),
         checks: emptySnapshot.checks.map((item) => ({
           ...item,
           detail: item.id === "aimdk" ? (error as Error).message : "等待 AIMDK 适配器",
@@ -339,8 +355,7 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
       ...map,
       active: map.id === selected,
     }));
-    const jobState = jobs.state();
-    const navigation = jobs.hasActiveJob() || snapshot.navigation.status === "idle" ? jobState : snapshot.navigation;
+    const navigation = jobs.state(snapshot.navigation);
     return {
       ...snapshot,
       robotName: db.robotName,
@@ -631,7 +646,7 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
     if (!point) throw deny(404, "点位不存在");
     if (state.activeMapId !== point.mapId) throw deny(409, "点位不属于当前活动地图");
     const ready = state.checks.find((item) => item.id === "navigation")?.ready;
-    if (!ready) throw deny(409, "X2 原生导航组件尚未就绪");
+    if (!ready) throw deny(409, "导航后端尚未就绪");
     await jobs.startPoint(point);
     emitState(await stateResponse());
     return reply.code(202).send({ accepted: true });
@@ -913,6 +928,7 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
     for (const pending of agentReplies.values()) void cancelReply(pending);
     await awaitStops().catch(() => undefined);
     await jobs.dispose().catch(() => undefined);
+    await offlineNavigation?.close();
   });
   return app;
 }

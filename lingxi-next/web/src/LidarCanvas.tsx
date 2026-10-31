@@ -5,12 +5,12 @@ import { openLidarEvents, type Connection } from "./api";
 import { appendScan, defaultLidarDisplay, lidarBounds, lidarViewport, lidarToScreen, lidarSeedGesture, lidarMeasureGesture, parseLidarZSlice, sliceLidarFrames,
   type CanvasPoint, type LidarMeasurement, type LidarViewport, type PlanarLidarPose, type ScanHistory } from "./lidar-view";
 
-type Props = ({ connection: Connection; preview?: never; inactiveNotice?: string } |
-  { preview: SavedSlamPointPreview; connection?: never; inactiveNotice?: never }) &
+type Props = ({ connection: Connection; preview?: never; inactiveNotice?: string; synthetic?: boolean } |
+  { preview: SavedSlamPointPreview; connection?: never; inactiveNotice?: never; synthetic?: never }) &
   { overlayPose?: PlanarLidarPose;
     seedSelection?: { enabled: boolean; pose?: PlanarLidarPose; onSelect: (pose: PlanarLidarPose) => void } };
 
-export default function LidarCanvas({ connection, preview, inactiveNotice, overlayPose, seedSelection }: Props) {
+export default function LidarCanvas({ connection, preview, inactiveNotice, synthetic, overlayPose, seedSelection }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const historyRef = useRef<ScanHistory>({ key: "", frames: [] });
   const [frame, setFrame] = useState<LidarFrame>();
@@ -35,7 +35,7 @@ export default function LidarCanvas({ connection, preview, inactiveNotice, overl
   const contextKey = useRef("");
   const previewKey = preview ? `${preview.mapId}:${preview.receiptSha256}:${preview.pointsSha256}` : "";
   const canMeasure = Boolean(preview && !seedSelection);
-  const rawDisplay = Boolean(preview || frame && coordinateUnits === "native-raw");
+  const rawDisplay = Boolean(preview || frame && (coordinateUnits === "native-raw" || synthetic));
   const displayKey = previewKey || (frame ? `${connection?.baseUrl}:${frame.epoch}:${frame.frameId}:${coordinateUnits}` : "");
   const activeDisplay = display.key === displayKey ? display : defaultLidarDisplay(displayKey);
   const slice = rawDisplay && activeDisplay.sliced ? parseLidarZSlice(activeDisplay.min, activeDisplay.max) : undefined;
@@ -97,7 +97,7 @@ export default function LidarCanvas({ connection, preview, inactiveNotice, overl
       if (previous?.epoch === event.frame.epoch && previous.frameId === event.frame.frameId &&
           (event.frame.sequence <= previous.sequence || event.frame.stampMs < previous.stampMs)) return;
       previous = event.frame; lastReceived = performance.now();
-      setInputMode(event.type !== "lidar" ? event.inputMode : "live");
+      setInputMode(event.type !== "lidar" ? event.inputMode : synthetic ? "synthetic" : "live");
       setCoordinateUnits(event.type !== "lidar" ? event.coordinateUnits : "metres");
       setCorrectedMap(event.type === "slam-map" ? { revision: event.revision, submaps: event.submaps, totalPoints: event.totalPoints } : undefined);
       setFrame(event.frame);
@@ -107,7 +107,7 @@ export default function LidarCanvas({ connection, preview, inactiveNotice, overl
       if (lastReceived && performance.now() - lastReceived > 2000) unavailable("扫描数据已中断");
     }, 250);
     return () => { subscription.close(); clearInterval(freshness); };
-  }, [connection, preview, inactiveNotice]);
+  }, [connection, preview, inactiveNotice, synthetic]);
 
   useEffect(() => {
     if (!canvasRef.current) return;
@@ -139,6 +139,12 @@ export default function LidarCanvas({ connection, preview, inactiveNotice, overl
       setZoom(1); setPan({ x: 0, y: 0 });
     }
     const currentBounds = lidarBounds(visibleFrames, rawDisplay ? activeDisplay.fit : "all");
+    if (synthetic && frame.robotPose) {
+      currentBounds.minX = Math.min(currentBounds.minX, frame.robotPose.x - .5);
+      currentBounds.maxX = Math.max(currentBounds.maxX, frame.robotPose.x + .5);
+      currentBounds.minY = Math.min(currentBounds.minY, frame.robotPose.y - .5);
+      currentBounds.maxY = Math.max(currentBounds.maxY, frame.robotPose.y + .5);
+    }
     // Grow the view as a new area is scanned; do not rescale on every noisy ray.
     const previous = boundsRef.current;
     const bounds = previous && !correctedMap ? {
@@ -211,7 +217,7 @@ export default function LidarCanvas({ connection, preview, inactiveNotice, overl
     ctx.beginPath(); ctx.moveTo(18, rect.height - 20); ctx.lineTo(18 + bar, rect.height - 20); ctx.stroke();
     ctx.font = "11px sans-serif"; ctx.fillText(`${distance} ${preview || coordinateUnits === "native-raw" ? "raw" : "m"}`, 18, rect.height - 27);
   }, [frame, accumulate, zoom, pan, revision, preview, coordinateUnits, overlayPose, gesturePose, seedSelection?.pose, measured,
-    rawDisplay, activeDisplay.fit, activeDisplay.sliced, activeDisplay.min, activeDisplay.max]);
+    rawDisplay, synthetic, activeDisplay.fit, activeDisplay.sliced, activeDisplay.min, activeDisplay.max]);
 
   function clearHistory() {
     historyRef.current = { key: "", frames: [] }; boundsRef.current = undefined;
@@ -232,7 +238,7 @@ export default function LidarCanvas({ connection, preview, inactiveNotice, overl
           onChange={(event) => changeDisplay({ min: event.target.value })} /></label>
         <label>Z 上限<input aria-label="原始 Z 上限" type="number" step="any" value={activeDisplay.max}
           onChange={(event) => changeDisplay({ max: event.target.value })} /></label>
-        <span className="helper">raw / 未标定</span>
+        <span className="helper">{synthetic ? "m / 合成场景" : "raw / 未标定"}</span>
       </div>}
     </div>}
     <div className="map-canvas-wrap lidar-canvas-wrap">

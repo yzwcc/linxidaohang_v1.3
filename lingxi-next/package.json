@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "dev:api": "cross-env LINGXI_ENV=development LINGXI_DEMO_MODE=1 tsx watch robot-api/src/index.ts",
+    "dev:offline-navigation": "node tools/start-offline-navigation.mjs",
     "typecheck:api": "tsc -p tsconfig.api.json --noEmit",
     "typecheck:runtime": "tsc -p tsconfig.runtime.json --noEmit",
     "build": "tsc --noEmit && npm run typecheck:api && npm run typecheck:runtime && vite build",

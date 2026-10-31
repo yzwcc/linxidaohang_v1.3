@@ -7,6 +7,7 @@ import type {
   VoiceEvent,
   VoiceReply,
 } from "../../shared/contracts";
+import { Capacitor } from "@capacitor/core";
 
 export class ApiError extends Error {
   constructor(
@@ -30,7 +31,10 @@ function normalizeBaseUrl(value: string): string {
   const withScheme = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
   const url = new URL(withScheme);
   if (url.username || url.password || url.pathname !== "/" || url.search || url.hash) throw new Error("请输入机器人 IP 和端口");
-  if (url.protocol !== "https:" && !(import.meta.env.DEV && ["localhost", "127.0.0.1"].includes(url.hostname))) {
+  const loopback = ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
+  const localWorkspace = !Capacitor.isNativePlatform() && loopback && typeof window !== "undefined" &&
+    window.location?.protocol === "http:" && window.location.origin === url.origin;
+  if (url.protocol !== "https:" && !((import.meta.env.DEV && loopback) || localWorkspace)) {
     throw new Error("机器人连接必须使用 HTTPS");
   }
   return url.origin;

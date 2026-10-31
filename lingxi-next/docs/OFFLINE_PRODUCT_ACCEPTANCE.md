@@ -1,6 +1,6 @@
 # Full Product Offline Workstream
 
-Updated 2026-10-31. This is the active scope for the independent open-source
+Updated 2026-11-01. This is the active scope for the independent open-source
 route. Earlier vendor-only acceptance records in ACCEPTANCE.md are historical;
 vendor SLAM licensing is not a prerequisite for this route. No robot connection
 or deployment is authorized by completing an offline check.
@@ -11,10 +11,10 @@ or deployment is authorized by completing an offline check.
 | Localization | Explicit seeded small-gicp tracking, pose freshness, map provenance, base projection | Replay tracking, bad seeds, loss/recovery, stale generation and current observed-map loading | Independent moving trajectory and ground-truth errors; global relocalization remains a separate capability |
 | Global planning | Pinned native Nav2 NavFn over explicit costmaps | Unknown space, blocked goals, complete path identity and bounded worker | Map scale, robot clearance and actual route reachability |
 | Occupancy | Pinned OctoMap acquisition-time rays and conservative 3D clearance projection | Corrected map revision rebuild, unknown/free/occupied accounting and native budgets | Physical scale, ground support, blind spots and real obstacle visibility |
-| Local navigation | Real ROS Humble NavFn + RPP + closed-loop smoother passed open/blocked/detour/appearing-wall synthetic scenes; epoch-owned offline runtime | Product API/backend wiring, recorded localization/occupancy, support-preserving clearing, source-stamped command freshness and guarded AIMDK handoff | Walking dynamics, stopping distance, dynamic people/obstacles and emergency stop |
-| Tours and tasks | Multi-point/round sequencing, one retry then skip, manual pause, dialogue quiet-resume, return policy | Replace vendor-navigation dependency with independently verified backend; race/failure integration | Actual arrival, interruption/resume and narration at each point |
-| Voice and AI | AgentSDK passive-event gating, deduplication, allowlists, evidence-bound retrieval, timeout/streaming | Cross-module task interruption, cloud failure, forbidden actions, delayed callbacks and playback correlation | 100-wake/8-hour negatives, zero forbidden execution, acoustic P95 first response <=2 s |
-| Web and Android | Shared Chinese React console, point-cloud map inspection, landscape Capacitor project | Desktop/landscape workflow, connection loss, current APK build and package-source consistency | Real CA trust, Android devices, LAN reconnection and point picking |
+| Local navigation | Real ROS Humble NavFn + RPP + closed-loop smoother passed four synthetic scenes; paired product API/backend and concurrent Web polling passed | Recorded localization/occupancy, support-preserving clearing, source-stamped command freshness and guarded AIMDK handoff | Walking dynamics, stopping distance, dynamic people/obstacles and emergency stop |
+| Tours and tasks | Multi-point/round sequencing, one retry then skip, manual pause, dialogue quiet-resume, return policy; real offline Nav2 two-point tour/no-return and pause/resume epochs passed | Recorded backend integration, broader failure/retry/late-callback combinations | Actual arrival, interruption/resume and narration at each point |
+| Voice and AI | AgentSDK passive-event gating, deduplication, allowlists, evidence-bound retrieval, timeout/streaming; awakened voice dispatch/stop and Q&A preserving real offline navigation passed | Full playback correlation, cloud-failure matrix and end-to-end latency; offline workspace deliberately stubs playback and disables cloud | 100-wake/8-hour negatives, zero forbidden execution, acoustic P95 first response <=2 s |
+| Web and Android | Shared Chinese React console, point-cloud map inspection, landscape Capacitor project; real Nav2 offline point-cloud workspace | Desktop/landscape workflow, connection loss, current APK build and package-source consistency | Real CA trust, Android devices, LAN reconnection and point picking |
 | Deployment | Isolated services, restricted credentials, migration/backup/rollback scripts | Complete independent-stack manifest, dependency/license audit, clean-install and failed-upgrade rollback | Real ARM64 installation with existing vendor system preserved |
 
 ## Release Rules
@@ -30,3 +30,6 @@ or deployment is authorized by completing an offline check.
   is traversable ground.
 - Work through the full product offline, not only mapping. Request the robot
   only for a bounded field test after the relevant offline integration passes.
+- The [2026-11-01 verification record](OFFLINE_WORKSPACE_VERIFICATION_20261101.md)
+  includes six unresolved broad Python checks. Passing focused navigation
+  tests does not waive source-bound evidence or clean-source release checks.

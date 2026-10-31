@@ -3,6 +3,17 @@
 A clean-room local console and Android companion for AgiBot Lingxi X2. This
 project does not include or modify the V1.3.9/R19 business code.
 
+## Current Offline Product Workspace
+
+Updated 2026-11-01: the paired Web API, point-cloud view, navigation task manager,
+voice command gates and multi-point tours now also run against real, isolated
+ROS Humble Nav2, without a robot connection. Four synthetic controller scenes
+pass independent arrival/clearance/retirement checks. This is not physical
+navigation acceptance. Cloud calls and acoustic playback are disabled in this
+workspace, so it does not establish the <=2 s audible response target.
+See [workspace startup and checks](docs/OFFLINE_NAVIGATION_WORKSPACE.md) and
+[the full-product workstream](docs/OFFLINE_PRODUCT_ACCEPTANCE.md).
+
 ## Independent navigation evaluation
 
 On 2026-10-28 the user confirmed this X2 does not include optional native SLAM.

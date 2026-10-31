@@ -1,0 +1,107 @@
+{
+  "schemaVersion": 1,
+  "purpose": "synthetic_planar_nav2_integration_not_field_acceptance",
+  "date": "2026-11-01",
+  "upstream": {
+    "repository": "https://github.com/ros-navigation/navigation2",
+    "commit": "3c3db59d6969d8ecee8e68468693d006397f4a0c",
+    "controller": "nav2_regulated_pure_pursuit_controller::RegulatedPurePursuitController",
+    "smoother": "nav2_velocity_smoother::VelocitySmoother",
+    "installedBinaryMatchesPinnedSourceVerified": false
+  },
+  "installedPackages": [
+    "ros-humble-nav2-controller 1.1.20-1jammy.20260915.232401",
+    "ros-humble-nav2-navfn-planner 1.1.20-1jammy.20260915.232217",
+    "ros-humble-nav2-regulated-pure-pursuit-controller 1.1.20-1jammy.20260915.232155",
+    "ros-humble-nav2-velocity-smoother 1.1.20-1jammy.20260915.230155"
+  ],
+  "sourceSha256": {
+    "robot-navigation/lingxi_navigation/nav2_profile.py": "a86eedf7c61235a5fc8190ab5a48ed826445e167a93d503a3d5309870430ca75",
+    "robot-navigation/lingxi_navigation/runtime.py": "8fd3111f363c3aacdebe620404ad5beccda0a1aee16045d73fa97f7a526f6f25",
+    "robot-navigation/nav2_offline.launch.py": "d1ca97db1a34e3740f4630c49de9247e49d00a945196b26bf9ebca298fc55738",
+    "tools/prepare_nav2_offline.py": "1f884df16ef58685fe316fb8b6560903cd0bb2c761a17063651dcd349b3862d5",
+    "tools/run_nav2_offline.py": "d3bf363bf45d93579cb7758cfd6a07f01445c91e4e8ba3d96ac3d891937f51f6",
+    "tools/offline_nav2_service.py": "3d765bb196e62649d227eb2160da7be5b9d58b33ef3c5375e05734b6ba2dc12f",
+    "tools/nav2-offline-service-isolated.sh": "b046097b38a637e8144bfbe0ed6894e7bd4399bc95480f701c18bc3be367925d",
+    "robot-api/src/offline-navigation-backend.ts": "4980465effc93bf0fae805d0bc14ee9d68cfda0c8adf5ce5de89735f1355e79f",
+    "robot-api/src/adapters/offline-navigation.ts": "283085e0e048eb2f18c6b7fb6b880306c4c6fbe5c679c0c14ae123160fd708e2",
+    "shared/offline-navigation.ts": "87c6249186437c16fdee890bd3f8edf042a9892415a64194d2b17cc667b8c0cd",
+    "robot-api/src/jobs.ts": "a74d1c36da40ce5feb6f8ff2e9e32ae8c1450112114a2dfa35cb64901e97b28a",
+    "robot-api/src/server.ts": "0613e49ccf53dac9a4cec0e0379c406b71f3129c267fa11f3cf8b7aa2a3b7cd1"
+  },
+  "dynamicObstaclePolicy": "mark_only_latched_no_automatic_clearing",
+  "requiredEnvelopeRadiusMetres": 0.4,
+  "goal": [2.0, 0.0, 0.0],
+  "goalPositionToleranceMetres": 0.15,
+  "goalHeadingToleranceRadians": 0.15,
+  "cases": [
+    {
+      "case": "open",
+      "passed": true,
+      "checks": {
+        "actionExpected": true, "sourceRetired": true, "noLatchedFault": true,
+        "commandsBounded": true, "sweptObstacleClearance": true, "fullEnvelopeSupported": true,
+        "controllerProducedMotion": true, "planned": true, "metricGoalReached": true, "headingReached": true
+      },
+      "finalPose": [1.8546786386862735, 3.129629030595369e-8, -1.5134990966418027e-7],
+      "minimumSweptObstacleDistanceMetres": null,
+      "maximumAbsY": 4.6887096500627586e-8,
+      "commandCount": 235,
+      "elapsedSeconds": 13.441549842999848,
+      "reportSha256": "390f95926376a247132ca08f6e07e105ed78e705268a8c9acae77ec9f92d98b8"
+    },
+    {
+      "case": "blocked",
+      "passed": true,
+      "checks": {
+        "actionExpected": true, "sourceRetired": true, "noLatchedFault": true,
+        "commandsBounded": true, "sweptObstacleClearance": true, "fullEnvelopeSupported": true,
+        "noNonzeroCommands": true, "stayedAtStart": true
+      },
+      "finalPose": [0.0, 0.0, 0.0],
+      "minimumSweptObstacleDistanceMetres": 1.0,
+      "maximumAbsY": 0.0,
+      "commandCount": 0,
+      "elapsedSeconds": 1.8041899839999997,
+      "reportSha256": "d98cad704d4a257b0b19856b7a293cc78da37566663034b0654abbc774f755fa"
+    },
+    {
+      "case": "detour",
+      "passed": true,
+      "checks": {
+        "actionExpected": true, "sourceRetired": true, "noLatchedFault": true,
+        "commandsBounded": true, "sweptObstacleClearance": true, "fullEnvelopeSupported": true,
+        "controllerProducedMotion": true, "planned": true, "metricGoalReached": true,
+        "headingReached": true, "obstacleActuallyBypassed": true
+      },
+      "finalPose": [1.9857774097693055, 0.13977727978658386, -0.12291282334871109],
+      "minimumSweptObstacleDistanceMetres": 0.7235087733551897,
+      "maximumAbsY": 1.0452967630349768,
+      "commandCount": 566,
+      "elapsedSeconds": 30.677062424999995,
+      "reportSha256": "0a579313b688b6f1fa385091041432cf9c79a612c69e081013b2fb3acdb5bab6"
+    },
+    {
+      "case": "appearing-wall",
+      "passed": true,
+      "checks": {
+        "actionExpected": true, "sourceRetired": true, "noLatchedFault": true,
+        "commandsBounded": true, "sweptObstacleClearance": true, "fullEnvelopeSupported": true,
+        "controllerProducedMotion": true, "planned": true, "obstacleIntroduced": true, "stoppedBeforeWall": true
+      },
+      "finalPose": [0.3048917157744724, 2.9466851776350368e-8, 8.551558309593606e-8],
+      "minimumSweptObstacleDistanceMetres": 0.6951082842255283,
+      "maximumAbsY": 2.9466851776350368e-8,
+      "commandCount": 42,
+      "elapsedSeconds": 3.922887236000001,
+      "reportSha256": "7a2e9d6990cd793007317f1ac0c5851afa900fedc8b4087cbccde4c525438fbf"
+    }
+  ],
+  "syntheticInputs": true,
+  "controllerExecuted": true,
+  "groundSupportMeasured": false,
+  "observedTwistHasSourceTimestamp": false,
+  "productionCommandAgeProven": false,
+  "physicalMotionSent": false,
+  "navigationReady": false
+}

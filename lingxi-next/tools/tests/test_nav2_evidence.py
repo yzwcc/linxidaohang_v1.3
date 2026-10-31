@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parents[2]
 
 class EvidenceTests(unittest.TestCase):
     def test_final_round_is_source_bound_and_retains_physical_gaps(self):
-        report = json.loads((ROOT / 'docs/evidence/nav2-offline-rpp-20261031.json').read_bytes())
+        report = json.loads((ROOT / 'docs/evidence/nav2-offline-rpp-20261101.json').read_bytes())
         for name, sha in report['sourceSha256'].items():
             self.assertEqual(sha, hashlib.sha256((ROOT / name).read_bytes()).hexdigest(), name)
         self.assertTrue(report['controllerExecuted'])
