@@ -43,6 +43,7 @@ describe("saved SLAM receipt catalog", () => {
     expect(preview.pointsSha256).toBe(createHash("sha256").update(await readFile(fixture.points)).digest("hex"));
     expect(preview.points.slice(0, 3)).toEqual([6, 0, 0]);
     expect(preview.points).toHaveLength(1440 * 3);
+    expect(preview.seedReferences).toBeUndefined();
     expect(await readFile(fixture.ready)).toEqual(before);
     expect(JSON.stringify(await catalog.list())).not.toContain(root);
   });
@@ -59,6 +60,20 @@ describe("saved SLAM receipt catalog", () => {
     expect(map.localizationReady).toBe(false);
     expect(map.navigationReady).toBe(false);
     expect((await catalog.preview(fixture.id)).mapId).toBe(fixture.id);
+    const references = (await catalog.preview(fixture.id)).seedReferences!;
+    expect(references).toMatchObject({ source: "glim-final-lidar-trajectory", sourceFrame: "lidar_chest_front",
+      profileSha256: sensorProvenance.profileSha256, frames: 2, first: { frameIndex: 1 }, last: { frameIndex: 2 } });
+    expect(references.trajectorySha256).toBe(createHash("sha256").update(
+      await readFile(path.join(fixture.directory, "map/traj_lidar.txt"))).digest("hex"));
+    expect(references.last.mapFromSensor[0][3]).toBe(1);
+  });
+
+  it("omits endpoint references rather than inventing a pose for a valid map with unusable trajectory metadata", async () => {
+    const fixture = await savedSlamFixture(maps, { lidarTrajectory: "0 0 0 0 0 0 0 1\n1 1 0 0 0 0 0 0\n",
+      sensorProvenance: { schemaVersion: 1, profileSha256: "a".repeat(64), timingHypothesis: "header_is_scan_start",
+        configurationSha256: { "lidar.json": "b".repeat(64) } } });
+    expect(await catalog.list()).toHaveLength(1);
+    expect((await catalog.preview(fixture.id)).seedReferences).toBeUndefined();
   });
 
   it("excludes malformed v2 provenance and refuses provenance smuggled into v1", async () => {

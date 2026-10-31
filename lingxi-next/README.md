@@ -228,6 +228,10 @@ never submits a command; height, roll and pitch remain explicit inputs. Desktop
 and landscape synthetic checks passed for both service and fixed-map consoles.
 This source update does not change the retained r8 archive or ship a new APK.
 See [point-cloud initial pose picking](docs/SLAM_POSE_PICKER.md).
+Verified schema-2 maps can now supply final-trajectory first/last LiDAR reference
+poses to that editor. Selection loads a full 3D draft only; operator confirmation
+and a separate submit remain required. References do not establish current-site
+association, calibration or navigation readiness.
 A new ordinary-user recorded-input launcher now owns the native localization
 worker and paired HTTPS API together, with bounded startup, peer-failure cleanup
 and end-of-run input verification. Thirteen Linux process cases and 87 focused

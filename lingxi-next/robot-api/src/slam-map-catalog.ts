@@ -4,6 +4,8 @@ import { lstat, readFile, readdir, realpath } from "node:fs/promises";
 import path from "node:path";
 import { z } from "zod";
 import type { SavedSlamMap, SavedSlamPointPreview } from "../../shared/contracts";
+import type { SavedSlamReferences } from "../../shared/slam-reference";
+import { mappingEndpointPoses, MAX_TRAJECTORY_BYTES } from "./slam-map-references";
 
 const positive = z.number().int().positive().safe();
 const sha256 = z.string().regex(/^[a-f0-9]{64}$/);
@@ -128,7 +130,9 @@ export class SavedSlamMapCatalog {
       coordinateUnits: "native-raw",
       ...(receipt.schemaVersion === 2 ? { sensorProvenance: receipt.sensorProvenance } : {}),
     };
-    return { map, pointsFile, pointsSha256: receipt.savedPointsSha256,
+    return { map, pointsFile, trajectoryFile: path.join(mapRoot, "traj_lidar.txt"),
+      trajectorySha256: entries.find(([file]) => file === "traj_lidar.txt")![2],
+      pointsSha256: receipt.savedPointsSha256,
       receiptSha256: createHash("sha256").update(receiptBytes).digest("hex") };
   }
 
@@ -172,10 +176,26 @@ export class SavedSlamMapCatalog {
       if (!xyz.every(Number.isFinite)) throw new Error("finite_saved_slam_points_required");
       if (index % stride === 0) points.push(...xyz);
     }
+    let seedReferences: SavedSlamReferences | undefined;
+    if (found.map.sensorProvenance && (await direct(found.trajectoryFile, true)).size <= MAX_TRAJECTORY_BYTES) {
+      const trajectory = await readFile(found.trajectoryFile);
+      if (createHash("sha256").update(trajectory).digest("hex") !== found.trajectorySha256) {
+        throw new Error("unchanged_saved_slam_trajectory_required");
+      }
+      try {
+        seedReferences = {
+          source: "glim-final-lidar-trajectory", sourceFrame: "lidar_chest_front", coordinateUnits: "native-raw",
+          profileSha256: found.map.sensorProvenance.profileSha256, trajectorySha256: found.trajectorySha256,
+          frames: found.map.counts.savedFrames,
+          ...mappingEndpointPoses(trajectory.toString("utf8"), found.map.counts.savedFrames),
+        };
+      } catch { /* A valid map may lack usable endpoint metadata; never invent a pose. */ }
+    }
     return {
       mapId: id, inputMode: found.map.inputMode, coordinateUnits: "native-raw",
       receiptSha256: found.receiptSha256, pointsSha256: found.pointsSha256,
       totalPoints: found.map.counts.points, sampled: stride !== 1, points,
+      ...(seedReferences ? { seedReferences } : {}),
     };
   }
 }

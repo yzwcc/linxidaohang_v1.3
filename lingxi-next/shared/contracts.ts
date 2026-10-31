@@ -1,5 +1,6 @@
 import type { LocalizationState } from "./localization";
 import type { MappingFailure } from "./mapping";
+import type { SavedSlamReferences } from "./slam-reference";
 
 export type HealthCheck = {
   id: string;
@@ -85,6 +86,7 @@ export type SavedSlamPointPreview = {
   totalPoints: number;
   sampled: boolean;
   points: number[];
+  seedReferences?: SavedSlamReferences;
 };
 
 export type MapPoint = {

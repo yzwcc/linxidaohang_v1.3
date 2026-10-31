@@ -78,7 +78,7 @@ function metric() {
     horizontalOverflow: document.documentElement.scrollWidth > innerWidth,
     panelOverlap: Boolean(a && b && a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom),
     syntheticBanner: Boolean(document.querySelector(".synthetic-fixture-banner")),
-    seedFields: document.querySelectorAll('input[id^="seed-"]').length,
+    seedFields: document.querySelectorAll('.seed-fields input[type="number"]').length,
     seedHeading: document.querySelector(".localization-controls form h2")?.textContent ?? null,
     seedDisabled: button("提交初始位姿")?.disabled, stopDisabled: button("停止会话")?.disabled,
     startDisabled: button("启动定位进程")?.disabled, shutdownDisabled: button("关闭定位进程")?.disabled,
@@ -131,8 +131,36 @@ try {
   wait("window.__localizationMetric().nonBackground > 100 && !document.querySelector('#seed-x').disabled");
   assert.equal(evaluate("window.__localizationMetric().seedDisabled"), true);
   await capture("unseeded", false);
-  const draftFields = () => evaluate(`Object.fromEntries([...document.querySelectorAll('input[id^="seed-"]')]
+  const draftFields = () => evaluate(`Object.fromEntries([...document.querySelectorAll('.seed-fields input[type="number"]')]
     .map(input => [input.id.slice(5), input.value]))`);
+  const beforeReference = control("status").commands.length;
+  run("select", "#seed-reference", "last");
+  const referenceFields = draftFields();
+  assert.deepEqual([referenceFields.x, referenceFields.y, referenceFields.z], ["1", "-0.5", "0.4"]);
+  assert(Math.abs(Number(referenceFields.roll) - 90) < 1e-8);
+  assert.equal(Number(referenceFields.pitch), 0); assert.equal(Number(referenceFields.yaw), 0);
+  assert.equal(control("status").commands.length, beforeReference);
+  assert.equal(evaluate("window.__localizationMetric().seedDisabled"), true);
+  run("check", "#seed-reference-confirmed");
+  assert.equal(evaluate("window.__localizationMetric().seedDisabled"), false);
+  await capture("reference-draft", false);
+  run("select", "#seed-reference", "first");
+  assert(Object.values(draftFields()).every(value => Number(value) === 0));
+  assert.equal(evaluate("document.querySelector('#seed-reference-confirmed').checked"), false);
+  assert.equal(evaluate("window.__localizationMetric().seedDisabled"), true);
+  assert.equal(control("status").commands.length, beforeReference);
+  report.savedMapReferences = { explicitOnly: true, fullPoseLoaded: true, noCommandsSent: true,
+    physicalReferenceConfirmationRequired: true, changingReferenceRevokesConfirmation: true };
+  run("set", "viewport", "844", "390");
+  evaluate("document.querySelector('#seed-reference').scrollIntoView({block:'center'}); true");
+  run("select", "#seed-reference", "last");
+  assert.equal(evaluate("window.__localizationMetric().seedDisabled"), true);
+  run("check", "#seed-reference-confirmed");
+  assert.equal(evaluate("window.__localizationMetric().seedDisabled"), false);
+  assert.equal(control("status").commands.length, beforeReference);
+  await capture("reference-draft-landscape", false);
+  run("set", "viewport", "1440", "900");
+  evaluate("window.scrollTo(0,0); true");
   const beginDrag = (dx, dy) => {
     const point = evaluate(`(() => { const r=document.querySelector('.localization-cloud canvas').getBoundingClientRect();
       return {x:r.left+r.width*.45,y:r.top+r.height*.55}; })()`);
@@ -162,7 +190,7 @@ try {
   evaluate("window.__oldSeedCanvas = document.querySelector('.localization-cloud canvas'); true");
   beginDrag(0, -40);
   control("session-change");
-  wait("!window.__oldSeedCanvas.isConnected && [...document.querySelectorAll('input[id^=\"seed-\"]')].every(input => input.value === '')");
+  wait("!window.__oldSeedCanvas.isConnected && [...document.querySelectorAll('.seed-fields input[type=\"number\"]')].every(input => input.value === '')");
   run("mouse", "up", "left");
   assert(Object.values(draftFields()).every(value => value === ""));
   assert.equal(control("status").commands.length, beforePicking);
@@ -191,6 +219,7 @@ try {
   wait(serviceMode ? "!window.__localizationMetric().pose && window.__localizationMetric().seedDisabled" :
     "!window.__localizationMetric().canvas && !window.__localizationMetric().pose");
   await capture("map-mismatch", false, serviceMode);
+  assert.equal(evaluate("document.querySelector('#seed-reference').disabled"), true);
   control("map-restore");
   wait("Boolean(window.__localizationMetric().pose)");
   assert.equal(evaluate("document.querySelector('#seed-x').value"), "");

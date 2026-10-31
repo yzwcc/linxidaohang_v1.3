@@ -37,6 +37,7 @@ async function main() {
   const maps = path.join(root, "maps");
   await mkdir(maps, { mode: 0o700 });
   const map = await savedSlamFixture(maps, { session: "b".repeat(32), inputMode: "recorded",
+    lidarTrajectory: "0 0 0 0 0 0 0 1\n1 1 -0.5 0.4 0.707107 0 0 0.707107\n",
     sensorProvenance: { schemaVersion: 1, profileSha256: "e".repeat(64), timingHypothesis: "header_is_scan_start",
       configurationSha256: { "synthetic.json": "f".repeat(64) } } });
   await writeFile(map.ready, JSON.stringify({ ...map.receipt, name: "合成测试地图 / Synthetic" }));

@@ -5,6 +5,7 @@ import path from "node:path";
 
 export async function savedSlamFixture(root: string, options: {
   directory?: string; session?: string; points?: number; inputMode?: "live" | "recorded" | "synthetic";
+  lidarTrajectory?: string;
   sensorProvenance?: {
     schemaVersion: 1; profileSha256: string;
     timingHypothesis: "header_is_scan_start" | "header_is_scan_end";
@@ -19,7 +20,7 @@ export async function savedSlamFixture(root: string, options: {
     "values.bin": "isolated-synthetic-values",
     "graph.txt": "num_submaps: 1\nnum_all_frames: 2\nnum_matching_cost_factors: 0\n",
     "odom_lidar.txt": "0 0 0 0 0 0 0 1\n1 1 0 0 0 0 0 1\n",
-    "traj_lidar.txt": "0 0 0 0 0 0 0 1\n1 1 0 0 0 0 0 1\n",
+    "traj_lidar.txt": options.lidarTrajectory ?? "0 0 0 0 0 0 0 1\n1 1 0 0 0 0 0 1\n",
     "odom_imu.txt": "0 0 0 0 0 0 0 1\n1 1 0 0 0 0 0 1\n",
     "traj_imu.txt": "0 0 0 0 0 0 0 1\n1 1 0 0 0 0 0 1\n",
     "000000/cloud.bin": "isolated-synthetic-cloud",

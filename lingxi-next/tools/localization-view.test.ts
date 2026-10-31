@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { emptySeedFields, planarLidarPose, planarSeedDraft, seedDraftReady, seedMatrix,
+import { emptySeedFields, planarLidarPose, planarSeedDraft, seedDraftReady, seedMatrix, seedFieldsFromMatrix, seedReferenceFields,
   withPlanarSeed, type SeedFields } from "../web/src/localization-view";
 import { rigidMatrixSchema } from "../shared/localization";
 import type { SavedSlamPointPreview } from "../shared/contracts";
 import { localizationFixture } from "../robot-api/tests/fixtures/localization-state";
+import type { SavedSlamReferences } from "../shared/slam-reference";
 
 const zero: SeedFields = { x: "0", y: "0", z: "0", roll: "0", pitch: "0", yaw: "0" };
 describe("explicit chest lidar seed convention", () => {
@@ -22,6 +23,14 @@ describe("explicit chest lidar seed convention", () => {
     expect(matrix[0][2]).toBeCloseTo(1);
     expect(rigidMatrixSchema.safeParse(matrix).success).toBe(true);
   });
+  it.each([[7, -12, 93], [90, 90, 45], [20, -90, -70], [-110, 89.999, 135], [30, 110, -60], [0, 0, 0]])(
+    "roundtrips full 3D orientation including gimbal cases (%i, %i, %i)", (roll, pitch, yaw) => {
+      const matrix = seedMatrix({ ...zero, x: "1.5", y: "-2", z: ".8", roll: String(roll), pitch: String(pitch), yaw: String(yaw) });
+      const actual = seedMatrix(seedFieldsFromMatrix(matrix));
+      for (let row = 0; row < 4; row++) for (let column = 0; column < 4; column++) {
+        expect(actual[row][column]).toBeCloseTo(matrix[row][column], 10);
+      }
+    });
   it.each(["", " ", "NaN", "Infinity", "1e999"])("rejects invalid numeric entry %j", (text) => {
     expect(() => seedMatrix({ ...zero, x: text })).toThrow();
   });
@@ -70,5 +79,25 @@ describe("map-bound initial pose drafts", () => {
       { referenceFrame: null }, { state: "stopped" as const }, { state: "failed" as const }]) {
       expect(seedDraftReady(zero, state.binding, { ...state, ...changed }, preview)).toBe(false);
     }
+  });
+
+  it("loads full reference poses only from matching preview, profile and source metadata", () => {
+    const first = seedMatrix({ ...zero, z: "1.3", roll: "12", pitch: "-7", yaw: "90" });
+    const references: SavedSlamReferences = { source: "glim-final-lidar-trajectory", sourceFrame: "lidar_chest_front",
+      coordinateUnits: "native-raw", trajectorySha256: "a".repeat(64), profileSha256: state.binding.profile_sha256,
+      frames: 2, first: { frameIndex: 1, mapFromSensor: first }, last: { frameIndex: 2, mapFromSensor: seedMatrix(zero) } };
+    const value = { ...preview, seedReferences: references };
+    expect(seedReferenceFields(value, state.binding, "first")).toEqual(seedFieldsFromMatrix(first));
+    expect(seedReferenceFields(value, state.binding, "last")).toEqual(zero);
+    for (const key of ["mapId", "receiptSha256", "pointsSha256", "inputMode"] as const) {
+      expect(seedReferenceFields({ ...value, [key]: "changed" }, state.binding, "first")).toBeUndefined();
+    }
+    for (const change of [{ profileSha256: "b".repeat(64) }, { sourceFrame: "base_link" },
+      { frames: 3 }, { source: "odom_lidar" }]) {
+      expect(seedReferenceFields({ ...value, seedReferences: { ...references, ...change } } as typeof value,
+        state.binding, "first")).toBeUndefined();
+    }
+    expect(seedReferenceFields(preview, state.binding, "first")).toBeUndefined();
+    expect(seedReferenceFields(value, undefined, "first")).toBeUndefined();
   });
 });

@@ -8,7 +8,7 @@ import {
 } from "../../shared/localization";
 import { api, ApiError, jsonBody, type Connection } from "./api";
 import LidarCanvas from "./LidarCanvas";
-import { emptySeedFields, planarLidarPose, planarSeedDraft, seedDraftReady, seedMatrix,
+import { emptySeedFields, planarLidarPose, planarSeedDraft, seedDraftReady, seedMatrix, seedReferenceFields,
   withPlanarSeed, type SeedFields } from "./localization-view";
 import type { PlanarLidarPose } from "./lidar-view";
 
@@ -43,6 +43,8 @@ export default function LocalizationPanel({ connection, maps, mappingActive = fa
   const [preview, setPreview] = useState<SavedSlamPointPreview>();
   const [fields, setFields] = useState<SeedFields>(initial);
   const [draftBinding, setDraftBinding] = useState<LocalizationState["binding"]>();
+  const [selectedReference, setSelectedReference] = useState<"" | "first" | "last">("");
+  const [referenceConfirmed, setReferenceConfirmed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
@@ -60,7 +62,8 @@ export default function LocalizationPanel({ connection, maps, mappingActive = fa
     ++connectionEpoch.current;
     commandRequest.current?.abort(); commandRequest.current = undefined;
     setBusy(false); setError(""); setMessage(""); setMode("unknown"); setSelectedMapId("");
-    setFields(initial); setDraftBinding(undefined); rememberedRun.current = ""; rememberedBinding.current = "";
+    setFields(initial); setDraftBinding(undefined); setSelectedReference(""); setReferenceConfirmed(false);
+    rememberedRun.current = ""; rememberedBinding.current = "";
     return () => { ++connectionEpoch.current; commandRequest.current?.abort(); };
   }, [connection]);
 
@@ -136,14 +139,16 @@ export default function LocalizationPanel({ connection, maps, mappingActive = fa
     if (!runtime?.runId) return;
     const identity = runtime.serviceId + runtime.runId;
     if (identity !== rememberedRun.current) {
-      rememberedRun.current = identity; setFields(initial); setDraftBinding(undefined);
+      rememberedRun.current = identity; setFields(initial); setDraftBinding(undefined); setSelectedReference("");
+      setReferenceConfirmed(false);
     }
   }, [runtime?.serviceId, runtime?.runId]);
 
   const bindingKey = snapshot ? JSON.stringify(snapshot.binding) : "";
   useEffect(() => {
     if (bindingKey !== rememberedBinding.current) {
-      rememberedBinding.current = bindingKey; setFields(initial); setDraftBinding(undefined);
+      rememberedBinding.current = bindingKey; setFields(initial); setDraftBinding(undefined); setSelectedReference("");
+      setReferenceConfirmed(false);
     }
   }, [bindingKey]);
 
@@ -177,7 +182,8 @@ export default function LocalizationPanel({ connection, maps, mappingActive = fa
     const state = source.value;
     let body: Omit<LocalizationCommand, "action">;
     try {
-      if (action === "seed" && !seedDraftReady(fields, draftBinding, state, preview)) {
+      if (action === "seed" && (!seedDraftReady(fields, draftBinding, state, preview) ||
+          selectedReference !== "" && !referenceConfirmed)) {
         throw new Error("请完整填写当前地图与会话的初始雷达位姿");
       }
       body = {
@@ -264,16 +270,24 @@ export default function LocalizationPanel({ connection, maps, mappingActive = fa
   const draftPose = snapshot && draftBinding && sameLocalizationBinding(draftBinding, snapshot.binding) &&
     matchedPreview?.receiptSha256 === draftBinding.receipt_sha256 && matchedPreview?.pointsSha256 === draftBinding.points_sha256
     ? planarSeedDraft(fields) : undefined;
-  const seedReady = seedDraftReady(fields, draftBinding, snapshot, matchedPreview);
+  const seedReady = seedDraftReady(fields, draftBinding, snapshot, matchedPreview) && (!selectedReference || referenceConfirmed);
 
-  function editSeed(change: (value: SeedFields) => SeedFields) {
+  function editSeed(change: (value: SeedFields) => SeedFields, reference: "" | "first" | "last" = "") {
     const source = current.current;
     if (!pickEnabled || !source || !snapshot || performance.now() - source.at > 900 ||
         !sameLocalizationBinding(snapshot.binding, source.value.binding)) return;
-    setFields(change); setDraftBinding(source.value.binding); setError("");
+    setFields(change); setDraftBinding(source.value.binding); setSelectedReference(reference); setError("");
+    setReferenceConfirmed(false);
   }
 
   function pickSeed(value: PlanarLidarPose) { editSeed((previous) => withPlanarSeed(previous, value)); }
+  const referenceAvailable = Boolean(seedReferenceFields(matchedPreview, snapshot?.binding, "first"));
+
+  function loadReference(endpoint: string) {
+    if (endpoint !== "first" && endpoint !== "last") return;
+    const value = seedReferenceFields(matchedPreview, snapshot?.binding, endpoint);
+    if (value) editSeed(() => value, endpoint);
+  }
   const map = maps?.find((item) => item.id === mapId);
   const inputMode = snapshot?.binding.input_mode ?? runtime?.inputMode;
   const inputLabel = inputMode === "live" ? "实时传感器" : inputMode === "recorded" ? "录制数据" : "等待输入状态";
@@ -335,6 +349,18 @@ export default function LocalizationPanel({ connection, maps, mappingActive = fa
         </div>}
         <form className="stack" onSubmit={(event) => { event.preventDefault(); void command("seed"); }}>
           <h2>初始雷达位姿</h2>
+          <div className="field"><label htmlFor="seed-reference">建图参考位姿</label>
+            <select id="seed-reference" value={selectedReference} disabled={!pickEnabled || !referenceAvailable}
+              onChange={(event) => loadReference(event.target.value)}>
+              <option value="">{referenceAvailable ? "选择参考位姿" : "无可用参考位姿"}</option>
+              <option value="first">建图首帧</option>
+              <option value="last">建图末帧</option>
+            </select>
+          </div>
+          {selectedReference && <label className="inline" htmlFor="seed-reference-confirmed">
+            <input id="seed-reference-confirmed" type="checkbox" checked={referenceConfirmed} disabled={!pickEnabled}
+              onChange={(event) => setReferenceConfirmed(event.target.checked)} />当前位置与参考位姿一致
+          </label>}
           <div className="form-grid seed-fields">
             {(Object.keys(initial) as (keyof SeedFields)[]).map((key) => <div className="field" key={key}>
               <label htmlFor={`seed-${key}`}>{({ x: "X / raw", y: "Y / raw", z: "Z / raw",
