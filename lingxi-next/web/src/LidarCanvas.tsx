@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Maximize, Minus, Move, Navigation2, Plus, Ruler, Trash2 } from "lucide-react";
 import type { LidarFrame, SavedSlamPointPreview } from "../../shared/contracts";
 import { openLidarEvents, type Connection } from "./api";
-import { appendScan, lidarBounds, lidarViewport, lidarToScreen, lidarSeedGesture, lidarMeasureGesture, parseLidarZSlice, sliceLidarFrames,
+import { appendScan, defaultLidarDisplay, lidarBounds, lidarViewport, lidarToScreen, lidarSeedGesture, lidarMeasureGesture, parseLidarZSlice, sliceLidarFrames,
   type CanvasPoint, type LidarMeasurement, type LidarViewport, type PlanarLidarPose, type ScanHistory } from "./lidar-view";
 
 type Props = ({ connection: Connection; preview?: never; inactiveNotice?: string } |
@@ -26,7 +26,7 @@ export default function LidarCanvas({ connection, preview, inactiveNotice, overl
   const [gesturePose, setGesturePose] = useState<PlanarLidarPose>();
   const [gestureMeasurement, setGestureMeasurement] = useState<LidarMeasurement>();
   const [measurement, setMeasurement] = useState<{ key: string; value: LidarMeasurement }>();
-  const [display, setDisplay] = useState({ key: "", fit: "all" as "all" | "main", sliced: false, min: "", max: "" });
+  const [display, setDisplay] = useState(() => defaultLidarDisplay());
   const [displayCount, setDisplayCount] = useState({ visible: 0, available: 0 });
   const drag = useRef<{ pointerId: number; start: CanvasPoint; last: CanvasPoint;
     mode: "pan" | "seed" | "measure"; key: string; view: LidarViewport } | undefined>(undefined);
@@ -37,7 +37,7 @@ export default function LidarCanvas({ connection, preview, inactiveNotice, overl
   const canMeasure = Boolean(preview && !seedSelection);
   const rawDisplay = Boolean(preview || frame && coordinateUnits === "native-raw");
   const displayKey = previewKey || (frame ? `${connection?.baseUrl}:${frame.epoch}:${frame.frameId}:${coordinateUnits}` : "");
-  const activeDisplay = display.key === displayKey ? display : { fit: "all" as const, sliced: false, min: "", max: "" };
+  const activeDisplay = display.key === displayKey ? display : defaultLidarDisplay(displayKey);
   const slice = rawDisplay && activeDisplay.sliced ? parseLidarZSlice(activeDisplay.min, activeDisplay.max) : undefined;
   const invalidSlice = rawDisplay && activeDisplay.sliced && !slice;
   const measured = canMeasure ? (drag.current?.key === previewKey ? gestureMeasurement : undefined) ??
@@ -53,7 +53,7 @@ export default function LidarCanvas({ connection, preview, inactiveNotice, overl
 
   useEffect(() => {
     cancelGesture(); setMeasurement(undefined); boundsRef.current = undefined;
-    setDisplay({ key: displayKey, fit: "all", sliced: false, min: "", max: "" });
+    setDisplay(defaultLidarDisplay(displayKey));
   }, [displayKey]);
 
   useEffect(() => {

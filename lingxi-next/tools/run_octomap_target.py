@@ -88,7 +88,7 @@ def run(args):
             report = json.loads((output / "report.json").read_bytes())
             if (status or report["result"] != "native_synthetic_occupancy_passed" or report["machine"] != "aarch64"
                     or report["nativeSha256"] != native["sha256"] or report["loadedDependenciesSha256"] != lock["dependencies"]
-                    or report["navfnSha256"] != args.navfn_sha256 or report["testsRun"] != 18
+                    or report["navfnSha256"] != args.navfn_sha256 or report["testsRun"] != 19
                     or any(report[key] != 0 for key in ("failures", "errors", "skipped"))
                     or any(report[key] is not False for key in ("sensorsSubscribed", "motionCommandsSent", "navigationReady"))):
                 raise RuntimeError("complete_actual_arm64_octomap_synthetic_checks_required")

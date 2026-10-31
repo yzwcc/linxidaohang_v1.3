@@ -29,6 +29,11 @@ def projection(**changes):
 
 
 class ObservationContractTests(unittest.TestCase):
+    def test_default_metric_height_band_is_point_one_to_one_point_four(self):
+        spec = ClearanceProjection(16, 16, .1, 0., 0.)
+        self.assertEqual((.1, 1.4), (spec.minimum_z_metres, spec.maximum_z_metres))
+        self.assertEqual((0., .1), (projection().minimum_z_metres, projection().maximum_z_metres))
+
     def test_returns_are_immutable_and_require_individual_origins(self):
         for origin, endpoint in (([0., 0., 0.], (1., 0., 0.)), ((0., 0.), (1., 0., 0.)),
                 ((0., 0., 0.), (0., 0., 0.)), ((float("nan"), 0., 0.), (1., 0., 0.)),

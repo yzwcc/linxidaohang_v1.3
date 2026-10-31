@@ -68,6 +68,13 @@ export function parseLidarZSlice(min: string, max: string): LidarZSlice | undefi
   return Number.isFinite(lower) && Number.isFinite(upper) && lower < upper ? { min: lower, max: upper } : undefined;
 }
 
+export const DEFAULT_LIDAR_Z_SLICE: Readonly<LidarZSlice> = Object.freeze({ min: 0.1, max: 1.4 });
+
+export function defaultLidarDisplay(key = "") {
+  return { key, fit: "all" as "all" | "main", sliced: true,
+    min: String(DEFAULT_LIDAR_Z_SLICE.min), max: String(DEFAULT_LIDAR_Z_SLICE.max) };
+}
+
 export function sliceLidarFrames(frames: LidarFrame[], slice: LidarZSlice): LidarFrame[] {
   if (!Number.isFinite(slice.min) || !Number.isFinite(slice.max) || slice.min >= slice.max) {
     throw new Error("valid_raw_z_slice_required");

@@ -13,6 +13,8 @@ from .navfn import CostmapSnapshot, finite
 
 
 VERSION = "1.9.7"
+DEFAULT_MINIMUM_Z_METRES = .1
+DEFAULT_MAXIMUM_Z_METRES = 1.4
 MAXIMUM_RAYS = 262144
 DEPENDENCIES = {"liboctomap.so.1.9.7", "liboctomath.so.1.9.7"}
 
@@ -99,9 +101,9 @@ class ClearanceProjection:
     resolution_metres: float
     origin_x_metres: float
     origin_y_metres: float
-    minimum_z_metres: float
-    maximum_z_metres: float
-    maximum_range_metres: float
+    minimum_z_metres: float = DEFAULT_MINIMUM_Z_METRES
+    maximum_z_metres: float = DEFAULT_MAXIMUM_Z_METRES
+    maximum_range_metres: float = 10.
 
     def __post_init__(self):
         resolution = self.resolution_metres

@@ -169,6 +169,10 @@ try {
   assert.equal(preview.canvasInViewport, true);
   assert.equal(preview.liveLidarSockets, 0);
   assert(preview.footer.includes("原始坐标 / 未标定"));
+  const defaultBand = () => evaluate(`({enabled:document.querySelector('input[aria-label="原始 Z 分层"]').checked,
+    min:document.querySelector('input[aria-label="原始 Z 下限"]').value,
+    max:document.querySelector('input[aria-label="原始 Z 上限"]').value})`);
+  assert.deepEqual(await defaultBand(), { enabled: true, min: "0.1", max: "1.4" });
   const handoff = await evaluate("({ saved: window.__lifecycleSavedId, preview: window.__lifecyclePreviewId })");
   assert.match(handoff.saved, /^slam-[a-f0-9]{32}$/);
   assert.equal(handoff.preview, handoff.saved);
@@ -222,6 +226,7 @@ try {
   assert.equal(await readMeasurement(), null);
   assert.equal(await evaluate("document.querySelector('.segmented button[aria-pressed=true]').textContent"), "主体范围");
   await run("find", "label", "原始 Z 分层", "check");
+  await run("find", "label", "原始 Z 下限", "fill", "2");
   await wait("document.querySelector('.map-empty-label')?.innerText === '请输入有效的原始 Z 范围'");
   await run("find", "label", "原始 Z 下限", "fill", "0");
   await run("find", "label", "原始 Z 上限", "fill", ".15");
@@ -251,7 +256,7 @@ try {
   await click("全部范围");
   assert.equal(await evaluate("document.querySelector('.segmented button[aria-pressed=true]').textContent"), "全部范围");
   assert.equal(await evaluate("window.__lifecycleControls.length"), controlsBeforeMeasurement);
-  report.display = { classification: "display_only_raw_coordinates", explicitBandRequired: true,
+  report.display = { classification: "display_only_raw_coordinates", defaultBand: { min: .1, max: 1.4, enabled: true },
     sourceCountsMatched: true, emptyAndInvalidBandsDistinct: true, disableRestoresPoints: true,
     rangeTogglePassed: true, displayChangeClearsMeasurement: true, controlRequestsSent: 0 };
   await click("主体范围");
@@ -264,7 +269,7 @@ try {
   assert.equal(await readMeasurement(), null);
   assert.equal(await evaluate("document.querySelector('.lidar-view canvas').dataset.interaction"), "pan");
   assert.equal(await evaluate("document.querySelector('.segmented button[aria-pressed=true]').textContent"), "全部范围");
-  assert.equal(await evaluate("document.querySelector('input[aria-label=\"原始 Z 分层\"]').checked"), false);
+  assert.deepEqual(await defaultBand(), { enabled: true, min: "0.1", max: "1.4" });
   report.display.resetOnReopenPassed = true;
   report.measurement.resetOnReopenPassed = true;
   await click("实时建图");

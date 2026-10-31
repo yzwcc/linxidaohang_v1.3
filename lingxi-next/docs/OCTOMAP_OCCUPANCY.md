@@ -4,6 +4,15 @@ Updated 2026-10-31. This component connects real OctoMap occupancy computation
 to the independent Nav2 global planner. It is not live navigation acceptance.
 The mapping Web view remains a laser point cloud, not a grid image.
 
+The user's default Z interval is 0.1 to 1.4 metres. `ClearanceProjection`
+uses those metric defaults when no height override is supplied. Map preview
+and native-coordinate mapping display start with Z slicing enabled and numeric
+bounds 0.1 / 1.4, including after changing or reopening a map. Display controls
+remain adjustable and can be disabled; source points are not deleted. Until
+map scale and the ground reference are validated, the UI keeps its existing
+raw/unvalidated coordinate label: these defaults do not certify ground-relative
+height or physical calibration.
+
 ## Contract And Algorithm
 
 `ObservationBatch` requires individually recorded LiDAR return origins and
@@ -76,14 +85,14 @@ All test observations are explicitly isolated synthetic data, not field scans.
 ## Actual ARM64 Verification
 
 The final source preparation and adapter were built and tested on the robot's
-aarch64 / Python 3.10.12 environment. All 18 occupancy/contract/integration tests
+aarch64 / Python 3.10.12 environment. All 19 occupancy/contract/integration tests
 passed with zero failures, errors or skips. Three additional local preparation
 tests passed. On Windows, the 13 native occupancy tests correctly skip rather
 than pretend to execute the ARM64 library. The existing NavFn source/contract
 regressions also passed locally, with their eight native tests explicitly skipped.
 
 - Frozen source manifest SHA-256:
-  `90c9581a713c8806d270836d493e7e43db0b0889a64854f0f0177ae708c99b77`.
+  `0f3eec2cd236d30bd52c4d7e0d145eb6cf8a293f0e4136bf93e37029257ebd47`.
 - Actual OctoMap adapter binary SHA-256:
   `1298beff580611f88b332446d488bc11a992569e5afcc0d4dfd820a1c0be4347`.
 - Actual NavFn binary used in the integration test:

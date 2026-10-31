@@ -1,11 +1,26 @@
 import { describe, expect, it } from "vitest";
 import type { LidarFrame } from "../shared/contracts";
-import { lidarBounds, parseLidarZSlice, sliceLidarFrames } from "../web/src/lidar-view";
+import { defaultLidarDisplay, DEFAULT_LIDAR_Z_SLICE, lidarBounds, parseLidarZSlice, sliceLidarFrames } from "../web/src/lidar-view";
 
 const frame = (points: number[]): LidarFrame => ({ sequence: 1, epoch: "synthetic", source: "point-cloud",
   frameId: "synthetic", sensorFrame: "synthetic", fixedFrame: true, stampMs: 100, receivedAtMs: 100, points });
 
 describe("point-cloud display-only slicing and viewport", () => {
+  it("starts and resets each map/session with the requested 0.1 to 1.4 Z band enabled", () => {
+    expect(DEFAULT_LIDAR_Z_SLICE).toEqual({ min: .1, max: 1.4 });
+    const original = defaultLidarDisplay("first");
+    expect(original).toEqual({ key: "first", fit: "all", sliced: true, min: "0.1", max: "1.4" });
+    original.sliced = false; original.min = "100";
+    expect(defaultLidarDisplay("second")).toEqual({ key: "second", fit: "all", sliced: true, min: "0.1", max: "1.4" });
+  });
+
+  it("keeps both requested default boundaries without modifying the original points", () => {
+    const input = frame([0, 0, .099, 1, 0, .1, 2, 0, 1.4, 3, 0, 1.401]);
+    Object.freeze(input.points);
+    expect(sliceLidarFrames([input], DEFAULT_LIDAR_Z_SLICE)[0].points).toEqual([1, 0, .1, 2, 0, 1.4]);
+    expect(input.points).toHaveLength(12);
+  });
+
   it.each([["", "1"], ["0", ""], [" ", "2"], ["1", "1"], ["2", "1"], ["NaN", "1"], ["0", "Infinity"]])(
     "does not guess an absent or invalid Z band (%s, %s)", (min, max) => expect(parseLidarZSlice(min, max)).toBeUndefined());
 
