@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 1,
+  "classification": "anonymized_offline_saved_map_refinement",
+  "date": "2026-10-31",
+  "host": "Linux x86_64 WSL, not target ARM64",
+  "upstreamGlimCommit": "1a197c999e4865f5cab7c9cd25474128413ebbca",
+  "buildReportSha256": "6ad6511ba1e027711c79972311635114a91df57317b703dc739485d43e27ca92",
+  "sourceSha256": {
+    "tools/refine_saved_map.py": "012070b10915d88c63c2656705d85499c3ad1bcee7236b949c32ef103d29d1a4",
+    "tools/glim-refine/refine.cpp": "8233c14939532f65d48a3b30efc0f61daddeec890b5824590a63e588e6ca3e26",
+    "tools/glim-refine/CMakeLists.txt": "f63c5df88b59e3eaae99d8078e314b6daa9cef3aa77153ced6d658b87376e88c"
+  },
+  "explicitOverlapThreshold": 0.5,
+  "roundTripToleranceRaw": 0.0001,
+  "trials": [
+    {
+      "case": "earlier_recorded_sequence",
+      "privateReportSha256": "071d7ba46f8c5a279ecb2f76a01bb30dfeb5c0e0c01c77ef5cac370d06451406",
+      "sourceReceiptIdentityBound": false,
+      "submaps": 7,
+      "frames": 1190,
+      "points": 90103,
+      "sourceMatchingFactors": 0,
+      "refinedNonAdjacentMatchingFactors": 4,
+      "sourceReloadMaximumDisplacementRaw": 0.0000013666784076043738,
+      "refinedReloadMaximumDisplacementRaw": 0.0,
+      "pointDisplacementRawP50P95Max": [0.024009030577891333, 0.07546364436491484, 0.1559865457929244],
+      "nativeRefineWallSecondsIncludingIO": 0.136356,
+      "nativeRefinePeakRssKiB": 60296,
+      "sourceInputsUnchanged": true
+    },
+    {
+      "case": "recent_saved_site_map",
+      "privateReportSha256": "1c2cb2449fe3172ce821ddc2d57936fa4337222889ece83281c4ad6d3dc8f00a",
+      "sourceReceiptIdentityBound": true,
+      "submaps": 8,
+      "frames": 2064,
+      "points": 83911,
+      "sourceMatchingFactors": 0,
+      "refinedNonAdjacentMatchingFactors": 7,
+      "sourceReloadMaximumDisplacementRaw": 0.0000014467113570287244,
+      "refinedReloadMaximumDisplacementRaw": 0.0,
+      "pointDisplacementRawP50P95Max": [0.030293348074547196, 0.07321142446663567, 0.3264934321315415],
+      "nativeRefineWallSecondsIncludingIO": 8.09884,
+      "nativeRefinePeakRssKiB": 62044,
+      "sourceInputsUnchanged": true
+    }
+  ],
+  "displayComparison": {
+    "identicalXYLimitsAndScale": true,
+    "sourceViewportQuantiles": [0.01, 0.99],
+    "explicitZBandRaw": [0.3, 1.5],
+    "displayOnly": true,
+    "observedResult": "local_changes_but_scatter_and_ghosting_remain_not_sufficient_fix"
+  },
+  "boundaries": {
+    "robotContacted": false,
+    "liveSensorsSubscribed": false,
+    "motionCommandsSent": false,
+    "sourceMapModified": false,
+    "physicalScaleValidated": false,
+    "geometricAccuracyValidated": false,
+    "loopClosureValidated": false,
+    "targetArm64RuntimeValidated": false,
+    "navigationValidated": false,
+    "deploymentApproved": false,
+    "rawDataPublished": false
+  }
+}
