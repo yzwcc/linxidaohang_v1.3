@@ -40,7 +40,9 @@ def configuration(file):
     if full_fields:
         from async_mapping_bundle import digest
         selection = value["fullMapping"]
-        if (type(selection) is not dict or set(selection) != {"root", "manifestSha256"}
+        if (type(selection) is not dict or set(selection) not in (
+                {"root", "manifestSha256"}, {"root", "manifestSha256", "captureObservations"})
+                or "captureObservations" in selection and selection["captureObservations"] is not True
                 or not digest(selection.get("manifestSha256")) or type(selection.get("root")) is not str):
             raise ValueError("explicit_full_mapping_bundle_selection_required")
         entry = Path(selection["root"])
@@ -101,6 +103,7 @@ class MappingPlatform:
         self.mode, self.hypothesis = value["inputMode"], value["hypothesis"]
         self.points_enabled = "pointAdapter" in value
         self.full_mapping = "fullMapping" in value
+        self.observed_mapping = self.full_mapping and value["fullMapping"].get("captureObservations") is True
         if self.arm64:
             self.args = argparse.Namespace(
                 root=Path(value["root"]), core_root=Path(value["coreRoot"]),
@@ -162,7 +165,7 @@ class MappingPlatform:
             self.full_mapping_root, self.value["fullMapping"]["manifestSha256"], baseline=baseline,
             core_manifest=core_manifest,
             core_libraries={name: sha256(core_directory / name) for name in CORE_LIBRARIES},
-            platform="linux-aarch64" if self.arm64 else "linux-x86_64")
+            platform="linux-aarch64" if self.arm64 else "linux-x86_64", observed=self.observed_mapping)
         return {**frozen, "legacyMappingLibrarySha256": frozen["mappingLibrarySha256"],
                 "mappingLibrarySha256": manifest["files"]["lib/" + self.mapping_library.name]["sha256"],
                 "fullMappingManifestSha256": self.value["fullMapping"]["manifestSha256"]}
@@ -255,7 +258,11 @@ class MappingPlatform:
                            record, self.loaded)
 
     def mapper(self):
-        if self.full_mapping:
+        if self.observed_mapping:
+            from lingxi_slam.observed_mapping import ObservedMappingLibrary
+            library = ObservedMappingLibrary(self.mapping_library)
+            library.observation_implementation_sha256 = self.frozen["fullMappingManifestSha256"]
+        elif self.full_mapping:
             from lingxi_slam.async_mapping import AsyncMappingLibrary
             library = AsyncMappingLibrary(self.mapping_library)
         else:
@@ -317,6 +324,13 @@ def reload_saved(config_file, saved):
                          "loadedGraphValues": int(stats[3])}
         point_count = int(stats[1])
     binding.loaded(mapping=True, odometry=False)
+    observations = None
+    if binding.observed_mapping:
+        from lingxi_slam.observation_archive import inspect_observations, sha256
+        observations = inspect_observations((saved / "private-observations.bin").absolute(),
+                                            sha256(saved / "private-observations.bin"))
+        if observations["submaps"] != counts["submaps"] or observations["scans"] != counts["frames"]:
+            raise ValueError("every_reloaded_frame_needs_acquisition_observations")
     comparison = compare_points(saved / "private-saved-points.f64",
                                 saved / "private-reloaded-points.f64", point_count)
     if (binding.inspect_map(saved / "map") != before or binding.verify() != binding.frozen
@@ -326,6 +340,7 @@ def reload_saved(config_file, saved):
         "pid": os.getpid(), **loaded_counts,
         "comparison": comparison, "mapInventory": before,
         "sensorProvenance": provenance,
+        **({"observations": observations} if observations is not None else {}),
     })
 
 

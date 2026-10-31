@@ -132,3 +132,47 @@ that the larger iteration budget eliminates every convergence failure, and it
 does not replace moving localization, measured frame/scale checks, loop closure,
 navigation or product acceptance. Both `localizationReady` and `navigationReady`
 remain false. Private trial reports and map/sensor data are not committed.
+
+## Offline Observed-Map Product Integration
+
+On 2026-10-31 the management product explicitly selected the source-bound
+`glim-full-observed-v1` bundle. Its native mapper retains preprocessed returns
+and acquisition-time trajectories before submapping discards the input scans.
+The existing full-async mapping engine and schema-3 map receipt remain in use;
+an observation implementation digest distinguishes maps with this extra data.
+
+Publication now writes a pending receipt, independently checks the saved map
+and observations, binds the archive to the exact receipt and sensor provenance,
+then publishes the single ready receipt. Failed binding cannot admit a map.
+The API catalog checks binding identity, bounded archive header/counts and
+digest; localization independently verifies the archive before loading points.
+Old maps without observations remain viewable but do not acquire ray evidence.
+
+The real recorded service/API save and discard trial ran locally on x86_64,
+at input rate 1.0, without contacting the robot or subscribing to live sensors:
+
+- Both sessions consumed 4,144 messages and processed 196 scans. The save run
+  finalized and saved all 165 estimated frames, one submap and 2,280 map points.
+- The bound archive retains 1,253,782 returns in 165 scans. Acquisition times
+  are bracketed; 164 scans use smoothed IMU trajectories and one original LIO
+  IMU trajectory. Independent reload returned the identical observation summary.
+- Maximum fresh-reload point displacement was 4.9328e-7 raw units, below the
+  unchanged 1e-4 tolerance. Four missing/mismatched provenance cases were rejected.
+- The service exited normally and removed its owned socket after save/discard.
+
+Private trial report SHA-256:
+`22410649ac9d16dc60f03717e220d3284a24565acbfb7cd43f5ec6b4cfa09a5c`.
+Observed bundle manifest SHA-256:
+`5ab73211a928359d1e6621533c1c6b06e731b3a14b61b64e79f0f0ebf0faa471`.
+
+Checks: 449 Vitest tests passed, 14 skipped; frontend/API/runtime typechecks and
+Web build passed. The numerical Python mapping suites ran 218 tests with one
+environment-dependent skip. Observed-product tests ran 13/13 without skips,
+localization-control 29/29, and observation-binding 6/6.
+The broader Python regression still has previously reproduced historical
+source/evidence-consistency failures; it is not reported as a full pass.
+
+This is product persistence and admission evidence, not physical scale,
+geometry, moving localization, local avoidance, ARM64 observed-product execution
+or full-product acceptance. No robot data, credentials or raw archives are
+included in Git. Navigation readiness remains false.

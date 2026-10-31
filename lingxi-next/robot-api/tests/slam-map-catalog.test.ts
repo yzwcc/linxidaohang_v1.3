@@ -11,6 +11,39 @@ import { pairingCodeHash } from "../src/auth";
 import { DemoAdapter } from "../src/adapters/demo";
 import { JsonStateStore } from "../src/store";
 
+async function observedFixture(root: string) {
+  const fixture = await savedSlamFixture(root, { fullMapping: true, sensorProvenance: {
+    schemaVersion: 1, profileSha256: "a".repeat(64), timingHypothesis: "header_is_scan_start",
+    configurationSha256: { "lidar.json": "b".repeat(64) },
+  } });
+  const receipt = { ...fixture.receipt, observationImplementationSha256: "c".repeat(64) };
+  const receiptBytes = Buffer.from(JSON.stringify(receipt));
+  const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
+  // Integrity-only fixture. Python/native tests exercise full archive reconstruction.
+  const archiveBytes = Buffer.alloc(48);
+  archiveBytes.write("LXOBS002", "ascii");
+  [3, 3, 9, 1].forEach((value, index) => archiveBytes.writeBigUInt64LE(BigInt(value), 8 + index * 8));
+  const binding = {
+    schemaVersion: 1, mapReceiptSha256: hash(receiptBytes), mapInventory: receipt.mapInventory,
+    sensorProvenance: receipt.sensorProvenance, implementationSha256: receipt.observationImplementationSha256,
+    inputMode: receipt.inputMode,
+    observations: {
+      schemaVersion: 1, archiveSha256: hash(archiveBytes), submaps: 3, scans: 3, returns: 9, revision: 1,
+      orderedSourceSha256: "d".repeat(64), registeredGeometrySha256: "e".repeat(64),
+      trajectorySources: { smoothed_imu: 2, original_lio_imu: 1 },
+      coordinateFrame: "lingxi_glim_map", coordinateUnits: "native-raw",
+      allPreprocessedReturnsPreserved: true, perReturnAcquisitionTimeBracketed: true,
+      physicalScaleValidated: false, navigationReady: false,
+    },
+  };
+  const archive = path.join(fixture.directory, "private-observations.bin");
+  const bindingFile = path.join(fixture.directory, "observations-ready.json");
+  await writeFile(fixture.ready, receiptBytes);
+  await writeFile(archive, archiveBytes);
+  await writeFile(bindingFile, JSON.stringify(binding));
+  return { ...fixture, receipt, archive, archiveBytes, bindingFile, binding };
+}
+
 describe("saved SLAM receipt catalog", () => {
   let root: string;
   let maps: string;
@@ -86,6 +119,54 @@ describe("saved SLAM receipt catalog", () => {
       await writeFile(fixture.ready, JSON.stringify({ ...fixture.receipt, ...changed }));
       expect(await catalog.list()).toEqual([]);
     }
+  });
+
+  it("admits map-bound observed archives without promoting any readiness flag", async () => {
+    const fixture = await observedFixture(maps);
+    expect(await catalog.list()).toMatchObject([{ id: fixture.id,
+      navigationReady: false, localizationReady: false, geometricAccuracyValidated: false }]);
+    expect((await catalog.preview(fixture.id)).totalPoints).toBe(1440);
+  });
+
+  it("rejects missing, truncated, changed or incorrectly counted observation archives", async () => {
+    const fixture = await observedFixture(maps);
+    await rm(fixture.archive);
+    expect(await catalog.list()).toEqual([]);
+    for (const bytes of [fixture.archiveBytes.subarray(0, 39), Buffer.alloc(48),
+      Buffer.from(fixture.archiveBytes)]) {
+      if (bytes.equals(fixture.archiveBytes)) bytes.writeBigUInt64LE(4n, 8);
+      // Even a freshly hashed header must match the map and binding counters.
+      await writeFile(fixture.archive, bytes);
+      await writeFile(fixture.bindingFile, JSON.stringify({ ...fixture.binding, observations: {
+        ...fixture.binding.observations, archiveSha256: createHash("sha256").update(bytes).digest("hex"),
+      } }));
+      expect(await catalog.list()).toEqual([]);
+    }
+    await writeFile(fixture.bindingFile, JSON.stringify(fixture.binding));
+    const changed = Buffer.from(fixture.archiveBytes);
+    changed[47] = 1;
+    await writeFile(fixture.archive, changed);
+    expect(await catalog.list()).toEqual([]);
+  });
+
+  it("rejects absent, cross-map or readiness-promoting observation bindings", async () => {
+    const fixture = await observedFixture(maps);
+    await rm(fixture.bindingFile);
+    expect(await catalog.list()).toEqual([]);
+    for (const changed of [
+      { mapReceiptSha256: "f".repeat(64) }, { implementationSha256: "f".repeat(64) },
+      { inputMode: "live" }, { mapInventory: { ...fixture.receipt.mapInventory, num_all_frames: 4 } },
+      { sensorProvenance: { ...fixture.receipt.sensorProvenance, timingHypothesis: "header_is_scan_end" } },
+      ...[{ scans: 4 }, { submaps: 2 }, { returns: 2 }, { navigationReady: true },
+        { physicalScaleValidated: true }, { trajectorySources: { smoothed_imu: 1, original_lio_imu: 1 } }]
+        .map((change) => ({ observations: { ...fixture.binding.observations, ...change } })),
+    ]) {
+      await writeFile(fixture.bindingFile, JSON.stringify({ ...fixture.binding, ...changed }));
+      expect(await catalog.list()).toEqual([]);
+    }
+    await writeFile(fixture.bindingFile, JSON.stringify(fixture.binding));
+    await writeFile(fixture.ready, JSON.stringify({ ...fixture.receipt, name: "changed receipt" }));
+    expect(await catalog.list()).toEqual([]);
   });
 
   it("omits endpoint references rather than inventing a pose for a valid map with unusable trajectory metadata", async () => {

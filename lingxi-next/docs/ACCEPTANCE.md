@@ -1,5 +1,10 @@
 # 验收与当前状态
 
+最新独立路线与完整项目离线工作范围见 [OFFLINE_PRODUCT_ACCEPTANCE.md](OFFLINE_PRODUCT_ACCEPTANCE.md)。
+本文件下方的早期厂商后端状态保留为历史记录，不表示当前必须购买厂商 SLAM，
+也不表示开源导航已经完成。最新建图观测档案产品联调见
+[SLAM_ASYNC_PRODUCT_INTEGRATION.md](SLAM_ASYNC_PRODUCT_INTEGRATION.md)。
+
 当前提供 commissioning（集成联调版），不代表完成产品交付验收。具体版本、包文件和本地检查结果见 VALIDATION.md。项目从新目录编写，没有复制旧版业务代码。2026-10-28 已连接目标 X2 进行只读接口与雷达采样，尚未安装本产品、下发控制请求或移动机器人；结果及未就绪接口见 TARGET_INSPECTION.md。
 
 ## 独立开源路线的范围更新

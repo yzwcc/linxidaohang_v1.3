@@ -21,6 +21,10 @@ SOURCE_NAMES = (
     "robot-runtime/python/mapping_service.py", "robot-runtime/python/controlled_mapping.py",
     "robot-runtime/python/mapping_points.py", "robot-runtime/python/mapping_platform.py",
     "robot-runtime/python/async_mapping_bundle.py", "robot-slam/lingxi_slam/async_mapping.py",
+    "robot-slam/lingxi_slam/observed_mapping.py", "robot-slam/lingxi_slam/observation_archive.py",
+    "robot-slam/lingxi_slam/observation_binding.py",
+    "tools/glim-observations/observation_capture.hpp", "tools/glim-observations/observation_capture.cpp",
+    "tools/glim-observations/observation-capture.patch",
     "robot-runtime/python/localization_control.py",
     "robot-slam/lingxi_slam/map_provenance.py", "robot-slam/lingxi_slam/mapping_worker.py", "robot-slam/lingxi_slam/mapping_session.py",
     "robot-slam/lingxi_slam/mapping_input.py", "robot-slam/lingxi_slam/sensor_admission.py",
@@ -173,6 +177,13 @@ def run(args):
             _, localized_points = load_map(**options, sensor_provenance=provenance)
             if len(localized_points) != receipt["counts"]["points"]:
                 raise RuntimeError("complete_provenance_bound_localization_points_required")
+            if config.get("fullMapping", {}).get("captureObservations") is True:
+                from lingxi_slam.observation_binding import verify_observations
+                observations = verify_observations(receipts[0].parent, receipt["mapInventory"],
+                                                  provenance, config["fullMapping"]["manifestSha256"])
+                if reloaded.get("observations") != observations["observations"]:
+                    raise RuntimeError("independently_reloaded_product_observations_required")
+                report["observations"] = observations["observations"]
             for mismatch in (
                     None,
                     {**provenance, "timingHypothesis": "header_is_scan_end" if config["hypothesis"]
@@ -242,6 +253,7 @@ def public_evidence(report, trial):
                      for entry in report["children"]],
         **({"pointStream": report["pointStream"]} if "pointStream" in report else {}),
         "roundTrip": report["roundTrip"], "serviceExitCode": report["serviceExitCode"],
+        **({"observations": report["observations"]} if "observations" in report else {}),
         "sensorProvenance": report["sensorProvenance"],
         "socketRemoved": report["socketRemoved"],
         "boundaries": dict.fromkeys((

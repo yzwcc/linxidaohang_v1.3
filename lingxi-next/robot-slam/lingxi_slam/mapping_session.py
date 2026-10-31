@@ -217,6 +217,11 @@ class MappingSession:
             raise ValueError("independent_unchanged_map_round_trip_required")
         if self.can_save() is not True:
             self.decision.discard()
+        observation_implementation = getattr(self.mapping, "observation_implementation_sha256", None)
+        if observation_implementation is not None:
+            if (getattr(self.mapping, "observation_report", None) is None
+                    or reloaded.get("observations") != self.mapping.observation_report):
+                raise ValueError("independent_acquisition_observation_reload_required")
 
         def publish():
             full_mapping = getattr(self.mapping, "engine", None) == "glim-full-async-v1"
@@ -231,6 +236,8 @@ class MappingSession:
                 "geometricAccuracyValidated": False,
                 **({"sensorProvenance": self.sensor_provenance} if self.sensor_provenance is not None else {}),
                 **({"mappingEngine": "glim-full-async-v1"} if full_mapping else {}),
+                **({"observationImplementationSha256": observation_implementation}
+                   if observation_implementation is not None else {}),
             }
             temporary = self.output / "map-ready.pending"
             with temporary.open("x", encoding="utf-8") as stream:
@@ -239,6 +246,12 @@ class MappingSession:
                 stream.write("\n")
                 stream.flush()
                 os.fsync(stream.fileno())
+            if observation_implementation is not None:
+                from .observation_binding import bind_observations
+                binding = bind_observations(self.output, before, self.sensor_provenance,
+                                            observation_implementation, pending=True)
+                if binding["observations"] != self.mapping.observation_report:
+                    raise ValueError("unchanged_acquisition_observations_before_publication_required")
             os.replace(temporary, self.output / "map-ready.json")
             self.receipt = receipt
 

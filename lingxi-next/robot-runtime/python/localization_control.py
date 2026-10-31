@@ -114,6 +114,10 @@ def load_map(directory, map_id, receipt_sha256, profile, profile_sha256, *, sess
         inspect_map = full_inventory
     if inspect_map(map_root) != inventory:
         raise ValueError("unchanged_saved_localization_map_required")
+    if "observationImplementationSha256" in receipt:
+        from lingxi_slam.observation_binding import verify_observations
+        verify_observations(directory, inventory, receipt.get("sensorProvenance"),
+                            receipt["observationImplementationSha256"])
     point_bytes = points_file.read_bytes()
     binding = LocalizationBinding(
         session, input_mode, map_id, receipt_sha256, receipt.get("savedPointsSha256"), profile_sha256)

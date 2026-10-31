@@ -101,7 +101,7 @@ class MapInputs(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "versioned_saved_map_sensor_provenance_required"):
             self.load()
 
-    def test_v3_full_map_retains_matching_graph_and_requires_engine_and_provenance(self):
+    def configure_full_map(self):
         from refine_saved_map import inventory
         native = self.saved / "map"
         for name in ("000001", "000002"):
@@ -115,6 +115,10 @@ class MapInputs(unittest.TestCase):
         self.receipt.update(schemaVersion=3, mappingEngine="glim-full-async-v1",
                             sensorProvenance=provenance, mapInventory=inventory(native))
         self.write_receipt()
+        return provenance
+
+    def test_v3_full_map_retains_matching_graph_and_requires_engine_and_provenance(self):
+        provenance = self.configure_full_map()
         _, points = self.load(sensor_provenance=provenance)
         self.assertEqual(len(self.points), len(points))
         self.assertFalse(points.flags.writeable)
@@ -135,6 +139,21 @@ class MapInputs(unittest.TestCase):
         self.assertEqual(self.receipt["savedPointsSha256"], binding.points_sha256)
         self.point_file.write_bytes(b"changed")
         np.testing.assert_array_equal(self.points, points)
+
+    def test_observed_map_load_requires_independent_archive_validation(self):
+        provenance = self.configure_full_map()
+        self.receipt.update(schemaVersion=3, mappingEngine="glim-full-async-v1",
+                            observationImplementationSha256="d" * 64)
+        self.write_receipt()
+        # No binding/archive exists: the real verifier must reject it.
+        with self.assertRaisesRegex(ValueError, "bounded_observation_binding_required"):
+            self.load(sensor_provenance=provenance)
+        with patch("lingxi_slam.observation_binding.verify_observations") as verify:
+            self.load(sensor_provenance=provenance)
+        verify.assert_called_once_with(self.saved, self.receipt["mapInventory"], provenance, "d" * 64)
+        with patch("lingxi_slam.observation_binding.verify_observations", side_effect=ValueError("changed_archive")):
+            with self.assertRaisesRegex(ValueError, "changed_archive"):
+                self.load(sensor_provenance=provenance)
 
     def test_wrong_receipt_profile_map_identity_or_mode_is_rejected(self):
         for options in (

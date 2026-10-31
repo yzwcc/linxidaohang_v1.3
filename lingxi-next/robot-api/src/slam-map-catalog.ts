@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { createReadStream } from "node:fs";
-import { lstat, readFile, readdir, realpath } from "node:fs/promises";
+import { lstat, open, readFile, readdir, realpath } from "node:fs/promises";
+import { isDeepStrictEqual } from "node:util";
 import path from "node:path";
 import { z } from "zod";
 import type { SavedSlamMap, SavedSlamPointPreview } from "../../shared/contracts";
@@ -40,6 +41,7 @@ const receiptSchema = z.union([
   z.object({ schemaVersion: z.literal(2), ...receiptFields, sensorProvenance: provenanceSchema }).strict(),
   z.object({ schemaVersion: z.literal(3), ...receiptFields,
     mappingEngine: z.literal("glim-full-async-v1"), sensorProvenance: provenanceSchema,
+    observationImplementationSha256: sha256.optional(),
     mapInventory: receiptFields.mapInventory.extend({
       num_submaps: positive.max(512),
       num_matching_cost_factors: z.number().int().nonnegative().max(130816),
@@ -47,6 +49,22 @@ const receiptSchema = z.union([
     }).strict(),
   }).strict(),
 ]);
+const observationsSchema = z.object({
+  schemaVersion: z.literal(1), archiveSha256: sha256,
+  submaps: positive.max(4096), scans: positive.max(4096), returns: positive.max(16777216), revision: positive,
+  orderedSourceSha256: sha256, registeredGeometrySha256: sha256,
+  trajectorySources: z.object({ smoothed_imu: z.number().int().nonnegative(),
+    original_lio_imu: z.number().int().nonnegative() }).strict(),
+  coordinateFrame: z.literal("lingxi_glim_map"), coordinateUnits: z.literal("native-raw"),
+  allPreprocessedReturnsPreserved: z.literal(true), perReturnAcquisitionTimeBracketed: z.literal(true),
+  physicalScaleValidated: z.literal(false), navigationReady: z.literal(false),
+}).strict();
+const bindingSchema = z.object({
+  schemaVersion: z.literal(1), mapReceiptSha256: sha256,
+  mapInventory: z.record(z.string(), z.unknown()), sensorProvenance: provenanceSchema,
+  implementationSha256: sha256, inputMode: z.enum(["live", "recorded", "synthetic"]),
+  observations: observationsSchema,
+}).strict();
 
 const MAX_POINTS = 2_000_000;
 const PREVIEW_POINTS = 20_000;
@@ -68,6 +86,38 @@ async function digest(file: string) {
   const hash = createHash("sha256");
   for await (const chunk of createReadStream(file)) hash.update(chunk);
   return hash.digest("hex");
+}
+
+async function verifyObservations(directory: string, receipt: z.infer<typeof receiptSchema>, receiptBytes: Buffer) {
+  if (receipt.schemaVersion !== 3 || !receipt.observationImplementationSha256) return;
+  const file = path.join(directory, "observations-ready.json");
+  if ((await direct(file, true)).size > 32768) throw new Error("bounded_slam_observation_binding_required");
+  const bytes = await readFile(file);
+  const binding = bindingSchema.parse(JSON.parse(bytes.toString("utf8")));
+  const observation = binding.observations;
+  if (binding.mapReceiptSha256 !== createHash("sha256").update(receiptBytes).digest("hex") ||
+      binding.implementationSha256 !== receipt.observationImplementationSha256 ||
+      binding.inputMode !== receipt.inputMode || !isDeepStrictEqual(binding.mapInventory, receipt.mapInventory) ||
+      !isDeepStrictEqual(binding.sensorProvenance, receipt.sensorProvenance) ||
+      observation.submaps !== receipt.counts.submaps || observation.scans !== receipt.counts.savedFrames ||
+      observation.submaps > observation.scans || observation.scans > observation.returns ||
+      observation.trajectorySources.smoothed_imu + observation.trajectorySources.original_lio_imu !== observation.scans) {
+    throw new Error("same_map_bound_slam_observations_required");
+  }
+  const archive = path.join(directory, "private-observations.bin");
+  const info = await direct(archive, true);
+  if (info.size < 40 || info.size > 768 * 1024 * 1024) throw new Error("bounded_slam_observation_archive_required");
+  const handle = await open(archive, "r");
+  const header = Buffer.alloc(40);
+  try { if ((await handle.read(header, 0, 40, 0)).bytesRead !== 40) throw new Error("complete_observation_header_required"); }
+  finally { await handle.close(); }
+  if (header.subarray(0, 8).toString("ascii") !== "LXOBS002" ||
+      [observation.submaps, observation.scans, observation.returns, observation.revision]
+        .some((value, index) => header.readBigUInt64LE(8 + index * 8) !== BigInt(value)) ||
+      await digest(archive) !== observation.archiveSha256 ||
+      !(await readFile(file)).equals(bytes) || !(await readFile(path.join(directory, "map-ready.json"))).equals(receiptBytes)) {
+    throw new Error("unchanged_slam_observation_archive_required");
+  }
 }
 
 /** Read-only: receipts are never imported into AIMDK maps or the navigation database. */
@@ -99,6 +149,7 @@ export class SavedSlamMapCatalog {
         counts.savedFrames !== inventory.num_all_frames || counts.submaps !== inventory.num_submaps) {
       throw new Error("consistent_saved_slam_counts_required");
     }
+    await verifyObservations(directory, receipt, receiptBytes);
     const pointsFile = path.join(directory, "private-saved-points.f64");
     if ((await direct(pointsFile, true)).size !== counts.points * 24) {
       throw new Error("complete_saved_slam_points_required");

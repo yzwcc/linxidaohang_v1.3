@@ -46,6 +46,23 @@ class ObservationBindingTests(unittest.TestCase):
         self.assertFalse(binding["observations"]["physicalScaleValidated"])
         self.assertEqual("synthetic", binding["inputMode"])
 
+    def test_pending_receipt_binding_verifies_after_atomic_ready_publication(self):
+        self.receipt["observationImplementationSha256"] = "d" * 64
+        self.write_receipt()
+        ready, pending = self.saved / "map-ready.json", self.saved / "map-ready.pending"
+        ready.rename(pending)
+        binding = bind_observations(self.saved, self.inventory, self.provenance, "d" * 64, pending=True)
+        self.assertFalse(ready.exists())
+        self.assertTrue((self.saved / "observations-ready.json").exists())
+        pending.rename(ready)
+        self.assertEqual(binding, self.verify())
+
+    def test_declared_implementation_cannot_be_bound_to_another_build(self):
+        self.receipt["observationImplementationSha256"] = "e" * 64
+        self.write_receipt()
+        with self.assertRaisesRegex(ValueError, "same_reloaded_map"):
+            self.bind()
+
     def test_same_sources_with_changed_global_pose_need_new_binding(self):
         self.bind()
         (self.saved / "private-observations.bin").write_bytes(archive_bytes(global_pose=pose(10)))
