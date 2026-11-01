@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "profile": "core-services-vendor-adapter",
+  "completeProduct": false,
+  "independentStackIncluded": false,
+  "included": ["web-console", "management-api", "aimdk-bridge", "linksoul-agent", "node-arm64", "java-arm64"],
+  "notIncluded": ["independent-glim-mapping", "seeded-localization", "octomap-clearance", "nav2-runtime", "guarded-motion-handoff"],
+  "requiresExternal": ["vendor-aimdk", "robot-ros", "private-cloud-credentials", "robot-specific-configuration"]
+}

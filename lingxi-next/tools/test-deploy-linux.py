@@ -8,6 +8,7 @@ No host service or robot is contacted. ARM64 runtime execution is not tested.
 from __future__ import annotations
 
 import hashlib
+import fcntl
 import os
 from pathlib import Path
 import shutil
@@ -41,13 +42,33 @@ def prepare(root: Path, deploy: Path):
     script(root / "test-bin/uname", 'printf "aarch64\\n"')
     script(root / "test-bin/systemctl", """
 printf '%s\\n' "$*" >> /test-state/systemctl.log
-if [ "${1:-}" = cat ]; then test -f "/etc/systemd/system/${2:?}"; fi
+case "${1:-}" in
+  cat) test -f "/etc/systemd/system/${2:?}" ;;
+  is-active) test -f "/test-state/active-${3:?}" ;;
+  is-enabled) test -f "/test-state/enabled-${3:?}" ;;
+  stop)
+    test ! -f /test-state/stop-fail || exit 1
+    rm -f "/test-state/active-${2:?}" ;;
+  enable)
+    touch "/test-state/enabled-${3:?}" "/test-state/active-${3:?}"
+    if test -f /test-state/terminate-enable; then kill -TERM "$PPID"; fi
+    test ! -f /test-state/enable-fail ;;
+  disable) rm -f "/test-state/enabled-${2:?}" ;;
+  start) touch "/test-state/active-${2:?}" ;;
+esac
 """)
     script(root / "test-bin/curl", """
 printf '%s\\n' "$*" >> /test-state/health.log
 test ! -e /test-state/health-fail
+if test -f /test-state/health-fail-release; then
+  current=$(cat /opt/lingxi-next/current/VERSION)
+  if test "$current" = "$(cat /test-state/health-fail-release)"; then
+    printf 'failed-new-state\\n' > /var/lib/lingxi-next/state.json
+    exit 1
+  fi
+fi
 """)
-    for version in ("test-1", "test-2", "test-3"):
+    for version in (f"test-{index}" for index in range(10)):
         package = root / f"package-{version}"
         shutil.copytree(deploy, package / "deploy")
         for runtime in ("node/bin", "java/bin"):
@@ -96,6 +117,16 @@ class DeploymentLifecycle(unittest.TestCase):
         return result
 
     def test_install_upgrade_rollback_and_failure_barriers(self):
+        with self.subTest("first activation failure leaves no current release or enabled API"):
+            Path("/test-state/health-fail").touch()
+            result = self.command("test-0", success=False)
+            self.assertFalse(Path("/opt/lingxi-next/current").is_symlink())
+            self.assertFalse(Path("/etc/systemd/system/lingxi-next-api.service").exists())
+            self.assertFalse(Path("/test-state/enabled-lingxi-next-api.service").exists())
+            self.assertIn("Prior deployment restored", result.stderr)
+            self.assertNotIn("Installed commissioning", result.stdout)
+            self.assertTrue(Path("/etc/lingxi-next/pairing-code.txt").is_file())
+            Path("/test-state/health-fail").unlink()
         with self.subTest("initial install, permissions and certificate"):
             self.command()
             self.assertEqual("/opt/lingxi-next/releases/test-1", os.readlink("/opt/lingxi-next/current"))
@@ -137,10 +168,65 @@ class DeploymentLifecycle(unittest.TestCase):
             result = subprocess.run(["bash", "/package-test-1/deploy/rollback.sh"], text=True, capture_output=True)
             self.assertNotEqual(0, result.returncode)
             self.assertNotIn("Code rollback complete", result.stdout)
+            self.assertEqual("/opt/lingxi-next/releases/test-1", os.readlink("/opt/lingxi-next/current"))
+            self.assertEqual("/opt/lingxi-next/releases/test-2", os.readlink("/opt/lingxi-next/previous"))
+            self.assertIn("Automatic recovery incomplete", result.stderr)
+            self.assertFalse(Path("/test-state/active-lingxi-next-api.service").exists())
             Path("/test-state/health-fail").unlink()
             run("bash", "/package-test-1/deploy/rollback.sh")
+            self.assertEqual("/opt/lingxi-next/releases/test-2", os.readlink("/opt/lingxi-next/current"))
+            run("bash", "/package-test-1/deploy/rollback.sh")
             self.assertEqual("/opt/lingxi-next/releases/test-1", os.readlink("/opt/lingxi-next/current"))
-            self.assertEqual(3, len(list(Path("/opt/lingxi-next/backups").glob("pre-rollback-*/data-and-config.tar.gz"))))
+            self.assertEqual(4, len(list(Path("/opt/lingxi-next/backups").glob("pre-rollback-*/data-and-config.tar.gz"))))
+        with self.subTest("failed upgrade restores original pointers, data and units; restarts only prior API"):
+            units = {file.name: file.read_bytes() for file in Path("/etc/systemd/system").glob("lingxi-next-*.service")}
+            Path("/test-state/health-fail-release").write_text("test-4\n")
+            log_offset = len(Path("/test-state/systemctl.log").read_text())
+            result = self.command("test-4", success=False)
+            self.assertIn("Prior deployment restored", result.stderr)
+            self.assertEqual("/opt/lingxi-next/releases/test-1", os.readlink("/opt/lingxi-next/current"))
+            self.assertEqual("/opt/lingxi-next/releases/test-2", os.readlink("/opt/lingxi-next/previous"))
+            self.assertEqual('{"preserved":true}\n', Path("/var/lib/lingxi-next/state.json").read_text())
+            self.assertEqual(config, Path("/etc/lingxi-next/robot.env").read_bytes())
+            self.assertEqual(units, {file.name: file.read_bytes() for file in Path("/etc/systemd/system").glob("lingxi-next-*.service")})
+            self.assertTrue(Path("/test-state/active-lingxi-next-api.service").exists())
+            recovery_log = Path("/test-state/systemctl.log").read_text()[log_offset:]
+            self.assertIn("start lingxi-next-api.service", recovery_log)
+            self.assertNotIn("start lingxi-next-aimdk.service", recovery_log)
+            self.assertNotIn("start lingxi-next-agent.service", recovery_log)
+            Path("/test-state/health-fail-release").unlink()
+        with self.subTest("enable failure and termination recover without activating autonomous services"):
+            for version, marker in (("test-5", "enable-fail"), ("test-6", "terminate-enable")):
+                Path("/test-state/" + marker).touch()
+                result = self.command(version, success=False)
+                self.assertIn("Prior deployment restored", result.stderr)
+                self.assertEqual("/opt/lingxi-next/releases/test-1", os.readlink("/opt/lingxi-next/current"))
+                Path("/test-state/" + marker).unlink()
+        with self.subTest("uncertain stop blocks activation and automatic service restart"):
+            Path("/test-state/stop-fail").touch()
+            log_offset = len(Path("/test-state/systemctl.log").read_text())
+            result = self.command("test-7", success=False)
+            self.assertIn("Automatic recovery incomplete", result.stderr)
+            self.assertEqual("/opt/lingxi-next/releases/test-1", os.readlink("/opt/lingxi-next/current"))
+            self.assertNotIn("start ", Path("/test-state/systemctl.log").read_text()[log_offset:])
+            Path("/test-state/stop-fail").unlink()
+        with self.subTest("inactive disabled previous API is not restarted on upgrade failure"):
+            Path("/test-state/active-lingxi-next-api.service").unlink()
+            Path("/test-state/enabled-lingxi-next-api.service").unlink()
+            Path("/test-state/enable-fail").touch()
+            result = self.command("test-8", success=False)
+            self.assertIn("Prior deployment restored", result.stderr)
+            self.assertFalse(Path("/test-state/active-lingxi-next-api.service").exists())
+            self.assertFalse(Path("/test-state/enabled-lingxi-next-api.service").exists())
+            Path("/test-state/enable-fail").unlink()
+        with self.subTest("concurrent install rejected before service changes"):
+            log = Path("/test-state/systemctl.log").read_bytes()
+            with Path("/opt/lingxi-next/.deployment.lock").open("w") as lock:
+                fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                result = self.command("test-9", success=False)
+                self.assertIn("Another install or rollback", result.stderr)
+            self.assertEqual(log, Path("/test-state/systemctl.log").read_bytes())
+            self.assertFalse(Path("/opt/lingxi-next/releases/test-9").exists())
         with self.subTest("certificate address mismatch fails before release switch"):
             self.command("test-3", success=False, ip="192.0.2.11")
             self.assertEqual("/opt/lingxi-next/releases/test-1", os.readlink("/opt/lingxi-next/current"))

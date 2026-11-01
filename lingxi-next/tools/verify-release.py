@@ -6,6 +6,7 @@ from pathlib import Path, PurePosixPath
 import posixpath
 import re
 import tarfile
+from release_scope import verify_scope
 
 parser = argparse.ArgumentParser()
 parser.add_argument("archive", type=Path)
@@ -46,7 +47,7 @@ with tarfile.open(filename, "r|gz") as archive:
             header = stream.read(20)
             header_digest = hashlib.sha256(header)
             headers[relative] = header
-            content = bytearray(header) if relative in ("SHA256SUMS", "release-status.json") else None
+            content = bytearray(header) if relative in ("SHA256SUMS", "release-status.json", "deploy/release-scope.json") else None
             while chunk := stream.read(1024 * 1024):
                 header_digest.update(chunk)
                 if content is not None:
@@ -82,9 +83,12 @@ with tarfile.open(filename, "r|gz") as archive:
         "810c5e7a7d40191097dc5c4c37e3133407e63307fcb204d35caacb7768912c25"
     status = json.loads(captured["release-status.json"])
     assert status["classification"] == "commissioning" and status["productionAccepted"] is False
+    scope = verify_scope(status, captured["deploy/release-scope.json"], files)
 report = json.dumps({"archive": filename.name, "sha256": digest, "verifiedFiles": len(checked),
                      "architecture": "ELF64 AArch64", "executableModes": "verified",
-                     "classification": "commissioning", "productionAccepted": False}, indent=2)
+                     "classification": "commissioning", "productionAccepted": False,
+                     "profile": scope["profile"], "completeProduct": False,
+                     "independentStackIncluded": False}, indent=2)
 if args.report:
     args.report.write_text(report + "\n", encoding="utf-8")
 print(report)

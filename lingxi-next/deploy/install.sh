@@ -18,7 +18,7 @@ while (($#)); do
 done
 [[ $EUID == 0 && $COMMISSIONING == 1 ]] || { echo "Run as root with --commissioning; read docs/ACCEPTANCE.md first" >&2; exit 1; }
 [[ "$(uname -m)" == aarch64 || "$(uname -m)" == arm64 ]] || { echo "This package requires Linux ARM64" >&2; exit 1; }
-for command in systemctl openssl python3 tar sha256sum curl getent groupadd useradd; do command -v "$command" >/dev/null || { echo "Missing dependency: $command" >&2; exit 1; }; done
+for command in systemctl openssl python3 tar sha256sum curl getent groupadd useradd flock; do command -v "$command" >/dev/null || { echo "Missing dependency: $command" >&2; exit 1; }; done
 python3 -c 'import ipaddress,sys; ipaddress.ip_address(sys.argv[1])' "$ROBOT_IP"
 cd "$PACKAGE"
 sha256sum -c SHA256SUMS >/dev/null
@@ -27,21 +27,17 @@ VERSION="$(<VERSION)"
 [[ -x runtime/node/bin/node && -x runtime/java/bin/java ]] || { echo "Bundled runtimes are missing" >&2; exit 1; }
 runtime/node/bin/node --version
 runtime/java/bin/java -version
+source "$PACKAGE/deploy/transaction.sh"
+deployment_lock
 [[ ! -e "$ROOT/releases/$VERSION" ]] || { echo "Release already installed; choose a new build or use rollback.sh" >&2; exit 1; }
-[[ ! -e "$ROOT/current" || -L "$ROOT/current" ]] || { echo "Current release is not a managed symlink" >&2; exit 1; }
-PREVIOUS=""
-if [[ -L "$ROOT/current" ]]; then
-  PREVIOUS="$(readlink -f "$ROOT/current")"
-  [[ "$PREVIOUS" == "$ROOT/releases/"* && -f "$PREVIOUS/VERSION" ]] || { echo "Invalid previous release" >&2; exit 1; }
-fi
+PREVIOUS="$(deployment_pointer current)" || { echo "Invalid current release" >&2; exit 1; }
+deployment_pointer previous >/dev/null || { echo "Invalid previous release" >&2; exit 1; }
 if ! getent group lingxi-next >/dev/null; then groupadd --system lingxi-next; fi
 if ! id lingxi-next >/dev/null 2>&1; then useradd --system --gid lingxi-next --home-dir "$DATA" --shell /usr/sbin/nologin lingxi-next; fi
 install -d -m 0755 "$ROOT" "$ROOT/releases"
 install -d -m 0750 -o root -g lingxi-next "$CONFIG"
 install -d -m 0700 "$ROOT/backups"
 install -d -m 0700 -o lingxi-next -g lingxi-next "$DATA"
-BACKUP="$ROOT/backups/pre-${VERSION}-$(date -u +%Y%m%dT%H%M%SZ)"
-install -d -m 0700 "$BACKUP"
 if [[ ! -e "$CONFIG/robot.env" ]]; then
   install -m 0600 deploy/robot.env.example "$CONFIG/robot.env"
   python3 - "$CONFIG" <<'PY'
@@ -79,36 +75,24 @@ cp -a "$PACKAGE/." "$ROOT/releases/$VERSION/"
 if [[ -n "$LEGACY" ]]; then
   "$PACKAGE/runtime/node/bin/node" "$PACKAGE/tools/migrate-legacy.mjs" --source-dir "$LEGACY" --destination "$DATA"
 fi
-for service in lingxi-next-agent.service lingxi-next-api.service lingxi-next-aimdk.service; do
-  if systemctl cat "$service" >/dev/null 2>&1; then systemctl stop "$service"; fi
-done
-tar -czf "$BACKUP/data-and-config.tar.gz" -C / etc/lingxi-next var/lib/lingxi-next
+deployment_begin "pre-$VERSION"
+deployment_stop
+deployment_snapshot
 if [[ -n "$LEGACY" ]]; then
   "$PACKAGE/runtime/node/bin/node" "$PACKAGE/tools/migrate-legacy.mjs" --source-dir "$LEGACY" --destination "$DATA" --apply
 fi
 chown -R lingxi-next:lingxi-next "$DATA"
-if [[ -n "$PREVIOUS" ]]; then
-  ln -sfn "$PREVIOUS" "$ROOT/previous"
-fi
-ln -sfn "$ROOT/releases/$VERSION" "$ROOT/current"
+deployment_link current "$ROOT/releases/$VERSION"
 install -m 0644 deploy/lingxi-next-*.service /etc/systemd/system/
 systemctl daemon-reload
 systemctl enable --now lingxi-next-api.service
-PORT="$(python3 - "$CONFIG/robot.env" <<'PY'
-import pathlib, re, sys
-text = pathlib.Path(sys.argv[1]).read_text()
-match = re.search(r"^LINGXI_PORT=(\d+)\s*$", text, re.M)
-port = int(match.group(1)) if match else 3000
-if not 1 <= port <= 65535:
-    raise SystemExit("Invalid LINGXI_PORT")
-print(port)
-PY
-)"
-if ! curl --fail --silent --retry 10 --retry-connrefused --retry-delay 1 \
-    --cacert "$CONFIG/tls/ca.crt" "https://127.0.0.1:$PORT/health" >/dev/null; then
-  echo "New API health check failed. Restore with deploy/rollback.sh; backup: $BACKUP" >&2
+if ! deployment_health; then
+  echo "New API health check failed." >&2
   exit 1
 fi
+if [[ -n "$PREVIOUS" ]]; then deployment_link previous "$PREVIOUS"; fi
+deployment_commit
+PORT="$DEPLOYMENT_PORT"
 printf 'Installed commissioning build %s. Console: https://%s:%s\n' "$VERSION" "$ROBOT_IP" "$PORT"
 echo "Pairing code: /etc/lingxi-next/pairing-code.txt (root only). Import tls/ca.crt on each client."
 echo "Configure the existing ROS/AIMDK setup and actual topics in robot.env, then enable lingxi-next-aimdk."

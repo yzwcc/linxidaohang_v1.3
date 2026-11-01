@@ -7,7 +7,7 @@ import { downloadVerified } from "./download.mjs";
 
 if (!process.argv.includes("--commissioning")) throw new Error("Target acceptance is pending; only --commissioning packages are currently permitted.");
 const pkg = JSON.parse(await readFile("package.json", "utf8"));
-const version = `${pkg.version}-commissioning-20261028`;
+const version = `${pkg.version}-core-commissioning-${new Date().toISOString().slice(0, 10).replaceAll("-", "")}`;
 const stage = path.resolve("artifacts", `lingxi-next-${version}-linux-arm64`);
 if (existsSync(stage)) throw new Error("Release stage already exists; archive it before rebuilding with this version.");
 const run = (command, args, options = {}) => new Promise((resolve, reject) => {
@@ -59,8 +59,10 @@ await run(process.execPath, [npmCli, "ci", "--omit=dev", "--ignore-scripts", "--
 await writeFile(path.join(stage, "VERSION"), `${version}\n`);
 await writeFile(path.join(stage, "release-status.json"), JSON.stringify({
   version, target: "linux-arm64", classification: "commissioning", productionAccepted: false,
+  scope: JSON.parse(await readFile("deploy/release-scope.json", "utf8")),
   sdk: { version: "1.5.0-SNAPSHOT", sha256: "810c5e7a7d40191097dc5c4c37e3133407e63307fcb204d35caacb7768912c25" },
-  pending: ["physical mapping/navigation/estop", "ASR confidence field on target", "TTS item/event correlation on target",
+  pending: ["independent GLIM/localization/OctoMap/Nav2 runtime composition is NOT included in this core package",
+    "physical mapping/navigation/estop", "ASR confidence field on target", "TTS item/event correlation on target",
     "map catalog schema and relocalization pixels/orientation on target",
     "physical preset-motion/expression/LinkCraft action acceptance", "cloud credentials/voice rejection",
     "acoustic and P95 acceptance", "installer/rollback on ARM64 target"],
@@ -68,4 +70,5 @@ await writeFile(path.join(stage, "release-status.json"), JSON.stringify({
 const archive = `${stage}.tar.gz`;
 await run("python", ["tools/archive-release.py", stage, archive, nodeArchive, javaArchive]);
 await writeFile(`${archive}.sha256`, `${createHash("sha256").update(await readFile(archive)).digest("hex")}  ${path.basename(archive)}\n`);
-console.log(`Commissioning archive ready: ${archive}`);
+await run("python", ["tools/verify-release.py", archive, "--report", `${archive}.verification.json`]);
+console.log(`Core-services commissioning archive ready (not the independent full product): ${archive}`);
