@@ -1,0 +1,9 @@
+{
+  global:
+    lingxi_acquisition_error;
+    lingxi_acquisition_open;
+    lingxi_acquisition_take;
+    lingxi_acquisition_counts;
+    lingxi_acquisition_close;
+  local: *;
+};

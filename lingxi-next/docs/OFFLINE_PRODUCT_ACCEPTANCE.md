@@ -7,7 +7,7 @@ or deployment is authorized by completing an offline check.
 
 | Workstream | Current implemented scope | Required offline integration | Separate field acceptance |
 | --- | --- | --- | --- |
-| Mapping | GLIM CPU full local/global mapping, corrected point-cloud preview, save/reload, per-return observation archive and bounded corrected-history windows | Observed-map API save/discard and two-submap moving replay passed; low-latency live observation input and overload regression remain required | Measured scale/heading, loop closure, long walking scan, ARM64 resource limits |
+| Mapping | GLIM CPU full local/global mapping, corrected point-cloud preview, save/reload, per-return observation archive, bounded corrected-history windows and immediate per-frame acquisition export | Observed-map API save/discard, two-submap moving replay and actual recorded immediate-ray export passed; live receipt/registration composition and overload regression remain required | Measured scale/heading, loop closure, long walking scan, ARM64 resource limits |
 | Localization | Explicit seeded small-gicp tracking, original-ingress pose freshness, generation-bound callbacks, map provenance, base projection | Replay tracking, bad seeds, loss/recovery, stale generation and current observed-map loading | Independent moving trajectory and ground-truth errors; global relocalization remains a separate capability |
 | Global planning | Pinned native Nav2 NavFn over explicit costmaps | Unknown space, blocked goals, complete path identity and bounded worker | Map scale, robot clearance and actual route reachability |
 | Occupancy and ground | Pinned OctoMap acquisition-time rays and Patchwork++ ground fusion; bounded corrected-window producer; repeated recorded replays and actual native terrain-to-Nav2 synthetic trials passed; moving declaration explicitly rejected | Wire supervised live registration/localization and terrain transport; declared-frame results remain separate from metric admission; current static recording has zero supported free cells | Physical scale, ground support, blind spots and real obstacle visibility |
@@ -145,3 +145,13 @@ or deployment is authorized by completing an offline check.
   Full Python regression: 1565 discovered, 1498 passed, 67 skipped, no failures.
   Seven immutable historical reports passed frozen-Git source verification;
   current-source drift remains explicit and is not new ARM64 acceptance.
+- [Immediate acquisition-export verification](ACQUISITION_OUTPUT_VERIFICATION_20261101.md)
+  adds a same-owner, single-slot per-frame export before submap finalization.
+  All 29 actual native synthetic contracts and 28 focused Python checks passed
+  with zero skips. Actual preserved-journal replay delivered all 164 eligible
+  contiguous frames, covering 1,246,242 preprocessed returns with per-return
+  interpolated origins and endpoints; zero pending frames were discarded.
+  Geometry is still in odometry, with no fabricated receipt or metric claim.
+  The static replay retains its IMU/extrinsic quality warnings. Original receipt,
+  localization generation, saved-map registration and live terrain composition
+  remain open, as do ARM64 runtime and physical navigation acceptance.
