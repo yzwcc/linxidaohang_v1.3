@@ -6,8 +6,13 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { downloadVerified as download } from "./download.mjs";
 import { startMavenProxy } from "./maven-proxy.mjs";
+import { androidBuildIdentity, assertCurrentWebBuild, assertSyncedWebAssets } from "./build-identity.mjs";
 
 if (process.platform !== "win32") throw new Error("This bootstrap supports the Windows build workstation; use Gradle with your configured Android SDK on Linux.");
+const projectRoot = path.resolve(".");
+const webIdentity = await assertCurrentWebBuild(projectRoot);
+const webAssets = await assertSyncedWebAssets(projectRoot);
+const nativeSource = await androidBuildIdentity(projectRoot);
 const root = path.resolve(".local");
 const sdk = path.join(root, "android-sdk");
 await mkdir(root, { recursive: true });
@@ -88,9 +93,21 @@ try {
   });
 } finally { await proxy.close(); }
 await mkdir("artifacts", { recursive: true });
+if (JSON.stringify(await assertCurrentWebBuild(projectRoot)) !== JSON.stringify(webIdentity) ||
+    JSON.stringify(await assertSyncedWebAssets(projectRoot)) !== JSON.stringify(webAssets) ||
+    JSON.stringify(await androidBuildIdentity(projectRoot)) !== JSON.stringify(nativeSource)) {
+  throw new Error("Android build inputs changed during compilation; no APK published");
+}
 const bytes = await readFile("android/app/build/outputs/apk/release/app-release.apk");
-const { version } = JSON.parse(await readFile("package.json", "utf8"));
-const apkName = `lingxi-next-${version}-commissioning.apk`;
+const { version } = webIdentity.product;
+const apkName = `lingxi-next-${version}-commissioning-${webIdentity.source.sha256.slice(0, 12)}.apk`;
 await writeFile(path.join("artifacts", apkName), bytes);
 await writeFile(path.join("artifacts", `${apkName}.sha256`), `${createHash("sha256").update(bytes).digest("hex")}  ${apkName}\n`);
-console.log("APK ready under artifacts/; signing keys are excluded from delivery.");
+await writeFile(path.join("artifacts", `${apkName}.build.json`), JSON.stringify({
+  schema: 1, classification: "commissioning", productionAccepted: false,
+  webIdentity, webAssets, nativeSource,
+}, null, 2) + "\n");
+await run("python", ["tools/verify-android.py", path.join("artifacts", apkName), "--java",
+  path.join(javaHome, "bin", "java.exe"), "--node", process.execPath,
+  "--report", path.join("artifacts", `${apkName}.verification.json`)]);
+console.log("Source-bound commissioning APK verified under artifacts/; signing keys are excluded from delivery.");

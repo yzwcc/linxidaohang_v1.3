@@ -14,7 +14,7 @@ or deployment is authorized by completing an offline check.
 | Local navigation | Real ROS Humble NavFn + RPP + closed-loop smoother passed four synthetic scenes; paired product API/backend and concurrent Web polling passed | Recorded localization/occupancy, support-preserving clearing, source-stamped command freshness and guarded AIMDK handoff | Walking dynamics, stopping distance, dynamic people/obstacles and emergency stop |
 | Tours and tasks | Multi-point/round sequencing, one retry then skip, manual pause, dialogue quiet-resume, return policy; real offline Nav2 two-point tour/no-return and pause/resume epochs passed | Recorded backend integration, broader failure/retry/late-callback combinations | Actual arrival, interruption/resume and narration at each point |
 | Voice and AI | AgentSDK passive-event gating, deduplication, allowlists, evidence-bound retrieval, timeout/streaming; cloud cancellation, failed-playback stop barriers and superseded-turn regressions passed | Real AgentSDK playback correlation, live cloud matrix and end-to-end latency; offline workspace deliberately stubs playback and disables cloud | 100-wake/8-hour negatives, zero forbidden execution, acoustic P95 first response <=2 s |
-| Web and Android | Shared Chinese React console, point-cloud map inspection, landscape Capacitor project; real Nav2 offline point-cloud workspace | Desktop/landscape workflow, connection loss, current APK build and package-source consistency | Real CA trust, Android devices, LAN reconnection and point picking |
+| Web and Android | Shared Chinese React console, point-cloud map inspection, landscape Capacitor project; real Nav2 offline point-cloud workspace; source-bound signed APK 0.1.19/code20 verified | Desktop/landscape workflow and connection-loss regressions; APK current-source checks passed, not device acceptance | Real CA trust, Android devices, LAN reconnection and point picking |
 | Deployment | Isolated services, restricted credentials, migration/backup/rollback scripts | Complete independent-stack manifest, dependency/license audit, clean-install and failed-upgrade rollback | Real ARM64 installation with existing vendor system preserved |
 
 ## Release Rules
@@ -39,3 +39,7 @@ or deployment is authorized by completing an offline check.
 - [Voice failure verification](VOICE_FAILURE_VERIFICATION_20261101.md) records
   offline cancellation and playback tests. The full TypeScript suite passed
   498 tests with 16 skips; this is not a substitute for real cloud or acoustic tests.
+- [Android verification](ANDROID_SOURCE_VERIFICATION_20261101.md) records a
+  signed landscape commissioning APK, exact compiled version and web/native
+  source identities. Updated TypeScript tests: 502 passed / 16 skipped;
+  Android verifier tests: four passed. No Android device or robot was contacted.
