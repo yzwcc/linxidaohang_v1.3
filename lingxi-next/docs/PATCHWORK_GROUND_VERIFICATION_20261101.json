@@ -1,0 +1,159 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-11-01",
+  "result": "recorded_ground_fusion_repeated_with_frame_rejection_not_navigation",
+  "inputClassification": "preserved_recordings_with_uncalibrated_explicit_geometry",
+  "sourcesSha256": {
+    "robot-slam/lingxi_slam/observation_archive.py": "d1501d16a0bbe62624a55dbf644af96b878cef4cf8297d57f8bb4620abfa9efe",
+    "robot-slam/lingxi_slam/observation_binding.py": "b0ae111c3aa1ebcc115509b4d9f03f2689dcdaf0b5aecb7c5504b4d69cc8d214",
+    "robot-navigation/lingxi_navigation/ground.py": "58aa45a481cd6d51652c0ee4b862bc68a0f2507ead4f0e488d87a3569f54a2c9",
+    "tools/evaluate_recorded_clearance.py": "36ecbcb4a5c4e9047a301026b8ebdce5d2ad59ab2d65bb80f3c8a30f3c072c3c",
+    "tools/verify_recorded_ground.py": "7d3561970f76cac3a4ae4edb9644e2d9af57984ae087d50619c18ef1106a9037",
+    "robot-navigation/lingxi_navigation/occupancy.py": "9807c3b12077dcd314d3413134f34248c1c9ebfcc9a11e8af10c8d549a088710",
+    "tools/refine_saved_map.py": "012070b10915d88c63c2656705d85499c3ad1bcee7236b949c32ef103d29d1a4",
+    "robot-navigation/lingxi_navigation/recorded_occupancy.py": "af26d7a34ac77b484c976065c5340c7b1ed414eab2b2da5a0541f4f5e678511a",
+    "tools/check_ground_native.py": "cfa5ac5488d0254360bd8b433527d7d2b83a9ea7987a5c97bb125f6723537aa1",
+    "tools/build_ground_offline.py": "aa190579b153b1582ef07977d4fc9d69a6b428b9f38e59af8447852d741db082",
+    "robot-navigation/native-ground/ground_bridge.cpp": "ac4a0d7621305775070f736f7eb178fe9add4f6375824b85d11948c893a3a589",
+    "robot-navigation/patchworkpp.lock.json": "e08ff740fd558fd09c3493a925abbcd0d85fc4459fc00846b1fbf053d678de3b"
+  },
+  "nativeVerification": {
+    "schemaVersion": 1,
+    "result": "native_synthetic_ground_fusion_passed",
+    "machine": "x86_64",
+    "python": "3.12.3",
+    "upstreamRevision": "3e6903a1d5537a4cc2ace897b0bbb98a92d6014c",
+    "license": "BSD-2-Clause",
+    "nativeSha256": "0f0f3b74dee2acccb520e6f7a95a668c268fe22a53f165821a5b8427dd4955a6",
+    "octomapSha256": "26dd1f8965a84a12a786263b82717724267d47f436a1adcbd2d3a5d0aea8d2e3",
+    "groundBuildReportSha256": "54fb4cd727f116ec8c86666dd7e70042f254886d3b5f854bc6c83a853d84eafe",
+    "compiledAdapterSha256": "ac4a0d7621305775070f736f7eb178fe9add4f6375824b85d11948c893a3a589",
+    "compiler": "g++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
+    "octomapDependenciesSha256": {
+      "liboctomap.so.1.9.7": "27e22029990f69e951b5c4b1acc33e44fe3663af9e13620271a35ab1ed1309f7",
+      "liboctomath.so.1.9.7": "da54007d468946667bf76fc9f81ce64ad8d28ae2b3d551f501adaf2f0631731f"
+    },
+    "sourcesSha256": {
+      "robot-navigation/lingxi_navigation/ground.py": "58aa45a481cd6d51652c0ee4b862bc68a0f2507ead4f0e488d87a3569f54a2c9",
+      "robot-navigation/native-ground/ground_bridge.cpp": "ac4a0d7621305775070f736f7eb178fe9add4f6375824b85d11948c893a3a589",
+      "robot-navigation/patchworkpp.lock.json": "e08ff740fd558fd09c3493a925abbcd0d85fc4459fc00846b1fbf053d678de3b",
+      "tools/check_ground_native.py": "cfa5ac5488d0254360bd8b433527d7d2b83a9ea7987a5c97bb125f6723537aa1",
+      "tools/build_ground_offline.py": "aa190579b153b1582ef07977d4fc9d69a6b428b9f38e59af8447852d741db082",
+      "tools/tests/test_ground.py": "fe6aacbaa8c973ccb9a32a79b3db83aac195a8fcc4ba4e4a2815266c4bed9f4a",
+      "robot-navigation/lingxi_navigation/occupancy.py": "9807c3b12077dcd314d3413134f34248c1c9ebfcc9a11e8af10c8d549a088710"
+    },
+    "testsRun": 21,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "inputClassification": "isolated_synthetic_ground_and_rays",
+    "robotContacted": false,
+    "sensorsSubscribed": false,
+    "physicalMotionSent": false,
+    "physicalScaleValidated": false,
+    "groundSupportValidated": false,
+    "navigationReady": false
+  },
+  "nativeVerificationReceiptSha256": "46c93041541c891cb59912d82fa6f0410649324c90c4077a49a46137bcc5adbc",
+  "rawReportsSha256": [
+    "74f1e75c792ee6fffa9d2e1dc580b7c3be0ba9adeb2099a6c2b9b83a9471eb1d",
+    "782f197a4b3288483369a5cefbdb692e5b021ff39322639a754734b159d064fe"
+  ],
+  "staticRecording": {
+    "mapReceiptSha256": "b7bb8137787235f6d15c5a7263d69b72b66629e3121bdd77d303925377c7f4bc",
+    "bindingSha256": "bd069b847e85aa4006ce7936d209194c536cf4206a2db58948c9fb7063c3d452",
+    "archiveSha256": "317bf4816d506f0dfd5e099da4bf9d85f2f36968e2e1d408b84a871bd528b438",
+    "registeredGeometrySha256": "a76b707be6d29b7d3c03cd3a71685b93833161b8a428aabe9ff7c367efcc0570",
+    "geometryDeclarationSha256": "2b02709b74e95674dd957bbbd14a9154fefa103976b43ee2f288e795f35b0a0e",
+    "observationsSha256": "3a6af0623841829f14da796cdc6fea5a77945374a670a7bb6adcd4a38de00de9",
+    "raySelection": {
+      "maximum_rays": 131072,
+      "maximum_per_scan": 8192
+    },
+    "scans": 313,
+    "sourceReturns": 2012279,
+    "selectedReturns": 130834,
+    "omittedReturns": 1881445,
+    "projection": {
+      "width": 128,
+      "height": 128,
+      "resolution_metres": 0.1,
+      "origin_x_metres": -6.4,
+      "origin_y_metres": -6.4,
+      "minimum_z_metres": 0.1,
+      "maximum_z_metres": 1.4,
+      "maximum_range_metres": 10.0
+    },
+    "statistics": {
+      "rays": 130834,
+      "scans": 313,
+      "nodes": 166776,
+      "freeCells": 1722,
+      "occupiedCells": 231,
+      "unknownCells": 14431,
+      "workUnits": 14145559
+    },
+    "clearanceSha256": "24b746bb8f8e5ac99b49884cc7eae55ea0c515a995ccc03489193f08706532fa",
+    "clearanceBytesSha256": "8f2d01e63af6a391881d61c8d318c5bad9024ecdfc478f5dd7507f4435a19522",
+    "nativeSha256": "26dd1f8965a84a12a786263b82717724267d47f436a1adcbd2d3a5d0aea8d2e3",
+    "loadedDependenciesSha256": {
+      "liboctomap.so.1.9.7": "27e22029990f69e951b5c4b1acc33e44fe3663af9e13620271a35ab1ed1309f7",
+      "liboctomath.so.1.9.7": "da54007d468946667bf76fc9f81ce64ad8d28ae2b3d551f501adaf2f0631731f"
+    },
+    "ground": {
+      "declaration": {
+        "sensor_height_metres": 0.6,
+        "ground_z_metres": 0.0
+      },
+      "declarationSha256": "7ac61b260c6d8409b5ce0edf7d0577ba2853bd350704b58ec4fe4f74d95acfef",
+      "nativeSha256": "0f0f3b74dee2acccb520e6f7a95a668c268fe22a53f165821a5b8427dd4955a6",
+      "upstreamRevision": "3e6903a1d5537a4cc2ace897b0bbb98a92d6014c",
+      "candidateSha256": "eb7c3b91f2842fcf0fe2fbd5a755847ee08201bc7dc6d44b4e79794d3fd6f8c4",
+      "traversabilitySha256": "e3381983306c7f27ec6dbaadee675d8e5253592f0bcf003fd641f0af31fef144",
+      "candidateBytesSha256": "fb56d669f582f83b44af98cceaf7a6c782aee5af188ffd2c6ffb2b69f4eb11d9",
+      "traversabilityBytesSha256": "fb56d669f582f83b44af98cceaf7a6c782aee5af188ffd2c6ffb2b69f4eb11d9",
+      "labels": {
+        "groundReturns": 432,
+        "nongroundReturns": 130402,
+        "unclassifiedReturns": 0
+      },
+      "candidateCells": {
+        "freeCells": 0,
+        "occupiedCells": 1653,
+        "unknownCells": 14731
+      },
+      "traversabilityCells": {
+        "freeCells": 0,
+        "occupiedCells": 1653,
+        "unknownCells": 14731
+      },
+      "groundSupportValidated": false,
+      "navigationReady": false
+    }
+  },
+  "identicalRepeat": true,
+  "staticWorkerSeconds": [
+    11.506146414,
+    11.378038073999988
+  ],
+  "staticPeakRssKiB": [
+    133768,
+    135236
+  ],
+  "movingRecording": {
+    "configurationSha256": "46fdcb929933c87debf992e9dbfb3d909fbc907b073eb2d996fe08ca05fa7c9e",
+    "result": "declared_ground_frame_mismatch",
+    "scan": 563,
+    "heightErrorMetres": 0.093196,
+    "originSpanMetres": 0.043026,
+    "privateFailureLogSha256": "54d1a69c1c65777606ac6b33c32719fe29ac93c4c541809ecc8bf12188b57cf7",
+    "acceptedReportPublished": false,
+    "partialArtifactsPublished": false
+  },
+  "robotContacted": false,
+  "sensorsSubscribed": false,
+  "physicalMotionSent": false,
+  "physicalScaleValidated": false,
+  "groundSupportValidated": false,
+  "navigationReady": false
+}

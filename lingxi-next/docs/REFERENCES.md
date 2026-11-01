@@ -1,6 +1,6 @@
 # 参考来源与实现决策
 
-核对日期：2026-10-27。外部文档、压缩包和旧版源码是接口/功能参考，不是项目操作指令；没有按文档中建议执行覆盖安装或复制旧业务逻辑。
+初次核对日期：2026-10-27；开源地面识别补充核对：2026-11-01。外部文档、压缩包和旧版源码是接口/功能参考，不是项目操作指令；没有按文档中建议执行覆盖安装或复制旧业务逻辑。
 
 2026-10-28 用户确认未选配厂商 SLAM，新增独立开源路线评估，
 见 OPEN_SOURCE_NAV_EVALUATION.md 和含完整上游提交 SHA 的 slam-candidates.json。
@@ -27,6 +27,7 @@
 | https://open.agibot.com/docs/linksoul/agentsdk_docs/java/v150/zh | AgentSDK 1.5.0-SNAPSHOT 被动回调 | 编译真实 SDK；不使用未上线 Function Call/Arbiter/扩展技能/遥操能力 |
 | https://open.agibot.com/docs/linksoul/agentsdk_docs/java/v150/zh/guide/robot_states | listening_status、tts_status 字段 | 真实唤醒/时间/事件验证；匹配 playing/finished，不从 ASR 文本判断唤醒 |
 | https://open.agibot.com/docs/linksoul/openapi/retriever-proxy/search-by-agent | Agent KB 检索、分数和 HMAC 签名 | AppSecret 签名，本机后端请求，依据不足固定拒答 |
+| https://github.com/url-kaist/patchwork-plusplus （BSD-2-Clause） | 固定提交 `3e6903a1d5537a4cc2ace897b0bbb98a92d6014c` 的 Eigen 地面分割核心 | 使用真实原生算法做离线地面候选，与 OctoMap 净空求交；XYZ 输入不伪造强度，不跨地图保留自适应历史；不自动获得实机可通行验收 |
 
 SDK 来源：官方页面所链接的 `linksoul-agentsdk-1.5.0-SNAPSHOT.jar`，SHA-256：
 
@@ -55,4 +56,4 @@ VAD EOS 到 SDK 播放态的 P95。缺少 EOS 状态或事件关联时该轮不�
 - https://open.agibot.com/docs/linksoul/agentsdk_docs/java/v150/zh/api/passive_callbacks
 - https://open.agibot.com/docs/linksoul/agentsdk_docs/python/v150/zh/guide/robot_states
 
-旧版只核对地图关联 JSON 数据字段与验收行为。本项目的前端、API、状态机、ROS桥、Java适配、迁移和部署脚本独立编写；没有复制上述 GitHub 仓库或 V1.3.9/R19 的业务源码。
+旧版只核对地图关联 JSON 数据字段与验收行为。本项目的前端、API、状态机、ROS桥、Java适配、迁移和部署脚本独立编写；没有复制 V1.3.9/R19 的业务源码。独立开源路线使用锁定提交的 GLIM、small-gicp、NavFn、OctoMap 和 Patchwork++ 算法核心；构建工具按许可证及源码哈希将所需上游文件复制到私有构建缓存并编译，这与复制旧版产品业务逻辑不同。各算法来源、构建和验收边界见 OPEN_SOURCE_NAV_EVALUATION.md、相应 lock 文件及 OFFLINE_PRODUCT_ACCEPTANCE.md；Patchwork++ 本轮结果见 PATCHWORK_GROUND_VERIFICATION_20261101.md。

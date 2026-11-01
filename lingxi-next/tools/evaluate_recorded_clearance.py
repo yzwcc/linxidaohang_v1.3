@@ -14,6 +14,39 @@ SOURCES = ("robot-navigation/lingxi_navigation/occupancy.py",
            "robot-slam/lingxi_slam/observation_archive.py",
            "robot-slam/lingxi_slam/observation_binding.py",
            "tools/refine_saved_map.py", "tools/evaluate_recorded_clearance.py")
+GROUND_SOURCES = ("robot-navigation/lingxi_navigation/ground.py",
+                  "robot-navigation/native-ground/ground_bridge.cpp",
+                  "robot-navigation/patchworkpp.lock.json")
+STATISTIC_NAMES = ("rays", "scans", "nodes", "freeCells", "occupiedCells", "unknownCells", "workUnits")
+
+
+def source_names(value):
+    return SOURCES + (GROUND_SOURCES if "ground" in value else ())
+
+
+def cell_statistics(costs):
+    return dict(zip(("freeCells", "occupiedCells", "unknownCells"),
+                    (costs.count(code) for code in (0, 254, 255))))
+
+
+def write_artifact(output, name, costs):
+    with (output / name).open("xb") as stream:
+        stream.write(costs)
+        stream.flush()
+        os.fsync(stream.fileno())
+
+
+def verify_artifact(output, name, expected_sha256, statistics, size):
+    path = output / name
+    if (path.is_symlink() or not path.is_file() or path.stat().st_size != size
+            or digest(path) != expected_sha256 or type(statistics) is not dict):
+        raise ValueError("complete_unchanged_offline_ground_artifact_required")
+    costs = path.read_bytes()
+    if (not set(costs) <= {0, 254, 255} or set(statistics) != {"freeCells", "occupiedCells", "unknownCells"}
+            or any(type(value) is not int for value in statistics.values())
+            or statistics != cell_statistics(costs)):
+        raise ValueError("complete_offline_ground_cell_accounting_required")
+    return costs
 
 
 def digest(path):
@@ -32,12 +65,22 @@ def configuration(path):
     keys = {"schemaVersion", "purpose", "savedMap", "mapReceiptSha256", "bindingSha256",
             "observationImplementationSha256", "geometry", "selection", "projection",
             "octomap", "maximumWorkUnits", "wallTimeoutSeconds"}
-    if (type(value) is not dict or set(value) != keys or type(value["schemaVersion"]) is not int
+    if (type(value) is not dict or set(value) not in (keys, keys | {"ground"}) or type(value["schemaVersion"]) is not int
             or value["schemaVersion"] != 1 or value["purpose"] != "offline_declared_clearance_only"
             or type(value["wallTimeoutSeconds"]) is not int or not 1 <= value["wallTimeoutSeconds"] <= 300
             or type(value["maximumWorkUnits"]) is not int or not 1 <= value["maximumWorkUnits"] <= 16000000
             or type(value["octomap"]) is not dict or set(value["octomap"]) != {"library", "sha256", "dependencies"}):
         raise ValueError("explicit_bounded_offline_evaluation_configuration_required")
+    if "ground" in value:
+        ground = value["ground"]
+        declaration_keys = {"sensor_height_metres", "ground_z_metres", "minimum_range_metres",
+            "maximum_range_metres", "height_tolerance_metres", "maximum_height_spread_metres",
+            "minimum_points_per_cell", "minimum_scans_per_cell"}
+        if (type(ground) is not dict or set(ground) != {"library", "sha256", "declaration"}
+                or type(ground["library"]) is not str or type(ground["sha256"]) is not str
+                or type(ground["declaration"]) is not dict
+                or not {"sensor_height_metres", "ground_z_metres"} <= set(ground["declaration"]) <= declaration_keys):
+            raise ValueError("explicit_offline_ground_library_and_declaration_required")
     return value
 
 
@@ -55,7 +98,7 @@ def worker(config, output):
                                                      prepare_recorded_clearance)
     from lingxi_slam.observation_binding import verify_observations
     value, config_sha256 = configuration(config), digest(config)
-    sources = {name: digest(ROOT / name) for name in SOURCES}
+    sources = {name: digest(ROOT / name) for name in source_names(value)}
     geometry = value["geometry"]
     if type(geometry) is not dict or set(geometry) != {"metresPerRawUnit", "declaredFromRaw"}:
         raise ValueError("explicit_offline_scale_and_ground_frame_required")
@@ -66,12 +109,37 @@ def worker(config, output):
         geometry=OfflineGeometry(geometry["metresPerRawUnit"], tuple(geometry["declaredFromRaw"])),
         selection=RaySelection(**value["selection"]))
     preparation_duration = time.monotonic() - worker_started
+    if "ground" in value:
+        from lingxi_navigation.ground import GroundDeclaration, validate_declared_ground_frame
+        validate_declared_ground_frame(prepared.batch, GroundDeclaration(**value["ground"]["declaration"]))
     native = value["octomap"]
     projector = OctomapProjector(Path(native["library"]), native["sha256"], native["dependencies"])
     started = time.monotonic()
     result = projector.project_declared(prepared.batch, projection,
                                         maximum_work_units=value["maximumWorkUnits"])
     duration = time.monotonic() - started
+    ground_report = None
+    if "ground" in value:
+        from lingxi_navigation.ground import (GroundDeclaration, PatchworkSegmenter,
+            UPSTREAM_REVISION, declared_ground_candidates, fuse_declared)
+        ground_started = time.monotonic()
+        setting = value["ground"]
+        declaration = GroundDeclaration(**setting["declaration"])
+        segmenter = PatchworkSegmenter(Path(setting["library"]), setting["sha256"])
+        support = declared_ground_candidates(prepared.batch, projection, declaration, segmenter)
+        fused = fuse_declared(result, support)
+        ground_report = {"declaration": setting["declaration"], "declarationSha256": declaration.sha256,
+            "nativeSha256": segmenter.sha256, "upstreamRevision": UPSTREAM_REVISION,
+            "candidateSha256": support.sha256, "traversabilitySha256": fused.sha256,
+            "candidateBytesSha256": hashlib.sha256(support.costs).hexdigest(),
+            "traversabilityBytesSha256": hashlib.sha256(fused.costs).hexdigest(),
+            "labels": {"groundReturns": support.ground_returns, "nongroundReturns": support.nonground_returns,
+                       "unclassifiedReturns": support.unclassified_returns},
+            "candidateCells": cell_statistics(support.costs), "traversabilityCells": cell_statistics(fused.costs),
+            "durationSeconds": time.monotonic() - ground_started,
+            "groundSupportValidated": False, "navigationReady": False}
+        write_artifact(output, "private-declared-ground.bin", support.costs)
+        write_artifact(output, "private-declared-traversability.bin", fused.costs)
     saved = Path(value["savedMap"])
     binding = verify_observations(saved, inventory(saved / "map"),
         json.loads((saved / "map-ready.json").read_text())["sensorProvenance"],
@@ -88,14 +156,12 @@ def worker(config, output):
         "preparationDurationSeconds": preparation_duration,
         "workerDurationSeconds": time.monotonic() - worker_started,
         "peakRssKiB": resource.getrusage(resource.RUSAGE_SELF).ru_maxrss,
-        "statistics": dict(zip(("rays", "scans", "nodes", "freeCells", "occupiedCells", "unknownCells", "workUnits"),
-                               result.statistics)),
+        "statistics": dict(zip(STATISTIC_NAMES, result.statistics)),
         "clearanceSha256": result.sha256, "clearanceBytesSha256": hashlib.sha256(result.costs).hexdigest(),
         "robotContacted": False, "sensorsSubscribed": False, "physicalMotionSent": False}
-    with (output / "private-declared-clearance.bin").open("xb") as stream:
-        stream.write(result.costs)
-        stream.flush()
-        os.fsync(stream.fileno())
+    if ground_report is not None:
+        report["ground"] = ground_report
+    write_artifact(output, "private-declared-clearance.bin", result.costs)
     pending = output / "report.pending"
     with pending.open("x", encoding="utf-8") as stream:
         stream.write(json.dumps(report, indent=2, allow_nan=False) + "\n")
@@ -133,7 +199,7 @@ def run(config, output):
             or any(report.get(key) is not False for key in ("physicalScaleValidated", "groundFrameValidated",
                 "groundSupportValidated", "obstacleCompletenessValidated", "navigationReady",
                 "robotContacted", "sensorsSubscribed", "physicalMotionSent"))
-            or report.get("runnerSourcesSha256") != {name: digest(ROOT / name) for name in SOURCES}
+            or report.get("runnerSourcesSha256") != {name: digest(ROOT / name) for name in source_names(value)}
             or report.get("nativeSha256") != value["octomap"]["sha256"]
             or report.get("loadedDependenciesSha256") != value["octomap"]["dependencies"]):
         raise ValueError("complete_offline_only_worker_report_required")
@@ -152,6 +218,50 @@ def run(config, output):
             or any(type(statistics.get(key)) is not int or statistics[key] != costs.count(code)
                    for key, code in (("freeCells", 0), ("occupiedCells", 254), ("unknownCells", 255)))):
         raise ValueError("complete_offline_clearance_cell_accounting_required")
+    if "ground" in value:
+        ground, setting = report.get("ground"), value["ground"]
+        if (type(ground) is not dict or ground.get("nativeSha256") != setting["sha256"]
+                or ground.get("declaration") != setting["declaration"]
+                or ground.get("upstreamRevision") != json.loads((ROOT / GROUND_SOURCES[2]).read_text())["revision"]
+                or any(ground.get(key) is not False for key in ("groundSupportValidated", "navigationReady"))
+                or type(ground.get("labels")) is not dict
+                or set(ground["labels"]) != {"groundReturns", "nongroundReturns", "unclassifiedReturns"}
+                or any(type(count) is not int or count < 0 for count in ground["labels"].values())
+                or sum(ground["labels"].values()) != report.get("selectedReturns")):
+            raise ValueError("complete_offline_ground_report_required")
+        support = verify_artifact(output, "private-declared-ground.bin", ground.get("candidateBytesSha256"),
+            ground.get("candidateCells"), len(costs))
+        fused = verify_artifact(output, "private-declared-traversability.bin", ground.get("traversabilityBytesSha256"),
+            ground.get("traversabilityCells"), len(costs))
+        if fused != bytes(254 if a == 254 or b == 254 else 0 if a == b == 0 else 255
+                          for a, b in zip(costs, support)):
+            raise ValueError("ground_and_clearance_intersection_required")
+        sys.path.insert(0, str(ROOT / "robot-navigation"))
+        from lingxi_navigation.ground import (DeclaredGroundCandidate, DeclaredTraversability,
+                                             GroundDeclaration)
+        from lingxi_navigation.occupancy import ClearanceProjection, DeclaredClearanceResult
+        declared = GroundDeclaration(**setting["declaration"])
+        candidate = DeclaredGroundCandidate(report.get("observationsSha256"), declared.sha256,
+            setting["sha256"], ClearanceProjection(**projection), support, report.get("scans"),
+            ground["labels"]["groundReturns"], ground["labels"]["nongroundReturns"],
+            ground["labels"]["unclassifiedReturns"])
+        if (set(statistics) != set(STATISTIC_NAMES)
+                or any(type(count) is not int or count < 0 for count in statistics.values())
+                or statistics["rays"] != report.get("selectedReturns")
+                or statistics["scans"] != report.get("scans")
+                or statistics["workUnits"] > value["maximumWorkUnits"]):
+            raise ValueError("complete_source_bound_native_clearance_statistics_required")
+        # Statistics are part of the native result identity, not only diagnostics.
+        clearance = DeclaredClearanceResult(report.get("observationsSha256"), candidate.projection,
+            costs, tuple(statistics[name] for name in STATISTIC_NAMES))
+        traversability = DeclaredTraversability(clearance.sha256, candidate.sha256, fused)
+        if (report.get("clearanceSha256") != clearance.sha256
+                or ground.get("declarationSha256") != declared.sha256
+                or ground.get("candidateSha256") != candidate.sha256
+                or ground.get("traversabilitySha256") != traversability.sha256):
+            raise ValueError("source_bound_ground_and_traversability_identity_required")
+    elif "ground" in report:
+        raise ValueError("unrequested_ground_report_forbidden")
     os.replace(pending, output / "report.json")
     return report
 
