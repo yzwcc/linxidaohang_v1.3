@@ -15,7 +15,7 @@ if [[ $root == / || $root == "$project" || $project == "$root"/* || $root == "$p
   echo 'separate_humble_rootfs_and_new_top_level_output_required' >&2
   exit 2
 fi
-case $case_name in open|blocked|detour|appearing-wall|disappearing-obstacle|unsupported-shortcut) ;; *) exit 2 ;; esac
+case $case_name in open|blocked|detour|appearing-wall|disappearing-obstacle|unsupported-shortcut|publication-probe) ;; *) exit 2 ;; esac
 exec unshare --mount --net --ipc --fork /bin/bash -s -- "$root" "$project" "$case_name" "$output" <<'INNER'
 set -euo pipefail
 root=$1 project=$2 case_name=$3 output=$4
@@ -32,6 +32,10 @@ exec chroot "$root" /bin/bash -c '
   set -e
   source /opt/ros/humble/setup.bash
   export ROS_LOCALHOST_ONLY=1 ROS_DOMAIN_ID=173 RMW_IMPLEMENTATION=rmw_fastrtps_cpp PYTHONDONTWRITEBYTECODE=1
+  if [[ $1 == publication-probe ]]; then
+    mkdir -m 700 "$2"
+    exec python3 /work/tools/probe_humble_publication.py "$2/report.json"
+  fi
   exec python3 /work/tools/run_nav2_offline.py --case "$1" --output "$2"
 ' bash "$case_name" "$output"
 INNER

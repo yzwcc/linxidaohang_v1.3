@@ -19,6 +19,7 @@ import time
 from run_nav2_offline import world, synthetic_platform, signal_generation, Observer
 from prepare_nav2_offline import prepare, strict_object
 from lingxi_navigation.runtime import Goal, MapIdentity, OfflineNavigationRuntime, RuntimeInputs
+from humble_velocity_source import HumbleTwistSource, SourceTimeError
 
 
 class RequestError(Exception):
@@ -31,7 +32,6 @@ class Generation:
         import rclpy
         from rclpy.action import ActionClient
         from rclpy.qos import QoSProfile, DurabilityPolicy, ReliabilityPolicy
-        from geometry_msgs.msg import Twist
         from nav_msgs.msg import OccupancyGrid, Odometry
         from nav2_msgs.action import NavigateToPose
         from sensor_msgs.msg import PointCloud2
@@ -54,7 +54,8 @@ class Generation:
             'cloud': self.node.create_publisher(PointCloud2, 'registered_obstacles', 10),
             'clock': self.node.create_publisher(Clock, '/clock', 10),
         }
-        self.subscription = self.node.create_subscription(Twist, 'observed_cmd_vel', self.velocity, 1)
+        self.velocity_source = HumbleTwistSource(self.namespace,
+            maximum_age_ns=int(owner.runtime.command_timeout * 1e9))
         self.action = ActionClient(self.node, NavigateToPose, 'navigate_to_pose')
         self.clients = [self.node.create_client(GetState, name + '/get_state') for name in
                         ('planner_server', 'controller_server', 'bt_navigator', 'velocity_smoother')]
@@ -65,6 +66,7 @@ class Generation:
             self.process = subprocess.Popen(['ros2', 'launch', str(output / 'nav2_offline.launch.py')],
                 stdin=subprocess.DEVNULL, stdout=self.log, stderr=subprocess.STDOUT, start_new_session=True)
         except BaseException:
+            self.velocity_source.close()
             self.node.destroy_node()
             self.log.close()
             raise
@@ -74,9 +76,8 @@ class Generation:
         seconds = time.monotonic() - self.owner.origin
         return Time(sec=int(seconds), nanosec=int((seconds % 1) * 1e9))
 
-    def velocity(self, message):
+    def velocity(self, message, generated):
         self.sequence += 1
-        generated = time.monotonic()
         accepted = self.owner.runtime.velocity(self.ticket, self.sequence, generated,
             message.linear.x, message.linear.y, message.angular.z)
         if not accepted and self.owner.runtime.detail == 'controller_command_rejected':
@@ -174,6 +175,15 @@ class Generation:
         self.publish(now >= self.next_sensor)
         if now >= self.next_sensor:
             self.next_sensor = now + .05
+        try:
+            sample = self.velocity_source.take()
+        except SourceTimeError:
+            self.owner.runtime.reject_velocity_source(self.ticket)
+            return
+        if sample is not None:
+            self.velocity(*sample)
+            if self.retiring:
+                return
         for _ in range(40):
             rclpy.spin_once(self.node, timeout_sec=0.)
             if self.retiring:
@@ -195,6 +205,7 @@ class Generation:
         if self.retiring:
             return
         self.retiring = True
+        self.velocity_source.close()
         self.node.destroy_node()
         signal_generation(self.process, signal.SIGINT)
 

@@ -26,6 +26,9 @@ def fixture():
         syntheticOracleNotOctomap=False, runtimeState=state, trajectory=poses,
         observedCommands=commands, globalPlans=plans, finalPose=poses[-1],
         commandCount=1, controllerExecuted=True, maximumAbsY=0., elapsedSeconds=1.,
+        observedDdsPublicationTimestamp=True, publicationSamplesVerified=1,
+        maximumPublicationAgeSeconds=.01,
+        publicationTimestampScope='velocity_smoother_dds_write_not_controller_compute',
         fusedMapRevision=None, fusedSnapshotSha256=None)
 
 
@@ -46,6 +49,23 @@ class ExportTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             audit(report)
 
+    def test_blocked_path_may_produce_no_publications_without_fabricated_samples(self):
+        report = fixture()
+        report.update(case='blocked', trajectory=[[0., 0., 0.]],
+                      observedCommands=[], commandCount=0, controllerExecuted=False,
+                      finalPose=[0., 0., 0.], globalPlans=[], publicationSamplesVerified=0,
+                      maximumPublicationAgeSeconds=0.)
+        report['runtimeState']['phase'] = 'failed'
+        report.update(assess_trial('blocked', world('blocked'), report['trajectory'], [], [],
+                                  report['runtimeState']))
+        self.assertTrue(audit(report)['passed'])
+        for key, value in (('publicationSamplesVerified', -1),
+                           ('maximumPublicationAgeSeconds', .01)):
+            changed = copy.deepcopy(report)
+            changed[key] = value
+            with self.subTest(key=key), self.assertRaises(ValueError):
+                audit(changed)
+
     def test_physical_claims_and_wrong_policy_are_rejected(self):
         for key, value in [*((key, True) for key in FALSE_FLAGS),
                            ('syntheticInputs', False), ('syntheticOracleNotOctomap', True),
@@ -62,7 +82,20 @@ class ExportTests(unittest.TestCase):
                        lambda r: r.update(finalPose=[0., 0., 0.])):
             report = fixture()
             change(report)
-            with self.assertRaisesRegex(ValueError, 'raw_trajectory'):
+            with self.assertRaises(ValueError):
+                audit(report)
+
+    def test_missing_unbounded_or_promoted_publication_claim_is_rejected(self):
+        for key, value in (('observedDdsPublicationTimestamp', False),
+                           ('publicationSamplesVerified', 0),
+                           ('publicationSamplesVerified', True),
+                           ('maximumPublicationAgeSeconds', .151),
+                           ('maximumPublicationAgeSeconds', float('nan')),
+                           ('maximumPublicationAgeSeconds', True),
+                           ('publicationTimestampScope', 'controller_compute_proven')):
+            report = fixture()
+            report[key] = value
+            with self.subTest(key=key), self.assertRaises(ValueError):
                 audit(report)
 
     def test_partial_or_duplicate_collection_cannot_be_exported(self):

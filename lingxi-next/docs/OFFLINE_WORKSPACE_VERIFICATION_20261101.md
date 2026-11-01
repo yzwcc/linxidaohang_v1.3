@@ -106,6 +106,10 @@ production clean-source guard was not relaxed.
 `physicalMotionSent=false` and `navigationReady=false` are retained. Playback
 is stubbed and cloud access is disabled; neither an audible <=2 s result nor
 an acoustic wake-word result is claimed. Recorded localization plus observed
-occupancy, support-preserving obstacle clearing, guarded AIMDK handoff, current
+occupancy, measured ground-support production, guarded AIMDK handoff, current
 APK device acceptance, and complete independent-stack install/upgrade/rollback verification remain
 tracked in [the full-product workstream](OFFLINE_PRODUCT_ACCEPTANCE.md).
+Subsequent [support-preserving navigation](SUPPORT_FUSION_VERIFICATION_20261101.md)
+and [DDS publication freshness](PUBLICATION_FRESHNESS_VERIFICATION_20261101.md)
+records supersede the earlier synthetic obstacle-clearing and callback-age gaps;
+neither establishes real-sensor metric navigation or physical command acceptance.

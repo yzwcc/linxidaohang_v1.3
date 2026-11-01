@@ -202,6 +202,7 @@ class OfflineNavigationRuntime:
         if (type(sequence) is not int or not 0 <= sequence < 2**53 or sequence <= self.command_sequence
                 or not finite(generated_monotonic)
                 or not 0 <= self.clock() - generated_monotonic <= self.command_timeout
+                or (self.last_command is not None and generated_monotonic < self.last_command)
                 or not self._valid_inputs(self.inputs, self.goal)
                 or any(not finite(value) or value < low - 8 * math.ulp(high)
                        or value > high + 8 * math.ulp(high)
@@ -212,12 +213,19 @@ class OfflineNavigationRuntime:
         # pass that overshoot on, and never silently clamp an actual violation.
         forward, lateral, yaw = (min(high, max(low, value))
                                 for value, (low, high) in zip(values, limits))
-        self.command_sequence, self.last_command = sequence, self.clock()
+        self.command_sequence, self.last_command = sequence, generated_monotonic
         try:
             self.output.write(ObservedVelocity(ticket, forward, lateral, yaw, 'controller_output'))
         except Exception:
             self._fault('output_observer_failed')
             raise
+        return True
+
+    def reject_velocity_source(self, ticket):
+        self._owned()
+        if ticket != self.ticket or self.phase not in ('requested', 'running'):
+            return False
+        self._fault('controller_source_time_invalid')
         return True
 
     def terminal(self, ticket, result):

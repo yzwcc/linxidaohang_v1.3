@@ -19,6 +19,7 @@ PREPARATION_SOURCES = (
     'robot-navigation/lingxi_navigation/traversability.py',
     'robot-navigation/lingxi_navigation/occupancy.py',
     'robot-navigation/lingxi_navigation/navfn.py',
+    'tools/humble_velocity_source.py',
 )
 FALSE_FLAGS = ('groundSupportMeasured', 'observedTwistHasSourceTimestamp',
                'productionCommandAgeProven', 'physicalMotionSent', 'navigationReady',
@@ -43,6 +44,16 @@ def audit(report):
             or report['purpose'] != 'synthetic_planar_nav2_integration_not_field_acceptance'
             or report['passed'] is not True or report['syntheticInputs'] is not True
             or report['lifecycleStates'] != [3] * 4
+            or report.get('observedDdsPublicationTimestamp') is not True
+            or type(report.get('publicationSamplesVerified')) is not int
+            or report['publicationSamplesVerified'] < report['commandCount']
+            or report['publicationSamplesVerified'] < 0
+            or (case != 'blocked' and report['publicationSamplesVerified'] == 0)
+            or (report['publicationSamplesVerified'] == 0
+                and report.get('maximumPublicationAgeSeconds') != 0)
+            or type(report.get('maximumPublicationAgeSeconds')) not in (int, float)
+            or not 0 <= report['maximumPublicationAgeSeconds'] <= .15
+            or report.get('publicationTimestampScope') != 'velocity_smoother_dds_write_not_controller_compute'
             or any(report[key] is not False for key in FALSE_FLAGS)
             or report['dynamicObstaclePolicy'] != policy
             or report['syntheticOracleNotOctomap'] is not fused
@@ -72,7 +83,8 @@ def audit(report):
         raise ValueError('raw_trajectory_costmap_and_summary_must_agree')
     keys = ('case', 'passed', 'checks', 'finalPose', 'minimumSweptObstacleDistanceMetres',
             'maximumAbsY', 'commandCount', 'elapsedSeconds', 'dynamicObstaclePolicy',
-            'syntheticOracleNotOctomap', 'fusedMapRevision', 'fusedSnapshotSha256')
+            'syntheticOracleNotOctomap', 'fusedMapRevision', 'fusedSnapshotSha256',
+            'publicationSamplesVerified', 'maximumPublicationAgeSeconds')
     return {key: report[key] for key in keys}
 
 
@@ -106,7 +118,9 @@ def collect(paths):
                       'tools/export_nav2_evidence.py': digest(__file__)},
         requiredEnvelopeRadiusMetres=first['requiredEnvelopeRadiusMetres'],
         cases=[summaries[case] for case in CASES], syntheticInputs=True,
-        controllerExecuted=True, **dict.fromkeys(FALSE_FLAGS, False))
+        controllerExecuted=True, observedDdsPublicationTimestamp=True,
+        publicationTimestampScope='velocity_smoother_dds_write_not_controller_compute',
+        **dict.fromkeys(FALSE_FLAGS, False))
 
 
 if __name__ == '__main__':

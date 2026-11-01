@@ -240,7 +240,8 @@ def execute(output, case, maximum_seconds=75.):
     import rclpy
     from rclpy.action import ActionClient
     from rclpy.qos import QoSProfile, DurabilityPolicy, ReliabilityPolicy
-    from geometry_msgs.msg import PoseStamped, TransformStamped, Twist
+    from geometry_msgs.msg import PoseStamped, TransformStamped
+    from humble_velocity_source import HumbleTwistSource, SourceTimeError
     from nav_msgs.msg import OccupancyGrid, Odometry, Path as RosPath
     from nav2_msgs.action import NavigateToPose
     from rosgraph_msgs.msg import Clock
@@ -278,7 +279,7 @@ def execute(output, case, maximum_seconds=75.):
         def __init__(self):
             self.ticket, self.handle, self.retiring = None, None, False
             self.process = None
-            self.subscription = None
+            self.velocity_source = None
 
         def submit(self, ticket, goal):
             self.ticket = ticket
@@ -315,7 +316,7 @@ def execute(output, case, maximum_seconds=75.):
             if ticket != self.ticket:
                 raise ValueError('generation_mismatch')
             self.retiring = True
-            node.destroy_subscription(self.subscription)
+            self.velocity_source.close()
             signal_generation(self.process, signal.SIGINT)
 
         def quiescent(self, ticket):
@@ -336,7 +337,7 @@ def execute(output, case, maximum_seconds=75.):
         seconds = time.monotonic() - launched_at + 1.
         return Time(sec=int(seconds), nanosec=int(seconds % 1 * 1e9))
 
-    def receive_velocity(msg):
+    def receive_velocity(msg, generated):
         nonlocal packet_sequence
         # The closure belongs to this process generation; never assign current
         # job identity at delivery from a shared vendor cmd_vel subscription.
@@ -344,11 +345,12 @@ def execute(output, case, maximum_seconds=75.):
         if ticket is None:
             return
         packet_sequence += 1
-        commands.append([msg.linear.x, msg.linear.y, msg.angular.z])
-        runtime.velocity(ticket, packet_sequence, time.monotonic(),
-                         msg.linear.x, msg.linear.y, msg.angular.z)
+        if runtime.velocity(ticket, packet_sequence, generated,
+                            msg.linear.x, msg.linear.y, msg.angular.z):
+            commands.append([msg.linear.x, msg.linear.y, msg.angular.z])
 
-    backend.subscription = node.create_subscription(Twist, 'observed_cmd_vel', receive_velocity, 1)
+    backend.velocity_source = HumbleTwistSource(namespace,
+        maximum_age_ns=int(runtime.command_timeout * 1e9))
     plan_subscription = node.create_subscription(RosPath, 'plan', lambda msg:
         plans.append([[p.pose.position.x, p.pose.position.y] for p in msg.poses]), 10)
     def observe_costmap(msg):
@@ -432,6 +434,7 @@ def execute(output, case, maximum_seconds=75.):
             stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
         started, last, next_lifecycle, next_sensor = False, time.monotonic(), 0., 0.
         while time.monotonic() - launched_at < maximum_seconds:
+            runtime.poll()
             now = time.monotonic()
             publish(min(.1, now - last), now >= next_sensor)
             if now >= next_sensor:
@@ -439,6 +442,13 @@ def execute(output, case, maximum_seconds=75.):
             last = now
             if runtime.goal is not None:
                 runtime.update_inputs(inputs())
+            try:
+                sample = backend.velocity_source.take()
+            except SourceTimeError:
+                runtime.reject_velocity_source(backend.ticket)
+                sample = None
+            if sample is not None:
+                receive_velocity(*sample)
             # One spin handles only one callback. Drain a bounded batch so clock,
             # lifecycle and action traffic cannot starve the velocity observer.
             for _ in range(40):
@@ -491,7 +501,12 @@ def execute(output, case, maximum_seconds=75.):
             costmapSamples=costmap_samples, syntheticOracleNotOctomap=fused_mode,
             fusedMapRevision=fused_maps.revision if fused_maps else None,
             fusedSnapshotSha256=fused_maps.latest.sha256 if fused_maps else None,
-            observedTwistHasSourceTimestamp=False, productionCommandAgeProven=False,
+            observedTwistHasSourceTimestamp=False,
+            observedDdsPublicationTimestamp=True,
+            publicationSamplesVerified=backend.velocity_source.clock.accepted,
+            maximumPublicationAgeSeconds=backend.velocity_source.clock.maximum_age_observed_ns / 1e9,
+            publicationTimestampScope='velocity_smoother_dds_write_not_controller_compute',
+            productionCommandAgeProven=False,
             physicalMotionSent=False, navigationReady=False, elapsedSeconds=time.monotonic() - launched_at)
         (output / 'report.json').write_text(json.dumps(report, indent=2, allow_nan=False) + '\n', encoding='utf-8')
         return report
@@ -511,6 +526,7 @@ def execute(output, case, maximum_seconds=75.):
                 signal_generation(backend.process, signal.SIGKILL)
                 backend.process.wait(timeout=2.)
             signal_generation(backend.process, signal.SIGKILL)
+        backend.velocity_source.close()
         node.destroy_node()
         rclpy.shutdown()
         log.close()

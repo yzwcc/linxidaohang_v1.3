@@ -56,7 +56,8 @@ def prepare(platform, output, *, domain_id=173, map_mode='latched_obstacles'):
                     'robot-navigation/nav2_offline.launch.py', 'tools/prepare_nav2_offline.py',
                     'robot-navigation/lingxi_navigation/traversability.py',
                     'robot-navigation/lingxi_navigation/occupancy.py',
-                    'robot-navigation/lingxi_navigation/navfn.py')
+                    'robot-navigation/lingxi_navigation/navfn.py',
+                    'tools/humble_velocity_source.py')
     sources = {name: digest(ROOT / name) for name in source_names}
     files = {
         'navigate.xml': BEHAVIOR_TREE,

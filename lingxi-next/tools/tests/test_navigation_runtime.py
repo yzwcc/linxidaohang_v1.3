@@ -332,6 +332,35 @@ class RuntimeTests(unittest.TestCase):
         self.runtime.poll()
         self.assertTrue(self.runtime.requires_stop)
 
+    def test_callback_does_not_extend_publication_freshness_budget(self):
+        ticket = self.running()
+        self.assertTrue(self.velocity(ticket, generated_monotonic=9.9))
+        self.clock.now += .051
+        self.runtime.poll()
+        self.assertEqual('controller_output_expired', self.runtime.detail)
+        self.assertEqual(0., self.output.values[-1].forward)
+
+    def test_regressing_generated_time_is_not_new_sequence(self):
+        ticket = self.running()
+        self.assertTrue(self.velocity(ticket))
+        self.clock.now += .01
+        self.assertFalse(self.velocity(ticket, 1, generated_monotonic=9.99))
+        self.assertEqual('controller_command_rejected', self.runtime.detail)
+
+    def test_invalid_source_retires_once_and_old_generation_cannot_fault_new(self):
+        old = self.running()
+        self.assertTrue(self.runtime.reject_velocity_source(old))
+        self.assertEqual('controller_source_time_invalid', self.runtime.detail)
+        self.assertFalse(self.runtime.reject_velocity_source(old))
+        self.assertEqual([old], self.backend.retiring)
+        self.drain(old)
+        self.runtime.stop()
+        current = self.running()
+        before = len(self.output.values)
+        self.assertFalse(self.runtime.reject_velocity_source(old))
+        self.assertEqual(before, len(self.output.values))
+        self.assertEqual(current, self.runtime.ticket)
+
     def test_callbacks_cannot_revive_expired_controller_when_poll_is_delayed(self):
         for first_command in (False, True):
             for event in ('velocity', 'arrival'):
