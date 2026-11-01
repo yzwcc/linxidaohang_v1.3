@@ -490,4 +490,106 @@ describe("paired local console API", () => {
       expect(speak).not.toHaveBeenCalled();
     } finally { vi.restoreAllMocks(); }
   });
+  it("aborts stalled cloud generation on playback failure, records rejection, and keeps point navigation", async () => {
+    await app.inject({ method: "PUT", url: "/api/v1/settings/credentials", headers: headers(), payload: { apiKey: "test" } });
+    await app.inject({ method: "POST", url: "/api/v1/navigation/point", headers: headers(), payload: { pointId: "point-2" } });
+    await app.inject(agentEvent({ kind: "wake", eventId: "wake" }));
+    const controlNavigation = vi.spyOn(adapter, "controlNavigation");
+    const cancelBody = vi.fn();
+    let signal!: AbortSignal;
+    const fetcher = vi.spyOn(globalThis, "fetch").mockImplementationOnce(async (_url, init) => {
+      signal = init!.signal!;
+      return new Response(new ReadableStream({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode('data: {"choices":[{"delta":{"content":"第一句话。第二句话。"}}]}\n\n'));
+        },
+        cancel: cancelBody,
+      }), { headers: { "content-type": "text/event-stream" } });
+    });
+    speak.mockRejectedValueOnce(new Error("speech failed"));
+    try {
+      const result = await app.inject(command("question-failed", "什么是激光雷达"));
+      expect(result.statusCode).toBe(200);
+      expect(result.json()).toMatchObject({ accepted: false, category: "rejected", speechDelivered: false });
+      expect(result.json().text).toContain("回答未完成");
+      expect(result.json().deliveryError).toBeTruthy();
+      expect(signal.aborted).toBe(true);
+      expect(cancelBody).toHaveBeenCalledOnce();
+      expect(speak).toHaveBeenCalledOnce();
+      expect(cancel).toHaveBeenCalledWith("reply:voice:question-failed");
+      expect(controlNavigation).not.toHaveBeenCalled();
+      const state = (await app.inject({ url: "/api/v1/state", headers: headers() })).json();
+      expect(state.navigation.pointId).toBe("point-2");
+      expect(state.voiceDiagnostics.latest).toMatchObject({ accepted: false, category: "rejected" });
+    } finally { fetcher.mockRestore(); }
+  }, 3000);
+  it("keeps an unconfirmed failed-playback stop as a barrier, then permits a confirmed retry", async () => {
+    await app.inject({ method: "PUT", url: "/api/v1/settings/credentials", headers: headers(), payload: { apiKey: "test" } });
+    await app.inject(agentEvent({ kind: "wake", eventId: "wake" }));
+    const fetcher = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response(
+      'data: {"choices":[{"delta":{"content":"第一句话。第二句话。"}}]}\n\ndata: [DONE]\n\n',
+      { headers: { "content-type": "text/event-stream" } },
+    ));
+    const navigate = vi.spyOn(adapter, "startNavigation");
+    speak.mockRejectedValueOnce(new Error("speech failed"));
+    cancel.mockRejectedValueOnce(new Error("stop unconfirmed")).mockRejectedValueOnce(new Error("still unconfirmed"));
+    try {
+      const question = await app.inject(command("question-failed", "什么是激光雷达"));
+      expect(question.json()).toMatchObject({ accepted: false, category: "rejected" });
+      expect(speak).toHaveBeenCalledOnce();
+      const blocked = await app.inject(command("blocked"));
+      expect(blocked.json()).toMatchObject({ accepted: false, category: "rejected" });
+      expect(navigate).not.toHaveBeenCalled();
+      expect((await app.inject(command("retry"))).json()).toMatchObject({ accepted: true, category: "command" });
+      expect(navigate).toHaveBeenCalledOnce();
+      expect(cancel).toHaveBeenCalledTimes(3);
+    } finally { fetcher.mockRestore(); }
+  });
+  it("retains measured first-audio diagnostics when a later segment fails without speaking queued text", async () => {
+    await app.inject({ method: "PUT", url: "/api/v1/settings/credentials", headers: headers(), payload: { apiKey: "test" } });
+    await app.inject(agentEvent({ kind: "wake", eventId: "wake" }));
+    const fetcher = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response(
+      'data: {"choices":[{"delta":{"content":"第一句话。第二句话。第三句话。"}}]}\n\ndata: [DONE]\n\n',
+      { headers: { "content-type": "text/event-stream" } },
+    ));
+    speak.mockResolvedValueOnce({ firstAudioMs: 23 }).mockRejectedValueOnce(new Error("second segment failed"));
+    try {
+      const result = await app.inject(command("partial-speech", "什么是激光雷达"));
+      expect(result.json()).toMatchObject({ accepted: false, category: "rejected", speechDelivered: true });
+      expect(result.json().firstAudioMs).toBeGreaterThanOrEqual(23);
+      expect(result.json().deliveryError).toBeTruthy();
+      expect(speak.mock.calls.map((call) => call[0])).toEqual(["第一句话。", "第二句话。"]);
+      const state = (await app.inject({ url: "/api/v1/state", headers: headers() })).json();
+      expect(state.voiceDiagnostics).toMatchObject({ sampleCount: 1, audibleSampleCount: 1,
+        latest: { accepted: false, speechDelivered: true } });
+    } finally { fetcher.mockRestore(); }
+  });
+  it("ignores a superseded playback failure and cannot cancel or diagnose the new turn", async () => {
+    await app.inject({ method: "PUT", url: "/api/v1/settings/credentials", headers: headers(), payload: { apiKey: "test" } });
+    await app.inject(agentEvent({ kind: "wake", eventId: "wake" }));
+    const fetcher = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response(
+      'data: {"choices":[{"delta":{"content":"第一句话。第二句话。"}}]}\n\ndata: [DONE]\n\n',
+      { headers: { "content-type": "text/event-stream" } },
+    ));
+    let failOld!: () => void;
+    let started!: () => void;
+    const entered = new Promise<void>((resolve) => { started = resolve; });
+    speak.mockImplementationOnce(() => new Promise((_resolve, reject) => {
+      failOld = () => reject(new Error("cancelled old playback"));
+      started();
+    }));
+    try {
+      const previous = app.inject(command("old-question", "什么是激光雷达"));
+      await entered;
+      expect((await app.inject(agentEvent({ kind: "wake", eventId: "new-wake", sessionId: "next" }))).statusCode).toBe(204);
+      const next = await app.inject(command("new-command", "去灵犀展台", "next"));
+      failOld();
+      expect(next.json()).toMatchObject({ accepted: true, category: "command", speechDelivered: true });
+      expect((await previous).statusCode).toBe(204);
+      expect(cancel.mock.calls.map((call) => call[0])).toEqual(["reply:voice:old-question"]);
+      expect(speak.mock.calls.map((call) => call[0])).not.toContain("第二句话。");
+      const state = (await app.inject({ url: "/api/v1/state", headers: headers() })).json();
+      expect(state.voiceDiagnostics).toMatchObject({ sampleCount: 1, latest: { accepted: true, category: "command" } });
+    } finally { fetcher.mockRestore(); }
+  });
 });

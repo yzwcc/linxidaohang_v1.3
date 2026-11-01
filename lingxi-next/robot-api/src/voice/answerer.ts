@@ -22,37 +22,45 @@ export class Answerer {
     } = {},
   ) {}
 
-  async answer(question: string): Promise<Answer> {
+  async answer(question: string, cancellation?: AbortSignal): Promise<Answer> {
+    cancellation?.throwIfAborted();
     const cleanQuestion = question.trim().slice(0, 1500);
     if (!cleanQuestion) return { text: "请说出你想了解的问题。", source: "refusal" };
     if (requiresRobotState(cleanQuestion)) {
       const answer = await this.robotStateAnswer(cleanQuestion);
+      cancellation?.throwIfAborted();
       return answer ?? { text: UNKNOWN_FACT, source: "refusal" };
     }
     if (requiresKnowledge(cleanQuestion)) {
-      const chunks = await this.searchKnowledge(cleanQuestion).catch(() => []);
+      const chunks = await this.searchKnowledge(cleanQuestion, cancellation).catch(() => []);
+      cancellation?.throwIfAborted();
       const best = chunks.filter((item) => item.score >= FACT_THRESHOLD).sort((a, b) => b.score - a.score)[0];
       if (!best) return { text: UNKNOWN_FACT, source: "refusal" };
       return { text: best.text, source: "retriever" };
     }
     if (requiresLiveKnowledge(cleanQuestion)) return { text: UNKNOWN_FACT, source: "refusal" };
     try {
-      return { text: await this.askModel(cleanQuestion), source: "model" };
+      const text = await this.askModel(cleanQuestion, cancellation);
+      cancellation?.throwIfAborted();
+      return { text, source: "model" };
     } catch {
+      cancellation?.throwIfAborted();
       return { text: "大模型暂时不可用，我没有处理这个问题。", source: "refusal" };
     }
   }
 
   async streamAnswer(question: string, onSegment: (text: string) => void, cancellation?: AbortSignal): Promise<Answer> {
+    cancellation?.throwIfAborted();
     const clean = question.trim().slice(0, 1500);
     if (!clean || requiresRobotState(clean) || requiresKnowledge(clean) || requiresLiveKnowledge(clean)) {
-      const answer = await this.answer(clean);
+      const answer = await this.answer(clean, cancellation);
       cancellation?.throwIfAborted();
       onSegment(answer.text);
       return answer;
     }
     let text = "";
     let pending = "";
+    const emittedSegments: string[] = [];
     const controller = new AbortController();
     const firstSegmentTimer = setTimeout(() => controller.abort(new Error("First segment timeout")), 1600);
     const totalTimer = setTimeout(() => controller.abort(new Error("Answer timeout")), this.options.modelTimeoutMs ?? 8000);
@@ -62,6 +70,7 @@ export class Answerer {
       const credentials = await this.store.readCredentials();
       if (!credentials.apiKey) throw new Error("Model credential missing");
       const ai = (await this.store.read()).ai;
+      signal.throwIfAborted();
       const baseUrl = ai.provider === "ark"
         ? process.env.ARK_API_BASE_URL ?? "https://ark.cn-beijing.volces.com/api/v3"
         : ai.baseUrl;
@@ -88,13 +97,22 @@ export class Answerer {
         emitted = true;
         clearTimeout(firstSegmentTimer);
         onSegment(value.trim());
+        emittedSegments.push(value.trim());
       };
       const parser = createParser({
         maxBufferSize: 64_000,
         onEvent(event) {
+          if (done) return;
           if (event.data === "[DONE]") { done = true; return; }
-          const message = JSON.parse(event.data) as { choices?: { delta?: { content?: string }; finish_reason?: string }[] };
+          const message = JSON.parse(event.data) as {
+            error?: unknown;
+            choices?: { delta?: { content?: string }; finish_reason?: string | null }[];
+          };
+          if (event.event === "error" || message.error) throw new Error("Model stream failed");
           const choice = message.choices?.[0];
+          if (choice?.finish_reason != null && choice.finish_reason !== "stop") {
+            throw new Error("Model stream did not finish normally");
+          }
           const token = choice?.delta?.content;
           if (typeof token === "string") {
             text += token;
@@ -110,7 +128,7 @@ export class Answerer {
           }
           if (choice?.finish_reason === "stop") done = true;
         },
-        onError(error) { throw error; },
+        onError(error) { if (!done) throw error; },
       });
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
@@ -124,7 +142,7 @@ export class Answerer {
           if (chunk.done) break;
           parser.feed(decoder.decode(chunk.value, { stream: true }));
         }
-        parser.feed(decoder.decode());
+        if (!done) parser.feed(decoder.decode());
         if (!done || !text.trim()) throw new Error("Incomplete model stream");
         emit(pending);
         return { text: text.trim(), source: "model" };
@@ -136,7 +154,7 @@ export class Answerer {
       if (cancellation?.aborted) throw cancellation.reason;
       const refusal = emitted ? "回答中断，未完成的内容暂时无法核实。" : "大模型暂时不可用，我没有处理这个问题。";
       onSegment(refusal);
-      return { text: emitted ? `${text}\n${refusal}` : refusal, source: "refusal" };
+      return { text: [...emittedSegments, refusal].join("\n"), source: "refusal" };
     } finally {
       clearTimeout(firstSegmentTimer);
       clearTimeout(totalTimer);
@@ -167,8 +185,9 @@ export class Answerer {
     return null;
   }
 
-  private async searchKnowledge(query: string): Promise<RetrievedChunk[]> {
+  private async searchKnowledge(query: string, cancellation?: AbortSignal): Promise<RetrievedChunk[]> {
     const credentials = await this.store.readCredentials();
+    cancellation?.throwIfAborted();
     const appId = credentials.linksoulAppId;
     const appKey = credentials.linksoulAppKey;
     const appSecret = credentials.linksoulAppSecret;
@@ -199,7 +218,8 @@ export class Answerer {
           check_qa_first: false,
           score_threshold: FACT_THRESHOLD,
         }),
-        signal: AbortSignal.timeout(this.options.retrieverTimeoutMs ?? 1200),
+        signal: cancellation ? AbortSignal.any([cancellation, AbortSignal.timeout(this.options.retrieverTimeoutMs ?? 1200)])
+          : AbortSignal.timeout(this.options.retrieverTimeoutMs ?? 1200),
       },
     );
     if (!response.ok) throw new Error(`Knowledge retrieval failed with ${response.status}`);
@@ -214,11 +234,12 @@ export class Answerer {
     });
   }
 
-  private async askModel(question: string): Promise<string> {
+  private async askModel(question: string, cancellation?: AbortSignal): Promise<string> {
     const credentials = await this.store.readCredentials();
     const key = credentials.apiKey;
     if (!key) throw new Error("Model credential is not configured");
     const ai = await this.store.read().then((state) => state.ai);
+    cancellation?.throwIfAborted();
     const baseUrl = ai.provider === "ark"
       ? process.env.ARK_API_BASE_URL ?? "https://ark.cn-beijing.volces.com/api/v3"
       : ai.baseUrl;
@@ -240,12 +261,16 @@ export class Answerer {
           { role: "user", content: question },
         ],
       }),
-      signal: AbortSignal.timeout(this.options.modelTimeoutMs ?? 1800),
+      signal: cancellation ? AbortSignal.any([cancellation, AbortSignal.timeout(this.options.modelTimeoutMs ?? 1800)])
+        : AbortSignal.timeout(this.options.modelTimeoutMs ?? 1800),
     });
     if (!response.ok) throw new Error(`Model request failed with ${response.status}`);
     const payload = await response.json() as {
-      choices?: { message?: { content?: string | { text?: string }[] } }[];
+      choices?: { message?: { content?: string | { text?: string }[] }; finish_reason?: string | null }[];
     };
+    if (payload.choices?.[0]?.finish_reason != null && payload.choices[0].finish_reason !== "stop") {
+      throw new Error("Model answer did not finish normally");
+    }
     const content = payload.choices?.[0]?.message?.content;
     const text = typeof content === "string"
       ? content

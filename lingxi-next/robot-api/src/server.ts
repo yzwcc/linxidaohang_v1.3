@@ -176,8 +176,12 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
 
   function cancelReply(pending: PendingReply): Promise<void> {
     pending.cancellation.abort();
-    stoppingReplies.add(pending);
+    return stopPlayback(pending);
+  }
+
+  function stopPlayback(pending: PendingReply): Promise<void> {
     if (!pending.stop) {
+      stoppingReplies.add(pending);
       pending.stop = Promise.resolve().then(() => speaker.cancel?.(pending.speechId)).then(() => {
         stoppingReplies.delete(pending);
       }, (error) => {
@@ -743,7 +747,14 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
       await ready;
       if (!current()) return;
       const sentAt = performance.now();
-      const spoken = await speaker.speak(segment, pendingReply.speechId);
+      let spoken: { firstAudioMs: number };
+      try {
+        spoken = await speaker.speak(segment, pendingReply.speechId);
+      } catch (error) {
+        // A failed HTTP/SDK response does not prove that audio has stopped.
+        void stopPlayback(pendingReply).catch(() => undefined);
+        throw error;
+      }
       if (!speechDelivered) {
         firstAudioMs = Math.round(sentAt - requestStartedAt + spoken.firstAudioMs);
         if (event.kind === "recognition") {
@@ -787,16 +798,34 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
           break;
         case "question": {
           let playback = Promise.resolve();
-          const answer = await answerer.streamAnswer(routed.intent.text, (segment) => {
-            playback = playback.then(() => speakSegment(segment));
-            // Observe rejection immediately while the model may still stream.
-            void playback.catch(() => { deliveryError = "语音输出失败"; });
-          }, cancellation.signal);
-          await playback;
-          if (!current()) return reply.code(204).send();
-          text = answer.text;
-          category = answer.source === "refusal" ? "rejected" : "question";
-          accepted = answer.source !== "refusal";
+          const generation = new AbortController();
+          const generationSignal = AbortSignal.any([cancellation.signal, generation.signal]);
+          try {
+            const answer = await answerer.streamAnswer(routed.intent.text, (segment) => {
+              if (generationSignal.aborted) return;
+              playback = playback.then(() => generationSignal.aborted ? undefined : speakSegment(segment));
+              void playback.catch((error) => {
+                deliveryError = "语音输出失败";
+                // Preserve turn ownership so this failure still produces diagnostics.
+                generation.abort(error);
+              });
+            }, generationSignal);
+            await playback;
+            if (!current()) return reply.code(204).send();
+            text = answer.text;
+            category = answer.source === "refusal" ? "rejected" : "question";
+            accepted = answer.source !== "refusal";
+          } catch (error) {
+            if (deliveryError) {
+              text = "回答未完成，语音输出失败。";
+              category = "rejected";
+              accepted = false;
+            }
+            throw error;
+          } finally {
+            generation.abort();
+            await playback.catch(() => undefined);
+          }
           break;
         }
         default:

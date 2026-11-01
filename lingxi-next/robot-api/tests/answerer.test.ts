@@ -91,18 +91,29 @@ describe("grounded answers and bounded cloud calls", () => {
     expect((await new Answerer(store, new DemoAdapter(), { fetcher }).answer("什么是激光雷达")).source).toBe("refusal");
     expect(fetcher).toHaveBeenCalledTimes(1);
   });
+  it.each(["length", "content_filter", "tool_calls", "function_call"])("refuses a nonstream model answer with unsuccessful finish reason %s", async (reason) => {
+    const store = new MemoryStore();
+    store.credentials.apiKey = "test";
+    const fetcher = vi.fn(async () => Response.json({
+      choices: [{ message: { content: "不应作为完整回答接受。" }, finish_reason: reason }],
+    }));
+    const result = await new Answerer(store, new DemoAdapter(), { fetcher }).answer("什么是激光雷达");
+    expect(result.source).toBe("refusal");
+    expect(result.text).not.toContain("不应作为完整回答接受");
+  });
 });
 
 describe("streaming model replies", () => {
-  const stream = (chunks: string[]) => new Response(new ReadableStream({
+  const stream = (chunks: string[], chunkBytes = 7) => new Response(new ReadableStream({
     start(controller) {
       const bytes = new TextEncoder().encode(chunks.join(""));
       // Split inside UTF-8 characters and SSE frame boundaries.
-      for (let i = 0; i < bytes.length; i += 7) controller.enqueue(bytes.slice(i, i + 7));
+      for (let i = 0; i < bytes.length; i += chunkBytes) controller.enqueue(bytes.slice(i, i + chunkBytes));
       controller.close();
     },
   }), { headers: { "content-type": "text/event-stream" } });
   const delta = (text: string) => `data: ${JSON.stringify({ choices: [{ delta: { content: text } }] })}\n\n`;
+  const finish = (reason: string) => `data: ${JSON.stringify({ choices: [{ delta: {}, finish_reason: reason }] })}\n\n`;
   it("parses split UTF-8 SSE frames and emits the first sentence before completion", async () => {
     const store = new MemoryStore();
     store.credentials.apiKey = "test";
@@ -121,6 +132,84 @@ describe("streaming model replies", () => {
     }).streamAnswer("什么是雷达", (text) => segments.push(text));
     expect(result.source).toBe("refusal");
     expect(segments[1]).toContain("回答中断");
+  });
+  it.each(["length", "content_filter", "tool_calls", "function_call", "unknown_reason"])("does not let DONE erase an unsuccessful terminal reason: %s", async (reason) => {
+    const store = new MemoryStore();
+    store.credentials.apiKey = "test";
+    const segments: string[] = [];
+    const rejected = `data: ${JSON.stringify({ choices: [{ delta: { content: "不能播出的尾句。" }, finish_reason: reason }] })}\n\n`;
+    const result = await new Answerer(store, new DemoAdapter(), {
+      fetcher: vi.fn(async () => stream([delta("先给出一句话。"), rejected, "data: [DONE]\n\n"], 65536)),
+    }).streamAnswer("什么是雷达", (text) => segments.push(text));
+    expect(result.source).toBe("refusal");
+    expect(segments).toEqual(["先给出一句话。", "回答中断，未完成的内容暂时无法核实。"]);
+    expect(result.text).not.toContain("不能播出");
+  });
+  it.each(["data: [DONE]\n\n", finish("stop")])("ignores trailing events in the same network chunk after a successful terminal: %s", async (terminal) => {
+    const store = new MemoryStore();
+    store.credentials.apiKey = "test";
+    const segments: string[] = [];
+    const result = await new Answerer(store, new DemoAdapter(), {
+      fetcher: vi.fn(async () => stream([delta("正常回答。"), terminal, delta("终止后不允许追加。"), "data: invalid-json\n\n"], 65536)),
+    }).streamAnswer("什么是雷达", (text) => segments.push(text));
+    expect(result).toEqual({ source: "model", text: "正常回答。" });
+    expect(segments).toEqual(["正常回答。"]);
+  });
+  it("never includes unsent pending text in an interrupted answer", async () => {
+    const store = new MemoryStore();
+    store.credentials.apiKey = "test";
+    const segments: string[] = [];
+    const result = await new Answerer(store, new DemoAdapter(), {
+      fetcher: vi.fn(async () => stream([delta("已输出的句子。"), delta("尚未成句的内容"), finish("length")], 65536)),
+    }).streamAnswer("什么是雷达", (text) => segments.push(text));
+    expect(result.source).toBe("refusal");
+    expect(result.text).toBe(segments.join("\n"));
+    expect(result.text).not.toContain("尚未成句");
+  });
+  it("does not silently ignore a provider error frame after partial text", async () => {
+    const store = new MemoryStore();
+    store.credentials.apiKey = "test";
+    const result = await new Answerer(store, new DemoAdapter(), {
+      fetcher: vi.fn(async () => stream([delta("先给出一句话。"), 'data: {"error":{"code":"upstream_error"}}\n\n', "data: [DONE]\n\n"])),
+    }).streamAnswer("什么是雷达", () => undefined);
+    expect(result.source).toBe("refusal");
+  });
+  it("does not start cloud work for an already cancelled question", async () => {
+    const store = new MemoryStore();
+    store.credentials.apiKey = "test";
+    const cancellation = new AbortController();
+    cancellation.abort(new Error("superseded turn"));
+    const fetcher = vi.fn(async () => stream([delta("旧回答。"), "data: [DONE]\n\n"]));
+    const emit = vi.fn();
+    await expect(new Answerer(store, new DemoAdapter(), { fetcher })
+      .streamAnswer("什么是雷达", emit, cancellation.signal)).rejects.toThrow("superseded turn");
+    expect(fetcher).not.toHaveBeenCalled();
+    expect(emit).not.toHaveBeenCalled();
+  });
+  it("propagates session cancellation to a stalled Retriever call without a fallback", async () => {
+    const store = new MemoryStore();
+    store.credentials = { linksoulAppId: "id", linksoulAppKey: "key", linksoulAppSecret: "secret", agentCode: "agent" };
+    const cancellation = new AbortController();
+    const emit = vi.fn();
+    let observed!: AbortSignal;
+    let release!: () => void;
+    const entered = new Promise<void>((resolve) => { release = resolve; });
+    const fetcher = vi.fn(async (_url: unknown, init?: RequestInit) => {
+      observed = init!.signal!;
+      release();
+      return new Promise<Response>((_resolve, reject) => {
+        observed.addEventListener("abort", () => reject(observed.reason), { once: true });
+      });
+    });
+    const result = new Answerer(store, new DemoAdapter(), { fetcher })
+      .streamAnswer("展厅开放时间", emit, cancellation.signal);
+    const rejected = expect(result).rejects.toThrow("session ended");
+    await entered;
+    cancellation.abort(new Error("session ended"));
+    expect(observed.aborted).toBe(true);
+    await rejected;
+    expect(emit).not.toHaveBeenCalled();
+    expect(fetcher).toHaveBeenCalledOnce();
   });
   it("cancels without emitting a late fallback reply", async () => {
     const store = new MemoryStore();
