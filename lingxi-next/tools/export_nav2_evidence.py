@@ -9,7 +9,7 @@ from pathlib import Path
 
 from prepare_nav2_offline import ROOT, strict_object
 from run_nav2_offline import (CASES, FUSED_CASES, assess_fused_costmaps,
-                             assess_trial, world)
+                             assess_native_costmaps, assess_trial, world)
 
 
 PREPARATION_SOURCES = (
@@ -31,17 +31,24 @@ def digest(path):
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
 
-def audit(report):
+def audit(report, *, terrain_fixture=None):
     case = report['case']
     if case not in CASES:
         raise ValueError('known_offline_scene_required')
-    fused = case in FUSED_CASES
+    native = terrain_fixture is not None
+    if native:
+        from terrain_nav2_fixture import load
+        source, evidence = load(terrain_fixture, case)
+        if report.get('nativeTerrain') != evidence:
+            raise ValueError('unchanged_actual_native_terrain_fixture_required')
+    fused = case in FUSED_CASES or native
     sources = {name: digest(ROOT / name) for name in PREPARATION_SOURCES}
     policy = ('full_support_fused_revisions_no_secondary_clearing' if fused
               else 'mark_only_latched_no_automatic_clearing')
     if (report['preparationSources'] != sources
             or report['runnerSha256'] != digest(ROOT / RUNNER)
-            or report['purpose'] != 'synthetic_planar_nav2_integration_not_field_acceptance'
+            or report['purpose'] != ('synthetic_native_terrain_nav2_integration_not_field_acceptance' if native
+                                     else 'synthetic_planar_nav2_integration_not_field_acceptance')
             or report['passed'] is not True or report['syntheticInputs'] is not True
             or report['lifecycleStates'] != [3] * 4
             or report.get('observedDdsPublicationTimestamp') is not True
@@ -56,12 +63,13 @@ def audit(report):
             or report.get('publicationTimestampScope') != 'velocity_smoother_dds_write_not_controller_compute'
             or any(report[key] is not False for key in FALSE_FLAGS)
             or report['dynamicObstaclePolicy'] != policy
-            or report['syntheticOracleNotOctomap'] is not fused
+            or report['syntheticOracleNotOctomap'] is not (fused and not native)
             or report['runtimeState']['offlineOnly'] is not True
             or any(report['runtimeState'][key] is not False
                    for key in ('physicalMotionSent', 'navigationReady'))):
         raise ValueError('current_source_bound_offline_trial_required')
-    source = world(case)
+    if not native:
+        source = world(case)
     if case == 'disappearing-obstacle':
         source['obstacle_removed_pose_index'] = next(
             (index for index, pose in enumerate(report['trajectory']) if pose[0] >= .15), 0)
@@ -69,6 +77,8 @@ def audit(report):
                               report['globalPlans'], report['runtimeState'])
     if fused:
         assessment['checks'].update(assess_fused_costmaps(case, report['costmapSamples']))
+        if native:
+            assessment['checks'].update(assess_native_costmaps(source, report['costmapSamples']))
         assessment['passed'] = all(assessment['checks'].values())
     if (assessment['passed'] is not True or assessment['checks'] != report['checks']
             or report['requiredEnvelopeRadiusMetres'] != assessment['requiredEnvelopeRadiusMetres']
@@ -77,15 +87,16 @@ def audit(report):
             or report['commandCount'] != len(report['observedCommands'])
             or report['controllerExecuted'] is not bool(report['observedCommands'])
             or report['maximumAbsY'] != max(abs(pose[1]) for pose in report['trajectory'])
-            or (fused and (type(report['fusedMapRevision']) is not int
+            or (fused and not native and (type(report['fusedMapRevision']) is not int
                            or report['fusedMapRevision'] <= 0
-                           or len(report['fusedSnapshotSha256']) != 64))):
+                           or len(report['fusedSnapshotSha256']) != 64))
+            or (native and (report['fusedMapRevision'] is not None or report['fusedSnapshotSha256'] is not None))):
         raise ValueError('raw_trajectory_costmap_and_summary_must_agree')
     keys = ('case', 'passed', 'checks', 'finalPose', 'minimumSweptObstacleDistanceMetres',
             'maximumAbsY', 'commandCount', 'elapsedSeconds', 'dynamicObstaclePolicy',
             'syntheticOracleNotOctomap', 'fusedMapRevision', 'fusedSnapshotSha256',
             'publicationSamplesVerified', 'maximumPublicationAgeSeconds')
-    return {key: report[key] for key in keys}
+    return {key: report[key] for key in (*keys, *(('nativeTerrain',) if native else ()))}
 
 
 def reject_constant(value):

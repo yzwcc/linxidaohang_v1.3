@@ -35,6 +35,8 @@ test("actual source inventory contains the native provenance required by runtime
   const sources = await sourceHashes();
   for (const name of ["tools/glim-replay/offline.cpp", "tools/glim-replay/CMakeLists.txt",
     "tools/glim-mapping/mapping.cpp", "tools/glim-mapping/CMakeLists.txt",
+    ...["CMakeLists.txt", "observation-capture.patch", "observation_capture.cpp", "observation_capture.hpp"]
+      .map((name) => `tools/glim-observations/${name}`),
     ...["point_output.h", "point_output.cpp", "point_output_contract.cpp", "CMakeLists.txt",
       "exports.map", "verify_exports.cmake"].map((name) => `robot-slam/native-point-output/${name}`)]) {
     assert.match(sources[name], /^[a-f0-9]{64}$/);

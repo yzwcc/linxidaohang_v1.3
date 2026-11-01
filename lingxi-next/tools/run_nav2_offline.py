@@ -4,6 +4,7 @@ This is an actual ROS controller integration test, not an X2 physics simulator,
 not a real-map acceptance, and never a physical transport. Requires ROS Humble.
 """
 import argparse
+import base64
 from dataclasses import asdict
 import hashlib
 import json
@@ -199,6 +200,33 @@ def assess_fused_costmaps(case, samples):
     return checks
 
 
+def assess_native_costmaps(source, samples):
+    geometry = dict(width=source['width'], height=source['height'], resolution=source['resolution'],
+                    origin=list(source['origin']))
+    valid = bool(samples)
+    unknown_blocked = occupied_blocked = True
+    for sample in samples:
+        try:
+            data = base64.b64decode(sample['nativeCosts'], validate=True)
+            actual = sample['nativeGeometry']
+            same_geometry = (set(actual) == set(geometry) and actual['width'] == geometry['width']
+                and actual['height'] == geometry['height']
+                and abs(actual['resolution'] - geometry['resolution']) < 1e-7
+                and len(actual['origin']) == 2
+                and all(abs(a - b) < 1e-7 for a, b in zip(actual['origin'], geometry['origin']))
+                and len(data) == len(source['cells']))
+            valid &= same_geometry and set(data) <= set(range(101)) | {255}
+            if not same_geometry:
+                continue
+            unknown_blocked &= all(cell in (255, 100) for old, cell in zip(source['cells'], data) if old == -1)
+            occupied_blocked &= all(cell == 100 for old, cell in zip(source['cells'], data) if old == 100)
+        except (ValueError, KeyError, TypeError):
+            valid = False
+    return dict(actualNativeGridGeometry=bool(valid),
+                actualNativeUnknownBlocked=bool(valid and unknown_blocked),
+                actualNativeObstaclesBlocked=bool(valid and occupied_blocked))
+
+
 class Observer:
     offline_only = True
 
@@ -218,7 +246,7 @@ def signal_generation(process, value):
         pass
 
 
-def execute(output, case, maximum_seconds=75.):
+def execute(output, case, maximum_seconds=75., *, terrain_fixture=None):
     if (os.environ.get('ROS_LOCALHOST_ONLY') != '1'
             or os.environ.get('RMW_IMPLEMENTATION') != 'rmw_fastrtps_cpp'
             or os.environ.get('ROS_DISTRO') != 'humble'):
@@ -229,14 +257,19 @@ def execute(output, case, maximum_seconds=75.):
         raise ValueError('isolated_loopback_network_namespace_required')
     domain = int(os.environ['ROS_DOMAIN_ID'])
     runner_sha = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
-    fused_mode = case in FUSED_CASES
+    terrain_evidence = None
+    if terrain_fixture is not None:
+        from terrain_nav2_fixture import load
+        source, terrain_evidence = load(terrain_fixture, case)
+    else:
+        source = world(case)
+    fused_mode = case in FUSED_CASES or terrain_fixture is not None
     manifest = prepare(synthetic_platform(), output, domain_id=domain,
         map_mode='support_fused_revisions' if fused_mode else 'latched_obstacles')
     namespace = manifest['namespace']
-    source = world(case)
     sha = hashlib.sha256(json.dumps(source, sort_keys=True).encode()).hexdigest()
     identity = MapIdentity('slam-' + namespace[-32:], sha, sha, sha)
-    fused_maps = SyntheticFusedMaps(source, identity) if fused_mode else None
+    fused_maps = SyntheticFusedMaps(source, identity) if fused_mode and terrain_fixture is None else None
     import rclpy
     from rclpy.action import ActionClient
     from rclpy.qos import QoSProfile, DurabilityPolicy, ReliabilityPolicy
@@ -362,8 +395,12 @@ def execute(output, case, maximum_seconds=75.):
             if not 0 <= ix < msg.info.width or not 0 <= iy < msg.info.height:
                 return None
             return int(msg.data[iy * msg.info.width + ix])
-        costmap_samples.append(dict(removed=obstacle_removed, obstacle=cell(1., 0.),
-                                   unknown=cell(-1.975, -2.975)))
+        sample = dict(removed=obstacle_removed, obstacle=cell(1., 0.), unknown=cell(-1.975, -2.975))
+        if terrain_evidence is not None:
+            sample.update(nativeCosts=base64.b64encode(bytes(value & 255 for value in msg.data)).decode(),
+                nativeGeometry=dict(width=msg.info.width, height=msg.info.height, resolution=msg.info.resolution,
+                    origin=[msg.info.origin.position.x, msg.info.origin.position.y]))
+        costmap_samples.append(sample)
     costmap_subscription = node.create_subscription(OccupancyGrid, 'global_costmap/costmap',
                                                    observe_costmap, reliable)
     lifecycle = [node.create_client(GetState, name + '/get_state') for name in
@@ -415,11 +452,11 @@ def execute(output, case, maximum_seconds=75.):
         grid.info.width, grid.info.height, grid.info.resolution = source['width'], source['height'], source['resolution']
         grid.info.origin.position.x, grid.info.origin.position.y = source['origin']
         grid.info.origin.orientation.w = 1.
-        grid.data = (fused_maps.update(not obstacle_removed) if fused_mode else source['cells'])
+        grid.data = fused_maps.update(not obstacle_removed) if fused_maps else source['cells']
         publishers['map'].publish(grid)
         cloud = PointCloud2()
         cloud.header.stamp, cloud.header.frame_id = now, namespace + '_map'
-        visible = source['points'] if obstacle_activated else []
+        visible = source['points'] if obstacle_activated and not terrain_evidence else []
         cloud.height, cloud.width = 1, len(visible)
         cloud.fields = [PointField(name=name, offset=i * 4, datatype=PointField.FLOAT32, count=1)
                         for i, name in enumerate(('x', 'y', 'z'))]
@@ -477,7 +514,13 @@ def execute(output, case, maximum_seconds=75.):
         assessment = assess_trial(case, source, poses, commands, plans, result)
         if fused_mode:
             assessment['checks'].update(assess_fused_costmaps(case, costmap_samples))
+            if terrain_evidence is not None:
+                assessment['checks'].update(assess_native_costmaps(source, costmap_samples))
             assessment['passed'] = all(assessment['checks'].values())
+        if terrain_fixture is not None:
+            from terrain_nav2_fixture import load
+            if load(terrain_fixture, case)[1] != terrain_evidence:
+                raise RuntimeError('native_terrain_fixture_changed_during_trial')
         if (runner_sha != hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
                 or any(hashlib.sha256((ROOT / name).read_bytes()).hexdigest() != sha
                        for name, sha in manifest['sources'].items())):
@@ -487,7 +530,9 @@ def execute(output, case, maximum_seconds=75.):
             'ros-humble-dwb-critics', 'ros-humble-nav2-navfn-planner',
             'ros-humble-nav2-regulated-pure-pursuit-controller',
             'ros-humble-nav2-velocity-smoother'], text=True).splitlines()
-        report = dict(schemaVersion=1, purpose='synthetic_planar_nav2_integration_not_field_acceptance',
+        purpose = ('synthetic_native_terrain_nav2_integration_not_field_acceptance' if terrain_evidence
+                   else 'synthetic_planar_nav2_integration_not_field_acceptance')
+        report = dict(schemaVersion=1, purpose=purpose,
             case=case, **assessment, installedPackages=packages, preparedSource=manifest['upstream'],
             preparationSources=manifest['sources'],
             runnerSha256=runner_sha,
@@ -498,7 +543,8 @@ def execute(output, case, maximum_seconds=75.):
             maximumAbsY=max(abs(value[1]) for value in poses), runtimeState={**result, 'ticket': asdict(result['ticket'])},
             syntheticInputs=True, groundSupportMeasured=False, controllerExecuted=bool(commands),
             dynamicObstaclePolicy=manifest['dynamicObstaclePolicy'],
-            costmapSamples=costmap_samples, syntheticOracleNotOctomap=fused_mode,
+            costmapSamples=costmap_samples, syntheticOracleNotOctomap=bool(fused_maps),
+            nativeTerrain=terrain_evidence,
             fusedMapRevision=fused_maps.revision if fused_maps else None,
             fusedSnapshotSha256=fused_maps.latest.sha256 if fused_maps else None,
             observedTwistHasSourceTimestamp=False,
@@ -536,10 +582,11 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--case', choices=CASES, required=True)
+    parser.add_argument('--terrain-fixture', type=Path)
     args = parser.parse_args()
     previous = os.umask(0o077)
     try:
-        value = execute(args.output, args.case)
+        value = execute(args.output, args.case, terrain_fixture=args.terrain_fixture)
         print(json.dumps({key: value[key] for key in ('case', 'passed', 'commandCount', 'finalPose',
               'maximumAbsY', 'controllerExecuted', 'physicalMotionSent', 'navigationReady')}))
         sys.exit(0 if value['passed'] else 1)

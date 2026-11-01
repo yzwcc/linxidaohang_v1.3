@@ -30,8 +30,8 @@
     "robot-navigation/lingxi_navigation/occupancy.py": "9807c3b12077dcd314d3413134f34248c1c9ebfcc9a11e8af10c8d549a088710",
     "robot-navigation/lingxi_navigation/navfn.py": "e86dced7b77d57136359a46963b69563fb4a53f995674a416248a0e80086caa8",
     "tools/humble_velocity_source.py": "a2b8c6f59a96931c97bbecd365f24cd7339cde2cad4507f69ebc3ce87dd85889",
-    "tools/run_nav2_offline.py": "9bc35cea4f83cc3241cdfddc94f15a704ac2d91df0c7eb4aec133b9897805c15",
-    "tools/export_nav2_evidence.py": "9444550251bd3a1bf37f142cfbcdcbc2ac08b6c8d8a24c36e3d8edf5b3fc060f"
+    "tools/run_nav2_offline.py": "6edea313fa59241ca240063f093c2b95cc79867314d4fc9e6c7a53fbf493a056",
+    "tools/export_nav2_evidence.py": "4e109697056e1ed6f78a37e1f831065d054fa797efa35fff53bf241759edad9a"
   },
   "requiredEnvelopeRadiusMetres": 0.4,
   "cases": [
@@ -51,21 +51,21 @@
         "headingReached": true
       },
       "finalPose": [
-        1.8531106555487304,
-        3.160377217248435e-08,
-        -1.503864863630019e-07
+        1.8538858903160627,
+        3.162381451999803e-08,
+        -1.5158689512164453e-07
       ],
       "minimumSweptObstacleDistanceMetres": null,
-      "maximumAbsY": 4.6899652390824434e-08,
-      "commandCount": 235,
-      "elapsedSeconds": 13.889689205000003,
+      "maximumAbsY": 4.692800011705471e-08,
+      "commandCount": 236,
+      "elapsedSeconds": 14.586887098999966,
       "dynamicObstaclePolicy": "mark_only_latched_no_automatic_clearing",
       "syntheticOracleNotOctomap": false,
       "fusedMapRevision": null,
       "fusedSnapshotSha256": null,
-      "publicationSamplesVerified": 235,
-      "maximumPublicationAgeSeconds": 0.011869982,
-      "reportSha256": "5f0a8623a019535cc55959878ded35b4b389c6e36e0afa7e73f4353e6b65af1b"
+      "publicationSamplesVerified": 236,
+      "maximumPublicationAgeSeconds": 0.011454389,
+      "reportSha256": "3531dc7f267ee10ef48e453d0191d3189f27a15531d4f46cae70db3066f4e2a0"
     },
     {
       "case": "blocked",
@@ -88,14 +88,14 @@
       "minimumSweptObstacleDistanceMetres": 1.0,
       "maximumAbsY": 0.0,
       "commandCount": 0,
-      "elapsedSeconds": 1.7889495809999971,
+      "elapsedSeconds": 1.6009953060000157,
       "dynamicObstaclePolicy": "mark_only_latched_no_automatic_clearing",
       "syntheticOracleNotOctomap": false,
       "fusedMapRevision": null,
       "fusedSnapshotSha256": null,
       "publicationSamplesVerified": 0,
       "maximumPublicationAgeSeconds": 0.0,
-      "reportSha256": "e3edfdf3f9c9e956de2d939470575b6228c163f1694400c42c0c35437d8d5938"
+      "reportSha256": "977ed01aeb64e645fc78cbd51c097bbc41cdf33913242e02d0b3d114127a1dc8"
     },
     {
       "case": "detour",
@@ -114,21 +114,21 @@
         "obstacleActuallyBypassed": true
       },
       "finalPose": [
-        1.985201902543499,
-        0.14010448497885816,
-        -0.12420941445497044
+        1.9852672166905974,
+        0.14128076161473158,
+        -0.129149574183472
       ],
-      "minimumSweptObstacleDistanceMetres": 0.7285979025638252,
-      "maximumAbsY": 1.039447380893933,
-      "commandCount": 576,
-      "elapsedSeconds": 31.27219345900002,
+      "minimumSweptObstacleDistanceMetres": 0.7230894310198249,
+      "maximumAbsY": 1.0450728037163255,
+      "commandCount": 561,
+      "elapsedSeconds": 30.227228018000005,
       "dynamicObstaclePolicy": "mark_only_latched_no_automatic_clearing",
       "syntheticOracleNotOctomap": false,
       "fusedMapRevision": null,
       "fusedSnapshotSha256": null,
-      "publicationSamplesVerified": 576,
-      "maximumPublicationAgeSeconds": 0.01191206,
-      "reportSha256": "27feba0d11d8a1582c1c7b5fedaaad8fd38965a0b526d8f9a830fa373f011592"
+      "publicationSamplesVerified": 561,
+      "maximumPublicationAgeSeconds": 0.01188292,
+      "reportSha256": "7ae5303ab97926d6f1cc4ca8af5f75eb126105c73b4605f531bbeeebed0ceca2"
     },
     {
       "case": "appearing-wall",
@@ -146,21 +146,21 @@
         "stoppedBeforeWall": true
       },
       "finalPose": [
-        0.2903431997178783,
-        2.8906882555787353e-08,
-        8.946021463662993e-08
+        0.2976270144318715,
+        2.9635086891924335e-08,
+        8.734140812243745e-08
       ],
-      "minimumSweptObstacleDistanceMetres": 0.7096568002821223,
-      "maximumAbsY": 2.8906882555787353e-08,
-      "commandCount": 41,
-      "elapsedSeconds": 4.365344137999999,
+      "minimumSweptObstacleDistanceMetres": 0.7023729855681291,
+      "maximumAbsY": 2.9635086891924335e-08,
+      "commandCount": 42,
+      "elapsedSeconds": 4.683623863000037,
       "dynamicObstaclePolicy": "mark_only_latched_no_automatic_clearing",
       "syntheticOracleNotOctomap": false,
       "fusedMapRevision": null,
       "fusedSnapshotSha256": null,
-      "publicationSamplesVerified": 41,
-      "maximumPublicationAgeSeconds": 0.01109585,
-      "reportSha256": "d068a8c9660c51960f4c1e980435ab44ac74c18f0da8171c0766425ebd0c90a0"
+      "publicationSamplesVerified": 42,
+      "maximumPublicationAgeSeconds": 0.010819098,
+      "reportSha256": "9d3f41586391096df01e316bc0086d09b454291a997de2a64323980a2f5c9d70"
     },
     {
       "case": "disappearing-obstacle",
@@ -182,21 +182,21 @@
         "actualCostmapObstacleCleared": true
       },
       "finalPose": [
-        1.8827457959998357,
-        0.07867423360678652,
-        -0.1294467041941182
+        1.8827949034373157,
+        0.07888144570672513,
+        -0.13385309000536774
       ],
-      "minimumSweptObstacleDistanceMetres": 0.7878542320630733,
-      "maximumAbsY": 0.7621972808454776,
-      "commandCount": 494,
-      "elapsedSeconds": 27.769433178000003,
+      "minimumSweptObstacleDistanceMetres": 0.7883737726142396,
+      "maximumAbsY": 0.7633152705345511,
+      "commandCount": 490,
+      "elapsedSeconds": 26.540855317000023,
       "dynamicObstaclePolicy": "full_support_fused_revisions_no_secondary_clearing",
       "syntheticOracleNotOctomap": true,
-      "fusedMapRevision": 531,
-      "fusedSnapshotSha256": "31b0c47d896939fc3f76195f9eb62d20597ac1a6168fdf73ee81d80437ce5458",
-      "publicationSamplesVerified": 494,
-      "maximumPublicationAgeSeconds": 0.014862231,
-      "reportSha256": "d7d3d8fa4d564e3db4e318a384eaef515d9bed583341a4449345df9dd319b9f8"
+      "fusedMapRevision": 505,
+      "fusedSnapshotSha256": "45429be3a3b088167475921dfac45b92d680cde7426946e19f5e5f9e8f0689c5",
+      "publicationSamplesVerified": 490,
+      "maximumPublicationAgeSeconds": 0.015469216,
+      "reportSha256": "6b4fb4c39b0afd8e80e22b70ef60dc3d4e6727e0d5a53497b8b8e1118a829a4f"
     },
     {
       "case": "unsupported-shortcut",
@@ -217,21 +217,21 @@
         "actualCostmapUnsupportedNotOpened": true
       },
       "finalPose": [
-        2.086422990181005,
-        0.12000182413851962,
-        -0.12865579154405285
+        2.0859004175812377,
+        0.1197398359324206,
+        -0.13132631163541772
       ],
       "minimumSweptObstacleDistanceMetres": null,
-      "maximumAbsY": 1.1015080497714416,
-      "commandCount": 841,
-      "elapsedSeconds": 44.71536741000001,
+      "maximumAbsY": 1.0986945978312745,
+      "commandCount": 829,
+      "elapsedSeconds": 43.81959184599998,
       "dynamicObstaclePolicy": "full_support_fused_revisions_no_secondary_clearing",
       "syntheticOracleNotOctomap": true,
-      "fusedMapRevision": 856,
-      "fusedSnapshotSha256": "14e7e1c1b0ed9aa92f62220552c4adc15f4bf0e5073a216f763e5d4d2d8e5f7d",
-      "publicationSamplesVerified": 841,
-      "maximumPublicationAgeSeconds": 0.014044758,
-      "reportSha256": "49063a273a8d46dbe8cd71382c9a82de0a21d7162a3e9f5cf05131bc01782996"
+      "fusedMapRevision": 837,
+      "fusedSnapshotSha256": "48866c2c5f24baf1c43a646deb0e33ae87a160cdc3e5c7c8282f9359e02d1adf",
+      "publicationSamplesVerified": 829,
+      "maximumPublicationAgeSeconds": 0.01448282,
+      "reportSha256": "8487da4399e1d5c5bc64707787a533868125c0ef8521c13d8aa0213b76c9110c"
     }
   ],
   "syntheticInputs": true,

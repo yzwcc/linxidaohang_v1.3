@@ -28,6 +28,7 @@ DIRECTORIES = ("web", "robot-api/src", "robot-runtime/src", "robot-runtime/pytho
                "tools/glim-observations", "shared")
 METADATA = (
     "package.json", "package-lock.json", "vite.config.ts", "tsconfig.json", "tsconfig.api.json",
+    "capacitor.config.ts", "tools/build-identity.mjs",
     "tsconfig.runtime.json", "robot-runtime/build-live.mjs", "docs/slam-humble-live-evidence.json",
     "docs/slam-supervised-arm64-evidence.json", "docs/slam-point-arm64-target-evidence.json",
     "docs/slam-point-consumer-preparation-evidence.json", "docs/slam-native-point-pipe-evidence.json",
@@ -175,7 +176,7 @@ def check_assets(root, entries):
     if "api/main.mjs" not in entries or "web/index.html" not in entries:
         raise ValueError("complete_live_api_and_web_assets_required")
     for name in entries:
-        if name not in ("api/main.mjs", "web/index.html"):
+        if name not in ("api/main.mjs", "web/index.html", "web/lingxi-build.json"):
             if not re.fullmatch(r"web/assets/[A-Za-z0-9_.-]+\.(?:js|css|svg|png|jpg|webp|ico|woff2)", name):
                 raise ValueError("explicit_compiled_live_asset_required")
     parser = AssetReferences()

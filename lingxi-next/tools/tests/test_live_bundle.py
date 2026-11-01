@@ -145,6 +145,13 @@ class LiveBundleContracts(unittest.TestCase):
         (cache / "synthetic.pyc").write_bytes(b"synthetic cache")
         self.assertNotIn("web/__pycache__/synthetic.pyc", bundle.source_hashes())
 
+    def test_exact_web_build_identity_asset_is_allowed_without_allowing_arbitrary_json(self):
+        entries = {**self.build["files"], "web/lingxi-build.json": {}}
+        bundle.check_assets(self.assets, entries)
+        for name in ("web/private-config.json", "web/assets/extra.json", "web/lingxi-build.json.js.map"):
+            with self.subTest(name=name), self.assertRaisesRegex(ValueError, "explicit_compiled"):
+                bundle.check_assets(self.assets, {**entries, name: {}})
+
     def test_incomplete_assets_external_or_missing_html_references_are_rejected(self):
         for value in (b'<script src="/assets/absent.js"></script>',
                       b'<script src="https://synthetic.invalid/main.js"></script>', b"<html></html>"):

@@ -10,7 +10,7 @@ or deployment is authorized by completing an offline check.
 | Mapping | GLIM CPU full local/global mapping, corrected point-cloud preview, save/reload, per-return observation archive | Observed-map API save/discard passed on recorded input; moving multi-submap and overload regression remain required | Measured scale/heading, loop closure, long walking scan, ARM64 resource limits |
 | Localization | Explicit seeded small-gicp tracking, pose freshness, map provenance, base projection | Replay tracking, bad seeds, loss/recovery, stale generation and current observed-map loading | Independent moving trajectory and ground-truth errors; global relocalization remains a separate capability |
 | Global planning | Pinned native Nav2 NavFn over explicit costmaps | Unknown space, blocked goals, complete path identity and bounded worker | Map scale, robot clearance and actual route reachability |
-| Occupancy and ground | Pinned OctoMap acquisition-time rays and Patchwork++ ground fusion; bounded corrected-window producer with expiry and source-generation replacement; actual native fixtures and identical 20-window recorded replays passed; moving declaration explicitly rejected | Wire supervised live registration/localization input and terrain-to-Nav2 output; declared-frame results remain separate from metric admission; current static recording has zero supported free cells | Physical scale, ground support, blind spots and real obstacle visibility |
+| Occupancy and ground | Pinned OctoMap acquisition-time rays and Patchwork++ ground fusion; bounded corrected-window producer; repeated recorded replays and actual native terrain-to-Nav2 synthetic trials passed; moving declaration explicitly rejected | Wire supervised live registration/localization and terrain transport; declared-frame results remain separate from metric admission; current static recording has zero supported free cells | Physical scale, ground support, blind spots and real obstacle visibility |
 | Local navigation | Real ROS Humble NavFn + RPP + closed-loop smoother passed six synthetic scenes; native OctoMap revisions preserve independent support; paired API/concurrent Web polling passed; DDS publication-age rejection verified in isolated Humble | Integrate recorded metric localization/occupancy/ground support, controller-computation/physical-transport freshness and guarded AIMDK handoff | Walking dynamics, stopping distance, dynamic people/obstacles and emergency stop |
 | Tours and tasks | Multi-point/round sequencing, one retry then skip, manual pause, dialogue quiet-resume, return policy; correlated narration-stop barriers and late-callback tests; real offline Nav2 two-point tour, voice pause/resume and Q&A/no-return passed | Recorded backend integration and actual AgentSDK completion/stop correlation | Actual arrival, interruption/resume and narration at each point |
 | Voice and AI | AgentSDK passive-event gating, deduplication, allowlists, evidence-bound retrieval, timeout/streaming; cloud cancellation, failed-playback stop barriers and superseded-turn regressions passed | Real AgentSDK playback correlation, live cloud matrix and end-to-end latency; offline workspace deliberately stubs playback and disables cloud | 100-wake/8-hour negatives, zero forbidden execution, acoustic P95 first response <=2 s |
@@ -92,3 +92,15 @@ or deployment is authorized by completing an offline check.
   (1,498 total), zero failures/errors. The three new actual-library skips passed
   separately in the 23-test native run. TypeScript: 511 passed / 16 skipped;
   frontend/API/runtime checks and production build passed.
+- [Native terrain-to-Nav2 verification](NATIVE_TERRAIN_NAV2_VERIFICATION_20261101.md)
+  records four passing actual native/ROS scenes using synthetic rays and default
+  Z 0.1--1.4 m. Every sampled costmap preserves native unknown/occupied cells;
+  there is no secondary occupancy oracle. All six baseline ROS scenes and the
+  queued-publication probe were rerun. Final scientific Python regression:
+  1,445 passed / 63 skipped (1,508 total), zero failures/errors. Seven native
+  fixture checks passed separately with actual libraries and zero skips;
+  three evidence checks passed. TypeScript: 511 passed / 16 skipped; build passed.
+  A separate read-only target subscription confirmed current sensor connectivity.
+  Live terrain transport, metric admission, ARM64 composition and physical
+  navigation remain unaccepted. Per current user steering, prioritize bounded
+  commissioning checks over non-critical offline polish.

@@ -1,0 +1,378 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-11-01",
+  "purpose": "synthetic_native_terrain_nav2_integration_not_field_acceptance",
+  "installedPackages": [
+    "ros-humble-dwb-core 1.1.20-1jammy.20260915.232211",
+    "ros-humble-dwb-critics 1.1.20-1jammy.20260915.233444",
+    "ros-humble-dwb-plugins 1.1.20-1jammy.20260915.232811",
+    "ros-humble-nav2-controller 1.1.20-1jammy.20260915.232401",
+    "ros-humble-nav2-navfn-planner 1.1.20-1jammy.20260915.232217",
+    "ros-humble-nav2-regulated-pure-pursuit-controller 1.1.20-1jammy.20260915.232155",
+    "ros-humble-nav2-velocity-smoother 1.1.20-1jammy.20260915.230155"
+  ],
+  "upstream": {
+    "repository": "https://github.com/ros-navigation/navigation2",
+    "commit": "3c3db59d6969d8ecee8e68468693d006397f4a0c",
+    "controller": "nav2_regulated_pure_pursuit_controller::RegulatedPurePursuitController",
+    "smoother": "nav2_velocity_smoother::VelocitySmoother",
+    "offlineOnly": true,
+    "controllerExecuted": false,
+    "navigationReady": false
+  },
+  "sourceSha256": {
+    "robot-navigation/lingxi_navigation/nav2_profile.py": "9f2d6ad3095f76c7026a1779f1f2446e635ae9488135e3fc581681aef0dbbc27",
+    "robot-navigation/lingxi_navigation/runtime.py": "ab736473d089eb7c1164b7e8b489c06733e6708c4bf7e21b1dcde2c221078a15",
+    "robot-navigation/nav2_offline.launch.py": "bc7c0647b261a7ca61aeac13a1678a647202f099dbcc3f7ca16ea0ae5c9e5e08",
+    "tools/prepare_nav2_offline.py": "25a792f31b046396eefcdcea026eaf7d48a24771d7f4e78da83f5f9d3736f1c7",
+    "robot-navigation/lingxi_navigation/traversability.py": "9ceb4a7fd7587f43a50fdd1cb11f8414c659781a548d302e8e1cbc23ce695b0c",
+    "robot-navigation/lingxi_navigation/occupancy.py": "9807c3b12077dcd314d3413134f34248c1c9ebfcc9a11e8af10c8d549a088710",
+    "robot-navigation/lingxi_navigation/navfn.py": "e86dced7b77d57136359a46963b69563fb4a53f995674a416248a0e80086caa8",
+    "tools/humble_velocity_source.py": "a2b8c6f59a96931c97bbecd365f24cd7339cde2cad4507f69ebc3ce87dd85889",
+    "tools/terrain_nav2_fixture.py": "df5c0dcc7c5b76d5f860c232a30d7f46087a63c554d8afd796bc4b24d9ecedec",
+    "robot-navigation/lingxi_navigation/terrain.py": "96c0bc5f7add0f24c9832fe674b5addca9902a78c0ee8769c837c79d2e776897",
+    "robot-navigation/lingxi_navigation/ground.py": "58aa45a481cd6d51652c0ee4b862bc68a0f2507ead4f0e488d87a3569f54a2c9",
+    "robot-navigation/native-ground/ground_bridge.cpp": "ac4a0d7621305775070f736f7eb178fe9add4f6375824b85d11948c893a3a589",
+    "robot-navigation/patchworkpp.lock.json": "e08ff740fd558fd09c3493a925abbcd0d85fc4459fc00846b1fbf053d678de3b",
+    "robot-navigation/native-octomap/octomap_bridge.cpp": "b2d3c5720fdf956b167cce36bb9016fd34cd2445fd5cad3ba2a950075544999e",
+    "tools/check_ground_native.py": "cfa5ac5488d0254360bd8b433527d7d2b83a9ea7987a5c97bb125f6723537aa1",
+    "tools/run_nav2_offline.py": "6edea313fa59241ca240063f093c2b95cc79867314d4fc9e6c7a53fbf493a056",
+    "tools/nav2-offline-isolated.sh": "f32652b56116cf0bcd9803d040c162c1dfa0fe0c92a8b7fb2e47a9181238209b",
+    "tools/export_nav2_evidence.py": "4e109697056e1ed6f78a37e1f831065d054fa797efa35fff53bf241759edad9a",
+    "tools/export_terrain_nav2_evidence.py": "a56f36ccf281098e1838dc17574b14354bfa6951f81f801f7972f35765cc9f60"
+  },
+  "cases": [
+    {
+      "case": "open",
+      "passed": true,
+      "checks": {
+        "actionExpected": true,
+        "sourceRetired": true,
+        "noLatchedFault": true,
+        "commandsBounded": true,
+        "sweptObstacleClearance": true,
+        "fullEnvelopeSupported": true,
+        "controllerProducedMotion": true,
+        "planned": true,
+        "metricGoalReached": true,
+        "headingReached": true,
+        "actualCostmapUnknownBlocked": true,
+        "actualNativeGridGeometry": true,
+        "actualNativeUnknownBlocked": true,
+        "actualNativeObstaclesBlocked": true
+      },
+      "finalPose": [
+        1.8544833168872976,
+        2.9238163977480027e-08,
+        -1.4785885730648028e-07
+      ],
+      "minimumSweptObstacleDistanceMetres": null,
+      "maximumAbsY": 4.688083575934585e-08,
+      "commandCount": 236,
+      "elapsedSeconds": 14.486530336000001,
+      "dynamicObstaclePolicy": "full_support_fused_revisions_no_secondary_clearing",
+      "syntheticOracleNotOctomap": false,
+      "fusedMapRevision": null,
+      "fusedSnapshotSha256": null,
+      "publicationSamplesVerified": 236,
+      "maximumPublicationAgeSeconds": 0.010443487,
+      "nativeTerrain": {
+        "fixtureSha256": "d2ab2f8c85f94d0f75faeea3d44a148cb2d50840b4369cad89d59ed0aef5b564",
+        "classification": "synthetic_acquisition_rays_actual_native_terrain_frozen_offline_only",
+        "observationsSha256": "759f0d9ff60e2d1a4ad1e90bf9bf2f14a8c9fba479a6f451613aaedd61b63738",
+        "traversabilitySha256": "f5c8a7ca3da2d3a5a89aca40ea7dcc2d96e923a529d08a0d6fbca4d2038886f6",
+        "groundLibrarySha256": "0f0f3b74dee2acccb520e6f7a95a668c268fe22a53f165821a5b8427dd4955a6",
+        "octomapLibrarySha256": "26dd1f8965a84a12a786263b82717724267d47f436a1adcbd2d3a5d0aea8d2e3",
+        "sourcesSha256": {
+          "tools/terrain_nav2_fixture.py": "df5c0dcc7c5b76d5f860c232a30d7f46087a63c554d8afd796bc4b24d9ecedec",
+          "robot-navigation/lingxi_navigation/terrain.py": "96c0bc5f7add0f24c9832fe674b5addca9902a78c0ee8769c837c79d2e776897",
+          "robot-navigation/lingxi_navigation/ground.py": "58aa45a481cd6d51652c0ee4b862bc68a0f2507ead4f0e488d87a3569f54a2c9",
+          "robot-navigation/lingxi_navigation/occupancy.py": "9807c3b12077dcd314d3413134f34248c1c9ebfcc9a11e8af10c8d549a088710",
+          "robot-navigation/lingxi_navigation/navfn.py": "e86dced7b77d57136359a46963b69563fb4a53f995674a416248a0e80086caa8",
+          "robot-navigation/native-ground/ground_bridge.cpp": "ac4a0d7621305775070f736f7eb178fe9add4f6375824b85d11948c893a3a589",
+          "robot-navigation/patchworkpp.lock.json": "e08ff740fd558fd09c3493a925abbcd0d85fc4459fc00846b1fbf053d678de3b",
+          "robot-navigation/native-octomap/octomap_bridge.cpp": "b2d3c5720fdf956b167cce36bb9016fd34cd2445fd5cad3ba2a950075544999e",
+          "tools/check_ground_native.py": "cfa5ac5488d0254360bd8b433527d7d2b83a9ea7987a5c97bb125f6723537aa1"
+        },
+        "cells": {
+          "free": 1354,
+          "occupied": 0,
+          "unknown": 2486
+        },
+        "nativeBuild": {
+          "groundBuildReportSha256": "54fb4cd727f116ec8c86666dd7e70042f254886d3b5f854bc6c83a853d84eafe",
+          "octomapBuildReportSha256": "2558817108de6ec608fa92a796aa69cd1bae460c4f886c3f7672ef3fcaa6bd33",
+          "groundRevision": "3e6903a1d5537a4cc2ace897b0bbb98a92d6014c",
+          "groundLockSha256": "e08ff740fd558fd09c3493a925abbcd0d85fc4459fc00846b1fbf053d678de3b",
+          "groundAdapterSha256": "ac4a0d7621305775070f736f7eb178fe9add4f6375824b85d11948c893a3a589",
+          "octomapAdapterSha256": "b2d3c5720fdf956b167cce36bb9016fd34cd2445fd5cad3ba2a950075544999e",
+          "dependenciesSha256": {
+            "liboctomap.so.1.9.7": "27e22029990f69e951b5c4b1acc33e44fe3663af9e13620271a35ab1ed1309f7",
+            "liboctomath.so.1.9.7": "da54007d468946667bf76fc9f81ce64ad8d28ae2b3d551f501adaf2f0631731f"
+          },
+          "freshProcessLoadVerified": true,
+          "installedBinaryMatchesPinnedSourceVerified": false
+        },
+        "minimumZMetres": 0.1,
+        "maximumZMetres": 1.4,
+        "liveFreshnessProven": false,
+        "physicalScaleValidated": false,
+        "groundSupportValidated": false
+      },
+      "reportSha256": "a118dc9bc0e642bbc40fa192593a7d7ee12fc5d312c542d796c7e862f47f0945"
+    },
+    {
+      "case": "blocked",
+      "passed": true,
+      "checks": {
+        "actionExpected": true,
+        "sourceRetired": true,
+        "noLatchedFault": true,
+        "commandsBounded": true,
+        "sweptObstacleClearance": true,
+        "fullEnvelopeSupported": true,
+        "noNonzeroCommands": true,
+        "stayedAtStart": true,
+        "actualCostmapUnknownBlocked": true,
+        "actualNativeGridGeometry": true,
+        "actualNativeUnknownBlocked": true,
+        "actualNativeObstaclesBlocked": true
+      },
+      "finalPose": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "minimumSweptObstacleDistanceMetres": 0.7516648189186454,
+      "maximumAbsY": 0.0,
+      "commandCount": 0,
+      "elapsedSeconds": 3.809469029999974,
+      "dynamicObstaclePolicy": "full_support_fused_revisions_no_secondary_clearing",
+      "syntheticOracleNotOctomap": false,
+      "fusedMapRevision": null,
+      "fusedSnapshotSha256": null,
+      "publicationSamplesVerified": 0,
+      "maximumPublicationAgeSeconds": 0.0,
+      "nativeTerrain": {
+        "fixtureSha256": "f23ecf0abf5da0b7aa8415d80ee947a7c1330e05807640272def273b0c02ec72",
+        "classification": "synthetic_acquisition_rays_actual_native_terrain_frozen_offline_only",
+        "observationsSha256": "41380c6c9e54efaa79019644d81ffc6bb06daea81f0bc522a6d2971c4658597c",
+        "traversabilitySha256": "399430aff6bcb6add22a6adc3fb4d654da97a3e201b5109e37578bde8d9c29b7",
+        "groundLibrarySha256": "0f0f3b74dee2acccb520e6f7a95a668c268fe22a53f165821a5b8427dd4955a6",
+        "octomapLibrarySha256": "26dd1f8965a84a12a786263b82717724267d47f436a1adcbd2d3a5d0aea8d2e3",
+        "sourcesSha256": {
+          "tools/terrain_nav2_fixture.py": "df5c0dcc7c5b76d5f860c232a30d7f46087a63c554d8afd796bc4b24d9ecedec",
+          "robot-navigation/lingxi_navigation/terrain.py": "96c0bc5f7add0f24c9832fe674b5addca9902a78c0ee8769c837c79d2e776897",
+          "robot-navigation/lingxi_navigation/ground.py": "58aa45a481cd6d51652c0ee4b862bc68a0f2507ead4f0e488d87a3569f54a2c9",
+          "robot-navigation/lingxi_navigation/occupancy.py": "9807c3b12077dcd314d3413134f34248c1c9ebfcc9a11e8af10c8d549a088710",
+          "robot-navigation/lingxi_navigation/navfn.py": "e86dced7b77d57136359a46963b69563fb4a53f995674a416248a0e80086caa8",
+          "robot-navigation/native-ground/ground_bridge.cpp": "ac4a0d7621305775070f736f7eb178fe9add4f6375824b85d11948c893a3a589",
+          "robot-navigation/patchworkpp.lock.json": "e08ff740fd558fd09c3493a925abbcd0d85fc4459fc00846b1fbf053d678de3b",
+          "robot-navigation/native-octomap/octomap_bridge.cpp": "b2d3c5720fdf956b167cce36bb9016fd34cd2445fd5cad3ba2a950075544999e",
+          "tools/check_ground_native.py": "cfa5ac5488d0254360bd8b433527d7d2b83a9ea7987a5c97bb125f6723537aa1"
+        },
+        "cells": {
+          "free": 1032,
+          "occupied": 211,
+          "unknown": 2597
+        },
+        "nativeBuild": {
+          "groundBuildReportSha256": "54fb4cd727f116ec8c86666dd7e70042f254886d3b5f854bc6c83a853d84eafe",
+          "octomapBuildReportSha256": "2558817108de6ec608fa92a796aa69cd1bae460c4f886c3f7672ef3fcaa6bd33",
+          "groundRevision": "3e6903a1d5537a4cc2ace897b0bbb98a92d6014c",
+          "groundLockSha256": "e08ff740fd558fd09c3493a925abbcd0d85fc4459fc00846b1fbf053d678de3b",
+          "groundAdapterSha256": "ac4a0d7621305775070f736f7eb178fe9add4f6375824b85d11948c893a3a589",
+          "octomapAdapterSha256": "b2d3c5720fdf956b167cce36bb9016fd34cd2445fd5cad3ba2a950075544999e",
+          "dependenciesSha256": {
+            "liboctomap.so.1.9.7": "27e22029990f69e951b5c4b1acc33e44fe3663af9e13620271a35ab1ed1309f7",
+            "liboctomath.so.1.9.7": "da54007d468946667bf76fc9f81ce64ad8d28ae2b3d551f501adaf2f0631731f"
+          },
+          "freshProcessLoadVerified": true,
+          "installedBinaryMatchesPinnedSourceVerified": false
+        },
+        "minimumZMetres": 0.1,
+        "maximumZMetres": 1.4,
+        "liveFreshnessProven": false,
+        "physicalScaleValidated": false,
+        "groundSupportValidated": false
+      },
+      "reportSha256": "9d55aa1e8cbaedd42d02f71f20c373af03c81ae2cb7b820e651d40805f9fac7e"
+    },
+    {
+      "case": "detour",
+      "passed": true,
+      "checks": {
+        "actionExpected": true,
+        "sourceRetired": true,
+        "noLatchedFault": true,
+        "commandsBounded": true,
+        "sweptObstacleClearance": true,
+        "fullEnvelopeSupported": true,
+        "controllerProducedMotion": true,
+        "planned": true,
+        "metricGoalReached": true,
+        "headingReached": true,
+        "obstacleActuallyBypassed": true,
+        "actualCostmapUnknownBlocked": true,
+        "actualNativeGridGeometry": true,
+        "actualNativeUnknownBlocked": true,
+        "actualNativeObstaclesBlocked": true
+      },
+      "finalPose": [
+        2.0761626332448855,
+        0.12591113496408837,
+        -0.12161629864727158
+      ],
+      "minimumSweptObstacleDistanceMetres": 0.6971379439558586,
+      "maximumAbsY": 1.0650836414883813,
+      "commandCount": 847,
+      "elapsedSeconds": 46.01994529699999,
+      "dynamicObstaclePolicy": "full_support_fused_revisions_no_secondary_clearing",
+      "syntheticOracleNotOctomap": false,
+      "fusedMapRevision": null,
+      "fusedSnapshotSha256": null,
+      "publicationSamplesVerified": 847,
+      "maximumPublicationAgeSeconds": 0.010921771,
+      "nativeTerrain": {
+        "fixtureSha256": "49b29be7974f86a205aee1b292fd05b56871f822f5b44ccf6603581eb0739dd6",
+        "classification": "synthetic_acquisition_rays_actual_native_terrain_frozen_offline_only",
+        "observationsSha256": "88f13a642189d1dfd18af1f1aba69cde863b4f2004f22fd0986153bfccf82594",
+        "traversabilitySha256": "c539d29d589c2c5aa39377462a8aa65ab60a6fdc5b3fc23edd2b2101787b9654",
+        "groundLibrarySha256": "0f0f3b74dee2acccb520e6f7a95a668c268fe22a53f165821a5b8427dd4955a6",
+        "octomapLibrarySha256": "26dd1f8965a84a12a786263b82717724267d47f436a1adcbd2d3a5d0aea8d2e3",
+        "sourcesSha256": {
+          "tools/terrain_nav2_fixture.py": "df5c0dcc7c5b76d5f860c232a30d7f46087a63c554d8afd796bc4b24d9ecedec",
+          "robot-navigation/lingxi_navigation/terrain.py": "96c0bc5f7add0f24c9832fe674b5addca9902a78c0ee8769c837c79d2e776897",
+          "robot-navigation/lingxi_navigation/ground.py": "58aa45a481cd6d51652c0ee4b862bc68a0f2507ead4f0e488d87a3569f54a2c9",
+          "robot-navigation/lingxi_navigation/occupancy.py": "9807c3b12077dcd314d3413134f34248c1c9ebfcc9a11e8af10c8d549a088710",
+          "robot-navigation/lingxi_navigation/navfn.py": "e86dced7b77d57136359a46963b69563fb4a53f995674a416248a0e80086caa8",
+          "robot-navigation/native-ground/ground_bridge.cpp": "ac4a0d7621305775070f736f7eb178fe9add4f6375824b85d11948c893a3a589",
+          "robot-navigation/patchworkpp.lock.json": "e08ff740fd558fd09c3493a925abbcd0d85fc4459fc00846b1fbf053d678de3b",
+          "robot-navigation/native-octomap/octomap_bridge.cpp": "b2d3c5720fdf956b167cce36bb9016fd34cd2445fd5cad3ba2a950075544999e",
+          "tools/check_ground_native.py": "cfa5ac5488d0254360bd8b433527d7d2b83a9ea7987a5c97bb125f6723537aa1"
+        },
+        "cells": {
+          "free": 1280,
+          "occupied": 32,
+          "unknown": 2528
+        },
+        "nativeBuild": {
+          "groundBuildReportSha256": "54fb4cd727f116ec8c86666dd7e70042f254886d3b5f854bc6c83a853d84eafe",
+          "octomapBuildReportSha256": "2558817108de6ec608fa92a796aa69cd1bae460c4f886c3f7672ef3fcaa6bd33",
+          "groundRevision": "3e6903a1d5537a4cc2ace897b0bbb98a92d6014c",
+          "groundLockSha256": "e08ff740fd558fd09c3493a925abbcd0d85fc4459fc00846b1fbf053d678de3b",
+          "groundAdapterSha256": "ac4a0d7621305775070f736f7eb178fe9add4f6375824b85d11948c893a3a589",
+          "octomapAdapterSha256": "b2d3c5720fdf956b167cce36bb9016fd34cd2445fd5cad3ba2a950075544999e",
+          "dependenciesSha256": {
+            "liboctomap.so.1.9.7": "27e22029990f69e951b5c4b1acc33e44fe3663af9e13620271a35ab1ed1309f7",
+            "liboctomath.so.1.9.7": "da54007d468946667bf76fc9f81ce64ad8d28ae2b3d551f501adaf2f0631731f"
+          },
+          "freshProcessLoadVerified": true,
+          "installedBinaryMatchesPinnedSourceVerified": false
+        },
+        "minimumZMetres": 0.1,
+        "maximumZMetres": 1.4,
+        "liveFreshnessProven": false,
+        "physicalScaleValidated": false,
+        "groundSupportValidated": false
+      },
+      "reportSha256": "792162eddc00565d79f980199d2f21352c9ab5b41bfc91731d885a3f15063594"
+    },
+    {
+      "case": "unsupported-shortcut",
+      "passed": true,
+      "checks": {
+        "actionExpected": true,
+        "sourceRetired": true,
+        "noLatchedFault": true,
+        "commandsBounded": true,
+        "sweptObstacleClearance": true,
+        "fullEnvelopeSupported": true,
+        "controllerProducedMotion": true,
+        "planned": true,
+        "metricGoalReached": true,
+        "headingReached": true,
+        "obstacleActuallyBypassed": true,
+        "actualCostmapUnknownBlocked": true,
+        "actualCostmapUnsupportedNotOpened": true,
+        "actualNativeGridGeometry": true,
+        "actualNativeUnknownBlocked": true,
+        "actualNativeObstaclesBlocked": true
+      },
+      "finalPose": [
+        2.07864447036641,
+        0.12463425649978296,
+        -0.12592022786390863
+      ],
+      "minimumSweptObstacleDistanceMetres": null,
+      "maximumAbsY": 1.0645230724113646,
+      "commandCount": 846,
+      "elapsedSeconds": 45.10364981499998,
+      "dynamicObstaclePolicy": "full_support_fused_revisions_no_secondary_clearing",
+      "syntheticOracleNotOctomap": false,
+      "fusedMapRevision": null,
+      "fusedSnapshotSha256": null,
+      "publicationSamplesVerified": 846,
+      "maximumPublicationAgeSeconds": 0.010966599,
+      "nativeTerrain": {
+        "fixtureSha256": "d800eb3050f041bd9f1c156fdd15eebae5312276d240a52ef38f32e6bd1df408",
+        "classification": "synthetic_acquisition_rays_actual_native_terrain_frozen_offline_only",
+        "observationsSha256": "bdc19d26d984b426bd8399288dbda1daefdd87f82b756e1343d91d02c534cc25",
+        "traversabilitySha256": "43d0f0597e70a216607d9114fbd940ab143b5f443b0a01c06e176acca9fde140",
+        "groundLibrarySha256": "0f0f3b74dee2acccb520e6f7a95a668c268fe22a53f165821a5b8427dd4955a6",
+        "octomapLibrarySha256": "26dd1f8965a84a12a786263b82717724267d47f436a1adcbd2d3a5d0aea8d2e3",
+        "sourcesSha256": {
+          "tools/terrain_nav2_fixture.py": "df5c0dcc7c5b76d5f860c232a30d7f46087a63c554d8afd796bc4b24d9ecedec",
+          "robot-navigation/lingxi_navigation/terrain.py": "96c0bc5f7add0f24c9832fe674b5addca9902a78c0ee8769c837c79d2e776897",
+          "robot-navigation/lingxi_navigation/ground.py": "58aa45a481cd6d51652c0ee4b862bc68a0f2507ead4f0e488d87a3569f54a2c9",
+          "robot-navigation/lingxi_navigation/occupancy.py": "9807c3b12077dcd314d3413134f34248c1c9ebfcc9a11e8af10c8d549a088710",
+          "robot-navigation/lingxi_navigation/navfn.py": "e86dced7b77d57136359a46963b69563fb4a53f995674a416248a0e80086caa8",
+          "robot-navigation/native-ground/ground_bridge.cpp": "ac4a0d7621305775070f736f7eb178fe9add4f6375824b85d11948c893a3a589",
+          "robot-navigation/patchworkpp.lock.json": "e08ff740fd558fd09c3493a925abbcd0d85fc4459fc00846b1fbf053d678de3b",
+          "robot-navigation/native-octomap/octomap_bridge.cpp": "b2d3c5720fdf956b167cce36bb9016fd34cd2445fd5cad3ba2a950075544999e",
+          "tools/check_ground_native.py": "cfa5ac5488d0254360bd8b433527d7d2b83a9ea7987a5c97bb125f6723537aa1"
+        },
+        "cells": {
+          "free": 1274,
+          "occupied": 0,
+          "unknown": 2566
+        },
+        "nativeBuild": {
+          "groundBuildReportSha256": "54fb4cd727f116ec8c86666dd7e70042f254886d3b5f854bc6c83a853d84eafe",
+          "octomapBuildReportSha256": "2558817108de6ec608fa92a796aa69cd1bae460c4f886c3f7672ef3fcaa6bd33",
+          "groundRevision": "3e6903a1d5537a4cc2ace897b0bbb98a92d6014c",
+          "groundLockSha256": "e08ff740fd558fd09c3493a925abbcd0d85fc4459fc00846b1fbf053d678de3b",
+          "groundAdapterSha256": "ac4a0d7621305775070f736f7eb178fe9add4f6375824b85d11948c893a3a589",
+          "octomapAdapterSha256": "b2d3c5720fdf956b167cce36bb9016fd34cd2445fd5cad3ba2a950075544999e",
+          "dependenciesSha256": {
+            "liboctomap.so.1.9.7": "27e22029990f69e951b5c4b1acc33e44fe3663af9e13620271a35ab1ed1309f7",
+            "liboctomath.so.1.9.7": "da54007d468946667bf76fc9f81ce64ad8d28ae2b3d551f501adaf2f0631731f"
+          },
+          "freshProcessLoadVerified": true,
+          "installedBinaryMatchesPinnedSourceVerified": false
+        },
+        "minimumZMetres": 0.1,
+        "maximumZMetres": 1.4,
+        "liveFreshnessProven": false,
+        "physicalScaleValidated": false,
+        "groundSupportValidated": false
+      },
+      "reportSha256": "4a47322622c1683e0d14525a1b610ccce962415e0e8f8c7fd2b4fdf3aa28ed8a"
+    }
+  ],
+  "requiredEnvelopeRadiusMetres": 0.4,
+  "syntheticInputs": true,
+  "controllerExecuted": true,
+  "liveFreshnessProven": false,
+  "physicalScaleValidated": false,
+  "groundSupportValidated": false,
+  "robotContacted": false,
+  "observedDdsPublicationTimestamp": true,
+  "publicationTimestampScope": "velocity_smoother_dds_write_not_controller_compute",
+  "groundSupportMeasured": false,
+  "observedTwistHasSourceTimestamp": false,
+  "productionCommandAgeProven": false,
+  "physicalMotionSent": false,
+  "navigationReady": false,
+  "installedBinaryMatchesPinnedSourceVerified": false
+}
