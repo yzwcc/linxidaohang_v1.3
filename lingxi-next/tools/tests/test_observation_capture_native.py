@@ -3,6 +3,7 @@ import importlib.util
 import os
 from pathlib import Path
 import subprocess
+import struct
 import sys
 import tempfile
 import unittest
@@ -15,6 +16,7 @@ if AVAILABLE:
     import numpy as np
     sys.path.insert(0, str(ROOT / "robot-slam"))
     from lingxi_slam.observation_archive import ObservationArchive, sha256
+    from lingxi_slam.observation_window import decode_window
 
 
 @unittest.skipUnless(AVAILABLE and sys.platform == "linux" and LIBRARY.is_file() and WORK.is_dir(),
@@ -33,6 +35,12 @@ class NativeObservationTests(unittest.TestCase):
                    str(ROOT / "tools/tests/native/test_observation_capture.cpp"), str(LIBRARY),
                    "-L" + str(WORK / "prefix/lib"), "-lglim", "-Wl,-rpath," + str(LIBRARY.parent),
                    "-o", str(cls.binary)]
+        result = subprocess.run(command, capture_output=True, text=True, timeout=60)
+        if result.returncode:
+            raise RuntimeError(result.stderr)
+        cls.window_binary = cls.root / "isolated-native-window"
+        command = [str(value).replace("test_observation_capture.cpp", "test_observation_window.cpp")
+                   .replace(str(cls.binary), str(cls.window_binary)) for value in command]
         result = subprocess.run(command, capture_output=True, text=True, timeout=60)
         if result.returncode:
             raise RuntimeError(result.stderr)
@@ -81,6 +89,34 @@ class NativeObservationTests(unittest.TestCase):
         directions = np.array([[1, 0, 0], [2**-.5, 2**-.5, 0], [0, 1, 0]])
         np.testing.assert_allclose(scan.origins_raw, origins, atol=1e-12)
         np.testing.assert_allclose(scan.endpoints_raw, origins + directions, atol=1e-12)
+
+    def test_continuous_windows_are_bounded_coherent_corrected_and_match_final_archive(self):
+        for mode, first, count, returns in (("rollover", 4, 8, 24), ("point-limit", 8, 4, 262144),
+                                           ("joint-limits", 8, 4, 262144)):
+            with self.subTest(mode=mode):
+                path = self.root / (mode + ".window")
+                result = subprocess.run([str(self.window_binary), mode, str(path)],
+                                        capture_output=True, text=True, timeout=30)
+                if result.returncode:
+                    raise RuntimeError(result.stderr)
+                def read(suffix=""):
+                    data = Path(str(path) + suffix).read_bytes()
+                    return decode_window(struct.unpack("<7Q", data[:56]), data[56:])
+                initial, window, corrected = read(".first"), read(), read(".corrected")
+                self.assertEqual((1, 0, 3), (initial.revision, initial.first_ordinal, len(initial.observations)))
+                self.assertEqual((4, first, count), (window.revision, window.first_ordinal, len(window.observations)))
+                self.assertEqual(returns, sum(len(scan.origins_raw) for scan in window.observations))
+                self.assertEqual(5, corrected.revision)
+                archive_path = Path(str(path) + ".archive")
+                archive = tuple(ObservationArchive(archive_path, sha256(archive_path)))
+                for before, after, saved in zip(window.observations, corrected.observations, archive[first:]):
+                    self.assertEqual((before.stamp, before.frame_id, before.source_sha256),
+                                     (after.stamp, after.frame_id, after.source_sha256))
+                    self.assertEqual((saved.ordinal, saved.submap_id, saved.source_sha256),
+                                     (after.ordinal, after.submap_id, after.source_sha256))
+                    np.testing.assert_array_equal(saved.origins_raw, after.origins_raw)
+                    np.testing.assert_array_equal(saved.endpoints_raw, after.endpoints_raw)
+                self.assertFalse(corrected.navigation_ready)
 
 
 if __name__ == "__main__":

@@ -17,7 +17,7 @@ RESULT = "arm64_observed_mapper_and_fixture_linked_not_target_executed"
 LIBRARY = native.asynchronous.full.LIBRARY
 FIXTURE = "lingxi_observation_contract"
 ABI = (*ASYNC_ABI, "lingxi_observation_enable", "lingxi_observation_save",
-       "lingxi_observation_shutdown", "lingxi_observation_error")
+       "lingxi_observation_shutdown", "lingxi_observation_error", "lingxi_observation_window")
 FIXTURE_SOURCE = native.ROOT / "tools/tests/native/test_observation_capture.cpp"
 CMAKE = """cmake_minimum_required(VERSION 3.22)
 project(lingxi_observed_contract LANGUAGES CXX)

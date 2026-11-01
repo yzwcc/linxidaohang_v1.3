@@ -20,6 +20,7 @@ OBSERVATION_SOURCES = (
     "tools/glim-observations/CMakeLists.txt", "tools/glim-observations/observation_capture.hpp",
     "tools/glim-observations/observation_capture.cpp", "tools/glim-observations/observation-capture.patch",
     "robot-slam/lingxi_slam/observed_mapping.py", "robot-slam/lingxi_slam/observation_archive.py",
+    "robot-slam/lingxi_slam/observation_window.py",
     "robot-slam/lingxi_slam/observation_binding.py", "robot-slam/lingxi_slam/mapping_session.py",
     "robot-runtime/python/mapping_platform.py", "robot-runtime/python/async_mapping_bundle.py",
 )

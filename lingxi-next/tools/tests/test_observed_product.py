@@ -46,6 +46,7 @@ class ObservedProductBundle(unittest.TestCase):
 
     def test_explicit_observed_arm64_bundle_keeps_all_readiness_false(self):
         value = self.verify()
+        self.assertIn("robot-slam/lingxi_slam/observation_window.py", value["sourceSha256"])
         self.assertEqual(bundle.OBSERVED_ENGINE, value["engine"])
         for key in ("targetExecutionValidated", "geometryValidated", "navigationValidated"):
             self.assertIs(value[key], False)

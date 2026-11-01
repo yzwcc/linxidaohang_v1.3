@@ -5,6 +5,7 @@ from pathlib import Path
 
 from .async_mapping import AsyncMappingLibrary
 from .observation_archive import inspect_observations, sha256
+from .observation_window import read_window
 
 
 class ObservedMappingLibrary(AsyncMappingLibrary):
@@ -19,6 +20,18 @@ class ObservedMappingLibrary(AsyncMappingLibrary):
         self.library.lingxi_observation_save.restype = ctypes.c_int
         self.library.lingxi_observation_error.argtypes = []
         self.library.lingxi_observation_error.restype = ctypes.c_char_p
+        self.library.lingxi_observation_window.argtypes = [ctypes.POINTER(ctypes.c_uint64),
+            ctypes.POINTER(ctypes.c_ubyte), ctypes.c_size_t, ctypes.c_uint64]
+        self.library.lingxi_observation_window.restype = ctypes.c_int
+
+    def observation_window(self, *, after_revision=0):
+        self._owner()
+        if not self.opened or self.closed:
+            raise RuntimeError("open_observation_window_reader_required")
+        self.check_health()
+        result = read_window(self.library.lingxi_observation_window, after_revision=after_revision)
+        self.check_health()
+        return result
 
     def _observation_call(self, name, *args):
         if getattr(self.library, "lingxi_observation_" + name)(*args) < 0:

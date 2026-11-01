@@ -1,6 +1,7 @@
 """Bounded source-backed acquisition geometry; raw map coordinates are not calibration."""
 from dataclasses import dataclass
 import hashlib
+import io
 from pathlib import Path
 import re
 import struct
@@ -58,17 +59,36 @@ class ObservationArchive:
                 or sha256(self.path) != expected_sha256):
             raise ValueError("bounded_hash_verified_observation_archive_required")
         self.sha256 = expected_sha256
-        with self.path.open("rb") as stream:
-            if stream.read(8) != b"LXOBS002":
-                raise ValueError("source_observation_archive_version_required")
-            self.submaps, self.scans, self.points, self.revision = struct.unpack("<4Q", stream.read(32))
+        self._bytes = None
+        with self._open() as stream:
+            self._header(stream)
+
+    def _header(self, stream):
+        if stream.read(8) != b"LXOBS002":
+            raise ValueError("source_observation_archive_version_required")
+        self.submaps, self.scans, self.points, self.revision = struct.unpack("<4Q", stream.read(32))
         if (not 1 <= self.submaps <= self.scans <= MAX_SCANS or not self.scans <= self.points <= MAX_POINTS
                 or not 1 <= self.revision < 2**53):
             raise ValueError("bounded_complete_observation_header_required")
 
+    @classmethod
+    def from_bytes(cls, data):
+        """Parse an immutable native window with the same geometry checks, without file IO."""
+        if type(data) is not bytes or not 40 <= len(data) <= 16 * 1024**2:
+            raise ValueError("bounded_immutable_observation_bytes_required")
+        result = cls.__new__(cls)
+        result.path, result._bytes = None, data
+        result.sha256 = hashlib.sha256(data).hexdigest()
+        with result._open() as stream:
+            result._header(stream)
+        return result
+
+    def _open(self):
+        return self.path.open("rb") if self._bytes is None else io.BytesIO(self._bytes)
+
     def __iter__(self):
         digest = hashlib.sha256()
-        with self.path.open("rb") as stream:
+        with self._open() as stream:
             def read(size):
                 data = stream.read(size)
                 if len(data) != size:
@@ -138,7 +158,8 @@ class ObservationArchive:
                     total += points
                     total_samples += samples
             if (ordinal != self.scans or total != self.points or stream.read(1)
-                    or digest.hexdigest() != self.sha256 or sha256(self.path) != self.sha256):
+                    or digest.hexdigest() != self.sha256
+                    or self._bytes is None and sha256(self.path) != self.sha256):
                 raise ValueError("complete_unchanged_observation_archive_required")
 
 

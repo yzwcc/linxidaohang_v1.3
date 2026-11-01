@@ -58,6 +58,7 @@ class ObservationCrossBuild(unittest.TestCase):
         return SimpleNamespace(returncode=0)
 
     def test_cross_plan_links_without_executing_a_target_or_sensor(self):
+        self.assertIn("lingxi_observation_window", build.ABI)
         plan = build.commands(self.args)
         self.assertEqual(["configure", "build"], [name for name, _ in plan])
         self.assertIn("-DCMAKE_BUILD_TYPE=Release", plan[0][1])

@@ -7,6 +7,9 @@
 #include <filesystem>
 #include <fstream>
 #include <map>
+#include <memory>
+#include <mutex>
+#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <thread>
@@ -36,6 +39,15 @@ bool enabled = false, exported = false;
 int insert_callback = -1, update_callback = -1;
 std::thread::id owner;
 thread_local std::string error;
+constexpr size_t window_scans = 8, window_points = 262144, window_bytes = 16 * 1024 * 1024;
+struct Window {
+  std::array<uint64_t, 7> header;
+  std::string bytes;
+};
+std::mutex window_mutex;
+std::shared_ptr<const Window> latest_window;
+bool window_active = false;
+void publish_window();
 
 template <typename Function> int guarded(Function function) {
   try { error.clear(); function(); return 0; }
@@ -80,13 +92,62 @@ void update(const std::vector<glim::SubMap::Ptr>& submaps) {
     archived[i].pose = submaps[i]->T_world_origin;
   }
   ++revision;
+  publish_window();
 }
-template <typename T> void scalar(std::ofstream& out, T value) {
+template <typename T> void scalar(std::ostream& out, T value) {
   static_assert(sizeof(T) == 8);
   out.write(reinterpret_cast<const char*>(&value), sizeof(value));
 }
-void matrix(std::ofstream& out, const Eigen::Isometry3d& value) {
+void matrix(std::ostream& out, const Eigen::Isometry3d& value) {
   for (int row = 0; row < 4; ++row) for (int col = 0; col < 4; ++col) scalar(out, value.matrix()(row, col));
+}
+void write_scan(std::ostream& out, const Scan& scan) {
+  scalar(out, scan.id); scalar(out, scan.stamp); scalar(out, scan.end);
+  scalar(out, uint64_t(scan.points.size())); scalar(out, uint64_t(scan.trajectory.cols()));
+  scalar(out, scan.trajectory_kind);
+  matrix(out, scan.reference); matrix(out, scan.lidar_imu); matrix(out, scan.local_imu);
+  for (int col = 0; col < scan.trajectory.cols(); ++col)
+    for (int row = 0; row < 8; ++row) scalar(out, scan.trajectory(row, col));
+  for (const auto& point : scan.points) for (double value : point) scalar(out, value);
+}
+void publish_window() {
+  // Only completed submaps are eligible; pending scans are not globally corrected.
+  size_t count = 0, returns = 0, first_map = archived.size(), first_scan = 0, total = 0, bytes = 40;
+  for (const auto& map : archived) total += map.scans.size();
+  bool full = false;
+  for (size_t m = archived.size(); m > 0 && !full; --m) {
+    for (size_t s = archived[m - 1].scans.size(); s > 0; --s) {
+      const auto& scan = archived[m - 1].scans[s - 1];
+      const auto size = scan.points.size();
+      const size_t added = (first_map == m - 1 ? 0 : 144) + 432 +
+        64 * scan.trajectory.cols() + 32 * size;
+      if (count == window_scans || size > window_points - returns || added > window_bytes - bytes) {
+        full = true; break;
+      }
+      bytes += added;
+      ++count; returns += size; first_map = m - 1; first_scan = s - 1;
+    }
+  }
+  check(count > 0, "nonempty_corrected_observation_window_required");
+  const size_t maps = archived.size() - first_map;
+  std::ostringstream out(std::ios::out | std::ios::binary);
+  out.exceptions(std::ios::failbit | std::ios::badbit);
+  out.write("LXOBS002", 8);
+  for (uint64_t value : {uint64_t(maps), uint64_t(count), uint64_t(returns), uint64_t(revision)}) scalar(out, value);
+  for (size_t m = first_map; m < archived.size(); ++m) {
+    const auto& map = archived[m];
+    const size_t begin = m == first_map ? first_scan : 0;
+    scalar(out, uint64_t(m - first_map)); matrix(out, map.pose);
+    scalar(out, uint64_t(map.scans.size() - begin));
+    for (size_t s = begin; s < map.scans.size(); ++s) write_scan(out, map.scans[s]);
+  }
+  auto next = std::make_shared<Window>();
+  next->bytes = out.str();
+  check(next->bytes.size() == bytes && bytes <= window_bytes, "bounded_observation_window_bytes_required");
+  next->header = {uint64_t(revision), uint64_t(total - count), uint64_t(first_map), uint64_t(maps),
+    uint64_t(count), uint64_t(returns), uint64_t(next->bytes.size())};
+  std::lock_guard<std::mutex> lock(window_mutex);
+  latest_window = std::move(next);
 }
 }  // namespace
 
@@ -158,6 +219,8 @@ extern "C" int lingxi_observation_enable() {
     enabled = true;
     insert_callback = glim::GlobalMappingCallbacks::on_insert_submap.add(insert);
     update_callback = glim::GlobalMappingCallbacks::on_update_submaps.add(update);
+    std::lock_guard<std::mutex> lock(window_mutex);
+    window_active = true;
   });
 }
 extern "C" int lingxi_observation_save(const char* path, uint64_t* counts) {
@@ -178,13 +241,7 @@ extern "C" int lingxi_observation_save(const char* path, uint64_t* counts) {
       const auto& map = archived[i];
       scalar(out, uint64_t(i)); matrix(out, map.pose); scalar(out, uint64_t(map.scans.size()));
       for (const auto& scan : map.scans) {
-        scalar(out, scan.id); scalar(out, scan.stamp); scalar(out, scan.end);
-        scalar(out, uint64_t(scan.points.size())); scalar(out, uint64_t(scan.trajectory.cols()));
-        scalar(out, scan.trajectory_kind);
-        matrix(out, scan.reference); matrix(out, scan.lidar_imu); matrix(out, scan.local_imu);
-        for (int col = 0; col < scan.trajectory.cols(); ++col)
-          for (int row = 0; row < 8; ++row) scalar(out, scan.trajectory(row, col));
-        for (const auto& point : scan.points) for (double value : point) scalar(out, value);
+        write_scan(out, scan);
         ++saved_scans; saved_points += scan.points.size();
       }
     }
@@ -195,11 +252,37 @@ extern "C" int lingxi_observation_save(const char* path, uint64_t* counts) {
     exported = true;
   });
 }
+extern "C" int lingxi_observation_window(uint64_t* header, unsigned char* bytes, size_t capacity,
+                                        uint64_t expected_revision) {
+  int retry = 0;
+  const int result = guarded([&] {
+    check(header, "observation_window_header_required");
+    std::shared_ptr<const Window> frozen;
+    {
+      std::lock_guard<std::mutex> lock(window_mutex);
+      check(window_active, "active_observation_window_required");
+      frozen = latest_window;
+    }
+    std::fill(header, header + 7, 0);
+    if (!frozen) {
+      if (bytes) retry = 1;
+      return;
+    }
+    std::copy(frozen->header.begin(), frozen->header.end(), header);
+    if (!bytes) return;
+    if (expected_revision != frozen->header[0] || capacity < frozen->bytes.size()) { retry = 1; return; }
+    std::copy(frozen->bytes.begin(), frozen->bytes.end(), bytes);
+  });
+  return result < 0 ? result : retry;
+}
 extern "C" int lingxi_observation_shutdown() {
   return guarded([] {
     if (insert_callback >= 0) glim::GlobalMappingCallbacks::on_insert_submap.remove(insert_callback);
     if (update_callback >= 0) glim::GlobalMappingCallbacks::on_update_submaps.remove(update_callback);
     insert_callback = update_callback = -1;
     pending.clear(); archived.clear();
+    std::lock_guard<std::mutex> lock(window_mutex);
+    window_active = false;
+    latest_window.reset();
   });
 }

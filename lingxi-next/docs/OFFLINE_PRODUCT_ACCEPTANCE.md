@@ -7,7 +7,7 @@ or deployment is authorized by completing an offline check.
 
 | Workstream | Current implemented scope | Required offline integration | Separate field acceptance |
 | --- | --- | --- | --- |
-| Mapping | GLIM CPU full local/global mapping, corrected point-cloud preview, save/reload, per-return observation archive | Observed-map API save/discard passed on recorded input; moving multi-submap and overload regression remain required | Measured scale/heading, loop closure, long walking scan, ARM64 resource limits |
+| Mapping | GLIM CPU full local/global mapping, corrected point-cloud preview, save/reload, per-return observation archive and bounded corrected-history windows | Observed-map API save/discard and two-submap moving replay passed; low-latency live observation input and overload regression remain required | Measured scale/heading, loop closure, long walking scan, ARM64 resource limits |
 | Localization | Explicit seeded small-gicp tracking, pose freshness, map provenance, base projection | Replay tracking, bad seeds, loss/recovery, stale generation and current observed-map loading | Independent moving trajectory and ground-truth errors; global relocalization remains a separate capability |
 | Global planning | Pinned native Nav2 NavFn over explicit costmaps | Unknown space, blocked goals, complete path identity and bounded worker | Map scale, robot clearance and actual route reachability |
 | Occupancy and ground | Pinned OctoMap acquisition-time rays and Patchwork++ ground fusion; bounded corrected-window producer; repeated recorded replays and actual native terrain-to-Nav2 synthetic trials passed; moving declaration explicitly rejected | Wire supervised live registration/localization and terrain transport; declared-frame results remain separate from metric admission; current static recording has zero supported free cells | Physical scale, ground support, blind spots and real obstacle visibility |
@@ -124,3 +124,14 @@ or deployment is authorized by completing an offline check.
   Continuous corrected acquisition windows, real localization,
   metric admission, ARM64 composition and physical navigation remain open.
   No robot contact, new deployment, APK or complete-stack release occurred.
+- [Continuous observation-window verification](OBSERVATION_WINDOW_VERIFICATION_20261101.md)
+  adds revision-coherent bounded corrected-history reads during mapping. All
+  54 observation tests passed with the actual native library and zero skips.
+  Moving recorded replay saved/reloaded 1,190 mapping scans across two submaps;
+  a window read before save matched the final archive's source identities.
+  Current ARM64 artifacts were cross-built and independently verified, not
+  target-executed. Full scientific Python regression: 1,379 passed / 168
+  optional-environment skips (1,547 total), zero failures/errors. These delayed
+  corrected windows have no fabricated receipt time and remain non-navigation
+  input. Raw low-latency receipt ownership, localization and terrain integration,
+  metric admission, ARM64 runtime and physical acceptance remain open.

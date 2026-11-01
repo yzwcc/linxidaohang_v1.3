@@ -16,7 +16,7 @@ ROOT = build.ROOT
 sys.path.insert(0, str(ROOT / "robot-slam"))
 from lingxi_slam.mapping_session import MappingSession, SaveDecision
 from lingxi_slam.observed_mapping import ObservedMappingLibrary
-from lingxi_slam.observation_archive import inspect_observations, sha256
+from lingxi_slam.observation_archive import ObservationArchive, inspect_observations, sha256
 from lingxi_slam.observation_binding import bind_observations, verify_observations
 
 
@@ -24,7 +24,7 @@ def implementation(args):
     paths = [Path(__file__).resolve(), ROOT / "tools/build_glim_observations.py",
         ROOT / "docs/slam-async-mapping-evidence.json", *[
         ROOT / "robot-slam/lingxi_slam" / (name + ".py") for name in
-        ("observed_mapping", "observation_archive", "observation_binding")]]
+        ("observed_mapping", "observation_archive", "observation_binding", "observation_window")]]
     value = {"build": sha256(args.mapping_adapter / "build-report.json"),
              "sources": {path.relative_to(ROOT).as_posix(): sha256(path) for path in paths}}
     import hashlib
@@ -68,6 +68,7 @@ def run(args):
             saved.parent.mkdir(mode=0o700)
             self.mapper, self.decision = ObservedMappingLibrary(library), SaveDecision()
             self.frames, self.origin, self.started = 0, None, None
+            self.windows, self.window_revision = [], 0
 
             def reload_saved(path):
                 command = [sys.executable, "-B", str(Path(__file__).resolve()), "reload"]
@@ -103,6 +104,17 @@ def run(args):
         def frame(self, *values):
             value = self.session.frame(*values)
             self.frames += 1
+            window = self.mapper.observation_window(after_revision=self.window_revision)
+            if window is not None:
+                self.window_revision = window.revision
+                self.windows.append({"revision": window.revision, "firstOrdinal": window.first_ordinal,
+                    "firstSubmap": window.first_submap, "scans": len(window.observations),
+                    "returns": sum(len(scan.origins_raw) for scan in window.observations),
+                    "acquisitionStamps": [scan.stamp for scan in window.observations],
+                    "sourceSha256": [scan.source_sha256 for scan in window.observations],
+                    "inputKind": window.input_kind, "navigationReady": window.navigation_ready,
+                    "inputFramesAdmitted": self.frames,
+                    "observedBeforeSave": not self.session.closed})
             return value
 
         def complete(self):
@@ -127,10 +139,22 @@ def run(args):
             binding = bind_observations(saved, inventory, product.provenance(args), frozen)
             if verify_observations(saved, inventory, product.provenance(args), frozen) != binding:
                 raise ValueError("final_observation_binding_must_match")
+            identities = {scan.ordinal: (scan.submap_id, scan.stamp, scan.source_sha256)
+                          for scan in ObservationArchive(saved / "private-observations.bin",
+                                                        sha256(saved / "private-observations.bin"))}
+            for window in self.windows:
+                for index, (stamp, digest) in enumerate(zip(window["acquisitionStamps"], window["sourceSha256"])):
+                    source = identities[window["firstOrdinal"] + index]
+                    if source[1:] != (stamp, digest):
+                        raise ValueError("continuous_window_sources_must_match_final_archive")
+            if args.dataset == "dynamic" and not self.windows:
+                raise ValueError("moving_recording_needs_observation_windows_before_save")
             result.update(result="recorded_observed_map_saved_reloaded_not_geometry_acceptance",
                 observations=binding["observations"], mapInventory=inventory, receiptSha256=binding["mapReceiptSha256"],
                 implementationSha256=frozen, worker=self.mapper.cached_health(), roundTrip=reload_report["comparison"],
                 independentObservationReloadPassed=True, bindingSha256=sha256(saved / "observations-ready.json"),
+                observationWindowsDuringInput=self.windows,
+                continuousWindowSourcesMatchFinalArchive=True,
                 boundaries=dict.fromkeys(async_mapping.full.BOUNDARIES, False))
             return remaining
 
