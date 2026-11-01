@@ -1,0 +1,47 @@
+{
+  "purpose": "offline_product_tour_voice_lifecycle_not_field_acceptance",
+  "date": "2026-11-01",
+  "robotContacted": false,
+  "cloudContacted": false,
+  "physicalMotionSent": false,
+  "navigationReady": false,
+  "acousticLatencyAccepted": false,
+  "sourceHashEncoding": "raw-file-sha256",
+  "sourceSha256": {
+    "robot-api/src/jobs.ts": "302d437251c3676262ed7436fe09e27489e9d2bd13aeb6d931131c753f8f6799",
+    "robot-api/tests/jobs.test.ts": "ccffe59d18e190da98dcf4bf92ba125b473af5d15868bc8fec99956fd461c0b7",
+    "robot-api/tests/tour-dialogue.test.ts": "e46fa0bd1aa5268b2a323205fb64ba00530dc1f59158d089dfe5f36b7b0b382e",
+    "robot-api/tests/offline-nav2-integration.test.ts": "137bd7f6e620252efb13e8b03f7d1488998443d57ed010156f7ca20ccdd96fbf"
+  },
+  "defaultTypescript": { "passed": 511, "skipped": 16, "failed": 0 },
+  "buildPassed": true,
+  "firstExplicitRun": {
+    "reportSha256": "884045b5ddf670922631c2b5ad9ccdb6209a84b5e71f81c2c88e4c1af895c242",
+    "passed": 1,
+    "failed": 1,
+    "reason": "exact_pose_equality_after_zero_twist_yaw_normalization"
+  },
+  "currentExplicitRun": {
+    "reportSha256": "e2fa4f7aa7fc0b103e769ba34f0c95ad417df2c6158f1e0719ed019dbc74faf1",
+    "passed": 2,
+    "failed": 0,
+    "skipped": 0,
+    "actualNav2": true,
+    "syntheticInputs": true,
+    "speechStubbed": true,
+    "retiredPoseTolerance": 1e-12,
+    "retiredControllerOutputCountUnchanged": true,
+    "tourVisited": ["second", "third"],
+    "tourEpochs": 3,
+    "tourQuestionPreservedNavigation": true,
+    "tourVoicePauseRetired": true,
+    "noManualAutoResumeAfterMs": 5300,
+    "tourVoiceResumeChangedEpoch": true,
+    "noTourAutoReturn": true,
+    "detour": {
+      "commandCount": 563,
+      "finalPose": { "x": 1.9852192691421222, "y": 0.1415192320669508, "yaw": -0.1235667570007538 },
+      "maximumLateral": 1.045283748411171
+    }
+  }
+}

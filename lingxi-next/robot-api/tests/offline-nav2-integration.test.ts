@@ -6,6 +6,15 @@ import type { FastifyInstance } from "fastify";
 import { StdioOfflineNavigationBackend } from "../src/offline-navigation-backend";
 import { buildServer } from "../src/server";
 import { JsonStateStore } from "../src/store";
+import type { OfflineNavigationState } from "../../shared/offline-navigation";
+
+function expectRetiredPoseUnchanged(before: OfflineNavigationState, after: OfflineNavigationState) {
+  expect(after.outputQuiescent).toBe(true);
+  expect(after.ticket).toEqual(before.ticket);
+  expect(after.commandCount).toBe(before.commandCount);
+  // The synthetic integrator normalizes yaw even for a zero Twist.
+  for (const axis of ["x", "y", "yaw"] as const) expect(after.pose[axis]).toBeCloseTo(before.pose[axis], 12);
+}
 
 // Explicit opt-in: WSL rootfs only; never use the robot or replace it with a mock.
 const rootfs = process.env.LINGXI_OFFLINE_NAV2_ROOTFS;
@@ -54,7 +63,7 @@ it.skipIf(!rootfs || process.platform !== "win32")("drives real isolated Nav2 fr
   expect(paused.phase).toBe("paused");
   expect(paused.outputQuiescent).toBe(true);
   await new Promise((resolve) => setTimeout(resolve, 400));
-  expect((await backend.state()).pose).toEqual(paused.pose);
+  expectRetiredPoseUnchanged(paused, await backend.state());
   expect((await control("resume")).statusCode).toBe(200);
   const resumed = await backend.state();
   expect(resumed.ticket?.epoch).not.toBe(paused.ticket?.epoch);
@@ -82,6 +91,29 @@ it.skipIf(!rootfs || process.platform !== "win32")("drives real isolated Nav2 fr
   expect(tourStarted.statusCode, tourStarted.body).toBe(202);
   const visited: string[] = [];
   const epochs = new Set<string>();
+  const touring = await waitState((value) => value.pointId === second.id && value.phase === "running" &&
+    value.ticket?.epoch !== previousEpoch);
+  visited.push(second.id);
+  epochs.add(touring.ticket!.epoch);
+  expect((await agent({ kind: "wake", sessionId: "tour-voice", eventId: "tour-wake", occurredAt: Date.now() })).statusCode).toBe(204);
+  const tourQuestion = await agent({ kind: "recognition", sessionId: "tour-voice", eventId: "tour-question", occurredAt: Date.now(),
+    isFinal: true, confidence: .98, transcript: "请问今天展馆几点关门？" });
+  expect(tourQuestion.json()).toMatchObject({ accepted: false, category: "rejected" });
+  expect((await backend.state()).ticket?.epoch).toBe(touring.ticket!.epoch);
+  const voicePause = await agent({ kind: "recognition", sessionId: "tour-voice", eventId: "tour-pause", occurredAt: Date.now(),
+    isFinal: true, confidence: .98, transcript: "暂停讲解" });
+  expect(voicePause.json().accepted, voicePause.body).toBe(true);
+  const tourPaused = await backend.state();
+  expect(tourPaused.phase).toBe("paused");
+  expect(tourPaused.outputQuiescent).toBe(true);
+  await new Promise((resolve) => setTimeout(resolve, 5300));
+  const stillPaused = await backend.state();
+  expectRetiredPoseUnchanged(tourPaused, stillPaused);
+  expect(stillPaused.phase).toBe("paused");
+  const voiceResume = await agent({ kind: "recognition", sessionId: "tour-voice", eventId: "tour-resume", occurredAt: Date.now(),
+    isFinal: true, confidence: .98, transcript: "继续讲解" });
+  expect(voiceResume.json().accepted, voiceResume.body).toBe(true);
+  expect((await backend.state()).ticket?.epoch).not.toBe(tourPaused.ticket!.epoch);
   const tourFinished = await waitState((value) => {
     // A requested tour dispatches asynchronously; the retired prior task is
     // not a visit in this tour, even if its last point remains observable.
@@ -92,7 +124,7 @@ it.skipIf(!rootfs || process.platform !== "win32")("drives real isolated Nav2 fr
     return value.pointId === third.id && value.phase === "finished";
   });
   expect(visited).toEqual([second.id, third.id]);
-  expect(epochs.size).toBe(2);
+  expect(epochs.size).toBe(3);
   await new Promise((resolve) => setTimeout(resolve, 1600));
   expect((await backend.state()).ticket).toEqual(tourFinished.ticket);
   const finalState = (await app.inject({ url: "/api/v1/state", headers })).json();
@@ -100,6 +132,8 @@ it.skipIf(!rootfs || process.platform !== "win32")("drives real isolated Nav2 fr
   console.info(JSON.stringify({ purpose: "real_nav2_product_api_integration_not_field_acceptance", passed: true,
     commandCount: finished.commandCount, finalPose: finished.pose, pauseRetired: paused.outputQuiescent,
     resumeChangedEpoch: true, voiceDispatchConfirmed: true, tourVisited: visited, tourEpochs: epochs.size,
+    tourQuestionPreservedNavigation: true, tourVoicePauseRetired: tourPaused.outputQuiescent,
+    noManualAutoResumeAfter5300ms: true, tourVoiceResumeChangedEpoch: true,
     noTourAutoReturn: true, physicalMotionSent: false, navigationReady: false }));
 }, 120_000);
 

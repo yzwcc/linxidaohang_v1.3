@@ -10,6 +10,7 @@ export interface SpeechOutput {
 }
 
 type Phase = "navigating" | "narrating" | "waiting" | "idle-return" | "halted";
+type TourSpeech = { id: string; stopped: Promise<void>; confirmStopped: () => void };
 type ActiveJob = {
   runId: string;
   kind: "point" | "tour";
@@ -25,6 +26,8 @@ type ActiveJob = {
   detail: string;
   interruption: number;
   speechId?: string;
+  speech?: TourSpeech;
+  pendingSpeechStop?: Promise<void>;
   pendingDispatch?: Promise<void>;
   pendingNavigationControls: Set<Promise<void>>;
 };
@@ -154,7 +157,7 @@ export class JobManager {
       try {
         await Promise.allSettled([...job.pendingNavigationControls]);
         const results = await Promise.allSettled([
-          job.speechId ? this.speaker.cancel?.(job.speechId) : undefined,
+          this.stopSpeech(job),
           job.taskId ? this.adapter.controlNavigation("stop", job.taskId) : undefined,
         ]);
         const failed = results.find((result) => result.status === "rejected");
@@ -180,7 +183,7 @@ export class JobManager {
       job.interruption += 1;
       job.manualPaused = true;
       try {
-        if (job.speechId) await this.speaker.cancel?.(job.speechId);
+        await this.stopSpeech(job);
         this.assertAuthorized(authorize);
         // Once accepted, finish this pause even if the voice session ends.
         if (this.isCurrent(job) && job.phase === "navigating" && job.taskId) {
@@ -195,6 +198,9 @@ export class JobManager {
       return;
     }
     if (!job.manualPaused) return;
+    await job.pendingSpeechStop;
+    this.assertAuthorized(authorize);
+    if (!this.isCurrent(job) || !job.manualPaused) return;
     try {
       if (job.phase === "navigating" && job.taskId) await this.requestNavigationControl(job, "resume");
     } catch (error) {
@@ -217,7 +223,7 @@ export class JobManager {
     const job = this.current;
     if (!job || job.kind !== "tour" || job.phase === "halted") return;
     job.interruption += 1;
-    if (job.speechId) await this.speaker.cancel?.(job.speechId);
+    await this.stopSpeech(job);
   }
 
   beginDialogue(): void {
@@ -356,19 +362,32 @@ export class JobManager {
               const interruption = job.interruption;
               const speechId = `${job.runId}:${round}:${index}:${interruption}`;
               job.speechId = speechId;
+              let confirmStopped!: () => void;
+              const stopped = new Promise<void>((resolve) => { confirmStopped = resolve; });
+              const speech: TourSpeech = { id: speechId, stopped, confirmStopped };
+              job.speech = speech;
               try {
-                await this.speaker.speak(step.narration, speechId);
+                // Stop acknowledgement can retire playback whose completion
+                // callback never arrives. The losing promise stays observed.
+                await Promise.race([this.speaker.speak(step.narration, speechId), stopped]);
+                await job.pendingSpeechStop;
+                if (!this.isCurrent(job)) return;
                 delivered = interruption === job.interruption;
-              } catch (error) {
-                if (interruption === job.interruption) throw error;
-              } finally {
                 if (job.speechId === speechId) job.speechId = undefined;
+                if (job.speech === speech) job.speech = undefined;
+              } catch (error) {
+                if (!this.isCurrent(job)) return;
+                if (interruption === job.interruption) throw error;
+                await this.stopSpeech(job);
               }
             }
           } catch {
             if (!this.isCurrent(job)) return;
             hadErrors = true;
-            this.record(tour.id, point.id, "点位语音未完成");
+            this.record(tour.id, point.id, "点位语音未完成，已停止后续任务");
+            this.halt(job, "点位语音状态未确认，请检查语音服务并停止任务后重试");
+            await this.stopSpeech(job).catch(() => undefined);
+            return;
           }
         }
         if (step.linkcraftResourceId) {
@@ -478,6 +497,28 @@ export class JobManager {
       () => job.pendingNavigationControls.delete(request),
       () => job.pendingNavigationControls.delete(request),
     );
+    return request;
+  }
+
+  private stopSpeech(job: ActiveJob): Promise<void> {
+    if (job.pendingSpeechStop) return job.pendingSpeechStop;
+    const speechId = job.speechId;
+    if (!speechId) return Promise.resolve();
+    const speech = job.speech;
+    const request = Promise.resolve().then(async () => {
+      if (!this.speaker.cancel) throw new Error("语音停止接口不可用，无法确认播放已停止");
+      await this.speaker.cancel(speechId);
+    }).then(() => {
+      speech?.confirmStopped();
+      if (job.speechId === speechId) job.speechId = undefined;
+      if (job.speech === speech) job.speech = undefined;
+    }, (error) => {
+      this.halt(job, "语音停止未确认，禁止自动恢复；请检查语音服务并重试停止");
+      throw error;
+    });
+    job.pendingSpeechStop = request;
+    const clear = () => { if (job.pendingSpeechStop === request) job.pendingSpeechStop = undefined; };
+    void request.then(clear, clear);
     return request;
   }
 

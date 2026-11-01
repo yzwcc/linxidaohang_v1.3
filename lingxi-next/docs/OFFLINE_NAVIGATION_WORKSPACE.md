@@ -60,11 +60,15 @@ npx vitest run robot-api/tests/offline-nav2-integration.test.ts
 The opt-in test uses actual ROS Humble Nav2. It covers product API pause/resume,
 frozen paused pose, new epoch on resume, awakened voice dispatch and stop, a
 knowledge question that preserves navigation, a two-point tour without return,
-and a real detour with concurrent state/point-cloud polling. Default Vitest
+voice pause/resume during a two-point tour, no manual auto-resume after 5.3
+seconds, and a real detour with concurrent state/point-cloud polling. Default Vitest
 runs skip tests requiring this explicitly provided external environment.
 Controller scene receipts are separate from these product API tests and from
 future physical acceptance. Full-product gaps are tracked in
 [OFFLINE_PRODUCT_ACCEPTANCE.md](OFFLINE_PRODUCT_ACCEPTANCE.md).
 The dated [verification record](OFFLINE_WORKSPACE_VERIFICATION_20261101.md)
-also records the six unresolved broad Python regression checks; the full
-repository test suite is not green.
+preserves the earlier six broad Python failures and their subsequent
+reconciliation; see the active full-product workstream for later test counts.
+The [tour/voice verification](TOUR_VOICE_VERIFICATION_20261101.md) records the
+latest full TypeScript regression and actual isolated Nav2/API checks, with
+explicit stubbed-speech and physical-acceptance limits.
