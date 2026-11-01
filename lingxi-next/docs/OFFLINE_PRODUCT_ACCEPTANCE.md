@@ -10,7 +10,7 @@ or deployment is authorized by completing an offline check.
 | Mapping | GLIM CPU full local/global mapping, corrected point-cloud preview, save/reload, per-return observation archive | Observed-map API save/discard passed on recorded input; moving multi-submap and overload regression remain required | Measured scale/heading, loop closure, long walking scan, ARM64 resource limits |
 | Localization | Explicit seeded small-gicp tracking, pose freshness, map provenance, base projection | Replay tracking, bad seeds, loss/recovery, stale generation and current observed-map loading | Independent moving trajectory and ground-truth errors; global relocalization remains a separate capability |
 | Global planning | Pinned native Nav2 NavFn over explicit costmaps | Unknown space, blocked goals, complete path identity and bounded worker | Map scale, robot clearance and actual route reachability |
-| Occupancy and ground | Pinned OctoMap acquisition-time rays and conservative 3D clearance; pinned Patchwork++ ground candidates and support/clearance fusion; actual native fixtures and repeated static recorded replay passed, moving declaration explicitly rejected | Offline declared-frame results are separate from metric navigation costmaps; static recording has zero supported free cells; validated geometry and live ground-support producer remain required | Physical scale, ground support, blind spots and real obstacle visibility |
+| Occupancy and ground | Pinned OctoMap acquisition-time rays and Patchwork++ ground fusion; bounded corrected-window producer with expiry and source-generation replacement; actual native fixtures and identical 20-window recorded replays passed; moving declaration explicitly rejected | Wire supervised live registration/localization input and terrain-to-Nav2 output; declared-frame results remain separate from metric admission; current static recording has zero supported free cells | Physical scale, ground support, blind spots and real obstacle visibility |
 | Local navigation | Real ROS Humble NavFn + RPP + closed-loop smoother passed six synthetic scenes; native OctoMap revisions preserve independent support; paired API/concurrent Web polling passed; DDS publication-age rejection verified in isolated Humble | Integrate recorded metric localization/occupancy/ground support, controller-computation/physical-transport freshness and guarded AIMDK handoff | Walking dynamics, stopping distance, dynamic people/obstacles and emergency stop |
 | Tours and tasks | Multi-point/round sequencing, one retry then skip, manual pause, dialogue quiet-resume, return policy; correlated narration-stop barriers and late-callback tests; real offline Nav2 two-point tour, voice pause/resume and Q&A/no-return passed | Recorded backend integration and actual AgentSDK completion/stop correlation | Actual arrival, interruption/resume and narration at each point |
 | Voice and AI | AgentSDK passive-event gating, deduplication, allowlists, evidence-bound retrieval, timeout/streaming; cloud cancellation, failed-playback stop barriers and superseded-turn regressions passed | Real AgentSDK playback correlation, live cloud matrix and end-to-end latency; offline workspace deliberately stubs playback and disables cloud | 100-wake/8-hour negatives, zero forbidden execution, acoustic P95 first response <=2 s |
@@ -80,3 +80,15 @@ or deployment is authorized by completing an offline check.
   Latest TypeScript regression: 511 passed / 16 skipped; production build
   passed. Speech is stubbed in the real-ROS tests; no robot, cloud, acoustic
   latency, new APK or complete-stack package acceptance is implied.
+- [Rolling terrain verification](ROLLING_TERRAIN_VERIFICATION_20261101.md)
+  records 23 passing actual native tests with zero skips, five supervisor checks,
+  two identical 20-window static replays covering all 313 source scans and moving
+  frame rejection with no partial terrain publication. Host native-pipeline
+  processing P95 was 0.3606 seconds, not a real-time or acoustic latency claim.
+  All 20 static windows have zero supported traversable cells; metric admission,
+  live worker/registration, actual terrain-to-Nav2 control and ARM64 integration
+  remain required. No robot connection, APK build or deployment occurred.
+  Final current scientific Python regression: 1,438 passed / 60 skipped
+  (1,498 total), zero failures/errors. The three new actual-library skips passed
+  separately in the 23-test native run. TypeScript: 511 passed / 16 skipped;
+  frontend/API/runtime checks and production build passed.
