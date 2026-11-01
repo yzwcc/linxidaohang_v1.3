@@ -15,7 +15,7 @@ if [[ $root == / || $root == "$project" || $project == "$root"/* || $root == "$p
   echo 'separate_humble_rootfs_and_new_top_level_output_required' >&2
   exit 2
 fi
-case $case_name in open|blocked|detour|appearing-wall) ;; *) exit 2 ;; esac
+case $case_name in open|blocked|detour|appearing-wall|disappearing-obstacle|unsupported-shortcut) ;; *) exit 2 ;; esac
 exec unshare --mount --net --ipc --fork /bin/bash -s -- "$root" "$project" "$case_name" "$output" <<'INNER'
 set -euo pipefail
 root=$1 project=$2 case_name=$3 output=$4

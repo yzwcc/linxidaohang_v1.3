@@ -12,6 +12,11 @@ def verify_preparation(root, environment):
         raise RuntimeError('bounded_direct_offline_manifest_required')
     manifest = json.loads(manifest_path.read_text(encoding='utf-8'))
     namespace = manifest['namespace']
+    policies = {
+        'latched_obstacles': 'mark_only_latched_no_automatic_clearing',
+        'support_fused_revisions': 'full_support_fused_revisions_no_secondary_clearing',
+    }
+    mode = manifest.get('mapMode')
     if (environment.get('ROS_LOCALHOST_ONLY') != '1'
             or environment.get('ROS_DOMAIN_ID') != str(manifest['domainId'])
             or environment.get('RMW_IMPLEMENTATION') != 'rmw_fastrtps_cpp'
@@ -20,7 +25,7 @@ def verify_preparation(root, environment):
             or manifest['physicalMotionSent'] is not False
             or manifest['controllerExecuted'] is not False or manifest['navigationReady'] is not False
             or manifest['purpose'] != 'offline_nav2_preparation_not_acceptance'
-            or manifest['dynamicObstaclePolicy'] != 'mark_only_latched_no_automatic_clearing'):
+            or mode not in policies or manifest['dynamicObstaclePolicy'] != policies[mode]):
         raise RuntimeError('prepared_local_only_navigation_environment_required')
     names = {'navigate.xml', 'navigate-through.xml', 'nav2-parameters.yaml',
              'platform.json', 'nav2_offline.launch.py'}

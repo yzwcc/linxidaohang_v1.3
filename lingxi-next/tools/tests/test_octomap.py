@@ -11,7 +11,8 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "robot-navigation"))
 from lingxi_navigation.occupancy import (ClearanceProjection, LidarReturn, ObservationBatch,
     OctomapProjector, ScanObservation)
-from lingxi_navigation.navfn import NavfnPlanner
+from lingxi_navigation.navfn import CostmapSnapshot, NavfnPlanner
+from lingxi_navigation.traversability import GroundSupport, SupportPreservingFeed
 
 
 def ray(origin=(.05, .55, .05), endpoint=(1.25, .55, .05)):
@@ -152,6 +153,30 @@ class NativeOctomapTests(unittest.TestCase):
         result = self.projector.project(observations, projection())
         self.assertEqual(0, self.cell(result, 6, 5))
         self.assertEqual(254, self.cell(result, 12, 5))
+
+    def test_native_revisions_clear_old_hits_without_opening_unsupported_air(self):
+        near = batch((ray(endpoint=(.65, .55, .05)),))
+        old = self.projector.project(near, projection())
+        support_costs = bytearray([0] * 256)
+        support_costs[5 * 16 + 4] = 255
+        support = CostmapSnapshot(near.map_id, near.receipt_sha256, 0,
+            16, 16, .1, 0., 0., bytes(support_costs))
+        feed = SupportPreservingFeed(GroundSupport(support, 'e' * 64,
+            near.metric_evidence_sha256, 'isolated_synthetic_ground'))
+        first = feed.update(near, old)
+        self.assertEqual(254, first.grid.costs[5 * 16 + 6])
+        cleared = replace(batch((ray(endpoint=(.65, .55, .05)),),
+            *((ray(),) for _ in range(4))), revision=2)
+        native = self.projector.project(cleared, projection())
+        second = feed.update(cleared, native)
+        self.assertEqual(0, self.cell(native, 4, 5))
+        self.assertEqual(255, second.grid.costs[5 * 16 + 4])
+        self.assertEqual(0, second.grid.costs[5 * 16 + 6])
+        self.assertEqual(255, second.grid.costs[6 * 16 + 6])
+        self.assertEqual(254, second.grid.costs[5 * 16 + 12])
+        self.assertNotEqual(first.sha256, second.sha256)
+        self.assertEqual(native.sha256, second.clearance_sha256)
+        self.assertFalse(second.navigation_ready)
 
     def test_pose_revision_rebuild_removes_old_free_cells(self):
         old = self.projector.project(batch(), projection())

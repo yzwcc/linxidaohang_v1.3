@@ -20,7 +20,16 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'robot-navigation'))
 from lingxi_navigation.nav2_profile import OfflinePlatform
 from lingxi_navigation.runtime import Goal, MapIdentity, OfflineNavigationRuntime, RuntimeInputs
+from lingxi_navigation.navfn import CostmapSnapshot
+from lingxi_navigation.occupancy import (ClearanceProjection, LidarReturn, ObservationBatch,
+                                        OccupancyResult, ScanObservation)
+from lingxi_navigation.traversability import GroundSupport, SupportPreservingFeed
 from prepare_nav2_offline import prepare
+
+
+CASES = ('open', 'blocked', 'detour', 'appearing-wall',
+         'disappearing-obstacle', 'unsupported-shortcut')
+FUSED_CASES = ('disappearing-obstacle', 'unsupported-shortcut')
 
 
 def synthetic_platform():
@@ -29,7 +38,7 @@ def synthetic_platform():
 
 
 def world(case):
-    if case not in ('open', 'blocked', 'detour', 'appearing-wall'):
+    if case not in CASES:
         raise ValueError('known_synthetic_scene_required')
     width, height, resolution = 160, 120, .05
     cells = [0] * (width * height)
@@ -40,11 +49,56 @@ def world(case):
     points = []
     if case in ('blocked', 'appearing-wall'):
         points = [(1., y * .05, z) for y in range(-60, 61) for z in (.15, .7, 1.3)]
-    elif case == 'detour':
+    elif case in ('detour', 'disappearing-obstacle'):
         points = [(x * .05, y * .05, z) for x in range(18, 25)
                   for y in range(-6, 7) for z in (.15, .7, 1.3)]
+    if case == 'unsupported-shortcut':
+        for y in range(53, 67):
+            for x in range(52, 68):
+                cells[y * width + x] = -1
     return dict(width=width, height=height, resolution=resolution, origin=(-2., -3.),
                 cells=cells, points=points)
+
+
+class SyntheticFusedMaps:
+    """Explicit occupancy/support fixture, NOT an OctoMap sensor projection.
+
+    The real native ray-projector is tested separately. Here the isolated ROS
+    test exercises full fused revisions, inflation, planning and control.
+    """
+    def __init__(self, source, identity):
+        self.source, self.identity, self.revision = source, identity, 0
+        support = CostmapSnapshot(identity.map_id, identity.receipt_sha256, 0,
+            source['width'], source['height'], source['resolution'], *source['origin'],
+            bytes(0 if value == 0 else 255 for value in source['cells']))
+        self.feed = SupportPreservingFeed(GroundSupport(support, identity.traversability_sha256,
+            identity.metric_evidence_sha256, 'isolated_synthetic_ground'))
+        self.latest = None
+
+    def update(self, obstacle_visible):
+        self.revision += 1
+        source, identity = self.source, self.identity
+        # Synthetic oracle deliberately declares CLEAR AIR even over the
+        # unsupported hole; the independent support mask must keep it blocked.
+        costs = bytearray(source['width'] * source['height'])
+        if obstacle_visible:
+            for x, y, _ in source['points']:
+                ix = math.floor((x - source['origin'][0]) / source['resolution'])
+                iy = math.floor((y - source['origin'][1]) / source['resolution'])
+                if 0 <= ix < source['width'] and 0 <= iy < source['height']:
+                    costs[iy * source['width'] + ix] = 254
+        grid = CostmapSnapshot(identity.map_id, identity.receipt_sha256, self.revision,
+            source['width'], source['height'], source['resolution'], *source['origin'], bytes(costs))
+        observation = ObservationBatch(identity.map_id, identity.receipt_sha256, self.revision,
+            identity.metric_evidence_sha256,
+            (ScanObservation(0, float(self.revision), identity.receipt_sha256,
+                (LidarReturn((0., 0., .5), (3., 0., .5)),)),), 'isolated_synthetic_rays')
+        projection = ClearanceProjection(source['width'], source['height'], source['resolution'],
+                                        *source['origin'])
+        oracle = OccupancyResult(grid, observation.sha256, projection, 1, 1, 1,
+            *(costs.count(value) for value in (0, 254, 255)), 1)
+        self.latest = self.feed.update(observation, oracle)
+        return self.latest.occupancy_values()
 
 
 def assess_trial(case, source, poses, commands, plans, state):
@@ -53,7 +107,10 @@ def assess_trial(case, source, poses, commands, plans, state):
     radius = platform.clearance_radius_metres + platform.stopping_margin_metres
     obstacles = set((point[0], point[1]) for point in source['points'])
     minimum = math.inf
-    for a, b in zip(poses, poses[1:]):
+    for segment, (a, b) in enumerate(zip(poses, poses[1:])):
+        if (case == 'disappearing-obstacle'
+                and segment >= source.get('obstacle_removed_pose_index', len(poses))):
+            continue
         dx, dy = b[0] - a[0], b[1] - a[1]
         length_squared = dx * dx + dy * dy
         for x, y in obstacles:
@@ -63,20 +120,35 @@ def assess_trial(case, source, poses, commands, plans, state):
     resolution = source['resolution']
     ox, oy = source['origin']
 
-    def supported(pose):
+    def supported(pose, envelope_radius=radius):
         # Cell AABB/circle intersection checks the full envelope, not just its
         # center. These scenes have no hidden inferred ground or physical data.
-        for iy in range(math.floor((pose[1] - radius - oy) / resolution),
-                        math.floor((pose[1] + radius - oy) / resolution) + 1):
-            for ix in range(math.floor((pose[0] - radius - ox) / resolution),
-                            math.floor((pose[0] + radius - ox) / resolution) + 1):
+        for iy in range(math.floor((pose[1] - envelope_radius - oy) / resolution),
+                        math.floor((pose[1] + envelope_radius - oy) / resolution) + 1):
+            for ix in range(math.floor((pose[0] - envelope_radius - ox) / resolution),
+                            math.floor((pose[0] + envelope_radius - ox) / resolution) + 1):
                 cx, cy = ox + (ix + .5) * resolution, oy + (iy + .5) * resolution
                 dx = max(0., abs(cx - pose[0]) - resolution / 2)
                 dy = max(0., abs(cy - pose[1]) - resolution / 2)
-                if math.hypot(dx, dy) > radius:
+                if math.hypot(dx, dy) > envelope_radius:
                     continue
                 if (not 0 <= ix < source['width'] or not 0 <= iy < source['height']
                         or source['cells'][iy * source['width'] + ix] != 0):
+                    return False
+        return True
+
+    def swept_supported():
+        if not poses or not all(supported(pose) for pose in poses):
+            return False
+        for a, b in zip(poses, poses[1:]):
+            distance = math.hypot(b[0] - a[0], b[1] - a[1])
+            steps = max(1, math.ceil(distance / (resolution / 2)))
+            # Expanded midpoint envelopes cover every point of each segment.
+            margin = distance / (2 * steps)
+            for index in range(steps):
+                t = (index + .5) / steps
+                if not supported((a[0] + t * (b[0] - a[0]), a[1] + t * (b[1] - a[1])),
+                                 radius + margin):
                     return False
         return True
 
@@ -90,7 +162,7 @@ def assess_trial(case, source, poses, commands, plans, state):
     checks = dict(actionExpected=state['phase'] == ('failed' if case in ('blocked', 'appearing-wall') else 'finished'),
                   sourceRetired=state['outputQuiescent'] is True, noLatchedFault=state['requiresStop'] is False,
                   commandsBounded=bounded, sweptObstacleClearance=minimum >= radius,
-                  fullEnvelopeSupported=bool(poses) and all(supported(pose) for pose in poses))
+                  fullEnvelopeSupported=swept_supported())
     if case == 'blocked':
         checks.update(noNonzeroCommands=not nonzero, stayedAtStart=all(
             math.hypot(p[0], p[1]) < 1e-9 and abs(p[2]) < 1e-9 for p in poses))
@@ -102,11 +174,29 @@ def assess_trial(case, source, poses, commands, plans, state):
         checks.update(controllerProducedMotion=nonzero, planned=any(plans),
                       metricGoalReached=math.hypot(final[0] - 2., final[1]) <= .15,
                       headingReached=abs(final[2]) <= .15)
-        if case == 'detour':
+        if case in ('detour', 'unsupported-shortcut'):
             checks['obstacleActuallyBypassed'] = max(abs(p[1]) for p in poses) >= .3 + radius
+        if case == 'disappearing-obstacle':
+            checks['obstacleRemovedDuringTrial'] = 0 < source.get('obstacle_removed_pose_index', 0) < len(poses)
     return dict(checks=checks, passed=all(checks.values()),
                 minimumSweptObstacleDistanceMetres=None if not obstacles else minimum,
                 requiredEnvelopeRadiusMetres=radius)
+
+
+def assess_fused_costmaps(case, samples):
+    # Humble InflationLayer can turn unknown into lethal when
+    # inflate_around_unknown=True. Either must remain non-traversable.
+    checks = dict(actualCostmapUnknownBlocked=bool(samples) and all(
+        value['unknown'] in (-1, 100) for value in samples))
+    if case == 'disappearing-obstacle':
+        checks.update(actualCostmapObstacleObserved=any(
+            not value['removed'] and value['obstacle'] == 100 for value in samples),
+            actualCostmapObstacleCleared=any(
+                value['removed'] and value['obstacle'] == 0 for value in samples))
+    if case == 'unsupported-shortcut':
+        checks['actualCostmapUnsupportedNotOpened'] = bool(samples) and all(
+            value['obstacle'] in (-1, 100) for value in samples)
+    return checks
 
 
 class Observer:
@@ -139,11 +229,14 @@ def execute(output, case, maximum_seconds=75.):
         raise ValueError('isolated_loopback_network_namespace_required')
     domain = int(os.environ['ROS_DOMAIN_ID'])
     runner_sha = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
-    manifest = prepare(synthetic_platform(), output, domain_id=domain)
+    fused_mode = case in FUSED_CASES
+    manifest = prepare(synthetic_platform(), output, domain_id=domain,
+        map_mode='support_fused_revisions' if fused_mode else 'latched_obstacles')
     namespace = manifest['namespace']
     source = world(case)
     sha = hashlib.sha256(json.dumps(source, sort_keys=True).encode()).hexdigest()
     identity = MapIdentity('slam-' + namespace[-32:], sha, sha, sha)
+    fused_maps = SyntheticFusedMaps(source, identity) if fused_mode else None
     import rclpy
     from rclpy.action import ActionClient
     from rclpy.qos import QoSProfile, DurabilityPolicy, ReliabilityPolicy
@@ -172,6 +265,8 @@ def execute(output, case, maximum_seconds=75.):
     pose = [0., 0., 0.]
     poses, commands, plans = [], [], []
     obstacle_activated = False
+    obstacle_removed = False
+    costmap_samples = []
     packet_sequence = 0
     runtime = None
     action_client = ActionClient(node, NavigateToPose, 'navigate_to_pose')
@@ -256,6 +351,19 @@ def execute(output, case, maximum_seconds=75.):
     backend.subscription = node.create_subscription(Twist, 'observed_cmd_vel', receive_velocity, 1)
     plan_subscription = node.create_subscription(RosPath, 'plan', lambda msg:
         plans.append([[p.pose.position.x, p.pose.position.y] for p in msg.poses]), 10)
+    def observe_costmap(msg):
+        if not fused_mode:
+            return
+        def cell(x, y):
+            ix = math.floor((x - msg.info.origin.position.x) / msg.info.resolution)
+            iy = math.floor((y - msg.info.origin.position.y) / msg.info.resolution)
+            if not 0 <= ix < msg.info.width or not 0 <= iy < msg.info.height:
+                return None
+            return int(msg.data[iy * msg.info.width + ix])
+        costmap_samples.append(dict(removed=obstacle_removed, obstacle=cell(1., 0.),
+                                   unknown=cell(-1.975, -2.975)))
+    costmap_subscription = node.create_subscription(OccupancyGrid, 'global_costmap/costmap',
+                                                   observe_costmap, reliable)
     lifecycle = [node.create_client(GetState, name + '/get_state') for name in
                  ('planner_server', 'controller_server', 'bt_navigator', 'velocity_smoother')]
     lifecycle_futures = [None] * 4
@@ -268,7 +376,7 @@ def execute(output, case, maximum_seconds=75.):
         return RuntimeInputs(identity, sequence, time.monotonic(), True, True, True, True, True)
 
     def publish(dt, sensors):
-        nonlocal obstacle_activated
+        nonlocal obstacle_activated, obstacle_removed
         vx, vy, wz = observer.latest
         # Deliberately synthetic planar kinematics, not X2 dynamics evidence.
         pose[0] += (vx * math.cos(pose[2]) - vy * math.sin(pose[2])) * dt
@@ -276,6 +384,9 @@ def execute(output, case, maximum_seconds=75.):
         pose[2] = math.atan2(math.sin(pose[2] + wz * dt), math.cos(pose[2] + wz * dt))
         if case != 'appearing-wall' or pose[0] >= .25:
             obstacle_activated = True
+        if case == 'disappearing-obstacle' and not obstacle_removed and pose[0] >= .15:
+            obstacle_removed = True
+            source['obstacle_removed_pose_index'] = len(poses)
         now = stamp()
         publishers['clock'].publish(Clock(clock=now))
         transforms = []
@@ -302,7 +413,7 @@ def execute(output, case, maximum_seconds=75.):
         grid.info.width, grid.info.height, grid.info.resolution = source['width'], source['height'], source['resolution']
         grid.info.origin.position.x, grid.info.origin.position.y = source['origin']
         grid.info.origin.orientation.w = 1.
-        grid.data = source['cells']
+        grid.data = (fused_maps.update(not obstacle_removed) if fused_mode else source['cells'])
         publishers['map'].publish(grid)
         cloud = PointCloud2()
         cloud.header.stamp, cloud.header.frame_id = now, namespace + '_map'
@@ -354,6 +465,9 @@ def execute(output, case, maximum_seconds=75.):
         if result is None:
             raise RuntimeError('bounded_nav2_offline_trial_timeout')
         assessment = assess_trial(case, source, poses, commands, plans, result)
+        if fused_mode:
+            assessment['checks'].update(assess_fused_costmaps(case, costmap_samples))
+            assessment['passed'] = all(assessment['checks'].values())
         if (runner_sha != hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
                 or any(hashlib.sha256((ROOT / name).read_bytes()).hexdigest() != sha
                        for name, sha in manifest['sources'].items())):
@@ -374,6 +488,9 @@ def execute(output, case, maximum_seconds=75.):
             maximumAbsY=max(abs(value[1]) for value in poses), runtimeState={**result, 'ticket': asdict(result['ticket'])},
             syntheticInputs=True, groundSupportMeasured=False, controllerExecuted=bool(commands),
             dynamicObstaclePolicy=manifest['dynamicObstaclePolicy'],
+            costmapSamples=costmap_samples, syntheticOracleNotOctomap=fused_mode,
+            fusedMapRevision=fused_maps.revision if fused_maps else None,
+            fusedSnapshotSha256=fused_maps.latest.sha256 if fused_maps else None,
             observedTwistHasSourceTimestamp=False, productionCommandAgeProven=False,
             physicalMotionSent=False, navigationReady=False, elapsedSeconds=time.monotonic() - launched_at)
         (output / 'report.json').write_text(json.dumps(report, indent=2, allow_nan=False) + '\n', encoding='utf-8')
@@ -402,7 +519,7 @@ def execute(output, case, maximum_seconds=75.):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output', type=Path, required=True)
-    parser.add_argument('--case', choices=('open', 'blocked', 'detour', 'appearing-wall'), required=True)
+    parser.add_argument('--case', choices=CASES, required=True)
     args = parser.parse_args()
     previous = os.umask(0o077)
     try:

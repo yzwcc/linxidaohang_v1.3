@@ -55,7 +55,8 @@ class OfflinePlatform:
             raise ValueError('offline_prediction_budget_must_cover_configured_stopping_horizon')
 
 
-def parameters(platform, behavior_tree_path, through_poses_tree_path, namespace):
+def parameters(platform, behavior_tree_path, through_poses_tree_path, namespace,
+               *, map_mode='latched_obstacles'):
     """JSON is emitted as YAML-compatible ROS parameters; no fake map is generated.
 
     Inputs are dedicated offline topics, never vendor topics. The map publisher
@@ -65,7 +66,8 @@ def parameters(platform, behavior_tree_path, through_poses_tree_path, namespace)
     from pathlib import Path
     if (type(platform) is not OfflinePlatform
             or any(not Path(path).is_absolute() for path in (behavior_tree_path, through_poses_tree_path))
-            or type(namespace) is not str or re.fullmatch('lingxi_offline_[0-9a-f]{32}', namespace) is None):
+            or type(namespace) is not str or re.fullmatch('lingxi_offline_[0-9a-f]{32}', namespace) is None
+            or map_mode not in ('latched_obstacles', 'support_fused_revisions')):
         raise ValueError('explicit_offline_platform_and_behavior_tree_required')
     topic = '/' + namespace + '/'
     frame = namespace + '_'
@@ -106,6 +108,14 @@ def parameters(platform, behavior_tree_path, through_poses_tree_path, namespace)
                          inflation_radius=radius + margin + .3, cost_scaling_factor=3.))
         if rolling:
             value.update(width=8, height=8)
+        if map_mode == 'support_fused_revisions':
+            value['plugins'] = ['static_layer', 'inflation_layer']
+            del value['obstacle_layer']
+            # Full fused revisions are authoritative. Humble's maximum merge
+            # cannot remove old obstacles; ray clearing cannot preserve support.
+            value['static_layer'].update(use_maximum=False, trinary_costmap=True,
+                                         track_unknown_space=True, lethal_cost_threshold=100)
+            value['inflation_layer'].update(inflate_around_unknown=True, inflate_unknown=False)
         return dict(ros__parameters=value)
 
     controller = dict(

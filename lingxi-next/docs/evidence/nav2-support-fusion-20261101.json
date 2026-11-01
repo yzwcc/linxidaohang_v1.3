@@ -1,0 +1,232 @@
+{
+  "schemaVersion": 2,
+  "date": "2026-11-01",
+  "purpose": "synthetic_planar_nav2_integration_not_field_acceptance",
+  "upstream": {
+    "repository": "https://github.com/ros-navigation/navigation2",
+    "commit": "3c3db59d6969d8ecee8e68468693d006397f4a0c",
+    "controller": "nav2_regulated_pure_pursuit_controller::RegulatedPurePursuitController",
+    "smoother": "nav2_velocity_smoother::VelocitySmoother",
+    "offlineOnly": true,
+    "controllerExecuted": false,
+    "navigationReady": false,
+    "installedBinaryMatchesPinnedSourceVerified": false
+  },
+  "installedPackages": [
+    "ros-humble-dwb-core 1.1.20-1jammy.20260915.232211",
+    "ros-humble-dwb-critics 1.1.20-1jammy.20260915.233444",
+    "ros-humble-dwb-plugins 1.1.20-1jammy.20260915.232811",
+    "ros-humble-nav2-controller 1.1.20-1jammy.20260915.232401",
+    "ros-humble-nav2-navfn-planner 1.1.20-1jammy.20260915.232217",
+    "ros-humble-nav2-regulated-pure-pursuit-controller 1.1.20-1jammy.20260915.232155",
+    "ros-humble-nav2-velocity-smoother 1.1.20-1jammy.20260915.230155"
+  ],
+  "sourceSha256": {
+    "robot-navigation/lingxi_navigation/nav2_profile.py": "9f2d6ad3095f76c7026a1779f1f2446e635ae9488135e3fc581681aef0dbbc27",
+    "robot-navigation/lingxi_navigation/runtime.py": "8fd3111f363c3aacdebe620404ad5beccda0a1aee16045d73fa97f7a526f6f25",
+    "robot-navigation/nav2_offline.launch.py": "bc7c0647b261a7ca61aeac13a1678a647202f099dbcc3f7ca16ea0ae5c9e5e08",
+    "tools/prepare_nav2_offline.py": "00cc06fa3bf53aca726a780cfa9ab13bdadb44bc74adf832fc645af4175aa55c",
+    "robot-navigation/lingxi_navigation/traversability.py": "9ceb4a7fd7587f43a50fdd1cb11f8414c659781a548d302e8e1cbc23ce695b0c",
+    "robot-navigation/lingxi_navigation/occupancy.py": "9807c3b12077dcd314d3413134f34248c1c9ebfcc9a11e8af10c8d549a088710",
+    "robot-navigation/lingxi_navigation/navfn.py": "e86dced7b77d57136359a46963b69563fb4a53f995674a416248a0e80086caa8",
+    "tools/run_nav2_offline.py": "85ec9a28dcc969ab4b76b9dada3f9636a4ddc9ed066ebb4db4aeac0ca5e07c79",
+    "tools/export_nav2_evidence.py": "5310e531fdf0f1394a96b57fa6ed7a21dd7c22a250e54ab648b8954dc8448073"
+  },
+  "requiredEnvelopeRadiusMetres": 0.4,
+  "cases": [
+    {
+      "case": "open",
+      "passed": true,
+      "checks": {
+        "actionExpected": true,
+        "sourceRetired": true,
+        "noLatchedFault": true,
+        "commandsBounded": true,
+        "sweptObstacleClearance": true,
+        "fullEnvelopeSupported": true,
+        "controllerProducedMotion": true,
+        "planned": true,
+        "metricGoalReached": true,
+        "headingReached": true
+      },
+      "finalPose": [
+        1.853974335267945,
+        3.122495188303153e-08,
+        -1.4985230529422865e-07
+      ],
+      "minimumSweptObstacleDistanceMetres": null,
+      "maximumAbsY": 4.687985787782822e-08,
+      "commandCount": 235,
+      "elapsedSeconds": 13.891607399000002,
+      "dynamicObstaclePolicy": "mark_only_latched_no_automatic_clearing",
+      "syntheticOracleNotOctomap": false,
+      "fusedMapRevision": null,
+      "fusedSnapshotSha256": null,
+      "reportSha256": "1e28e361cbf01089e36f655e3e44112174ade3d54be9d270a813dec33b4e6d17"
+    },
+    {
+      "case": "blocked",
+      "passed": true,
+      "checks": {
+        "actionExpected": true,
+        "sourceRetired": true,
+        "noLatchedFault": true,
+        "commandsBounded": true,
+        "sweptObstacleClearance": true,
+        "fullEnvelopeSupported": true,
+        "noNonzeroCommands": true,
+        "stayedAtStart": true
+      },
+      "finalPose": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "minimumSweptObstacleDistanceMetres": 1.0,
+      "maximumAbsY": 0.0,
+      "commandCount": 0,
+      "elapsedSeconds": 1.5707243859999984,
+      "dynamicObstaclePolicy": "mark_only_latched_no_automatic_clearing",
+      "syntheticOracleNotOctomap": false,
+      "fusedMapRevision": null,
+      "fusedSnapshotSha256": null,
+      "reportSha256": "9a0795bb35cb9b62ba8154320690750e3a0d26f2339e84669ea1f62d96338f9f"
+    },
+    {
+      "case": "detour",
+      "passed": true,
+      "checks": {
+        "actionExpected": true,
+        "sourceRetired": true,
+        "noLatchedFault": true,
+        "commandsBounded": true,
+        "sweptObstacleClearance": true,
+        "fullEnvelopeSupported": true,
+        "controllerProducedMotion": true,
+        "planned": true,
+        "metricGoalReached": true,
+        "headingReached": true,
+        "obstacleActuallyBypassed": true
+      },
+      "finalPose": [
+        1.984738138006249,
+        0.1404412485095891,
+        -0.1343492333187245
+      ],
+      "minimumSweptObstacleDistanceMetres": 0.7258167757585289,
+      "maximumAbsY": 1.0383206907903972,
+      "commandCount": 567,
+      "elapsedSeconds": 30.796545575000003,
+      "dynamicObstaclePolicy": "mark_only_latched_no_automatic_clearing",
+      "syntheticOracleNotOctomap": false,
+      "fusedMapRevision": null,
+      "fusedSnapshotSha256": null,
+      "reportSha256": "623709ef53070ca2656010c8e1556ebb851880dd84a22b6e362f106f1f2fe365"
+    },
+    {
+      "case": "appearing-wall",
+      "passed": true,
+      "checks": {
+        "actionExpected": true,
+        "sourceRetired": true,
+        "noLatchedFault": true,
+        "commandsBounded": true,
+        "sweptObstacleClearance": true,
+        "fullEnvelopeSupported": true,
+        "controllerProducedMotion": true,
+        "planned": true,
+        "obstacleIntroduced": true,
+        "stoppedBeforeWall": true
+      },
+      "finalPose": [
+        0.29841381623236807,
+        2.9290485050350006e-08,
+        8.655882144356733e-08
+      ],
+      "minimumSweptObstacleDistanceMetres": 0.7015861837676325,
+      "maximumAbsY": 2.9290485050350006e-08,
+      "commandCount": 41,
+      "elapsedSeconds": 3.476536803000002,
+      "dynamicObstaclePolicy": "mark_only_latched_no_automatic_clearing",
+      "syntheticOracleNotOctomap": false,
+      "fusedMapRevision": null,
+      "fusedSnapshotSha256": null,
+      "reportSha256": "ea22180872d85d18b3456adae1c081870527c7f8d0f2844a5798902f399ed20d"
+    },
+    {
+      "case": "disappearing-obstacle",
+      "passed": true,
+      "checks": {
+        "actionExpected": true,
+        "sourceRetired": true,
+        "noLatchedFault": true,
+        "commandsBounded": true,
+        "sweptObstacleClearance": true,
+        "fullEnvelopeSupported": true,
+        "controllerProducedMotion": true,
+        "planned": true,
+        "metricGoalReached": true,
+        "headingReached": true,
+        "obstacleRemovedDuringTrial": true,
+        "actualCostmapUnknownBlocked": true,
+        "actualCostmapObstacleObserved": true,
+        "actualCostmapObstacleCleared": true
+      },
+      "finalPose": [
+        1.8813268424807084,
+        0.08084525707742732,
+        -0.13348667928173238
+      ],
+      "minimumSweptObstacleDistanceMetres": 0.786815570287649,
+      "maximumAbsY": 0.7676012260495751,
+      "commandCount": 490,
+      "elapsedSeconds": 26.774301781000002,
+      "dynamicObstaclePolicy": "full_support_fused_revisions_no_secondary_clearing",
+      "syntheticOracleNotOctomap": true,
+      "fusedMapRevision": 511,
+      "fusedSnapshotSha256": "e631a5df75950209dd8e0c9c2d02f9f8cd34299932fc320df91f57639ffdebc1",
+      "reportSha256": "591068af10c7a855f0636a66e291bdfef0b31238f1e8d976d7aeacb770b28db6"
+    },
+    {
+      "case": "unsupported-shortcut",
+      "passed": true,
+      "checks": {
+        "actionExpected": true,
+        "sourceRetired": true,
+        "noLatchedFault": true,
+        "commandsBounded": true,
+        "sweptObstacleClearance": true,
+        "fullEnvelopeSupported": true,
+        "controllerProducedMotion": true,
+        "planned": true,
+        "metricGoalReached": true,
+        "headingReached": true,
+        "obstacleActuallyBypassed": true,
+        "actualCostmapUnknownBlocked": true,
+        "actualCostmapUnsupportedNotOpened": true
+      },
+      "finalPose": [
+        2.0861687370843165,
+        0.12127484543936545,
+        -0.12514475974659
+      ],
+      "minimumSweptObstacleDistanceMetres": null,
+      "maximumAbsY": 1.1036119211144548,
+      "commandCount": 822,
+      "elapsedSeconds": 43.431058553,
+      "dynamicObstaclePolicy": "full_support_fused_revisions_no_secondary_clearing",
+      "syntheticOracleNotOctomap": true,
+      "fusedMapRevision": 832,
+      "fusedSnapshotSha256": "85c63379117aacdc2c8438b5469a3cfcfe59c4b59797ffb748b7bfb1095198f6",
+      "reportSha256": "71128324f1912c26809343e72fb3b63935fb0acef1c7898b81fdf297b776cbff"
+    }
+  ],
+  "syntheticInputs": true,
+  "controllerExecuted": true,
+  "groundSupportMeasured": false,
+  "observedTwistHasSourceTimestamp": false,
+  "productionCommandAgeProven": false,
+  "physicalMotionSent": false,
+  "navigationReady": false,
+  "installedBinaryMatchesPinnedSourceVerified": false
+}

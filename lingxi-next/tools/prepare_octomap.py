@@ -15,6 +15,7 @@ SOURCES = (
     "robot-navigation/lingxi_navigation/__init__.py",
     "robot-navigation/lingxi_navigation/occupancy.py",
     "robot-navigation/lingxi_navigation/navfn.py",
+    "robot-navigation/lingxi_navigation/traversability.py",
     "tools/tests/test_octomap.py", "tools/check_octomap_native.py",
     "tools/prepare_octomap.py", "tools/run_octomap_target.py",
 )

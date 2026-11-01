@@ -52,6 +52,21 @@ class ProfileTests(unittest.TestCase):
             self.assertEqual(0., obstacle['lidar']['observation_persistence'])
         self.assertFalse(self.config['planner_server']['ros__parameters']['GridBased']['allow_unknown'])
 
+    def test_support_fused_mode_uses_authoritative_full_maps_without_secondary_clearing(self):
+        config = parameters(platform(), ROOT / '.local/navigate.xml',
+            ROOT / '.local/navigate-through.xml', self.namespace, map_mode='support_fused_revisions')
+        for name in ('global_costmap', 'local_costmap'):
+            costmap = config[name][name]['ros__parameters']
+            self.assertEqual(['static_layer', 'inflation_layer'], costmap['plugins'])
+            self.assertNotIn('obstacle_layer', costmap)
+            self.assertFalse(costmap['static_layer']['use_maximum'])
+            self.assertTrue(costmap['static_layer']['track_unknown_space'])
+            self.assertTrue(costmap['inflation_layer']['inflate_around_unknown'])
+            self.assertFalse(costmap['inflation_layer']['inflate_unknown'])
+        with self.assertRaises(ValueError):
+            parameters(platform(), ROOT / '.local/navigate.xml', ROOT / '.local/navigate-through.xml',
+                       self.namespace, map_mode='unbounded_ray_clearing')
+
     def test_footprint_contains_entire_measured_circle_in_every_orientation(self):
         radius = platform().clearance_radius_metres + platform().stopping_margin_metres
         for config in self.costmaps():
@@ -174,6 +189,25 @@ class PreparationTests(unittest.TestCase):
                         {'RMW_IMPLEMENTATION': 'rmw_cyclonedds_cpp'}):
             with self.subTest(changes=changes), self.assertRaises(RuntimeError):
                 offline_launch.verify_preparation(output, {**manifest['environment'], **changes})
+
+    def test_both_map_modes_require_matching_policy_at_launch(self):
+        for mode, policy in (
+                ('latched_obstacles', 'mark_only_latched_no_automatic_clearing'),
+                ('support_fused_revisions', 'full_support_fused_revisions_no_secondary_clearing')):
+            output = self.root / mode
+            manifest = prepare(platform(), output, map_mode=mode)
+            self.assertEqual(policy, manifest['dynamicObstaclePolicy'])
+            self.assertEqual(manifest, offline_launch.verify_preparation(output, manifest['environment']))
+            for changes in ({'mapMode': 'unknown'}, {'mapMode': None},
+                            {'dynamicObstaclePolicy': 'clear_unknown_ground'},
+                            {'mapMode': 'support_fused_revisions' if mode == 'latched_obstacles'
+                                         else 'latched_obstacles'}):
+                with self.subTest(mode=mode, changes=changes):
+                    (output / 'offline-nav2-manifest.json').write_text(
+                        json.dumps({**manifest, **changes}), encoding='utf-8')
+                    with self.assertRaisesRegex(RuntimeError, 'local_only_navigation'):
+                        offline_launch.verify_preparation(output, manifest['environment'])
+
 
     def test_output_cannot_overwrite_sources_existing_preparation_or_parent(self):
         output = self.root / 'prepared'

@@ -5,7 +5,8 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'tools'))
-from run_nav2_offline import assess_trial, world
+from run_nav2_offline import (SyntheticFusedMaps, assess_fused_costmaps, assess_trial, world)
+from lingxi_navigation.runtime import MapIdentity
 
 
 class TrialTests(unittest.TestCase):
@@ -61,6 +62,54 @@ class TrialTests(unittest.TestCase):
             self.assertFalse(self.assess('open', path, state=state)['passed'])
         for command in ((.21, 0., 0.), (-.01, 0., 0.), (.1, .11, 0.), (.1, 0., .31)):
             self.assertFalse(self.assess('open', path, commands=[command])['passed'])
+
+    def test_support_is_checked_between_poses_not_just_at_endpoints(self):
+        source = world('unsupported-shortcut')
+        value = assess_trial('unsupported-shortcut', source, [[0., 0., 0.], [2., 0., 0.]],
+                             [[.1, 0., 0.]], [[[0., 0.], [2., 0.]]], self.state())
+        self.assertFalse(value['checks']['fullEnvelopeSupported'])
+        self.assertFalse(value['passed'])
+        path = [[0., 0., 0.], [0., 1., 0.], [2., 1., 0.], [2., 0., 0.]]
+        value = assess_trial('unsupported-shortcut', source, path,
+                             [[.1, 0., 0.]], [path], self.state())
+        self.assertTrue(value['passed'])
+
+    def test_removed_obstacle_still_blocks_the_pre_removal_trajectory(self):
+        source = world('disappearing-obstacle')
+        source['obstacle_removed_pose_index'] = 1
+        value = assess_trial('disappearing-obstacle', source,
+            [[0., 0., 0.], [1., 0., 0.], [2., 0., 0.]],
+            [[.1, 0., 0.]], [[[0., 0.], [2., 0.]]], self.state())
+        self.assertFalse(value['checks']['sweptObstacleClearance'])
+
+    def test_fused_fixture_revises_obstacles_but_cannot_clear_unknown_support(self):
+        identity = MapIdentity('slam-' + 'a' * 32, 'b' * 64, 'c' * 64, 'd' * 64)
+        source = world('disappearing-obstacle')
+        fixture = SyntheticFusedMaps(source, identity)
+        old = fixture.update(True)
+        new = fixture.update(False)
+        self.assertIn(100, old)
+        self.assertNotIn(100, new)
+        self.assertEqual(2, fixture.latest.grid.revision)
+        self.assertEqual(-1, new[0])
+        fixture = SyntheticFusedMaps(world('unsupported-shortcut'), identity)
+        for _ in range(3):
+            self.assertEqual(-1, fixture.update(False)[60 * source['width'] + 60])
+
+    def test_actual_costmap_gates_require_observation_clearing_and_blocked_unknowns(self):
+        for blocked in (-1, 100):
+            samples = [dict(unknown=blocked, obstacle=100, removed=False),
+                       dict(unknown=blocked, obstacle=0, removed=True)]
+            self.assertTrue(all(assess_fused_costmaps('disappearing-obstacle', samples).values()))
+        for samples in ([], [dict(unknown=-1, obstacle=0, removed=True)],
+                        [dict(unknown=-1, obstacle=100, removed=False)],
+                        [dict(unknown=0, obstacle=100, removed=False),
+                         dict(unknown=-1, obstacle=0, removed=True)]):
+            self.assertFalse(all(assess_fused_costmaps('disappearing-obstacle', samples).values()))
+        for value in (-1, 100, 0, 99):
+            result = assess_fused_costmaps('unsupported-shortcut',
+                [dict(unknown=-1, obstacle=value, removed=False)])
+            self.assertEqual(value in (-1, 100), all(result.values()))
 
 
 if __name__ == '__main__':

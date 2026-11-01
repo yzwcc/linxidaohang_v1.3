@@ -38,7 +38,7 @@ def load_platform(path):
     return OfflinePlatform(**value)
 
 
-def prepare(platform, output, *, domain_id=173):
+def prepare(platform, output, *, domain_id=173, map_mode='latched_obstacles'):
     if type(platform) is not OfflinePlatform or type(domain_id) is not int or not 1 <= domain_id <= 200:
         raise ValueError('explicit_offline_platform_and_domain_required')
     output = Path(output)
@@ -50,10 +50,13 @@ def prepare(platform, output, *, domain_id=173):
     namespace = 'lingxi_offline_' + secrets.token_hex(16)
     tree = output / 'navigate.xml'
     through_tree = output / 'navigate-through.xml'
-    config = parameters(platform, tree, through_tree, namespace)
+    config = parameters(platform, tree, through_tree, namespace, map_mode=map_mode)
     source_names = ('robot-navigation/lingxi_navigation/nav2_profile.py',
                     'robot-navigation/lingxi_navigation/runtime.py',
-                    'robot-navigation/nav2_offline.launch.py', 'tools/prepare_nav2_offline.py')
+                    'robot-navigation/nav2_offline.launch.py', 'tools/prepare_nav2_offline.py',
+                    'robot-navigation/lingxi_navigation/traversability.py',
+                    'robot-navigation/lingxi_navigation/occupancy.py',
+                    'robot-navigation/lingxi_navigation/navfn.py')
     sources = {name: digest(ROOT / name) for name in source_names}
     files = {
         'navigate.xml': BEHAVIOR_TREE,
@@ -74,7 +77,10 @@ def prepare(platform, output, *, domain_id=173):
                     namespace=namespace, domainId=domain_id,
                     upstream=source_reference(), sources=sources,
                     files={name: digest(output / name) for name in files},
-                    dynamicObstaclePolicy='mark_only_latched_no_automatic_clearing',
+                    mapMode=map_mode,
+                    dynamicObstaclePolicy=('full_support_fused_revisions_no_secondary_clearing'
+                        if map_mode == 'support_fused_revisions'
+                        else 'mark_only_latched_no_automatic_clearing'),
                     environment=dict(ROS_LOCALHOST_ONLY='1', ROS_DOMAIN_ID=str(domain_id),
                                      RMW_IMPLEMENTATION='rmw_fastrtps_cpp'),
                     physicalMotionSent=False, controllerExecuted=False, navigationReady=False)
