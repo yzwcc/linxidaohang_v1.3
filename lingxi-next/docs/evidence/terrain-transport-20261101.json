@@ -1,0 +1,598 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-11-01",
+  "result": "rolling_terrain_repeated_with_frame_rejection",
+  "verifierSourcesSha256": {
+    "tools/verify_recorded_terrain.py": "4695bbf17f2d1c4a0f7d7c352706e593c39cfe2da48cc4f409f4421310b49913",
+    "tools/tests/test_recorded_terrain_runner.py": "1ae8c1be195c5c34b55b0ffc1041d83e7af32bf560f44827eee1c21b5a04b8e7"
+  },
+  "nativeVerification": {
+    "schemaVersion": 1,
+    "result": "native_terrain_windows_passed",
+    "testsRun": 39,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "sourcesSha256": {
+      "robot-navigation/lingxi_navigation/terrain.py": "96c0bc5f7add0f24c9832fe674b5addca9902a78c0ee8769c837c79d2e776897",
+      "tools/tests/test_terrain.py": "4dcb4576f37995e5ef7027f5bcfcceec475ec264a2a38aa3cefded9b1c978d73",
+      "robot-navigation/lingxi_navigation/ground.py": "58aa45a481cd6d51652c0ee4b862bc68a0f2507ead4f0e488d87a3569f54a2c9",
+      "robot-navigation/lingxi_navigation/occupancy.py": "9807c3b12077dcd314d3413134f34248c1c9ebfcc9a11e8af10c8d549a088710",
+      "tools/tests/test_ground.py": "fe6aacbaa8c973ccb9a32a79b3db83aac195a8fcc4ba4e4a2815266c4bed9f4a",
+      "tools/check_terrain_native.py": "342eac2415d06083dacc6c255c1668e18a1c387386dd7b731dc240436ce62747",
+      "tools/tests/test_terrain_transport.py": "95244fb31dfc4751d779c267daa5ce4f5bb7276fde7a26094ef65c2812042c18",
+      "robot-navigation/lingxi_navigation/terrain_process.py": "588cd963ced5d780a2546a1dff966ae0d5dd141ae4f4a311c1264fe6d4803b49",
+      "robot-navigation/lingxi_navigation/terrain_worker.py": "914cb99f8063156e223ceef515aa7e8b5cfc1766b746c41423719bd95547d964",
+      "robot-navigation/lingxi_navigation/terrain_protocol.py": "25055c0b272bfc177bfc422e96b263589f969369497d5256222cd354a93ecfd9",
+      "robot-navigation/lingxi_navigation/terrain_feed.py": "8c65dd9a1b33c45f948782ed924028171a15cf6f9728c920eff07196a3935c00"
+    },
+    "groundNativeSha256": "0f0f3b74dee2acccb520e6f7a95a668c268fe22a53f165821a5b8427dd4955a6",
+    "octomapNativeSha256": "26dd1f8965a84a12a786263b82717724267d47f436a1adcbd2d3a5d0aea8d2e3",
+    "groundBuildReportSha256": "54fb4cd727f116ec8c86666dd7e70042f254886d3b5f854bc6c83a853d84eafe",
+    "octomapBuildReportSha256": "2558817108de6ec608fa92a796aa69cd1bae460c4f886c3f7672ef3fcaa6bd33",
+    "dependenciesSha256": {
+      "liboctomap.so.1.9.7": "27e22029990f69e951b5c4b1acc33e44fe3663af9e13620271a35ab1ed1309f7",
+      "liboctomath.so.1.9.7": "da54007d468946667bf76fc9f81ce64ad8d28ae2b3d551f501adaf2f0631731f"
+    },
+    "upstreamRevision": "3e6903a1d5537a4cc2ace897b0bbb98a92d6014c",
+    "machine": "x86_64",
+    "python": "3.12.3",
+    "inputClassification": "isolated_synthetic_rays_and_ground",
+    "robotContacted": false,
+    "physicalMotionSent": false,
+    "physicalScaleValidated": false,
+    "groundSupportValidated": false,
+    "navigationReady": false
+  },
+  "rawReportsSha256": [
+    "51b423818375ebc2a76b61ab379668b5f8e84d0df4ffdb8e2107ba3e1fd218f9",
+    "865182c7d02a6c6dbcbc7750d7357cf0361be99abe63a1972c7d354de6971218"
+  ],
+  "repeatedIdentically": true,
+  "staticRecording": {
+    "input": {
+      "mapId": "slam-518fab9d6ac044e5999c678e8b99e376",
+      "mapReceiptSha256": "b7bb8137787235f6d15c5a7263d69b72b66629e3121bdd77d303925377c7f4bc",
+      "bindingSha256": "bd069b847e85aa4006ce7936d209194c536cf4206a2db58948c9fb7063c3d452",
+      "revision": 3,
+      "archiveSha256": "317bf4816d506f0dfd5e099da4bf9d85f2f36968e2e1d408b84a871bd528b438",
+      "registeredGeometrySha256": "a76b707be6d29b7d3c03cd3a71685b93833161b8a428aabe9ff7c367efcc0570",
+      "geometryDeclarationSha256": "2b02709b74e95674dd957bbbd14a9154fefa103976b43ee2f288e795f35b0a0e",
+      "raySelection": {
+        "maximum_rays": 131072,
+        "maximum_per_scan": 8192
+      },
+      "selectionSha256": "c2123ef281a02abeb1dcff2c57f50ce33116441c6a290c5c1c18516b3d900788",
+      "observationsSha256": "3a6af0623841829f14da796cdc6fea5a77945374a670a7bb6adcd4a38de00de9",
+      "scans": 313,
+      "sourceReturns": 2012279,
+      "selectedReturns": 130834,
+      "omittedReturns": 1881445,
+      "frame": "lingxi_offline_declared_map",
+      "units": "declared-metres",
+      "offlineOnly": true,
+      "physicalScaleValidated": false,
+      "groundFrameValidated": false,
+      "groundSupportValidated": false,
+      "obstacleCompletenessValidated": false,
+      "navigationReady": false
+    },
+    "projection": {
+      "width": 128,
+      "height": 128,
+      "resolution_metres": 0.1,
+      "origin_x_metres": -6.4,
+      "origin_y_metres": -6.4,
+      "minimum_z_metres": 0.1,
+      "maximum_z_metres": 1.4,
+      "maximum_range_metres": 10.0
+    },
+    "budget": {
+      "maximum_scans": 32,
+      "maximum_rays": 65536,
+      "maximum_span_seconds": 4.0,
+      "maximum_processing_seconds": 2.0,
+      "maximum_age_seconds": 3.0,
+      "maximum_work_units": 16000000
+    },
+    "windows": [
+      {
+        "cells": {
+          "free": 0,
+          "occupied": 797,
+          "unknown": 15587
+        },
+        "clearanceSha256": "c7dd1512bdd83cff3588e43f06339e3f605e8438732a552c7a5d4f59f4fba228",
+        "groundSupportValidated": false,
+        "mapRevision": 3,
+        "navigationReady": false,
+        "observationsSha256": "7a482b15af748752c237211a9dc10daba1ad558c2a0edff2702566a0ab429386",
+        "offlineOnly": true,
+        "physicalScaleValidated": false,
+        "rays": 6688,
+        "scans": 16,
+        "sequence": 0,
+        "supportSha256": "52ad6a2d6b866f8e1eb60c6fd6b5560bf78ad1526e02d046c5910f6d2905d921",
+        "traversabilityBytesSha256": "0d83ec556ffdeeb36bb91c083966f86d24525d15884fd896b19f7bf775ef82e8",
+        "traversabilitySha256": "faff658014aa8d90ffb76eadba373a95a026636c24b2ec5a873440f3b94d6ed2",
+        "sourceStart": 0,
+        "sourceEnd": 16
+      },
+      {
+        "cells": {
+          "free": 0,
+          "occupied": 1108,
+          "unknown": 15276
+        },
+        "clearanceSha256": "0647db888793d53f9392f0001806ba333f5d44bee07157b1a871b31eb49efc42",
+        "groundSupportValidated": false,
+        "mapRevision": 3,
+        "navigationReady": false,
+        "observationsSha256": "746a13f1d2a6ed1677b15778602735bac5bb38b94ffc2d74842399125a321c8d",
+        "offlineOnly": true,
+        "physicalScaleValidated": false,
+        "rays": 13376,
+        "scans": 32,
+        "sequence": 1,
+        "supportSha256": "b6a6c07355df67c3edac2a1a9db8697469526aee245c21072a0641d0a1d4a71b",
+        "traversabilityBytesSha256": "d0c1cdbd3415dbbc7f49d4ee34d18aacb871d03fc115daaa9295a06fc78e6fb5",
+        "traversabilitySha256": "cdd217a58eb5438a6735dc9ceffab388e4bd8344dfc5438ad5a01626d75d913f",
+        "sourceStart": 0,
+        "sourceEnd": 32
+      },
+      {
+        "cells": {
+          "free": 0,
+          "occupied": 1108,
+          "unknown": 15276
+        },
+        "clearanceSha256": "8f2bdea10c61c841a3e5d067180a8518b4f8c47e5d609c8c9ddfc3e051a51e85",
+        "groundSupportValidated": false,
+        "mapRevision": 3,
+        "navigationReady": false,
+        "observationsSha256": "b1a37bc709ef4ec5afabfe772f31516f013f2fc2f8a2ae7a32efd2c2e08770dd",
+        "offlineOnly": true,
+        "physicalScaleValidated": false,
+        "rays": 13376,
+        "scans": 32,
+        "sequence": 2,
+        "supportSha256": "ed4ce9d8f8c244935e1296d968cdd9ad9c040522ee143cdab5b43f89673d3deb",
+        "traversabilityBytesSha256": "f569a100bdfaa881c3fbe3ad381d968e8e7551e455c9075dbfe0770cdb9ccea8",
+        "traversabilitySha256": "3fd4f519db81fe4db04e536e764a50ec27c9fa6cc9eff12356e606c0170e0979",
+        "sourceStart": 16,
+        "sourceEnd": 48
+      },
+      {
+        "cells": {
+          "free": 0,
+          "occupied": 1085,
+          "unknown": 15299
+        },
+        "clearanceSha256": "b09cc235376006e1d3dd8a4cbd31b3631b26f64012b41c0dfc4a9bb62eb62404",
+        "groundSupportValidated": false,
+        "mapRevision": 3,
+        "navigationReady": false,
+        "observationsSha256": "26f11a3bdf73635aab92c57e3708e3300a48adecd7cc05f422eaa55dffc261af",
+        "offlineOnly": true,
+        "physicalScaleValidated": false,
+        "rays": 13376,
+        "scans": 32,
+        "sequence": 3,
+        "supportSha256": "57436bd907baa2195538dc996e7b0d077aed85c1dbc677e073ac4eb4dee3b066",
+        "traversabilityBytesSha256": "04311bdd0350ffed86c31f4398dbdf4af9354b59030c75d8c492d444d9259bc2",
+        "traversabilitySha256": "930497eafe4a1d0b1687c4e80134aaf51705827ce15e70cd5e2a118e6efeaa01",
+        "sourceStart": 32,
+        "sourceEnd": 64
+      },
+      {
+        "cells": {
+          "free": 0,
+          "occupied": 1071,
+          "unknown": 15313
+        },
+        "clearanceSha256": "80b1fed0ae52315573a30ba9817dcaffa916a5bfb78d5256a90c55280b94022b",
+        "groundSupportValidated": false,
+        "mapRevision": 3,
+        "navigationReady": false,
+        "observationsSha256": "ab00343c2339d8d3e26dd6797e2203a62b21ebd0ce451700eadd73d6ab15c610",
+        "offlineOnly": true,
+        "physicalScaleValidated": false,
+        "rays": 13376,
+        "scans": 32,
+        "sequence": 4,
+        "supportSha256": "d2c8fa3fb44d22e1d8cea872eb47c6031a9da0a42b0a1113ab38663ed7ba9d50",
+        "traversabilityBytesSha256": "0f613a54606d3abe76c3442eb81960e3ab8446aa019cdd14d0186f2bd42f7ce2",
+        "traversabilitySha256": "7916849e6f6d5ccf4e2ccc6027167fe0cdbf21b1ee383422b12cbf53f1129087",
+        "sourceStart": 48,
+        "sourceEnd": 80
+      },
+      {
+        "cells": {
+          "free": 0,
+          "occupied": 1072,
+          "unknown": 15312
+        },
+        "clearanceSha256": "9058f6be71ff4f551d5df50677675050eb12dd6feb951daa94d9f1616185286d",
+        "groundSupportValidated": false,
+        "mapRevision": 3,
+        "navigationReady": false,
+        "observationsSha256": "0d4718dbeffaf0967e0fe635a7c9a93addd423378ce8f206822dc2cdfb76acc6",
+        "offlineOnly": true,
+        "physicalScaleValidated": false,
+        "rays": 13376,
+        "scans": 32,
+        "sequence": 5,
+        "supportSha256": "056ed6bfc049a414541b0138617a615c39d201df16d2013d04d322f670aeeca0",
+        "traversabilityBytesSha256": "cfeec11579350a6d8f2b03a18fcf63f2cf9e96c8b86bfe9bf843474dc981a803",
+        "traversabilitySha256": "bc3bbb71cd67a85a7d31d36ecde4b1a7a5a796258ecde54dc6d2705eedb11dfe",
+        "sourceStart": 64,
+        "sourceEnd": 96
+      },
+      {
+        "cells": {
+          "free": 0,
+          "occupied": 1104,
+          "unknown": 15280
+        },
+        "clearanceSha256": "15d1157a91ffde1efcce70fab5ce07de108c6b2d06f2f8e5689d2293b478e9b7",
+        "groundSupportValidated": false,
+        "mapRevision": 3,
+        "navigationReady": false,
+        "observationsSha256": "5263794b7b21bc72950256bc9389f9940f607cddc48aa21890c62de107ebeb30",
+        "offlineOnly": true,
+        "physicalScaleValidated": false,
+        "rays": 13376,
+        "scans": 32,
+        "sequence": 6,
+        "supportSha256": "72db8178dc071a7fd9ab4441043984f2f810b4da064749c9103ca5cd40f3aed3",
+        "traversabilityBytesSha256": "27018995b81b1c6bcd059f27eed2f66986e1af99ee6711f4d5167dff8b01cb82",
+        "traversabilitySha256": "a4d07e823da21be84ae00228105d476c75f3c3341c25e4c3c07d805cb7bbbdbd",
+        "sourceStart": 80,
+        "sourceEnd": 112
+      },
+      {
+        "cells": {
+          "free": 0,
+          "occupied": 1084,
+          "unknown": 15300
+        },
+        "clearanceSha256": "ccc20c14604a25374584cd13108b0b483103e53764dda623f1ce485ea5ffcf93",
+        "groundSupportValidated": false,
+        "mapRevision": 3,
+        "navigationReady": false,
+        "observationsSha256": "3e0dbccd8a0536df9f6a48be3f2a926884f8155b11912e6cd21e4138b366403d",
+        "offlineOnly": true,
+        "physicalScaleValidated": false,
+        "rays": 13376,
+        "scans": 32,
+        "sequence": 7,
+        "supportSha256": "d771b38244ea49266b6101f4f2e07a752b759eebd07bc22ae8c131ef2ab49fa9",
+        "traversabilityBytesSha256": "e22170c6136fe1266108f7c50badb04eaa99b11becfea2a6107f48b05a8240c8",
+        "traversabilitySha256": "44d0fa8e813fb76394b73e6dd2e2cf6037f426d0b7b39121cb0f5fb4ef06c290",
+        "sourceStart": 96,
+        "sourceEnd": 128
+      },
+      {
+        "cells": {
+          "free": 0,
+          "occupied": 1066,
+          "unknown": 15318
+        },
+        "clearanceSha256": "1f975f7c426142476184d44b50c2ae44fda7404dffc6900511caec2ac4e76309",
+        "groundSupportValidated": false,
+        "mapRevision": 3,
+        "navigationReady": false,
+        "observationsSha256": "c9ca4176e6d6e43471ecdf56764fa813a5476493ce5a19297184d6bc9086a2dc",
+        "offlineOnly": true,
+        "physicalScaleValidated": false,
+        "rays": 13376,
+        "scans": 32,
+        "sequence": 8,
+        "supportSha256": "748110e632fb61b4e26683a6f1aa40b1a86c6ffa8ccb6764599481d400465430",
+        "traversabilityBytesSha256": "cc018b25879d2ef5c1db5dcab439a4ae0c43dd8305af7cd5f24f9b830ada5fb8",
+        "traversabilitySha256": "b4e89f5c7a8e69299218c8f565866e7be7867ab1e6d8c309346f48edb5b6680e",
+        "sourceStart": 112,
+        "sourceEnd": 144
+      },
+      {
+        "cells": {
+          "free": 0,
+          "occupied": 1066,
+          "unknown": 15318
+        },
+        "clearanceSha256": "77bb2b720792bb934bfe4ee2bf371a05f5633b8984f6a1315d7ec9cba33cf156",
+        "groundSupportValidated": false,
+        "mapRevision": 3,
+        "navigationReady": false,
+        "observationsSha256": "07322121e631e06651a5d2cb749207cff0c0d828c20d90d87ced3f4791ba7731",
+        "offlineOnly": true,
+        "physicalScaleValidated": false,
+        "rays": 13376,
+        "scans": 32,
+        "sequence": 9,
+        "supportSha256": "7cf50849b139e7a5c0b874aab315a2f70efb93efa9c74a57c157792a53a19e4a",
+        "traversabilityBytesSha256": "3d13b22c48332ea0a6cbecf95c6c4fc669d81cc60e7a380ce16b8562a6cda74c",
+        "traversabilitySha256": "834e2ed4311a5c6717b8242cc40bfc4003f128287f4d4e2a84b3c78fc58b0842",
+        "sourceStart": 128,
+        "sourceEnd": 160
+      },
+      {
+        "cells": {
+          "free": 0,
+          "occupied": 1067,
+          "unknown": 15317
+        },
+        "clearanceSha256": "c58847ebd46117d6165a0eff76fc80e6629b9bffb45639c9d3dea8f294d94db3",
+        "groundSupportValidated": false,
+        "mapRevision": 3,
+        "navigationReady": false,
+        "observationsSha256": "a51fd05462cd578ecf9643b10202bc02f86a46b0936a1d89c47986e91314b718",
+        "offlineOnly": true,
+        "physicalScaleValidated": false,
+        "rays": 13376,
+        "scans": 32,
+        "sequence": 10,
+        "supportSha256": "065e6733a45baff29f340243c4cc07fede8a43c6434a5de2bb276998ca985e61",
+        "traversabilityBytesSha256": "b659267390ff77f7d0e53765e0315c96c91173a9bc8260ec98d72761f366e860",
+        "traversabilitySha256": "024ba93142c770f44c5447999977832e3bf5936f41555b9becd1e291420fa15b",
+        "sourceStart": 144,
+        "sourceEnd": 176
+      },
+      {
+        "cells": {
+          "free": 0,
+          "occupied": 1058,
+          "unknown": 15326
+        },
+        "clearanceSha256": "3e6edfdd15c6b0154f3d13effa436c49257abf9bbe8b773da21186e2893b6431",
+        "groundSupportValidated": false,
+        "mapRevision": 3,
+        "navigationReady": false,
+        "observationsSha256": "356364e5699a5603dec06ba7e2fa0588e8ad704a8a88dcddd85a35da62700b25",
+        "offlineOnly": true,
+        "physicalScaleValidated": false,
+        "rays": 13376,
+        "scans": 32,
+        "sequence": 11,
+        "supportSha256": "0600970856a8f27b4dc2d2bcf3274968734be62f9599c5b55725555356778cb5",
+        "traversabilityBytesSha256": "ea3c567a88beb576a3ede300244051df56840f541f38456bc5cc20923a38b995",
+        "traversabilitySha256": "394a9b40d5c5364f27486b36a53e5036bb8b28220f2bcc3126119b3297eb2ac8",
+        "sourceStart": 160,
+        "sourceEnd": 192
+      },
+      {
+        "cells": {
+          "free": 0,
+          "occupied": 1071,
+          "unknown": 15313
+        },
+        "clearanceSha256": "f51ee33084a3022a0941a1d91d2a3bfac0456a5564febe6e443248b41f6fe08f",
+        "groundSupportValidated": false,
+        "mapRevision": 3,
+        "navigationReady": false,
+        "observationsSha256": "f4b30f7e2c726dc23e997cdb342670ca0b52749a3fd861a3d1729e2672769106",
+        "offlineOnly": true,
+        "physicalScaleValidated": false,
+        "rays": 13376,
+        "scans": 32,
+        "sequence": 12,
+        "supportSha256": "e2c09f88e9f30d81ec9e001b95a2053dcbb9e91212caff38f55c9610930beeac",
+        "traversabilityBytesSha256": "871edbc599282798ec272e1d7479d7348bc2f96630fdafe8c57afe611b478b09",
+        "traversabilitySha256": "fdafe2cf3ada03db97839144c50deb4e4f9edbe1e723b6ec9050cb1f387b5322",
+        "sourceStart": 176,
+        "sourceEnd": 208
+      },
+      {
+        "cells": {
+          "free": 0,
+          "occupied": 1074,
+          "unknown": 15310
+        },
+        "clearanceSha256": "43846e0078eb8a5d6f04e3813ef818c5b875034d7a1b872121bdf642d37c5676",
+        "groundSupportValidated": false,
+        "mapRevision": 3,
+        "navigationReady": false,
+        "observationsSha256": "f1928722b8cd2ad096ff9421db0dd003265f82d77185bdb2bebffbb480ffb598",
+        "offlineOnly": true,
+        "physicalScaleValidated": false,
+        "rays": 13376,
+        "scans": 32,
+        "sequence": 13,
+        "supportSha256": "05a60fdcdb66ad5b245cafdb4fb577cf92d920ebf7626e260711e4653eddc172",
+        "traversabilityBytesSha256": "d8d74584d312a8ff72fd315951385fe0987fcfce33be68bfb928566bc3f5fd07",
+        "traversabilitySha256": "fcdf829482970cfc2284920f41cc3a76fc8c256e87000e32ffaa6302e600ae3c",
+        "sourceStart": 192,
+        "sourceEnd": 224
+      },
+      {
+        "cells": {
+          "free": 0,
+          "occupied": 1083,
+          "unknown": 15301
+        },
+        "clearanceSha256": "add72b93c7126e5dfaf902c738e4546d5e321e88f8ac94b57dca8d2b8a580632",
+        "groundSupportValidated": false,
+        "mapRevision": 3,
+        "navigationReady": false,
+        "observationsSha256": "82ba648229bbe10ce93d9afaad9ae3a819d25fadae5a6484f5899a94ba1cb8d3",
+        "offlineOnly": true,
+        "physicalScaleValidated": false,
+        "rays": 13376,
+        "scans": 32,
+        "sequence": 14,
+        "supportSha256": "b5415c1bb93b9f034af1176ecdca74af4debbc584924d1c2979588aed970f873",
+        "traversabilityBytesSha256": "b69cddb4ab81f8e32752c65984a3ece245be8ce8dcdee05f60d02cf2b1d8f197",
+        "traversabilitySha256": "c90c5c389711ab6162474822882f8595e6101d65ece8e3efd51718cbb72f82b7",
+        "sourceStart": 208,
+        "sourceEnd": 240
+      },
+      {
+        "cells": {
+          "free": 0,
+          "occupied": 1062,
+          "unknown": 15322
+        },
+        "clearanceSha256": "67a6c034a8eeaaca652b24c8930af22a01bf1636a9fb7c4a491ac97e5c86a408",
+        "groundSupportValidated": false,
+        "mapRevision": 3,
+        "navigationReady": false,
+        "observationsSha256": "329dc9c955855bff9125a78657f8c9c6a3d69446369a12f7ad1506b5d8f6fa83",
+        "offlineOnly": true,
+        "physicalScaleValidated": false,
+        "rays": 13376,
+        "scans": 32,
+        "sequence": 15,
+        "supportSha256": "9f00363ec802a5b1d4f2bab5a7bfeba4f0e7861519ee9978ab5f42aaac03b7ad",
+        "traversabilityBytesSha256": "be69d73119ca2e4d51b8ba36333d9ffd9519c6da46b2a00b2898bf4e6a9da61a",
+        "traversabilitySha256": "170a5ba13adc41300b2a30046d1104cbb5adaf964bfb2827922760abcfc3857d",
+        "sourceStart": 224,
+        "sourceEnd": 256
+      },
+      {
+        "cells": {
+          "free": 0,
+          "occupied": 1066,
+          "unknown": 15318
+        },
+        "clearanceSha256": "be3784ec782b54693fc064f17698f324dde34b206e852234bfa9621f7d606389",
+        "groundSupportValidated": false,
+        "mapRevision": 3,
+        "navigationReady": false,
+        "observationsSha256": "faa60d4c1d128e184b01f2e173c1fb1cb3a30fb21137a2ab7e0531d2307edc9d",
+        "offlineOnly": true,
+        "physicalScaleValidated": false,
+        "rays": 13376,
+        "scans": 32,
+        "sequence": 16,
+        "supportSha256": "0f6b5b70a3aee6ec4f9d5a2522514cf0747031e228cf91cfa1654e3898384384",
+        "traversabilityBytesSha256": "6128458efcf1536129c390a0a76ffe2f6f9498d8c41144376bb54d71fcb7e3e7",
+        "traversabilitySha256": "f98750cea11321b7560db55636bca1c1ad15c2cdbd7c9689ea2f80932091f5ab",
+        "sourceStart": 240,
+        "sourceEnd": 272
+      },
+      {
+        "cells": {
+          "free": 0,
+          "occupied": 1082,
+          "unknown": 15302
+        },
+        "clearanceSha256": "f49a0bc7795d74411d69362163ec841866b6d7801c0d88806d3d5fadc788a1e7",
+        "groundSupportValidated": false,
+        "mapRevision": 3,
+        "navigationReady": false,
+        "observationsSha256": "ef7c63674d81efe1155f071bc5bd37dae6ba662b024ec232edecc3d8aec725b1",
+        "offlineOnly": true,
+        "physicalScaleValidated": false,
+        "rays": 13376,
+        "scans": 32,
+        "sequence": 17,
+        "supportSha256": "e11e4b036fb41bbde9e352c602fa39b61d807ac29593f3cbb11d365096691b8a",
+        "traversabilityBytesSha256": "dffbeace526316abdcd3d757bb3e3721f62dd3649aab9ff445a90acac9847fa8",
+        "traversabilitySha256": "0492e404e0356e667b14a61c8a6f3d72f9c25683b75de11c42002b3ca69f6571",
+        "sourceStart": 256,
+        "sourceEnd": 288
+      },
+      {
+        "cells": {
+          "free": 0,
+          "occupied": 1075,
+          "unknown": 15309
+        },
+        "clearanceSha256": "953e9a9841f6c81eebe4052f4b0d85b1c4f666b531860c867ab5008efb5cc552",
+        "groundSupportValidated": false,
+        "mapRevision": 3,
+        "navigationReady": false,
+        "observationsSha256": "aaaa91cd41764759d1e07136a1a535f45169df000060ba47fbc82ed3145af9b4",
+        "offlineOnly": true,
+        "physicalScaleValidated": false,
+        "rays": 13376,
+        "scans": 32,
+        "sequence": 18,
+        "supportSha256": "867affa750000bd66dccb26ecdab3a590327afcffbf81753afb384db1d632e80",
+        "traversabilityBytesSha256": "1165e96d908ae2d261ceda1bce5b3d3a84c7be1296533cce5bbe9f53e1275699",
+        "traversabilitySha256": "8fa846a6dd9cc9bf703e396fcbe6966a3edbb424b13cfd0df3ef6c7baf6b4dae",
+        "sourceStart": 272,
+        "sourceEnd": 304
+      },
+      {
+        "cells": {
+          "free": 0,
+          "occupied": 1078,
+          "unknown": 15306
+        },
+        "clearanceSha256": "707fba49a6dc5ee59f9b3e6f1882273ee212a05825a39f6715756218aebc63a6",
+        "groundSupportValidated": false,
+        "mapRevision": 3,
+        "navigationReady": false,
+        "observationsSha256": "cff48332d7ab62f528a621af84fa78e744b579fe9b2b1eacc0b27fbb5ded8638",
+        "offlineOnly": true,
+        "physicalScaleValidated": false,
+        "rays": 13376,
+        "scans": 32,
+        "sequence": 19,
+        "supportSha256": "b92a95143717c69bf0901a835aa5823eb9e66b57b1efc4c2c6c5ce6ed026ff0e",
+        "traversabilityBytesSha256": "a46f89eff460662f5a7da44289c0c4adb036bbd2e33342e91938e6f72717c246",
+        "traversabilitySha256": "ead50d20c12e39a6ec331c4de636da3f260c2442dd022eb5946c1446bcf668eb",
+        "sourceStart": 281,
+        "sourceEnd": 313
+      }
+    ],
+    "coveredSourceScans": 313,
+    "unrepresentedSourceScans": 0,
+    "artifactSha256": "8951c07c40f8062643ae3873651771b08c4cd90c0225793fc157a1c1220988db",
+    "artifactBytes": 327680,
+    "sourcesSha256": {
+      "robot-navigation/lingxi_navigation/occupancy.py": "9807c3b12077dcd314d3413134f34248c1c9ebfcc9a11e8af10c8d549a088710",
+      "robot-navigation/lingxi_navigation/recorded_occupancy.py": "af26d7a34ac77b484c976065c5340c7b1ed414eab2b2da5a0541f4f5e678511a",
+      "robot-slam/lingxi_slam/observation_archive.py": "d1501d16a0bbe62624a55dbf644af96b878cef4cf8297d57f8bb4620abfa9efe",
+      "robot-slam/lingxi_slam/observation_binding.py": "b0ae111c3aa1ebcc115509b4d9f03f2689dcdaf0b5aecb7c5504b4d69cc8d214",
+      "tools/refine_saved_map.py": "012070b10915d88c63c2656705d85499c3ad1bcee7236b949c32ef103d29d1a4",
+      "tools/evaluate_recorded_clearance.py": "36ecbcb4a5c4e9047a301026b8ebdce5d2ad59ab2d65bb80f3c8a30f3c072c3c",
+      "robot-navigation/lingxi_navigation/ground.py": "58aa45a481cd6d51652c0ee4b862bc68a0f2507ead4f0e488d87a3569f54a2c9",
+      "robot-navigation/native-ground/ground_bridge.cpp": "ac4a0d7621305775070f736f7eb178fe9add4f6375824b85d11948c893a3a589",
+      "robot-navigation/patchworkpp.lock.json": "e08ff740fd558fd09c3493a925abbcd0d85fc4459fc00846b1fbf053d678de3b",
+      "robot-navigation/lingxi_navigation/terrain.py": "96c0bc5f7add0f24c9832fe674b5addca9902a78c0ee8769c837c79d2e776897",
+      "tools/evaluate_recorded_terrain.py": "101f935e44c46ca003c8ed3aa9fb8d8562c00f9b6d3bec8526d3e7d79682d0de",
+      "robot-navigation/lingxi_navigation/terrain_process.py": "588cd963ced5d780a2546a1dff966ae0d5dd141ae4f4a311c1264fe6d4803b49",
+      "robot-navigation/lingxi_navigation/terrain_protocol.py": "25055c0b272bfc177bfc422e96b263589f969369497d5256222cd354a93ecfd9",
+      "robot-navigation/lingxi_navigation/terrain_worker.py": "914cb99f8063156e223ceef515aa7e8b5cfc1766b746c41423719bd95547d964",
+      "robot-navigation/lingxi_navigation/terrain_feed.py": "8c65dd9a1b33c45f948782ed924028171a15cf6f9728c920eff07196a3935c00"
+    },
+    "nativeSha256": {
+      "ground": "0f0f3b74dee2acccb520e6f7a95a668c268fe22a53f165821a5b8427dd4955a6",
+      "octomap": "26dd1f8965a84a12a786263b82717724267d47f436a1adcbd2d3a5d0aea8d2e3"
+    },
+    "dependenciesSha256": {
+      "liboctomap.so.1.9.7": "27e22029990f69e951b5c4b1acc33e44fe3663af9e13620271a35ab1ed1309f7",
+      "liboctomath.so.1.9.7": "da54007d468946667bf76fc9f81ce64ad8d28ae2b3d551f501adaf2f0631731f"
+    }
+  },
+  "measuredHostProcessingSeconds": {
+    "p50": 0.3231933069999968,
+    "p95": 0.32933905799995955,
+    "maximum": 0.33198973600002546
+  },
+  "workerDurationSeconds": [
+    19.80028773800001,
+    20.06578011800002
+  ],
+  "peakRssKiB": [
+    176164,
+    176784
+  ],
+  "movingRecording": {
+    "result": "declared_ground_frame_rejected",
+    "scan": 563,
+    "heightErrorMetres": 0.093196,
+    "originSpanMetres": 0.043026,
+    "privateFailureLogSha256": "1008f3fc1ce63f48558d0bc837d37bdff23375f40dc1d61a48757b61e7ca27e1",
+    "acceptedReportPublished": false,
+    "partialTerrainPublished": false
+  },
+  "sensorPaced": false,
+  "robotContacted": false,
+  "physicalMotionSent": false,
+  "physicalScaleValidated": false,
+  "groundSupportValidated": false,
+  "navigationReady": false
+}

@@ -20,15 +20,20 @@ def check(args):
     os.environ.update(LINGXI_TEST_GROUND_LIBRARY=str(args.library), LINGXI_TEST_GROUND_SHA256=args.sha256,
         LINGXI_TEST_OCTOMAP_LIBRARY=str(args.octomap_library), LINGXI_TEST_OCTOMAP_SHA256=args.octomap_sha256,
         LINGXI_TEST_OCTOMAP_DEPENDENCIES=json.dumps(octomap['dependencies']))
-    test = ROOT / 'tools/tests/test_terrain.py'
-    spec = importlib.util.spec_from_file_location('actual_native_terrain', test)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    result = unittest.TextTestRunner(verbosity=2).run(unittest.defaultTestLoader.loadTestsFromModule(module))
+    suite = unittest.TestSuite()
+    for name in ('test_terrain', 'test_terrain_transport'):
+        test = ROOT / ('tools/tests/' + name + '.py')
+        spec = importlib.util.spec_from_file_location('actual_native_' + name, test)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        suite.addTests(unittest.defaultTestLoader.loadTestsFromModule(module))
+    result = unittest.TextTestRunner(verbosity=2).run(suite)
     passed = result.wasSuccessful() and not result.skipped
     sources = ('robot-navigation/lingxi_navigation/terrain.py', 'tools/tests/test_terrain.py',
         'robot-navigation/lingxi_navigation/ground.py', 'robot-navigation/lingxi_navigation/occupancy.py',
-        'tools/tests/test_ground.py', 'tools/check_terrain_native.py')
+        'tools/tests/test_ground.py', 'tools/check_terrain_native.py', 'tools/tests/test_terrain_transport.py',
+        'robot-navigation/lingxi_navigation/terrain_process.py', 'robot-navigation/lingxi_navigation/terrain_worker.py',
+        'robot-navigation/lingxi_navigation/terrain_protocol.py', 'robot-navigation/lingxi_navigation/terrain_feed.py')
     report = dict(schemaVersion=1, result='native_terrain_windows_passed' if passed else 'failed_or_skipped',
         testsRun=result.testsRun, failures=len(result.failures), errors=len(result.errors), skipped=len(result.skipped),
         sourcesSha256={name: digest(ROOT / name) for name in sources},

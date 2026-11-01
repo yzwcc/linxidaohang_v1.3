@@ -104,3 +104,10 @@ or deployment is authorized by completing an offline check.
   Live terrain transport, metric admission, ARM64 composition and physical
   navigation remain unaccepted. Per current user steering, prioritize bounded
   commissioning checks over non-critical offline polish.
+- [Native terrain transport verification](TERRAIN_TRANSPORT_VERIFICATION_20261101.md)
+  adds a bounded persistent child, parent-death cleanup and ROS-neutral full-grid
+  expiry/revocation. All 39 actual native tests and five supervisor checks passed.
+  Repeated source-bound recorded replay remains separate from live input or
+  metric acceptance. The ROS publisher/timer, actual idle-expiry propagation,
+  continuous corrected acquisition windows and live owner integration remain
+  open; a neutral feed is not a completed ROS adapter.

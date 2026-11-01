@@ -11,7 +11,9 @@ import time
 
 from evaluate_recorded_clearance import ROOT, configuration, digest, source_names
 
-SOURCES = ('robot-navigation/lingxi_navigation/terrain.py', 'tools/evaluate_recorded_terrain.py')
+SOURCES = ('robot-navigation/lingxi_navigation/terrain.py', 'tools/evaluate_recorded_terrain.py',
+    'robot-navigation/lingxi_navigation/terrain_process.py', 'robot-navigation/lingxi_navigation/terrain_protocol.py',
+    'robot-navigation/lingxi_navigation/terrain_worker.py', 'robot-navigation/lingxi_navigation/terrain_feed.py')
 FALSE_FLAGS = ('robotContacted', 'physicalMotionSent', 'physicalScaleValidated', 'groundSupportValidated', 'navigationReady')
 
 
@@ -24,10 +26,12 @@ def worker(config, output):
     sys.path[:0] = [str(ROOT / 'robot-navigation'), str(ROOT / 'robot-slam')]
     from refine_saved_map import inventory
     from check_ground_native import verified_build
-    from lingxi_navigation.ground import GroundDeclaration, PatchworkSegmenter, validate_declared_ground_frame
-    from lingxi_navigation.occupancy import ClearanceProjection, OctomapProjector
+    from lingxi_navigation.ground import GroundDeclaration, validate_declared_ground_frame
+    from lingxi_navigation.occupancy import ClearanceProjection
     from lingxi_navigation.recorded_occupancy import OfflineGeometry, RaySelection, prepare_recorded_clearance
-    from lingxi_navigation.terrain import TerrainBudget, TerrainProducer, recorded_windows
+    from lingxi_navigation.terrain import TerrainBudget, recorded_windows
+    from lingxi_navigation.terrain_process import TerrainProcess
+    from lingxi_navigation.terrain_feed import ExpiringTerrainFeed
     started, config_sha256 = time.monotonic(), digest(config)
     value = configuration(config)
     if 'ground' not in value:
@@ -52,16 +56,24 @@ def worker(config, output):
     if len(windows) > 256 or size * len(windows) > 32 * 1024**2:
         raise ValueError('bounded_recorded_terrain_output_required')
     native = value['octomap']
-    producer = TerrainProducer(OctomapProjector(Path(native['library']), native['sha256'], native['dependencies']),
-        PatchworkSegmenter(library, ground['sha256']), projection, declaration, budget)
+    producer = TerrainProcess(ground_library=library, ground_sha256=ground['sha256'],
+        octomap_library=Path(native['library']), octomap_sha256=native['sha256'], dependencies=native['dependencies'],
+        projection=projection, declaration=declaration, budget=budget, stderr_path=output / 'private-native-terrain.log')
+    feed = ExpiringTerrainFeed(projection, producer.session)
     rows, grids, covered = [], bytearray(), set()
-    for window in windows:
-        result = producer.update(window.observations, sequence=window.sequence, received_at=time.monotonic())
-        if producer.current() is not result:
-            raise TimeoutError('terrain_expired_before_export')
-        rows.append(dict(**result.summary(), sourceStart=window.source_start, sourceEnd=window.source_end))
-        grids.extend(result.fused.costs)
-        covered.update(range(window.source_start, window.source_end))
+    with producer:
+        for window in windows:
+            feed.revoke('replacement_pending')
+            result = producer.update(window.observations, sequence=window.sequence, received_at=time.monotonic())
+            if producer.current() is not result:
+                raise TimeoutError('terrain_expired_before_export')
+            feed.replace(result)
+            rows.append(dict(**producer.summary, sourceStart=window.source_start, sourceEnd=window.source_end))
+            grids.extend(feed.sample())
+            covered.update(range(window.source_start, window.source_end))
+    feed.revoke('source_closed')
+    if set(feed.sample()) != {255} or not producer.cleanup_complete:
+        raise RuntimeError('terrain_source_revocation_and_cleanup_required')
     if (prepare().summary() != prepared.summary() or digest(config) != config_sha256
             or any(digest(ROOT / name) != expected for name, expected in sources.items())):
         raise ValueError('unchanged_recorded_terrain_sources_required')
