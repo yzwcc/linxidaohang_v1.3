@@ -309,14 +309,18 @@ class LocalizationSession:
         if self.active_generation is not None:
             self._publish(self.active_generation, self.tracker.snapshot())
 
-    def observe(self, packet, *, session, input_mode, received_at):
+    def observe(self, packet, *, session, input_mode, received_at, expected_generation=None):
         self._owner()
+        if expected_generation is not None and (
+                type(expected_generation) is not int or expected_generation < 0):
+            raise ValueError("explicit_localization_ingress_generation_required")
         self.tick()
         if session != self.binding.session or input_mode != self.binding.input_mode:
             return self.state()
         with self.lock:
             processing_generation = self.generation
-            if not self.accepting:
+            if (not self.accepting or expected_generation is not None
+                    and expected_generation != processing_generation):
                 return self._state_locked(self._now_locked())
         try:
             if not isinstance(packet, PointPacket):

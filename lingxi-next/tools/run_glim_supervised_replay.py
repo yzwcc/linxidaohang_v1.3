@@ -252,8 +252,17 @@ class OwnedNative:
         return self.measured("nativeImuWall", self.native.imu, *args)
 
     def frame(self, *args):
+        return self._frame(self.native.frame, *args)
+
+    def frame_received(self, stamp, scan):
+        received_frame = getattr(self.native, "frame_received", None)
+        if received_frame is None:
+            return self.frame(stamp, scan.points, scan.offsets)
+        return self._frame(received_frame, stamp, scan)
+
+    def _frame(self, function, *args):
         self.record("frame")
-        result = self.measured("nativeFrameWall", self.native.frame, *args)
+        result = self.measured("nativeFrameWall", function, *args)
         if self.timing is not None:
             self.timing.observe("nativePreprocess", float(result[1][0]) / 1000.)
             self.timing.observe("nativeOdometry", float(result[1][1]) / 1000.)

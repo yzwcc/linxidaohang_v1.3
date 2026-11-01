@@ -191,7 +191,12 @@ class SensorStream:
                     self.native.imu(imu_stamp, acceleration, angular)
                     self.inserted_imu_time = imu_stamp
                     self.counts["insertedImu"] += 1
-                pose, statistics = self.native.frame(stamp, scan.points, scan.offsets)
+                # Context-aware consumers need ingress time, not completion time.
+                received_frame = getattr(self.native, "frame_received", None)
+                if received_frame is None:
+                    pose, statistics = self.native.frame(stamp, scan.points, scan.offsets)
+                else:
+                    pose, statistics = received_frame(stamp, scan)
                 statistics = np.asarray(statistics, dtype=np.float64)
                 if (statistics.shape != (4,) or not np.isfinite(statistics).all() or np.any(statistics < 0)
                         or np.any(statistics[2:] != np.floor(statistics[2:]))):

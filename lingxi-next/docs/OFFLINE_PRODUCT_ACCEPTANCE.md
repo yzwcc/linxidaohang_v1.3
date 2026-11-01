@@ -8,7 +8,7 @@ or deployment is authorized by completing an offline check.
 | Workstream | Current implemented scope | Required offline integration | Separate field acceptance |
 | --- | --- | --- | --- |
 | Mapping | GLIM CPU full local/global mapping, corrected point-cloud preview, save/reload, per-return observation archive and bounded corrected-history windows | Observed-map API save/discard and two-submap moving replay passed; low-latency live observation input and overload regression remain required | Measured scale/heading, loop closure, long walking scan, ARM64 resource limits |
-| Localization | Explicit seeded small-gicp tracking, pose freshness, map provenance, base projection | Replay tracking, bad seeds, loss/recovery, stale generation and current observed-map loading | Independent moving trajectory and ground-truth errors; global relocalization remains a separate capability |
+| Localization | Explicit seeded small-gicp tracking, original-ingress pose freshness, generation-bound callbacks, map provenance, base projection | Replay tracking, bad seeds, loss/recovery, stale generation and current observed-map loading | Independent moving trajectory and ground-truth errors; global relocalization remains a separate capability |
 | Global planning | Pinned native Nav2 NavFn over explicit costmaps | Unknown space, blocked goals, complete path identity and bounded worker | Map scale, robot clearance and actual route reachability |
 | Occupancy and ground | Pinned OctoMap acquisition-time rays and Patchwork++ ground fusion; bounded corrected-window producer; repeated recorded replays and actual native terrain-to-Nav2 synthetic trials passed; moving declaration explicitly rejected | Wire supervised live registration/localization and terrain transport; declared-frame results remain separate from metric admission; current static recording has zero supported free cells | Physical scale, ground support, blind spots and real obstacle visibility |
 | Local navigation | Real ROS Humble NavFn + RPP + closed-loop smoother passed six synthetic scenes; native OctoMap revisions preserve independent support; paired API/concurrent Web polling passed; DDS publication-age rejection verified in isolated Humble | Integrate recorded metric localization/occupancy/ground support, controller-computation/physical-transport freshness and guarded AIMDK handoff | Walking dynamics, stopping distance, dynamic people/obstacles and emergency stop |
@@ -135,3 +135,13 @@ or deployment is authorized by completing an offline check.
   corrected windows have no fabricated receipt time and remain non-navigation
   input. Raw low-latency receipt ownership, localization and terrain integration,
   metric admission, ARM64 runtime and physical acceptance remain open.
+- [Localization ingress-receipt verification](LOCALIZATION_RECEIPT_VERIFICATION_20261101.md)
+  preserves the original callback receipt through worker queues, IMU waiting
+  and native computation, and rejects callbacks from retired generations.
+  All 177 focused tests passed with zero skips, including 16 new receipt tests
+  and an actual worker-thread composition with synthetic native/registrar peers.
+  This is not acquisition-ray export or live terrain integration. No robot
+  connection, deployment, APK or physical-localization acceptance occurred.
+  Full Python regression: 1565 discovered, 1498 passed, 67 skipped, no failures.
+  Seven immutable historical reports passed frozen-Git source verification;
+  current-source drift remains explicit and is not new ARM64 acceptance.

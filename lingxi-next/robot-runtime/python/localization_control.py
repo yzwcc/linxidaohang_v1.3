@@ -1,6 +1,7 @@
 """Private management socket and point-worker integration for saved-map tracking."""
 import hashlib
 import json
+import math
 import os
 from pathlib import Path
 import socket
@@ -19,6 +20,8 @@ from lingxi_slam.localization_session import (
     LocalizationBinding, LocalizationControlError, LocalizationSession, dispatch)
 from lingxi_slam.seeded_localization import RegistrationConfig, SeededMapRegistration
 from lingxi_slam.map_provenance import sensor_provenance as checked_provenance
+from lingxi_slam.point_output import PointPacket
+from lingxi_slam.stream import Scan
 from run_glim_mapping_trial import inventory_map
 
 
@@ -141,6 +144,9 @@ class LocalizedNative:
             raise ValueError("localization_session_and_point_native_factory_required")
         self.session, self.closed, self.failed = session, False, False
         self.owner = threading.get_ident()
+        self.current_scan = None
+        self.point_delivered = False
+        self.last_stamp = self.last_received_at = None
         session.open_worker()
         try:
             self.native = native_factory(self.accept)
@@ -149,24 +155,61 @@ class LocalizedNative:
             raise
 
     def accept(self, packet):
-        self.session.observe(packet, session=self.session.binding.session,
-                             input_mode=self.session.binding.input_mode, received_at=time.monotonic())
+        self._active()
+        context = self.current_scan
+        if (context is None or self.point_delivered or not isinstance(packet, PointPacket)
+                or type(packet.algorithm_stamp) not in (int, float)
+                or packet.algorithm_stamp != context[0]):
+            raise RuntimeError("current_single_matching_localization_scan_required")
+        self.point_delivered = True
+        return self.session.observe(
+            packet, session=self.session.binding.session,
+            input_mode=self.session.binding.input_mode, received_at=context[1],
+            expected_generation=context[2])
 
-    def _call(self, method, *args):
+    def _active(self):
         if self.closed or self.failed or threading.get_ident() != self.owner:
             raise RuntimeError("active_localization_native_required")
+
+    def _call(self, method, *args):
+        self._active()
         try:
             self.session.tick()
             return getattr(self.native, method)(*args)
         except BaseException:
             self.failed = True
+            self.session.stop_admission()
             raise
 
     def imu(self, *args):
         return self._call("imu", *args)
 
     def frame(self, *args):
-        return self._call("frame", *args)
+        self._active()
+        raise RuntimeError("original_scan_receipt_required_for_localization")
+
+    def frame_received(self, stamp, scan):
+        self._active()
+        try:
+            if (self.current_scan is not None or not isinstance(scan, Scan)
+                    or type(stamp) not in (int, float) or not math.isfinite(stamp)
+                    or type(scan.received_at) not in (int, float)
+                    or not math.isfinite(scan.received_at) or scan.received_at < 0
+                    or self.last_stamp is not None and stamp <= self.last_stamp
+                    or self.last_received_at is not None and scan.received_at < self.last_received_at):
+                raise ValueError("ordered_original_localization_scan_required")
+            self.session.tick()
+            self.current_scan = (stamp, scan.received_at, self.session.state()["generation"])
+            self.point_delivered = False
+            self.last_stamp, self.last_received_at = stamp, scan.received_at
+            return self.native.frame(stamp, scan.points, scan.offsets)
+        except BaseException:
+            self.failed = True
+            self.session.stop_admission()
+            raise
+        finally:
+            self.current_scan = None
+            self.point_delivered = False
 
     def close(self):
         if threading.get_ident() != self.owner:

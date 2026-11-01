@@ -13,6 +13,8 @@ from unittest.mock import patch
 
 
 ROOT = Path(__file__).parents[2]
+sys.path.insert(0, str(ROOT / "tools"))
+import audit_historical_evidence as historical
 AVAILABLE = all(importlib.util.find_spec(name) is not None for name in ("numpy", "json5"))
 if AVAILABLE:
     with patch.object(sys, "path", [str(ROOT / "tools")] + sys.path):
@@ -129,9 +131,9 @@ class PublicStreamEvidence(unittest.TestCase):
                              + counts["skippedAfterImuAtEndOfInput"])
             self.assertEqual(0, counts["discardedOnFailure"])
 
-    def test_executed_source_and_exporter_digests_match_current_files(self):
-        for path, expected in self.value["sourceSha256"].items():
-            self.assertEqual(expected, hashlib.sha256((ROOT / path).read_bytes()).hexdigest(), path)
+    def test_executed_sources_are_frozen_and_exporter_matches_current_files(self):
+        verified = historical.verify("docs/slam-stream-input-evidence.json")
+        self.assertIn("robot-slam/lingxi_slam/stream.py", verified["currentSourceDrift"])
         self.assertEqual(self.value["exporterSourceSha256"],
                          hashlib.sha256((ROOT / "tools/export_glim_stream_evidence.py").read_bytes()).hexdigest())
         for name, key in (("slam-capture-evidence.json", "captureManifestSha256"),

@@ -12,6 +12,8 @@ from unittest.mock import patch
 
 
 ROOT = Path(__file__).parents[2]
+sys.path.insert(0, str(ROOT / "tools"))
+import audit_historical_evidence as historical
 AVAILABLE = all(importlib.util.find_spec(name) is not None for name in ("numpy", "json5", "scipy"))
 if AVAILABLE:
     with patch.object(sys, "path", [str(ROOT / "tools")] + sys.path):
@@ -143,6 +145,8 @@ class PublicWorkerEvidence(unittest.TestCase):
 
     def test_historical_sources_and_current_live_successor_have_separate_identities(self):
         evidence = self.value
+        verified = historical.verify("docs/slam-arm64-worker-evidence.json")
+        self.assertIn("robot-slam/lingxi_slam/stream.py", verified["currentSourceDrift"])
         live = json.loads((ROOT / "docs/slam-python-runtime-live-arm64-evidence.json").read_text())
         for source, digest in evidence["actualRuntimeSourceSha256"].items():
             current = hashlib.sha256((ROOT / source).read_bytes()).hexdigest()
@@ -151,7 +155,7 @@ class PublicWorkerEvidence(unittest.TestCase):
                 self.assertEqual(current, live["sourceSha256"][source])
                 self.assertFalse(live["historicalRecordedEvidenceReplaced"])
                 self.assertFalse(live["boundaries"]["recordedCommissioningRepeated"])
-            else:
+            elif source != "robot-slam/lingxi_slam/stream.py":
                 self.assertEqual(digest, current)
         for source, digest in evidence["toolSourcesSha256"].items():
             self.assertEqual(digest, hashlib.sha256((ROOT / "tools" / source).read_bytes()).hexdigest())

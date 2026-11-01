@@ -66,6 +66,22 @@ class HistoricalEvidenceTests(unittest.TestCase):
         result = history.audit(root=self.root, catalog_path=self.binding)
         self.assertTrue(all(value is False for value in result["boundaries"].values()))
 
+    def test_explicit_runtime_source_section_is_verified_against_frozen_git(self):
+        self.report["actualRuntimeSourceSha256"] = self.report.pop("sourceSha256")
+        self.freeze()
+        self.value["entries"][self.name]["sourceSection"] = "actualRuntimeSourceSha256"
+        self.write_binding()
+        self.assertTrue(self.verify()["historicalSourcesVerified"])
+        self.source.write_bytes(b"current receipt-aware successor\n")
+        self.assertFalse(self.verify()["currentSourceBindingsMatch"])
+
+    def test_unknown_or_absent_source_sections_cannot_bypass_verification(self):
+        for section in ("result", "unknown", "actualRuntimeSourceSha256"):
+            self.value["entries"][self.name]["sourceSection"] = section
+            self.write_binding()
+            with self.subTest(section=section), self.assertRaises(ValueError):
+                self.verify()
+
     def test_mutation_and_deletion_are_current_drift_not_rewritten_history(self):
         frozen = (self.root / self.name).read_bytes()
         self.source.write_bytes(b"changed\n")

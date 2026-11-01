@@ -2,6 +2,17 @@
   "schemaVersion": 1,
   "purpose": "immutable_historical_evidence_not_current_target_acceptance",
   "entries": {
+    "docs/slam-stream-input-evidence.json": {
+      "revision": "4bef1e95b58d3a2fbddd7d85ea19504d85843c16",
+      "reportCanonicalSha256": "29c337770dc58aa935aae6c7a93dc2d4edb26153733fe5abc599a06f2221c16c",
+      "sourceByteTransforms": {}
+    },
+    "docs/slam-arm64-worker-evidence.json": {
+      "revision": "ebef6ea6cb9aa3ce2369c91f6a349709074f30d6",
+      "reportCanonicalSha256": "68ee5d6345c621839e1eb5d4a75c3dec4fc1570724e5cc5e8cb217e94be8becf",
+      "sourceByteTransforms": {},
+      "sourceSection": "actualRuntimeSourceSha256"
+    },
     "docs/slam-python-runtime-arm64-evidence.json": {
       "revision": "1d699796962165b4a73afa71561fda5737a289fc",
       "reportCanonicalSha256": "7f37600c4886341c1f1119e3e131fffe36c1aaa96029f2ce31ac782a6c065e51",
