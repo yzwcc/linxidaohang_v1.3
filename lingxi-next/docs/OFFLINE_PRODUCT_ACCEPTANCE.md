@@ -111,3 +111,16 @@ or deployment is authorized by completing an offline check.
   metric acceptance. The ROS publisher/timer, actual idle-expiry propagation,
   continuous corrected acquisition windows and live owner integration remain
   open; a neutral feed is not a completed ROS adapter.
+- [Live native terrain ROS verification](TERRAIN_ROS_VERIFICATION_20261101.md)
+  closes the preceding ROS publisher/timer and actual idle-expiry propagation
+  checks. Three isolated actual-native Humble trials passed all 14 checks for
+  expiry with paused ROS time, native child death and explicit revocation.
+  Both actual costmaps revoked every formerly supported cell; late DDS readers
+  received unknown, planning failed and the controller aborted. Single host
+  source-withdrawal samples were 0.0195--0.0406 seconds, not physical stopping
+  or ARM64 P95 results. Five lane tests and eight raw-evidence tests accompany
+  the trials. Final focused Linux regression passed all 62 tests with actual
+  native libraries and zero skips; Windows passed 47 with 15 expected skips.
+  Continuous corrected acquisition windows, real localization,
+  metric admission, ARM64 composition and physical navigation remain open.
+  No robot contact, new deployment, APK or complete-stack release occurred.
