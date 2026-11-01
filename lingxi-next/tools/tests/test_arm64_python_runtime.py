@@ -14,6 +14,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "tools"))
 import arm64_python_runtime as runtime
 import check_arm64_python_runtime as probe
+import audit_historical_evidence as historical
 
 
 class RuntimeTests(unittest.TestCase):
@@ -203,7 +204,7 @@ class RuntimeTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 probe.check()
 
-    def test_target_evidence_binds_actual_checked_source_and_lock(self):
+    def test_historical_target_evidence_binds_checked_revision_and_lock(self):
         evidence = json.loads((ROOT / "docs/slam-python-runtime-arm64-evidence.json").read_text(encoding="utf-8"))
         self.assertEqual("isolated_arm64_numerical_ros_compatibility_passed", evidence["result"])
         self.assertEqual(runtime.PINNED, evidence["versions"])
@@ -224,8 +225,9 @@ class RuntimeTests(unittest.TestCase):
         expected = {*check_base_pose_tf2.SOURCES, "tools/arm64_python_runtime.py",
                     "tools/check_arm64_python_runtime.py", "robot-slam/runtime-arm64-cp310.lock.json"}
         self.assertEqual(expected, set(evidence["sourceSha256"]))
-        for name, digest in evidence["sourceSha256"].items():
-            self.assertEqual(digest, runtime.sha256(ROOT / name), name)
+        verified = historical.verify("docs/slam-python-runtime-arm64-evidence.json")
+        self.assertTrue(verified["historicalSourcesVerified"])
+        self.assertEqual(len(expected), verified["recordedSourceCount"])
 
 
 if __name__ == "__main__":

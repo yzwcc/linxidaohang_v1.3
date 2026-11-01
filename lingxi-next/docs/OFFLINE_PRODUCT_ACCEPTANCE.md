@@ -31,8 +31,11 @@ or deployment is authorized by completing an offline check.
 - Work through the full product offline, not only mapping. Request the robot
   only for a bounded field test after the relevant offline integration passes.
 - The [2026-11-01 verification record](OFFLINE_WORKSPACE_VERIFICATION_20261101.md)
-  includes six unresolved broad Python checks. Passing focused navigation
-  tests does not waive source-bound evidence or clean-source release checks.
+  preserves the earlier six failing checks and their subsequent reconciliation.
+  The current scientific Python run passed 1372 tests with 51 skips. Historical
+  report integrity is separate from current target acceptance: 15 changed source
+  files still fail `audit_historical_evidence.py --require-current` (exit 2).
+  Passing offline regressions does not waive current ARM64 or field acceptance.
 - [Recorded clearance evidence](RECORDED_CLEARANCE_VERIFICATION_20261101.json)
   covers actual archived rays, not merged point-cloud visibility. Selected-ray
   counts and omitted returns remain explicit; no navigation acceptance is granted.

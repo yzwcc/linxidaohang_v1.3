@@ -18,6 +18,7 @@ sys.path.insert(0, str(ROOT / "tools"))
 import export_glim_point_composition as exporter
 import extract_glim_point_consumer as extractor
 import run_glim_point_composition_target as coordinator
+import audit_historical_evidence as historical
 from test_slam_point_consumer_evidence import fixture as archive_fixture
 import test_slam_point_pipe_evidence as pipe_fixture
 from test_slam_point_target_coordinator import MemorySftp
@@ -439,16 +440,7 @@ class PublishedArm64ResultTests(unittest.TestCase):
 
     def test_published_result_keeps_frozen_sources_and_excludes_private_payloads(self):
         result = self.result()
-        # Historical hardware evidence binds that run's committed sources.
-        revised = {
-            "robot-api/src/domain.ts", "robot-api/src/server.ts", "robot-api/src/jobs.ts", "robot-api/src/slam-points.ts",
-            "robot-slam/lingxi_slam/process_supervisor.py", "shared/contracts.ts"}
-        revision = "dff9855896feaa44eb233f44aebcd52c8a9703a8"
-        for name, expected in result["sourceSha256"].items():
-            source = (subprocess.check_output(
-                ["git", "show", revision + ":lingxi-next/" + name], cwd=ROOT)
-                if name in revised else (ROOT / name).read_bytes())
-            self.assertEqual(expected, hashlib.sha256(source).hexdigest(), name)
+        historical.verify("docs/slam-point-composition-arm64-evidence.json")
         self.assertEqual(coordinator.sha256(coordinator.__file__), result["coordinatorSha256"])
         self.assertEqual(coordinator.sha256(exporter.__file__), result["exporterSha256"])
         text = json.dumps(result)

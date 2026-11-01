@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "purpose": "immutable_historical_evidence_not_current_target_acceptance",
+  "entries": {
+    "docs/slam-python-runtime-arm64-evidence.json": {
+      "revision": "1d699796962165b4a73afa71561fda5737a289fc",
+      "reportCanonicalSha256": "7f37600c4886341c1f1119e3e131fffe36c1aaa96029f2ce31ac782a6c065e51",
+      "sourceByteTransforms": {}
+    },
+    "docs/slam-base-tf2-arm64-evidence.json": {
+      "revision": "4a7ad98c81a83f797f7e6feb95f992473689b00f",
+      "reportCanonicalSha256": "66c9777c1e9e1eb19356adecdde70d07869d2022fff6148f1cd3109023080a43",
+      "sourceByteTransforms": {}
+    },
+    "docs/slam-workspace-live-arm64-evidence.json": {
+      "revision": "33ee640b4d75756529bc31e565fd8886a96a7699",
+      "reportCanonicalSha256": "bfeeb667feed9c005327dd7ab005e0a8adbc811eda28c8be856f1fd0a940a061",
+      "sourceByteTransforms": {}
+    },
+    "docs/slam-base-pose-evidence.json": {
+      "revision": "a505ec0713d739526d6d938f6bc541d03bafef37",
+      "reportCanonicalSha256": "f16c7bd6d34b5b344d23c8bebc2a2544226220973b48bd63768250669b06f213",
+      "sourceByteTransforms": {}
+    },
+    "docs/slam-point-composition-arm64-evidence.json": {
+      "revision": "dff9855896feaa44eb233f44aebcd52c8a9703a8",
+      "reportCanonicalSha256": "e1f50fa4b7844896cbee1aeda16921a2ba6ede4683b83b73bef02242cd2d476f",
+      "sourceByteTransforms": {
+        "docs/slam-point-arm64-target-evidence.json": "lf_to_crlf"
+      }
+    }
+  }
+}

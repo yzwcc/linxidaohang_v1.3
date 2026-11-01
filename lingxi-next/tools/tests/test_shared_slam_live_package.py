@@ -7,6 +7,7 @@ import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import check_shared_slam_live_package as check
+import audit_historical_evidence as historical
 
 
 class SharedLivePackageTests(unittest.TestCase):
@@ -68,9 +69,8 @@ class PublishedSharedLivePackageTests(unittest.TestCase):
         self.root = Path(__file__).resolve().parents[2]
         self.value = json.loads((self.root / "docs/slam-workspace-live-arm64-evidence.json").read_bytes())
 
-    def test_sources_and_isolated_python_lock_match_tested_bytes(self):
-        for name, expected in self.value["sourceSha256"].items():
-            self.assertEqual(expected, hashlib.sha256((self.root / name).read_bytes()).hexdigest())
+    def test_historical_sources_and_isolated_python_lock_match_tested_bytes(self):
+        historical.verify("docs/slam-workspace-live-arm64-evidence.json")
         self.assertEqual(self.value["lockSha256"], hashlib.sha256(
             (self.root / "robot-slam/runtime-arm64-cp310.lock.json").read_bytes()).hexdigest())
         self.assertFalse(self.value["target"]["systemSitePackages"])

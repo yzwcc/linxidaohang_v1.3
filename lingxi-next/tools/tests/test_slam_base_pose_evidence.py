@@ -2,9 +2,12 @@
 import hashlib
 import json
 from pathlib import Path
+import sys
 import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "tools"))
+import audit_historical_evidence as historical
 
 
 class BasePoseEvidence(unittest.TestCase):
@@ -36,8 +39,7 @@ class BasePoseEvidence(unittest.TestCase):
                           "tools/diagnose_slam_sensors.py", "tools/run_kiss_offline_trial.py",
                           "tools/verify_slam_capture.py", "tools/slam_bag_audit.py"},
                          set(self.report["sourceSha256"]))
-        for name, digest in self.report["sourceSha256"].items():
-            self.assertEqual(hashlib.sha256((ROOT / name).read_bytes()).hexdigest(), digest, name)
+        historical.verify("docs/slam-base-pose-evidence.json")
         baseline = json.loads((ROOT / "docs/slam-stream-input-evidence.json").read_text())
         self.assertEqual(hashlib.sha256((ROOT / "docs/slam-stream-input-evidence.json").read_bytes()).hexdigest(),
                          self.report["streamEvidenceSha256"])

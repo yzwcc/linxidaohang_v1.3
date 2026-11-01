@@ -34,7 +34,7 @@ Browser screenshots are local ignored artifacts named
 in the 309x410 desktop canvas and 2068 in the 670x313 landscape canvas. These
 checks establish rendering, not point-cloud geometry or field-map accuracy.
 
-## Broad Python Regression: Not Green
+## Earlier Broad Python Regression: Not Green
 
 The ordinary-user WSL scientific runtime ran `unittest discover -s tools/tests
 -q`: 1376 tests, 4 failures, 2 errors, 150 skipped, 169.938 s. The six outstanding
@@ -58,11 +58,54 @@ frozen historical revision, like its other previously changed product files;
 that does not establish a new hardware result. Source/package evidence needs
 its own reconciliation or fresh bounded verification before release.
 
+## Historical Reconciliation and Current Regression
+
+A subsequent ordinary-user WSL run used
+`/home/admin1/.cache/lingxi-next/continuous-localization-env-20261030-a/bin/python`
+with the same `unittest discover -s tools/tests -q` command. Result: **1423 tests,
+1372 passed, 51 skipped, zero failures/errors**, 211.191 s. This scientific
+environment enables more optional tests than the earlier environment; skipped
+tests are not passes. Eleven new isolated-Git tests exercise the history audit,
+including tampering, missing history, byte transformations, symlinks, source
+deletion and strict-CLI refusal.
+
+The same workspace also reran `npm test` (502 passed, 16 skipped) and
+`npm run build` (Web, API and runtime TypeScript checks plus Vite passed).
+Rollup reported two nonfatal upstream Zod comment-annotation warnings.
+
+The five historical reports now have full immutable Git revisions and canonical
+JSON identities in `evidence/historical-source-bindings.json`. The audit checks
+the reports against those revisions and verifies all **93** recorded source
+associations against exact Git blob bytes. One documented LF-to-CRLF source
+transformation is explicit in the catalog; no generic normalization or report
+rewriting occurs. Current source bytes are checked separately. Fifteen distinct
+current sources differ from their historical records; none has gained new ARM64
+acceptance from this change. Matching a history binding is not a runtime test.
+
+Run from `lingxi-next/` with full project Git history available:
+
+```sh
+python tools/audit_historical_evidence.py
+python tools/audit_historical_evidence.py --require-current
+```
+
+The first command verifies historical integrity and reports current drift. The
+second was actually executed and returned **2**, blocking current-source identity
+approval. Missing Git history and altered historical reports also fail closed.
+All five acceptance/contact/deployment flags remain false. The existing package
+builder still refuses non-commissioning releases regardless of this audit.
+
+The sixth earlier failure came from a shared Windows/WSL GLIM cache checkout:
+Windows had CRLF working bytes but WSL Git did not apply the checkout's EOL
+policy. Setting that ignored cache's local `core.autocrlf=true` made the checked
+`config` and `LICENSE` paths clean. No cached source bytes were rewritten and the
+production clean-source guard was not relaxed.
+
 ## Still Not Accepted
 
 `physicalMotionSent=false` and `navigationReady=false` are retained. Playback
 is stubbed and cloud access is disabled; neither an audible <=2 s result nor
 an acoustic wake-word result is claimed. Recorded localization plus observed
 occupancy, support-preserving obstacle clearing, guarded AIMDK handoff, current
-APK, and complete independent-stack install/upgrade/rollback verification remain
+APK device acceptance, and complete independent-stack install/upgrade/rollback verification remain
 tracked in [the full-product workstream](OFFLINE_PRODUCT_ACCEPTANCE.md).

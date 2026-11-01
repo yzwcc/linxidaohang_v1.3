@@ -1,7 +1,6 @@
 """Synthetic target-report validation; robot execution is never part of unit tests."""
 import ast
 from copy import deepcopy
-import hashlib
 import json
 from pathlib import Path
 import sys
@@ -11,6 +10,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "tools"))
 import check_base_pose_tf2 as probe
 import run_base_pose_tf2_target as target
+import audit_historical_evidence as historical
 
 
 class ReportContract(unittest.TestCase):
@@ -51,10 +51,11 @@ class ReportContract(unittest.TestCase):
             if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
                 self.assertNotIn(node.func.attr, forbidden)
 
-    def test_published_evidence_matches_current_probe_sources(self):
+    def test_published_evidence_matches_immutable_historical_probe_sources(self):
         report = json.loads((ROOT / "docs/slam-base-tf2-arm64-evidence.json").read_text())
-        hashes = {name: hashlib.sha256((ROOT / name).read_bytes()).hexdigest() for name in probe.SOURCES}
-        target.validate(report, hashes)
+        historical.verify("docs/slam-base-tf2-arm64-evidence.json")
+        self.assertEqual(set(probe.SOURCES), set(report["sourceSha256"]))
+        target.validate(report, report["sourceSha256"])
 
 
 if __name__ == "__main__":
