@@ -30,6 +30,12 @@ complete withdrawal/cleanup. Three actual Humble tests use synthetic grid bytes;
 they do not validate ARM64/native sensor output or physical traversability.
 The requested Web/APK point-cloud display remains unchanged.
 
+The [ARM64 ground/clearance component build](TERRAIN_ARM64_BUILD_20261103.md)
+prepares both current-source AArch64 adapters, pinned private OctoMap libraries,
+relative SONAME aliases and licenses, and adds their inputs to the shared source
+inventory. Static cross-build verification is complete; actual target loading,
+runtime admission and physical calibration are not.
+
 ## Release Rules
 
 - Keep default point-cloud display and clearance Z limits at 0.1--1.4 m. Do not

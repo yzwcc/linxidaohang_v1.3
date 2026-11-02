@@ -1,0 +1,4 @@
+{
+  global: lingxi_octomap_abi_version; lingxi_octomap_version; lingxi_octomap_error; lingxi_octomap_project;
+  local: *;
+};

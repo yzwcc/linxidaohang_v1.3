@@ -95,7 +95,8 @@ class SlamBundleContracts(unittest.TestCase):
         native += list(PROFILE.metadata) + ["robot-navigation/lingxi_navigation/terrain_worker.py",
             "robot-navigation/lingxi_navigation/terrain_process.py", "robot-runtime/python/live_acquisition.py",
             "robot-runtime/python/live_terrain_ros.py", "robot-navigation/lingxi_navigation/terrain_ros.py",
-            "robot-navigation/lingxi_navigation/terrain_feed.py"]
+            "robot-navigation/lingxi_navigation/terrain_feed.py", "tools/terrain-arm64/CMakeLists.txt",
+            "tools/terrain-arm64/ground.exports", "tools/terrain-arm64/octomap.exports"]
         for name in native:
             with self.subTest(name=name):
                 self.assertEqual(bundle.sha256(ROOT / name), sources[name])

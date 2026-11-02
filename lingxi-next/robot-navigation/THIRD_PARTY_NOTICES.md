@@ -43,8 +43,11 @@ POSSIBILITY OF SUCH DAMAGE.
 ## OctoMap
 
 Source: <https://github.com/OctoMap/octomap/tree/v1.9.7>.
-The adapter links the existing system OctoMap 1.9.7 package; no upstream
-algorithm is copied or changed. The target package and binary digests are in
+The adapter links the distribution OctoMap 1.9.7 package; no upstream
+algorithm is copied or changed. Private ARM64 component builds may include
+the hash-pinned distribution libraries and their original package copyright
+file under their own runtime directory, without replacing system libraries.
+The target package and binary digests are in
 `octomap.lock.json`. Retain this notice in deliveries containing the adapter
 or OctoMap binaries, together with any distribution-specific package notices.
 
@@ -74,3 +77,11 @@ INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
 CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
 ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
+
+## Patchwork++
+
+Source: <https://github.com/url-kaist/patchwork-plusplus>, revision
+`3e6903a1d5537a4cc2ace897b0bbb98a92d6014c`, as pinned in
+`patchworkpp.lock.json`. The ground adapter uses the unchanged upstream
+algorithm. Binary component preparations include the exact upstream BSD-2-Clause
+license as `PATCHWORKPP_LICENSE`; retain it with redistributed binaries.

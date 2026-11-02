@@ -1,0 +1,4 @@
+{
+  global: lingxi_ground_abi; lingxi_ground_revision; lingxi_ground_error; lingxi_ground_segment;
+  local: *;
+};
