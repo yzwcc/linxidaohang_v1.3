@@ -64,9 +64,10 @@ def main():
     for name in ("config", "maps", "runs", "socket", "localization-socket"):
         parser.add_argument("--" + name, type=Path, required=True)
     parser.add_argument("--parent-stdin", action="store_true")
+    parser.add_argument('--acquisition-settings', type=Path)
     args = parser.parse_args()
     mapping = create_mapping(args.config, args.maps)
-    localization = create_localization(args.config, args.maps, args.runs)
+    localization = create_localization(args.config, args.maps, args.runs, acquisition_settings=args.acquisition_settings)
     serve(args.socket, args.localization_socket, mapping, localization,
           parent_input=sys.stdin.buffer if args.parent_stdin else None,
           status=lambda value: print(json.dumps(value), flush=True))

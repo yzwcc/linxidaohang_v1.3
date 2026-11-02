@@ -213,3 +213,16 @@ or deployment is authorized by completing an offline check.
   Acquisition Python regression: 47 passed; existing actual x86 native contracts:
   29 passed; Windows component checks: seven passed. Live factory wiring,
   ARM64 execution, calibration and physical acceptance remain open.
+- [Passive live acquisition wiring](LIVE_ACQUISITION_WIRING_20261103.md)
+  adds explicit local sidecar selection to managed/on-demand live localization.
+  Acquisition hooks stay on the sensor owner; optional declared terrain uses a
+  supervised child. Pause, stop, reseed and loss retire old results even without
+  another callback, and terminal checks account for native callbacks and cleanup.
+  New wiring tests: 25 passed; acquisition regression: 89 passed, no skips.
+  Full Python regression: 1,706 discovered, 1,637 passed, 69 skipped,
+  zero failures/errors in 413.646 seconds; skipped checks are not acceptance.
+  Web/API regression: 511 passed, 16 skipped; production build passed.
+  These synthetic lifecycle tests do not execute ARM64 code or certify terrain
+  support. Shared-package/installer forwarding, target loading and throughput,
+  metric/gravity/ground/base calibration and field acceptance remain open.
+  No robot connection, sensor subscription, motion or deployment occurred.

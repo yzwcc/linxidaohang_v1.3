@@ -56,6 +56,27 @@ class LiveCompletion(unittest.TestCase):
     def test_clean_discarded_tail_is_not_claimed_as_full_input(self):
         self.verify()
 
+    def test_acquisition_is_explicit_and_counters_match_the_actual_pose_stream(self):
+        expected = {'settingsSha256': 'a' * 64}
+        self.report['acquisition'] = dict(configured=True, nativeCreated=True, nativeClosed=True,
+            sourceRetired=True, gridAbsent=True, terrainOwnerClosed=True, terrainChildCleaned=True,
+            failed=False, failureReason=None, physicalScaleValidated=False, groundSupportValidated=False,
+            navigationReady=False, terrainConfigured=False, registeredPackets=0, registeredReturns=0,
+            terrainSubmissions=0, inputIntegrity=expected,
+            nativeCounts=dict(callbacks=1, initializationSkips=1, copies=0, takes=0, discardedOnClose=0))
+        with self.assertRaisesRegex(ValueError, 'explicit_live_acquisition'):
+            self.verify()
+        def check():
+            verify_completion(self.report, self.final, frozen=self.frozen, binding=self.binding,
+                sources=self.sources, config_hash=self.config_hash, acquisition_integrity=expected)
+        check()
+        self.report['acquisition']['nativeCounts'].update(callbacks=2, copies=1, takes=1)
+        with self.assertRaisesRegex(ValueError, 'counter_accounting'):
+            check()
+        del self.report['acquisition']
+        with self.assertRaisesRegex(ValueError, 'complete_passive_acquisition'):
+            check()
+
     def test_counter_ownership_and_input_mutations_are_rejected(self):
         cases = (
             (("stopReceived",), False), (("controlThreadAlive",), True),

@@ -99,17 +99,19 @@ class LocalizationManager:
     """Single native slot. Replacements require observed cleanup, never a timeout guess."""
 
     def __init__(self, runs, resolve_map, command_factory, environment, *, input_mode,
-                 owner_factory=ProcessSupervisor, exchange=None, activity_gate=None):
+                 owner_factory=ProcessSupervisor, exchange=None, activity_gate=None, process_limits=None):
         self.runs = Path(runs)
         parent = direct(self.runs, directory=True)
         if (sys.platform != "linux" or os.geteuid() == 0 or parent.st_uid != os.geteuid()
                 or parent.st_mode & 0o077 or not callable(resolve_map)
                 or not callable(command_factory) or not callable(owner_factory)
                 or input_mode not in ("recorded", "live")
+                or process_limits is not None and type(process_limits) is not ProcessLimits
                 or len(os.fsencode(self.runs / ("a" * 32) / "localization.sock")) >= 100):
             raise ValueError("explicit_localization_service_configuration_required")
         self.resolve_map, self.command_factory = resolve_map, command_factory
         self.environment, self.owner_factory = environment.copy(), owner_factory
+        self.process_limits = process_limits or ProcessLimits(startup_seconds=30., progress_seconds=2., shutdown_seconds=5.)
         self.input_mode, self.exchange = input_mode, exchange or self._exchange
         self.instance = uuid.uuid4().hex
         self.activity_gate = activity_gate
@@ -195,7 +197,7 @@ class LocalizationManager:
             owner = self.owner_factory(
                 self.command_factory(chosen, output), cwd=output, environment=self.environment,
                 stderr_path=output / "private-child.log",
-                limits=ProcessLimits(startup_seconds=30., progress_seconds=2., shutdown_seconds=5.),
+                limits=self.process_limits,
                 **({"activity_lease": current["lease"]} if current["lease"] is not None else {}))
             with self.lock:
                 current.update(owner=owner, binding=replace(chosen.binding, session=owner.session), output=output)
@@ -409,9 +411,13 @@ def serve(endpoint, manager, *, parent_input=None, status=None):
                 signal.signal(value, handler)
 
 
-def create_manager(config_file, maps, runs):
+def create_manager(config_file, maps, runs, *, acquisition_settings=None):
     config, environment = verified_configuration(config_file, allow_live=True)
     platform = MappingPlatform(config)
+    acquisition = None
+    if acquisition_settings is not None:
+        from live_acquisition import AcquisitionSettings
+        acquisition = AcquisitionSettings(acquisition_settings, platform)
     direct(maps, directory=True)
     direct(runs, directory=True)
     if maps == runs or maps in runs.parents or runs in maps.parents:
@@ -420,13 +426,18 @@ def create_manager(config_file, maps, runs):
     resolver = SavedMapResolver(maps, profile_sha256, config["inputMode"], platform.sensor_provenance())
 
     def command(chosen, output):
-        return [sys.executable, "-B", str(Path(__file__).with_name("controlled_localization.py")), "child",
+        result = [sys.executable, "-B", str(Path(__file__).with_name("controlled_localization.py")), "child",
                 "--config", str(config_file), "--saved-map", str(chosen.directory),
                 "--map-id", chosen.binding.map_id, "--receipt-sha256", chosen.binding.receipt_sha256,
                 "--profile-sha256", profile_sha256, "--output", str(output)]
+        if acquisition is not None:
+            result.extend(acquisition.child_arguments())
+        return result
 
     return LocalizationManager(runs, resolver, command, environment, input_mode=config["inputMode"],
-                               activity_gate=ActivityGate(maps / ".slam-activity.lock"))
+        activity_gate=ActivityGate(maps / ".slam-activity.lock"),
+        process_limits=ProcessLimits(startup_seconds=30., progress_seconds=2., shutdown_seconds=30.)
+            if acquisition is not None and acquisition.terrain is not None else None)
 
 
 def main():
@@ -434,8 +445,9 @@ def main():
     for name in ("config", "maps", "runs", "socket"):
         parser.add_argument("--" + name, type=Path, required=True)
     parser.add_argument("--parent-stdin", action="store_true")
+    parser.add_argument('--acquisition-settings', type=Path)
     args = parser.parse_args()
-    manager = create_manager(args.config, args.maps, args.runs)
+    manager = create_manager(args.config, args.maps, args.runs, acquisition_settings=args.acquisition_settings)
     serve(args.socket, manager, parent_input=sys.stdin.buffer if args.parent_stdin else None,
           status=lambda value: print(json.dumps(value), flush=True))
 

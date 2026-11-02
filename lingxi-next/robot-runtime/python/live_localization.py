@@ -14,7 +14,8 @@ from mapping_service import private_json
 from live_child import serve, verified_child_session
 
 
-def verify_completion(report, final, *, frozen, binding, sources, config_hash, base_scale=None):
+def verify_completion(report, final, *, frozen, binding, sources, config_hash, base_scale=None,
+                      acquisition_integrity=None):
     """Live shutdown accounts for accepted callbacks, including the discarded tail."""
     identity = asdict(binding)
     worker, state = report["worker"], final["state"]
@@ -24,6 +25,12 @@ def verify_completion(report, final, *, frozen, binding, sources, config_hash, b
     numeric = ("acceptedImu", "acceptedClouds", "completedMessages",
                "discardedMessages", "rejectedMessages")
     stream_counts = stream["counts"]
+    if acquisition_integrity is not None:
+        from live_acquisition import verify_terminal
+        verify_terminal(report.get('acquisition'), acquisition_integrity,
+                        estimated_poses=stream_counts['estimatedPoses'])
+    elif 'acquisition' in report:
+        raise ValueError('explicit_live_acquisition_option_required')
     if base_scale is not None:
         base, inputs = state.get("basePose", {}), report.get("basePoseInput", {})
         if (base.get("status") != "unavailable" or base.get("mapFromBase") is not None
@@ -89,6 +96,11 @@ def child(args, sink, platform):
 
     if not platform.arm64 or platform.mode != "live":
         raise ValueError("verified_arm64_live_localization_platform_required")
+    acquisition_settings = None
+    if (getattr(args, 'acquisition_settings', None) is not None
+            or getattr(args, 'acquisition_integrity_sha256', None) is not None):
+        from live_acquisition import child_settings
+        acquisition_settings = child_settings(args, platform)
     child_session = verified_child_session(platform.args)
     binding, points = load_map(
         args.saved_map, args.map_id, args.receipt_sha256, platform.profile, args.profile_sha256,
@@ -112,6 +124,10 @@ def child(args, sink, platform):
               "smallGicpExtensionSha256": gicp_hash}
     calls = dict.fromkeys(("create", "imu", "frame", "close"), 0)
     owners, main_thread, libraries = set(), threading.get_ident(), {}
+    acquisition = None
+    if acquisition_settings is not None:
+        from live_acquisition import AcquisitionComposition
+        acquisition = AcquisitionComposition(acquisition_settings, session, args.output)
 
     def record(name):
         owner = threading.get_ident()
@@ -133,11 +149,15 @@ def child(args, sink, platform):
             except BaseException:
                 wrapped.close()
                 raise
+        if acquisition is not None:
+            return acquisition.factory(native)
         return LocalizedNative(session, native)
 
     def revoke():
         # Only the mailbox changes here; native operations stay on the sensor worker.
         session.stop_admission()
+        if acquisition is not None:
+            acquisition.revoke()
 
     worker = SensorWorker(
         factory, SensorProfile("lidar_chest_front", "lidar_imu_chest_front",
@@ -157,7 +177,8 @@ def child(args, sink, platform):
                 return run_passive(*args, **kwargs, **({
                     "setup": base_owner.setup, "on_sensor": base_owner.sensor} if base_owner is not None else {}))
             live = serve(worker, Topics(CLOUD, IMU), sink, runner=runner,
-                         session=binding.session, seconds=platform.value["maxSeconds"], on_stopping=revoke)
+                         session=binding.session, seconds=platform.value["maxSeconds"], on_stopping=revoke,
+                         writer_failed=acquisition.unavailable if acquisition is not None else lambda: False)
             report.update(live)
     except Exception as error:
         report["errorType"] = type(error).__name__
@@ -174,6 +195,12 @@ def child(args, sink, platform):
         if base_owner is not None:
             base_owner.close()
             report["basePoseInput"] = base_owner.summary()
+        if acquisition is not None:
+            try:
+                report['acquisition'] = acquisition.finish()
+                libraries[acquisition_settings.library.name] = acquisition_settings.library_sha256
+            except Exception as error:
+                report.update(result='failed', errorType=type(error).__name__, acquisition=acquisition.summary())
         final = {"state": session.state(), "robotContacted": True, "motionCommandsSent": False,
                  "mapProfileAssociationVerified": False}
         report.update(nativeCalls=calls, nativeOwnerIsSingleNonMainThread=len(owners) == 1,
@@ -191,7 +218,8 @@ def child(args, sink, platform):
                     or digest(args.config.read_bytes()) != config_hash or digest(gicp.read_bytes()) != gicp_hash):
                 raise ValueError("unchanged_live_localization_inputs_required")
             verify_completion(report, final, frozen=platform.frozen, binding=binding,
-                              sources=sources, config_hash=config_hash, base_scale=session.base_scale)
+                              sources=sources, config_hash=config_hash, base_scale=session.base_scale,
+                              acquisition_integrity=acquisition_settings.frozen if acquisition_settings is not None else None)
         except Exception as error:
             report.update(result="failed", errorType=type(error).__name__)
         private_json(args.output / "child-report.json", report)

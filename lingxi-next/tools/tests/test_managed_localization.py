@@ -149,10 +149,11 @@ class LauncherAdmission(unittest.TestCase):
                     runtime, "verified_configuration", return_value=(value, {})), patch.object(
                     runtime, "MappingPlatform", return_value=platform), patch.object(
                     runtime, "load_map", return_value=(Mock(), None)), patch.object(
-                    runtime, "ManagedLocalizationOwner", return_value=owner), patch(
+                    runtime, "ManagedLocalizationOwner", return_value=owner) as factory, patch(
                     "live_localization.verify_completion") as verify:
                 self.assertEqual(0, runtime.run(args))
                 self.assertEqual(scale, verify.call_args.kwargs["base_scale"])
+                self.assertIsNone(factory.call_args.kwargs["process_limits"])
 
 
 if __name__ == "__main__":

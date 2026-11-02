@@ -40,6 +40,8 @@ SOURCES = (
     "robot-slam/lingxi_slam/base_pose.py",
     "robot-slam/lingxi_slam/base_pose_input.py",
     "robot-runtime/python/live_base_pose.py",
+    "robot-runtime/python/live_acquisition.py",
+    "robot-runtime/python/acquisition_bundle.py",
 )
 
 
@@ -101,6 +103,9 @@ def child(args, sink):
     if platform.mode == "live":
         from live_localization import child as live_child
         return live_child(args, sink, platform)
+    if (getattr(args, 'acquisition_settings', None) is not None
+            or getattr(args, 'acquisition_integrity_sha256', None) is not None):
+        raise ValueError('acquisition_settings_require_explicit_live_input')
     profile = platform.profile
     binding, points = load_map(
         args.saved_map, args.map_id, args.receipt_sha256, profile, args.profile_sha256,
@@ -164,6 +169,9 @@ def child(args, sink):
 
 
 def run(args):
+    if (getattr(args, 'acquisition_settings', None) is not None
+            or getattr(args, 'acquisition_integrity_sha256', None) is not None):
+        raise ValueError('acquisition_settings_require_explicit_live_input')
     config, environment = verified_configuration(args.config)
     platform = MappingPlatform(config)
     config_hash, sources = digest(args.config.read_bytes()), source_hashes()
@@ -222,6 +230,8 @@ def main():
         for field in FIELDS:
             command.add_argument("--" + field, required=True,
                                  type=Path if field in ("config", "saved-map", "output") else str)
+        command.add_argument('--acquisition-settings', type=Path)
+        command.add_argument('--acquisition-integrity-sha256')
         if name == "run":
             command.add_argument("--seconds", required=True, type=float)
     args = parser.parse_args()

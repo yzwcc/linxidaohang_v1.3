@@ -15,6 +15,7 @@ from controlled_localization import (
 from live_points import digest_file
 from localization_owner import ManagedLocalizationOwner
 from managed_mapping import validate_output
+from lingxi_slam.process_supervisor import ProcessLimits
 
 
 def api_configuration():
@@ -48,6 +49,10 @@ def run(args):
     if mode == "live" and config["maxSeconds"] < args.seconds + 45.:
         raise ValueError("live_child_duration_must_cover_startup_and_parent_interval")
     platform = MappingPlatform(config)
+    acquisition = None
+    if getattr(args, 'acquisition_settings', None) is not None:
+        from live_acquisition import AcquisitionSettings
+        acquisition = AcquisitionSettings(args.acquisition_settings, platform)
     for path, expected in ((args.node, args.node_sha256), (args.api_bundle, args.api_sha256)):
         direct(path)
         digest_file(path, expected)
@@ -74,11 +79,15 @@ def run(args):
         for field in FIELDS:
             value = output if field == "output" else getattr(args, field.replace("-", "_"))
             command.extend(("--" + field, str(value)))
+        if acquisition is not None:
+            command.extend(acquisition.child_arguments())
         return command
 
     owner = ManagedLocalizationOwner(
         native_command, [str(args.node), str(args.api_bundle)],
-        native_environment=environment, api_environment=api, output=args.output, saved_maps=saved_maps)
+        native_environment=environment, api_environment=api, output=args.output, saved_maps=saved_maps,
+        process_limits=ProcessLimits(startup_seconds=30., progress_seconds=2., shutdown_seconds=30.)
+            if acquisition is not None and acquisition.terrain is not None else None)
     binding, _ = load_map(
         args.saved_map, args.map_id, args.receipt_sha256, profile, args.profile_sha256,
         session=owner.native.session, input_mode=mode, sensor_provenance=platform.sensor_provenance())
@@ -90,7 +99,8 @@ def run(args):
                 strict_json((owner.native_output / "child-report.json").read_bytes()),
                 strict_json((owner.native_output / "localization-final.json").read_bytes()),
                 frozen=platform.frozen, binding=binding, sources=sources, config_hash=config_hash,
-                base_scale=config.get("basePose", {}).get("metresPerMapUnit"))
+                base_scale=config.get("basePose", {}).get("metresPerMapUnit"),
+                acquisition_integrity=acquisition.frozen if acquisition is not None else None)
         verify_completion(
             strict_json((owner.native_output / "child-report.json").read_bytes()),
             strict_json((owner.native_output / "localization-final.json").read_bytes()),
@@ -98,6 +108,8 @@ def run(args):
             config_hash=config_hash, rate=config["rate"])
 
     def recheck():
+        if acquisition is not None and acquisition.verify() != acquisition.frozen:
+            raise ValueError('unchanged_managed_acquisition_settings_required')
         if (platform.verify() != platform.frozen or source_hashes() != sources
                 or digest(args.config.read_bytes()) != config_hash
                 or any(digest((ROOT / "robot-runtime/python" / file).read_bytes()) != expected
@@ -138,6 +150,7 @@ def main():
         parser.add_argument("--" + field, required=True,
             type=Path if field in ("config", "saved-map", "output", "node", "api-bundle") else str)
     parser.add_argument("--seconds", type=float, default=90.)
+    parser.add_argument('--acquisition-settings', type=Path)
     previous = os.umask(0o077)
     try:
         return run(parser.parse_args())

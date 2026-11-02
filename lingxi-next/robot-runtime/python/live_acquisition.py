@@ -1,0 +1,314 @@
+"""Explicit passive acquisition composition; no ROS map or motion publication."""
+from pathlib import Path
+import sys
+import threading
+
+ROOT = Path(__file__).resolve().parents[2]
+sys.path[:0] = [str(ROOT / 'robot-slam'), str(ROOT / 'robot-navigation'), str(ROOT / 'tools')]
+import acquisition_bundle
+from localization_control import LocalizedNative, direct, digest, strict_json
+from mapping_platform import verify_loaded_libraries
+from registered_terrain import RegisteredTerrainSource
+from lingxi_slam.acquisition_output import NativeAcquisitionOutput
+from lingxi_navigation.ground import GroundDeclaration
+from lingxi_navigation.occupancy import ClearanceProjection, DEPENDENCIES, canonical, digest_value
+from lingxi_navigation.recorded_occupancy import OfflineGeometry
+from lingxi_navigation.terrain_lane import TerrainLane
+from lingxi_navigation.terrain_process import TerrainProcess
+
+PURPOSE = 'passive_acquisition_and_declared_terrain_not_navigation'
+SOURCES = ('robot-runtime/python/live_acquisition.py', 'robot-runtime/python/acquisition_bundle.py',
+    'robot-runtime/python/registered_terrain.py', 'robot-navigation/lingxi_navigation/registered_window.py',
+    'robot-navigation/lingxi_navigation/terrain_lane.py', 'robot-navigation/lingxi_navigation/terrain_process.py',
+    'robot-navigation/lingxi_navigation/terrain.py', 'robot-navigation/lingxi_navigation/terrain_protocol.py',
+    'robot-navigation/lingxi_navigation/terrain_worker.py', 'robot-navigation/lingxi_navigation/ground.py',
+    'robot-navigation/lingxi_navigation/occupancy.py', 'robot-navigation/lingxi_navigation/recorded_occupancy.py',
+    'tools/check_ground_native.py')
+
+
+def metadata(path, expected, maximum=262144):
+    path = Path(path)
+    if not 0 < direct(path).st_size <= maximum or not digest_value(expected) or digest(path.read_bytes()) != expected:
+        raise ValueError('pinned_bounded_acquisition_runtime_input_required')
+    return path
+
+
+def terrain_settings(value):
+    """Keep native ground/clearance independent from the display height filter."""
+    if type(value) is not dict or set(value) != {'geometry', 'projection', 'ground', 'octomap'}:
+        raise ValueError('complete_declared_terrain_settings_required')
+    geometry = value['geometry']
+    if type(geometry) is not dict or set(geometry) != {'metres_per_raw_unit', 'declared_from_raw'}:
+        raise ValueError('explicit_declared_terrain_geometry_required')
+    declared = OfflineGeometry(geometry['metres_per_raw_unit'], tuple(geometry['declared_from_raw']))
+    projection = ClearanceProjection(**value['projection'])
+    ground, octomap = value['ground'], value['octomap']
+    fields = {'library', 'sha256', 'buildReportSha256'}
+    if (type(ground) is not dict or set(ground) != fields | {'declaration'}
+            or type(octomap) is not dict or set(octomap) != fields | {'dependencies'}
+            or type(octomap['dependencies']) is not dict or set(octomap['dependencies']) != DEPENDENCIES
+            or not all(map(digest_value, octomap['dependencies'].values()))):
+        raise ValueError('explicit_declared_terrain_native_builds_required')
+    from check_ground_native import verified_build
+    ground_library = metadata(ground['library'], ground['sha256'], 16 * 1024**2)
+    ground_report = metadata(ground_library.parent / 'build-report.json', ground['buildReportSha256'])
+    verified_build(ground_library, ground['sha256'], ground_report)
+    octomap_library = metadata(octomap['library'], octomap['sha256'], 16 * 1024**2)
+    report_path = metadata(octomap_library.parent / 'build-report.json', octomap['buildReportSha256'])
+    report = strict_json(report_path.read_bytes())
+    source = ROOT / 'robot-navigation/native-octomap/octomap_bridge.cpp'
+    if (report.get('schemaVersion') != 1 or report.get('octomapVersion') != '1.9.7'
+            or report.get('nativeSha256') != octomap['sha256']
+            or report.get('sourceSha256') != digest(source.read_bytes())
+            or report.get('dependencies') != octomap['dependencies']
+            or report.get('freshProcessLoadPassed') is not True
+            or report.get('robotContacted') is not False or report.get('navigationReady') is not False):
+        raise ValueError('source_bound_declared_terrain_octomap_build_required')
+    for name, expected in octomap['dependencies'].items():
+        metadata(octomap_library.parent / 'lib' / name, expected, 16 * 1024**2)
+    return declared, projection, GroundDeclaration(**ground['declaration'])
+
+
+class AcquisitionSettings:
+    """Reviewed local sidecar, never HTTP input or implicit native selection."""
+    def __init__(self, path, platform):
+        self.path, self.platform = Path(path), platform
+        if not platform.arm64 or platform.mode != 'live':
+            raise ValueError('explicit_arm64_live_acquisition_selection_required')
+        self.frozen = self.verify()
+
+    @property
+    def identity(self):
+        return digest(canonical(self.frozen))
+
+    def child_arguments(self):
+        if self.verify() != self.frozen:
+            raise ValueError('unchanged_selected_acquisition_inputs_required')
+        return ['--acquisition-settings', str(self.path), '--acquisition-integrity-sha256', self.identity]
+
+    def verify(self):
+        import json5
+        if not 0 < direct(self.path).st_size <= 16384:
+            raise ValueError('bounded_local_acquisition_settings_required')
+        payload = self.path.read_bytes()
+        value = strict_json(payload)
+        if (type(value) is not dict or set(value) not in (
+                {'schemaVersion', 'purpose', 'acquisition'}, {'schemaVersion', 'purpose', 'acquisition', 'terrain'})
+                or type(value['schemaVersion']) is not int or value['schemaVersion'] != 1
+                or value['purpose'] != PURPOSE or type(value['acquisition']) is not dict
+                or set(value['acquisition']) != {'root', 'manifestSha256'}):
+            raise ValueError('explicit_passive_acquisition_settings_required')
+        selection = value['acquisition']
+        root = Path(selection['root'])
+        bundle = acquisition_bundle.verify_bundle(root, selection['manifestSha256'],
+            core_libraries=self.platform.frozen['coreLibrariesSha256'])
+        config_path = self.platform.config_dir / 'config_odometry_cpu.json'
+        if not 0 < direct(config_path).st_size <= 262144:
+            raise ValueError('bounded_acquisition_odometry_configuration_required')
+        config_bytes = config_path.read_bytes()
+        odometry = json5.loads(config_bytes.decode('utf-8'), allow_duplicate_keys=False)
+        if odometry.get('odometry_estimation', {}).get('save_imu_rate_trajectory') is not True:
+            raise ValueError('explicit_enabled_acquisition_imu_trajectory_required')
+        self.value = value
+        self.library = root / 'lib' / acquisition_bundle.LIBRARY
+        self.library_sha256 = bundle['files']['lib/' + acquisition_bundle.LIBRARY]['sha256']
+        self.terrain = terrain_settings(value['terrain']) if 'terrain' in value else None
+        if self.terrain is not None:
+            terrain = value['terrain']
+            paths = [Path(terrain[name]['library']) for name in ('ground', 'octomap')]
+            paths += [paths[1].parent / 'lib' / name for name in terrain['octomap']['dependencies']]
+            for path in paths:
+                with path.open('rb') as stream:
+                    header = stream.read(20)
+                if (len(header) != 20 or header[:6] != b'\x7fELF\x02\x01'
+                        or int.from_bytes(header[18:20], 'little') != 183):
+                    raise ValueError('matching_arm64_terrain_native_libraries_required')
+        frozen = dict(settingsSha256=digest(payload), acquisitionManifestSha256=selection['manifestSha256'],
+            acquisitionLibrarySha256=self.library_sha256, odometryConfigurationSha256=digest(config_bytes),
+            sourceSha256={name: digest((ROOT / name).read_bytes()) for name in SOURCES})
+        if self.path.read_bytes() != payload or config_path.read_bytes() != config_bytes:
+            raise ValueError('unchanged_acquisition_settings_during_preflight_required')
+        return frozen
+
+
+def child_settings(args, platform):
+    path = getattr(args, 'acquisition_settings', None)
+    expected = getattr(args, 'acquisition_integrity_sha256', None)
+    if path is None:
+        if expected is not None:
+            raise ValueError('paired_acquisition_settings_and_identity_required')
+        return None
+    settings = AcquisitionSettings(path, platform)
+    if not digest_value(expected) or settings.identity != expected:
+        raise ValueError('same_parent_selected_acquisition_inputs_required')
+    return settings
+
+
+class AcquisitionComposition:
+    """Native hooks stay on the existing sensor owner; terrain has one bounded child."""
+    def __init__(self, settings, session, output):
+        if type(settings) is not AcquisitionSettings or settings.verify() != settings.frozen:
+            raise ValueError('verified_current_acquisition_settings_required')
+        self.settings, self.session, self.output = settings, session, Path(output)
+        self.lock = threading.Lock()
+        self.source = self.lane = self.service = self.rays = None
+        self.created = self.closed = self.failed = False
+        self.failure_reason = self.retirement_reason = None
+        self.counts = None
+        self.registered_packets = self.registered_returns = self.submissions = 0
+
+    def factory(self, point_factory):
+        with self.lock:
+            if self.created or self.closed:
+                raise RuntimeError('single_acquisition_localization_composition_required')
+            self.created = True
+        composition = self
+        class AcquiringNative(LocalizedNative):
+            def close(self):
+                if threading.get_ident() != self.owner:
+                    raise RuntimeError('same_thread_localization_native_close_required')
+                if self.closed:
+                    return
+                try:
+                    return super().close()
+                except BaseException:
+                    composition.failed = True
+                    raise
+                finally:
+                    composition.failed = composition.failed or self.failed
+                    try:
+                        composition.counts = composition.rays.counts()
+                    finally:
+                        composition.revoke()
+        try:
+            if self.settings.verify() != self.settings.frozen:
+                raise ValueError('unchanged_acquisition_inputs_at_native_start_required')
+            if self.settings.terrain is not None:
+                geometry, projection, declaration = self.settings.terrain
+                terrain = self.settings.value['terrain']
+                def native_terrain():
+                    ground, octomap = terrain['ground'], terrain['octomap']
+                    self.service = TerrainProcess(ground_library=Path(ground['library']), ground_sha256=ground['sha256'],
+                        octomap_library=Path(octomap['library']), octomap_sha256=octomap['sha256'],
+                        dependencies=octomap['dependencies'], projection=projection, declaration=declaration,
+                        stderr_path=self.output / 'private-terrain.log')
+                    return self.service
+                self.lane = TerrainLane(native_terrain)
+                self.source = RegisteredTerrainSource(self.session, self.lane, geometry, projection=projection)
+            self.rays = NativeAcquisitionOutput(self.settings.library)
+            verify_loaded_libraries({self.settings.library: self.settings.library_sha256}, Path('/proc/self/maps').read_text())
+            result = AcquiringNative(self.session, point_factory, acquisition_output=self.rays, on_acquisition=self.accept)
+            with self.lock:
+                revoked = self.closed
+            if revoked:
+                result.close()
+                raise RuntimeError('acquisition_start_revoked')
+            return result
+        except BaseException:
+            self.failed = True
+            self.session.stop_admission()
+            try:
+                if self.rays is not None:
+                    self.rays.close()
+                    self.counts = self.rays.counts()
+            finally:
+                self.revoke()
+            raise
+
+    def accept(self, packet):
+        self.registered_packets += 1
+        self.registered_returns += len(packet.origins)
+        if self.source is not None and self.source(packet):
+            self.submissions += 1
+
+    def unavailable(self):
+        self._health()
+        if self.source is None:
+            return self.failed
+        snapshot = self.source.snapshot()
+        self._health(snapshot)
+        return self.failed
+
+    def _health(self, snapshot=None):
+        if snapshot is None and self.lane is not None:
+            snapshot = self.lane.snapshot()
+        if snapshot is None:
+            return
+        with self.lock:
+            if self.service is not None and self.service.state == 'failed':
+                self.failed = True
+                self.failure_reason = self.failure_reason or self.service.failure or 'terrain_process_failed'
+            if snapshot.state == 'failed' or snapshot.failure in (
+                    'terrain_lane_failed', 'terrain_cleanup_failed', 'mismatched_registered_terrain_result',
+                    'wrong_registered_source_owner', 'registered_localization_unavailable',
+                    'registered_terrain_input_failed'):
+                self.failed = True
+                self.failure_reason = self.failure_reason or snapshot.failure or 'terrain_failed'
+            if snapshot.state in ('failed', 'retired'):
+                self.retirement_reason = self.retirement_reason or snapshot.failure
+
+    def revoke(self):
+        self._health()
+        self.session.stop_admission()
+        with self.lock:
+            self.closed = True
+            source = self.source
+        if source is not None:
+            source.retire('live_acquisition_revoked')
+        elif self.lane is not None:
+            self.lane.retire('live_acquisition_revoked')
+        self._health()
+
+    def finish(self):
+        self.revoke()
+        try:
+            if self.source is not None:
+                self.source.close()
+            elif self.lane is not None:
+                self.lane.close()
+        except BaseException:
+            self.failed = True
+            raise
+        finally:
+            self._health()
+        if self.settings.verify() != self.settings.frozen:
+            raise ValueError('unchanged_acquisition_inputs_at_shutdown_required')
+        return self.summary()
+
+    def summary(self):
+        lane = self.source.snapshot() if self.source is not None else None
+        return dict(configured=True, nativeCreated=self.created,
+            nativeClosed=self.rays is not None and self.rays.closed, nativeCounts=self.counts,
+            registeredPackets=self.registered_packets, registeredReturns=self.registered_returns,
+            terrainConfigured=self.settings.terrain is not None, terrainSubmissions=self.submissions,
+            sourceRetired=self.source is None or self.source.retired,
+            gridAbsent=lane is None or lane.grid is None,
+            terrainOwnerClosed=self.lane is None or not self.lane.thread.is_alive(),
+            terrainChildCleaned=self.lane is None or self.service is not None and self.service.cleanup_complete,
+            failed=self.failed, failureReason=self.failure_reason, retirementReason=self.retirement_reason,
+            inputIntegrity=self.settings.frozen,
+            physicalScaleValidated=False, groundSupportValidated=False, navigationReady=False)
+
+
+def verify_terminal(value, expected, *, estimated_poses):
+    if (type(value) is not dict or value.get('inputIntegrity') != expected
+            or value.get('configured') is not True or value.get('nativeCreated') is not True
+            or type(value.get('terrainConfigured')) is not bool or value.get('failureReason') is not None
+            or any(value.get(name) is not True for name in ('nativeClosed', 'sourceRetired', 'gridAbsent',
+                'terrainOwnerClosed', 'terrainChildCleaned'))
+            or any(value.get(name) is not False for name in ('failed', 'physicalScaleValidated',
+                'groundSupportValidated', 'navigationReady'))):
+        raise ValueError('complete_passive_acquisition_cleanup_required')
+    counts = value.get('nativeCounts')
+    names = ('callbacks', 'initializationSkips', 'copies', 'takes', 'discardedOnClose')
+    if (type(counts) is not dict or set(counts) != set(names)
+            or any(type(counts[name]) is not int or counts[name] < 0 for name in names)
+            or counts['initializationSkips'] != 1 or counts['copies'] != counts['takes']
+            or counts['callbacks'] != counts['copies'] + 1 or counts['discardedOnClose'] != 0
+            or type(estimated_poses) is not int or estimated_poses < 1 or counts['callbacks'] != estimated_poses
+            or any(type(value.get(name)) is not int or value[name] < 0 for name in (
+                'registeredPackets', 'registeredReturns', 'terrainSubmissions'))
+            or value['registeredPackets'] > counts['takes']
+            or value['terrainSubmissions'] > value['registeredPackets']
+            or not value['terrainConfigured'] and value['terrainSubmissions'] != 0):
+        raise ValueError('complete_same_owner_acquisition_counter_accounting_required')

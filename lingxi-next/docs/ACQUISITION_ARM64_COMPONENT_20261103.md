@@ -70,3 +70,8 @@ cleanup. That work must preserve original scan receipts and generations,
 withdraw old terrain on pause/stop/reseed/loss, and keep navigation unavailable
 without calibrated metric/gravity/ground/base alignment and field acceptance.
 The existing point-cloud display and default Z 0.1--1.4 m are unchanged.
+
+Follow-up: [passive live acquisition wiring](LIVE_ACQUISITION_WIRING_20261103.md)
+adds the optional operator-selected lifecycle composition. That later offline
+milestone does not change this component's zero ARM64 target executions or
+constitute deployment, physical calibration or navigation acceptance.
