@@ -67,10 +67,10 @@ export async function api<T>(
   const headers = new Headers(init.headers);
   headers.set("Authorization", `Bearer ${connection.token}`);
   if (init.body && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
+  const timeout = AbortSignal.timeout(path.includes("stop-save") ? 130_000
+    : path.includes("stop-discard") ? 110_000 : path.includes("activate") ? 35_000 : 10_000);
   const response = await fetch(`${connection.baseUrl}${path}`, {
-    signal: AbortSignal.timeout(path.includes("stop-save") ? 130_000
-      : path.includes("stop-discard") ? 110_000 : path.includes("activate") ? 35_000 : 10_000),
-    ...init, headers,
+    ...init, headers, signal: init.signal ? AbortSignal.any([init.signal, timeout]) : timeout,
   });
   const body = await response.json().catch(() => ({}));
   if (!response.ok) throw new ApiError(body.message ?? "机器人请求失败", response.status);
@@ -87,6 +87,7 @@ export function openEvents(
   let socket: WebSocket | undefined;
   let retryTimer: number | undefined;
   let stableTimer: number | undefined;
+  let livenessTimer: number | undefined;
   let attempt = 0;
   let closed = false;
 
@@ -113,23 +114,33 @@ export function openEvents(
     socket = current;
     let disconnected = false;
     const disconnect = () => {
-      if (closed || disconnected) return;
+      if (closed || disconnected || socket !== current) return;
       disconnected = true;
       if (stableTimer !== undefined) window.clearTimeout(stableTimer);
+      if (livenessTimer !== undefined) window.clearTimeout(livenessTimer);
       stableTimer = undefined;
+      livenessTimer = undefined;
       onError();
       scheduleReconnect();
       try { current.close(); } catch { /* The socket may already be closed. */ }
     };
+    const checkLiveness = () => {
+      if (livenessTimer !== undefined) window.clearTimeout(livenessTimer);
+      livenessTimer = window.setTimeout(disconnect, 7500);
+    };
+    checkLiveness();
     current.addEventListener("open", () => {
-      if (closed || socket !== current) return;
+      if (closed || disconnected || socket !== current) return;
       stableTimer = window.setTimeout(() => { attempt = 0; stableTimer = undefined; }, 30_000);
     }, { once: true });
     current.addEventListener("message", (event) => {
-      if (closed || socket !== current) return;
+      if (closed || disconnected || socket !== current) return;
       try {
         const payload = JSON.parse(String(event.data)) as { type?: string; state?: RobotState };
-        if (payload.type === "state" && payload.state) onState(payload.state);
+        if (payload.type === "state" && payload.state) {
+          checkLiveness();
+          onState(payload.state);
+        }
       } catch {
         // Ignore malformed events and recover with the next full snapshot.
       }
@@ -144,8 +155,10 @@ export function openEvents(
       closed = true;
       if (retryTimer !== undefined) window.clearTimeout(retryTimer);
       if (stableTimer !== undefined) window.clearTimeout(stableTimer);
+      if (livenessTimer !== undefined) window.clearTimeout(livenessTimer);
       retryTimer = undefined;
       stableTimer = undefined;
+      livenessTimer = undefined;
       socket?.close();
     },
   };

@@ -41,7 +41,8 @@ import type {
   TourStep,
   TourTask,
 } from "../../shared/contracts";
-import { api, ApiError, jsonBody, openEvents, pairRobot, type Connection } from "./api";
+import { api, jsonBody, pairRobot, type Connection } from "./api";
+import { RobotSession } from "./robot-session";
 import MapCanvas from "./MapCanvas";
 import LidarCanvas from "./LidarCanvas";
 import LocalizationPanel from "./LocalizationPanel";
@@ -1094,6 +1095,7 @@ export default function App() {
   const [view, setView] = useState<View>("overview");
   const [mapPreviewId, setMapPreviewId] = useState<string>();
   const [toast, setToast] = useState("");
+  const session = useRef<RobotSession | null>(null);
   const clock = useClock();
 
   useEffect(() => { window.scrollTo({ top: 0, behavior: "auto" }); }, [view]);
@@ -1105,35 +1107,34 @@ export default function App() {
     }
   }, []);
 
-  const refresh = useCallback(async (active = connection) => {
-    if (!active) return;
-    try {
-      const [nextState, nextSettings] = await Promise.all([
-        api<RobotState>(active, "/api/v1/state"),
-        api<PublicSettings>(active, "/api/v1/settings"),
-      ]);
-      setState(nextState);
-      setSettings(nextSettings);
-    } catch (error) {
-      setState((current) => current && ({ ...current, connected: false }));
-      if (error instanceof ApiError && error.status === 401) {
-        setConnection(null);
-        setState(null);
-      }
-      throw error;
-    }
+  const selectConnection = useCallback((next: Connection | null) => {
+    session.current?.close();
+    session.current = null;
+    setState(null);
+    setSettings(undefined);
+    setToast("");
+    setMapPreviewId(undefined);
+    setConnection(next);
+  }, []);
+
+  const refresh = useCallback(async () => {
+    if (connection && session.current?.connection === connection) await session.current.refresh();
   }, [connection]);
 
   useEffect(() => {
     if (!connection) return;
-    void refresh(connection).catch((error) => notify((error as Error).message));
-    const subscription = openEvents(connection, setState, () => { void refresh(connection).catch(() => undefined); });
-    const timer = window.setInterval(() => void refresh(connection).catch(() => undefined), 5000);
+    const active = new RobotSession(connection, {
+      state: setState, settings: setSettings, notice: setToast,
+      disconnected: () => setState((current) => current && ({ ...current, connected: false })),
+      expired: () => { if (session.current === active) selectConnection(null); },
+    });
+    session.current = active;
+    active.start();
     return () => {
-      window.clearInterval(timer);
-      subscription.close();
+      active.close();
+      if (session.current === active) session.current = null;
     };
-  }, [connection, refresh]);
+  }, [connection, selectConnection]);
 
   useEffect(() => {
     if (!toast) return;
@@ -1146,22 +1147,8 @@ export default function App() {
   }
 
   const run = useCallback(async (path: string, body?: unknown, method = "POST") => {
-    if (!connection) return;
-    try {
-      const result = await api<unknown>(connection, path, {
-        method,
-        ...(body === undefined ? {} : { body: jsonBody(body) }),
-      });
-      if (method !== "GET") {
-        notify(path.includes("stop-save") ? "地图保存已确认。" : "请求已处理");
-        await refresh(connection);
-      }
-      return result;
-    } catch (error) {
-      notify((error as Error).message);
-      throw error;
-    }
-  }, [connection, refresh]);
+    if (connection && session.current?.connection === connection) return session.current.run(path, body, method);
+  }, [connection]);
 
   const activeMap = useMemo(() => state?.maps.find((map) => map.id === state.activeMapId), [state]);
   const isolatedLocalization = state?.slamLocalization !== undefined;
@@ -1173,7 +1160,7 @@ export default function App() {
 
   if (!connection || !state) {
     return <ConnectScreen onConnected={(next) => {
-      setConnection(next);
+      selectConnection(next);
       setView("overview");
     }} />;
   }
@@ -1209,7 +1196,7 @@ export default function App() {
             <span className="status-pill"><StatusDot ready={isolatedLocalization || state.connected} />{state.navigationExecution ? state.connected ? "仿真后端在线" : "仿真后端中断" : state.slamWorkspace ? "SLAM 工作区" : isolatedLocalization ? "独立定位控制台" : state.connected ? "机器人在线" : "连接中断"}</span>
             {isolatedLocalization && <button className="btn icon" title="断开并清除会话" onClick={() => {
               void api(connection, "/api/v1/session/revoke", { method: "POST" }).catch(() => undefined);
-              setConnection(null); setState(null); setSettings(undefined);
+              selectConnection(null);
             }}><DoorOpen size={14} /></button>}
             <span className="status-pill"><span className="mono">{clock}</span></span>
           </div>
@@ -1228,9 +1215,7 @@ export default function App() {
         {effectiveView === "tours" && <Tours state={state} run={run} refresh={() => void refresh().catch(() => undefined)} />}
         {effectiveView === "settings" && <SettingsPage connection={connection} settings={settings} run={run} refresh={() => void refresh().catch(() => undefined)} onDisconnect={() => {
           void api(connection, "/api/v1/session/revoke", { method: "POST" }).catch(() => undefined);
-          setConnection(null);
-          setState(null);
-          setSettings(undefined);
+          selectConnection(null);
         }} />}
       </main>
       <nav className="mobile-nav" aria-label="主导航">

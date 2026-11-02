@@ -85,6 +85,20 @@ describe("built offline workspace pairing", () => {
 });
 
 describe("mapping control request budgets", () => {
+  it.each(["caller", "timeout"])("preserves both cancellation and timeout when %s aborts", async (source) => {
+    const caller = new AbortController(), budget = new AbortController();
+    vi.spyOn(AbortSignal, "timeout").mockReturnValue(budget.signal);
+    vi.stubGlobal("fetch", vi.fn(async (_url, init: RequestInit) => {
+      expect(init.signal).not.toBe(caller.signal);
+      return new Promise<Response>((_resolve, reject) => {
+        init.signal!.addEventListener("abort", () => reject(new Error("aborted")), { once: true });
+      });
+    }));
+    const pending = api(connection, "/api/v1/state", { signal: caller.signal });
+    (source === "caller" ? caller : budget).abort();
+    await expect(pending).rejects.toThrow("aborted");
+    expect(AbortSignal.timeout).toHaveBeenCalledExactlyOnceWith(10_000);
+  });
   it.each([
     ["/api/v1/mapping/stop-save", 130_000],
     ["/api/v1/mapping/stop-discard", 110_000],
@@ -98,6 +112,54 @@ describe("mapping control request budgets", () => {
 });
 
 describe("state WebSocket subscription", () => {
+  it("ignores late messages immediately after a socket fails, even before replacement", async () => {
+    useFakeBrowserTimers();
+    vi.stubGlobal("WebSocket", FakeWebSocket as unknown as typeof WebSocket);
+    const onState = vi.fn(), onError = vi.fn();
+    const subscription = openEvents(connection, onState, onError);
+    const first = FakeWebSocket.instances[0];
+    first.emit("error");
+    first.send("message", { type: "state", state: { connected: true } });
+    first.emit("close");
+    expect(onState).not.toHaveBeenCalled();
+    expect(onError).toHaveBeenCalledOnce();
+    subscription.close();
+  });
+
+  it.each([false, true])("reconnects a silent state socket (opened=%s) and ignores malformed heartbeat data", async (opened) => {
+    useFakeBrowserTimers();
+    vi.stubGlobal("WebSocket", FakeWebSocket as unknown as typeof WebSocket);
+    const onState = vi.fn(), onError = vi.fn();
+    const subscription = openEvents(connection, onState, onError);
+    const first = FakeWebSocket.instances[0];
+    if (opened) first.emit("open");
+    await vi.advanceTimersByTimeAsync(7000);
+    first.send("message", { type: "not-a-state" });
+    first.emit("message", { data: "{" });
+    await vi.advanceTimersByTimeAsync(500);
+    expect(onError).toHaveBeenCalledOnce();
+    expect(onState).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(500);
+    expect(FakeWebSocket.instances).toHaveLength(2);
+    subscription.close();
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(onError).toHaveBeenCalledOnce();
+  });
+
+  it("keeps a state stream live only on state messages", async () => {
+    useFakeBrowserTimers();
+    vi.stubGlobal("WebSocket", FakeWebSocket as unknown as typeof WebSocket);
+    const onState = vi.fn(), onError = vi.fn();
+    const subscription = openEvents(connection, onState, onError);
+    FakeWebSocket.instances[0].emit("open");
+    for (let update = 0; update < 5; update += 1) {
+      await vi.advanceTimersByTimeAsync(7000);
+      FakeWebSocket.instances[0].send("message", { type: "state", state: { connected: true } });
+    }
+    expect(onState).toHaveBeenCalledTimes(5);
+    expect(onError).not.toHaveBeenCalled();
+    subscription.close();
+  });
   it("reconnects after disconnect and continues delivering state", async () => {
     useFakeBrowserTimers();
     vi.stubGlobal("WebSocket", FakeWebSocket as unknown as typeof WebSocket);
