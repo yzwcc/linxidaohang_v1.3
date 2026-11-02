@@ -114,7 +114,7 @@ def execute(output, native, mode):
             declaration=GroundDeclaration(.6, 0.), budget=budget, stderr_path=output / 'native.log')
     driver, lane = SyntheticLocalization(), TerrainLane(factory)
     source = RegisteredTerrainSource(driver.session, lane,
-        OfflineGeometry(1., tuple(map(float, np.eye(4).ravel()))), budget=budget)
+        OfflineGeometry(1., tuple(map(float, np.eye(4).ravel()))), projection=spec, budget=budget)
     import rclpy
     from rclpy.action import ActionClient
     from rclpy.parameter import Parameter

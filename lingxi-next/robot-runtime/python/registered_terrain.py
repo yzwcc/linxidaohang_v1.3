@@ -10,7 +10,7 @@ sys.path[:0] = [str(ROOT / 'robot-slam'), str(ROOT / 'robot-navigation')]
 from lingxi_slam.localization_session import LocalizationSession
 from lingxi_slam.registered_acquisition import RegisteredAcquisition
 from lingxi_navigation.recorded_occupancy import OfflineGeometry, RaySelection
-from lingxi_navigation.occupancy import canonical
+from lingxi_navigation.occupancy import ClearanceProjection, canonical
 from lingxi_navigation.registered_window import RegisteredRayWindow
 from lingxi_navigation.terrain import TerrainBudget
 from lingxi_navigation.terrain_lane import TerrainLane
@@ -25,15 +25,16 @@ class RegisteredTerrainSource:
     an explicit new composition is required, never an automatic old-job retry.
     """
 
-    def __init__(self, session, lane, geometry, *, budget=TerrainBudget(), selection=RaySelection()):
+    def __init__(self, session, lane, geometry, *, projection, budget=TerrainBudget(), selection=RaySelection()):
         if (type(session) is not LocalizationSession or type(lane) is not TerrainLane
-                or type(geometry) is not OfflineGeometry or type(budget) is not TerrainBudget
+                or type(geometry) is not OfflineGeometry or type(projection) is not ClearanceProjection
+                or type(budget) is not TerrainBudget
                 or type(selection) is not RaySelection):
             raise ValueError('explicit_localization_lane_and_offline_geometry_required')
         state = lane.snapshot()
         if state.grid is not None or lane.last_sequence != -1 or state.state not in ('starting', 'ready'):
             raise ValueError('new_exclusive_registered_terrain_lane_required')
-        self.session, self.lane, self.geometry = session, lane, geometry
+        self.session, self.lane, self.geometry, self.projection = session, lane, geometry, projection
         self.budget, self.selection = budget, selection
         self.lock, self.owner, self.window = threading.Lock(), None, None
         self.generation, self.submitted, self.retired = None, None, False
@@ -50,7 +51,7 @@ class RegisteredTerrainSource:
             self.retired = True
             self.submitted = None
             if self.window is not None:
-                self.window.frames.clear()
+                self.window.clear()
             self.lane.retire(reason)
 
     def retire(self, reason='registered_source_revoked'):
@@ -77,7 +78,7 @@ class RegisteredTerrainSource:
                 if self.window is None:
                     self.generation = packet.generation
                     self.window = RegisteredRayWindow(packet.binding, packet.generation, self.geometry,
-                        budget=self.budget, selection=self.selection, clock=self.session.clock)
+                        projection=self.projection, budget=self.budget, selection=self.selection, clock=self.session.clock)
                 # Retain measured pairs while busy; only build a submission when the lane is ready.
                 value = self.window.offer(packet, materialize=self.lane.snapshot().state == 'ready')
                 if not self._valid(self.session.state()):
@@ -115,6 +116,7 @@ class RegisteredTerrainSource:
                             or grid.epoch_sha256 != self.submitted_epoch_sha256
                             or grid.observations_sha256 != self.submitted_sha256
                             or grid.map_revision != value.observations.revision
+                            or grid.projection != self.projection
                             or grid.received_at != value.received_at
                             or grid.expires_at > value.received_at + self.budget.maximum_age_seconds):
                         self._retire('mismatched_registered_terrain_result')

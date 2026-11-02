@@ -3,6 +3,10 @@
 Date: 2026-11-03. Offline Linux x86_64 verification only. No robot connection,
 sensor subscription, deployment, physical motion, frontend or APK change.
 
+The original test totals below describe the first registered-source milestone.
+Current projection-work bounds and actual recorded replay results are documented
+in [the follow-up](REGISTERED_TERRAIN_REPLAY_20261103.md).
+
 ## Implemented Flow
 
 `LocalizedNative` can now pair `NativeAcquisitionOutput` with its current
@@ -28,6 +32,9 @@ ray is not a metric calibration, ground alignment or physical-navigation permit.
 generation. Default limits are 32 scans, 65,536 original returns, four seconds
 of scan time and three seconds of original receipt age. Entire old scans are
 dropped to respect those limits; an oversized single scan is rejected. The
+follow-up also requires an explicit projection and caps conservative estimated
+OctoMap work at the unchanged default of four million units, evicting only
+complete old scans. The
 existing explicit `OfflineGeometry` and bounded `RaySelection` are used for
 declared-frame evaluation only. Selection retains paired measured origins and
 endpoints, records selected indices and source identities in its digest, and
@@ -48,7 +55,7 @@ Every snapshot rechecks localization. Pause, stop, reseed, loss or worker
 closure retires the source, including when no more scans arrive. A blocked
 native job cannot republish after retirement. The result must match the
 submitted observations digest, window revision, lane session, map epoch,
-original receipt and bounded expiry. A new generation requires a new explicit
+original receipt, projection and bounded expiry. A new generation requires a new explicit
 composition; there is no automatic replay of an old job.
 
 ## Verified Scope
@@ -102,10 +109,11 @@ private `.cache/lingxi-next`. No raw observations or private logs are committed.
 
 This closes the offline same-frame registration and declared-terrain source
 composition, not the full product or live navigation chain. Production live
-factories do not enable the new acquisition/terrain composition yet. Current
-ARM64 execution, combined real GLIM/localization/terrain replay, ROS consumption
-of this registered source, physical scale and ground/extrinsic calibration,
-moving obstacle stopping and field navigation still require separate checks.
+factories do not enable the new acquisition/terrain composition yet. The linked
+follow-ups now verify combined actual recorded GLIM/localization/terrain and,
+separately, actual ROS consumption with synthetic input. Current ARM64 execution,
+real-recording-through-ROS integration, physical scale and ground/extrinsic
+calibration, moving obstacle stopping and field navigation remain unaccepted.
 
 Adding the registration dependencies to `controlled_localization.SOURCES`
 makes current-source drift explicit. Existing frozen runtime reports remain

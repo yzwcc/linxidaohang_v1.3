@@ -37,10 +37,10 @@ ray packet is submitted after the accepted window.
 
 | Trigger | Final Localization State | Source Withdrawal After Trigger/Expiry | Evidence |
 | --- | --- | --- | --- |
-| Pause | paused | 0.043858 s | [pause](evidence/registered-terrain-ros-pause-20261103.json) |
-| Stop | stopped | 0.034974 s | [stop](evidence/registered-terrain-ros-stop-20261103.json) |
-| Reseed | tracking in a newer generation | 0.010849 s | [reseed](evidence/registered-terrain-ros-reseed-20261103.json) |
-| Corrected-point input expires | lost | 0.047886 s after the original localization deadline | [loss](evidence/registered-terrain-ros-loss-20261103.json) |
+| Pause | paused | 0.035598 s | [pause](evidence/registered-terrain-ros-pause-20261103.json) |
+| Stop | stopped | 0.011418 s | [stop](evidence/registered-terrain-ros-stop-20261103.json) |
+| Reseed | tracking in a newer generation | 0.027498 s | [reseed](evidence/registered-terrain-ros-reseed-20261103.json) |
+| Corrected-point input expires | lost | 0.039682 s after the original localization deadline | [loss](evidence/registered-terrain-ros-loss-20261103.json) |
 
 Before the trigger, the actual planner returns a path and the actual controller
 produces nonzero synthetic output. Afterwards the source publishes full
@@ -50,18 +50,21 @@ the existing 300 ms queued-command drain, no nonzero output was observed.
 Reseeding restores the session to tracking but cannot revive the old terrain
 source; a new source composition is still required for the new generation.
 
-Final oldest-ingress-to-result samples were 1.824--1.996 seconds. During native
-work, 24--26 ROS map publications continued. These are host samples, not an
+Final oldest-ingress-to-result samples were 1.871--1.935 seconds. During native
+work, 24 ROS map publications continued in each trial. These are host samples, not an
 ARM64 throughput guarantee, P95 estimate, voice latency result, physical stop
 acknowledgement or moving-obstacle acceptance. The fixture uses a larger trial
-budget of 131,072 rays and 15-second terrain TTL; the default production budget
-and timing still need representative recorded and target-runtime validation.
+budget of 131,072 rays and 15-second terrain TTL; the separate
+[actual recorded replay](REGISTERED_TERRAIN_REPLAY_20261103.md) now exercises
+default budgets. Target-runtime throughput still needs validation.
 
 One concurrent pause attempt failed a Nav2 lifecycle service-response deadline
 before terrain submission. Its private failure report/log remain preserved in
-`registered-ros-pause-20261103-b`; the final standalone pause run is `-c`.
-Stop/reseed/loss final outputs are `registered-ros-MODE-20261103-b`. All are
-under the existing private Humble rootfs. Passing the standalone rerun does not
+`registered-ros-pause-20261103-b`; the first standalone pause pass was `-c`.
+After adding projection-work-bounded windows, all four modes were rerun
+sequentially as `registered-ros-MODE-20261103-d`. The committed reports now
+bind these current-source runs. All prior outputs remain under the existing
+private Humble rootfs. Passing the standalone reruns does not
 establish the cause or prove reliable startup under concurrency. No timeout was
 relaxed and no failed attempt was relabeled as passing evidence.
 
@@ -74,11 +77,12 @@ windows, wrong generations/states, missing sources and unsupported physical
 acceptance flags. The nine tests pass on both scientific Linux and Windows.
 Existing terrain ROS evidence tests remain unchanged and passing.
 
-The final focused scientific Linux regression passed all 222 tests with the
-actual native terrain libraries enabled, zero skips and zero failures, in
-38.531 seconds. This is the current change's focused regression, not a new
-full-suite run; the previous 1,630-test full-suite result belongs to the prior
-registered-source milestone.
+The projection-work/replay follow-up passed all 246 focused scientific Linux
+tests with actual native terrain libraries enabled, zero skips and zero
+failures, in 28.591 seconds. The previous 222-test result in 38.531 seconds
+belongs to the earlier ROS milestone. This is not a new full-suite run; the
+previous 1,630-test full-suite result also remains historical. All nine
+registered ROS evidence tests were rerun on Windows and passed.
 
 Use a separate Humble rootfs with SciPy and the existing hash-verified,
 rootfs-compatible Patchwork++/OctoMap cache. Host GCC 13 libraries are not
@@ -100,9 +104,10 @@ Only synthetic reports are committed, not native logs or robot business data.
 ## Remaining Work
 
 The registered source is now verified with actual isolated ROS consumers.
-Production live factory/configuration wiring, combined actual GLIM/registrar/
-terrain recorded replay, default-budget overload/timing and current ARM64
-execution remain open. Physical scale, ground/gravity/extrinsic/base alignment,
+The combined actual GLIM/registrar/terrain replay now completes a paced
+default-budget diagnostic, but observes zero supported free cells; see the
+linked replay report. Production live factory/configuration wiring and
+current ARM64 execution remain open. Physical scale, ground/gravity/extrinsic/base alignment,
 blind spots, moving people, stopping distance and field commissioning are not
 inferred from this fixture. Startup reliability under concurrency also remains
 unaccepted. The full product, APK and complete independent-stack deployment

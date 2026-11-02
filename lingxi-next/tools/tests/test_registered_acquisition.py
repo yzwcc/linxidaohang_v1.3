@@ -179,6 +179,7 @@ class PairedOwner(unittest.TestCase):
         from lingxi_navigation.recorded_occupancy import OfflineGeometry
         from lingxi_navigation.terrain_lane import TerrainLane
         from test_terrain_lane import FakeProcess, wait_for
+        from test_ground import spec
         release, calls = threading.Event(), []
         release.set()
         lane = TerrainLane(lambda: FakeProcess(release, calls), poll_seconds=.005)
@@ -194,7 +195,7 @@ class PairedOwner(unittest.TestCase):
             self.frame(index)
         self.assertEqual('tracking', self.session.state()['state'])
         source = RegisteredTerrainSource(self.session, lane,
-            OfflineGeometry(1., tuple(map(float, np.eye(4).ravel()))))
+            OfflineGeometry(1., tuple(map(float, np.eye(4).ravel()))), projection=spec())
         self.consume = source
         self.now = time.monotonic()
         original = self.now

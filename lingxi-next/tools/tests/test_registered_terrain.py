@@ -60,7 +60,7 @@ class WindowTests(unittest.TestCase):
         self.now = 10.1
 
     def window(self, **kwargs):
-        return RegisteredRayWindow(BINDING, 1, geometry(), clock=lambda: self.now, **kwargs)
+        return RegisteredRayWindow(BINDING, 1, geometry(), projection=spec(), clock=lambda: self.now, **kwargs)
 
     def test_all_measured_pairs_and_raw_ground_preserved_in_declared_frame(self):
         window = self.window()
@@ -81,7 +81,8 @@ class WindowTests(unittest.TestCase):
         transform = np.eye(4)
         transform[:3, :3] = [[0, -1, 0], [1, 0, 0], [0, 0, 1]]
         transform[:3, 3] = [2, -1, .3]
-        window = RegisteredRayWindow(BINDING, 1, OfflineGeometry(2., tuple(map(float, transform.ravel()))), clock=lambda: self.now)
+        window = RegisteredRayWindow(BINDING, 1, OfflineGeometry(2., tuple(map(float, transform.ravel()))),
+            projection=spec(), clock=lambda: self.now)
         ray = window.offer(packet(1)).observations.scans[0].returns[0]
         np.testing.assert_allclose(ray.origin_metres, (2, -1, 1.5))
         np.testing.assert_allclose(ray.endpoint_metres, (2, 1, .3))
@@ -107,6 +108,50 @@ class WindowTests(unittest.TestCase):
         self.assertEqual(2, len(value.observations.scans[0].returns))
         self.assertNotEqual(value.observations.selection_sha256,
             self.window().offer(original).observations.selection_sha256)
+
+    def test_work_bound_evicts_oldest_whole_scan_and_keeps_original_receipts(self):
+        base = spec().width * spec().height * 13
+        window = self.window(budget=TerrainBudget(maximum_work_units=base + 2 * 3 * 26))
+        for index in range(1, 21):
+            self.now = 10. + .1 * index
+            value = window.offer(packet(index), materialize=index % 2 == 0)
+            self.assertLessEqual(len(window.frames), 2)
+            self.assertEqual(len(window.frames), len(window.frame_work))
+            if value is not None:
+                self.assertEqual(6, value.source_returns)
+                self.assertEqual(value.source_returns, value.selected_returns)
+                self.assertEqual(window.frames[0].received_at, value.received_at)
+                self.assertEqual(base + 156, value.projection_work_units)
+                self.assertEqual(index - 2, value.work_evicted_scans)
+                self.assertEqual((index - 2) * 3, value.work_evicted_returns)
+                self.assertEqual([100. + .1 * i for i in (index - 1, index)],
+                                 [scan.stamp for scan in value.observations.scans])
+
+    def test_one_complete_scan_over_work_budget_rejected_even_with_selection(self):
+        base = spec().width * spec().height * 13
+        window = self.window(budget=TerrainBudget(maximum_work_units=base + 78),
+                             selection=RaySelection(maximum_per_scan=1))
+        window.offer(packet(1))
+        self.now += .1
+        with self.assertRaisesRegex(ValueError, 'complete_registered_scan_exceeds_work_budget'):
+            window.offer(packet(2, count=4), materialize=False)
+        self.assertEqual(([], []), (window.frames, window.frame_work))
+        with self.assertRaisesRegex(ValueError, 'registered_projection_exceeds_work_budget'):
+            self.window(budget=TerrainBudget(maximum_work_units=base))
+
+    def test_work_uses_declared_scale_and_range_cap_without_changing_measured_returns(self):
+        projected = spec()
+        original = packet(1)
+        for scale in (1., 2., 20.):
+            transform = np.eye(4)
+            transform[:3, 3] = [10., 20., 30.]
+            window = RegisteredRayWindow(BINDING, 1,
+                OfflineGeometry(scale, tuple(map(float, transform.ravel()))), projection=projected,
+                clock=lambda: self.now)
+            result = window.offer(original)
+            native_bound = int(np.ceil(np.sqrt(3.) * min(np.sqrt(1.36) * scale, 10.) / .1)) + 4
+            self.assertEqual(window.fixed_work + 3 * (native_bound + 1), result.projection_work_units)
+            self.assertEqual(3, result.selected_returns)
 
     def test_wrong_epoch_receipt_frame_order_and_geometry_clear_buffer(self):
         for bad in (replace(packet(2), binding=replace(BINDING, session='a' * 32)),
@@ -174,7 +219,7 @@ class SourceTests(unittest.TestCase):
         self.addCleanup(self.lane.close)
         self.addCleanup(self.release.set)
         wait_for(lambda: self.lane.snapshot().state == 'ready')
-        self.source = RegisteredTerrainSource(self.session, self.lane, geometry())
+        self.source = RegisteredTerrainSource(self.session, self.lane, geometry(), projection=spec())
 
     def command(self, action):
         return self.session.request(action, asdict(BINDING), self.session.state()['generation'],
@@ -304,6 +349,23 @@ class SourceTests(unittest.TestCase):
         self.assertIsNone(self.source.snapshot().grid)
         self.assertTrue(self.source.retired)
 
+    def test_wrong_projection_result_is_withdrawn(self):
+        self.accepted()
+        with self.lane.condition:
+            grid = replace(self.lane.value.grid, projection=replace(spec(), origin_x_metres=-3.1))
+            self.lane.value = replace(self.lane.value, grid=grid)
+        self.assertIsNone(self.source.snapshot().grid)
+        self.assertTrue(self.source.retired)
+
+    def test_single_scan_work_rejection_retires_source_without_partial_native_job(self):
+        self.source = RegisteredTerrainSource(self.session, self.lane, geometry(), projection=spec(),
+            budget=TerrainBudget(maximum_work_units=spec().width * spec().height * 13 + 77))
+        with self.assertRaisesRegex(ValueError, 'complete_registered_scan_exceeds_work_budget'):
+            self.source(self.registered())
+        self.assertTrue(self.source.retired)
+        self.assertIsNone(self.source.snapshot().grid)
+        self.assertNotIn('update', self.calls)
+
     def test_pause_during_window_transform_cannot_submit(self):
         original = OfflineGeometry.apply
         def interrupted(geometry, values):
@@ -319,14 +381,36 @@ class SourceTests(unittest.TestCase):
     def test_only_exclusive_new_lane_and_typed_explicit_geometry_accepted(self):
         self.accepted()
         with self.assertRaises(ValueError):
-            RegisteredTerrainSource(self.session, self.lane, geometry())
+            RegisteredTerrainSource(self.session, self.lane, geometry(), projection=spec())
         with self.assertRaises(ValueError):
-            RegisteredTerrainSource(self.session, self.lane, None)
+            RegisteredTerrainSource(self.session, self.lane, None, projection=spec())
 
 
 @unittest.skipUnless(AVAILABLE and os.environ.get('LINGXI_TEST_GROUND_LIBRARY')
     and os.environ.get('LINGXI_TEST_OCTOMAP_LIBRARY'), 'requires actual pinned native terrain builds')
 class ActualNativeComposition(unittest.TestCase):
+    def test_window_work_upper_bound_matches_actual_octomap_for_scaled_transformed_rays(self):
+        from lingxi_navigation.occupancy import ClearanceProjection, OctomapProjector
+        projector = OctomapProjector(Path(os.environ['LINGXI_TEST_OCTOMAP_LIBRARY']),
+            os.environ['LINGXI_TEST_OCTOMAP_SHA256'], json.loads(os.environ['LINGXI_TEST_OCTOMAP_DEPENDENCIES']))
+        rng = np.random.default_rng(42)
+        origins = rng.uniform(-.2, .2, (128, 3))
+        endpoints = rng.uniform(-15., 15., (128, 3))
+        for scale, resolution, maximum_range in ((1., .1, .5), (2., .05, 10.), (.3, .025, 30.)):
+            projected = ClearanceProjection(8, 8, resolution, 0., 0., maximum_range_metres=maximum_range)
+            transform = np.eye(4)
+            transform[:3, :3] = [[0., -1., 0.], [1., 0., 0.], [0., 0., 1.]]
+            transform[:3, 3] = [1., -1., .6]
+            window = RegisteredRayWindow(BINDING, 1,
+                OfflineGeometry(scale, tuple(map(float, transform.ravel()))), projection=projected, clock=lambda: 10.1)
+            candidate = replace(packet(1, count=128), origins=readonly(origins), endpoints=readonly(endpoints))
+            value = window.offer(candidate)
+            result = projector.project_declared(value.observations, projected,
+                maximum_work_units=value.projection_work_units)
+            self.assertEqual(128, result.statistics[0])
+            self.assertLessEqual(result.statistics[-1], value.projection_work_units)
+            self.assertLessEqual(value.projection_work_units, result.statistics[-1] + 256)
+
     def test_registered_window_to_real_supervised_patchwork_octomap_and_pause_retirement(self):
         from terrain_nav2_fixture import acquisition, projection
         data, spec = acquisition('open'), projection()
@@ -363,7 +447,7 @@ class ActualNativeComposition(unittest.TestCase):
         lane = TerrainLane(factory, poll_seconds=.005)
         self.addCleanup(lane.close)
         self.addCleanup(gate.set)
-        source = RegisteredTerrainSource(session, lane, geometry(), budget=budget)
+        source = RegisteredTerrainSource(session, lane, geometry(), projection=spec, budget=budget)
         receipts = []
         for ordinal, scan in enumerate(data.scans):
             points, receipt = point(5 + ordinal)
