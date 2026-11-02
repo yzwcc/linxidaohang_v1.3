@@ -46,9 +46,11 @@ class RegisteredRayWindow:
         self.binding_sha256 = hashlib.sha256(canonical(dict(localization=asdict(binding),
             generation=generation, source='same_frame_registered_acquisition', offlineOnly=True))).hexdigest()
 
-    def offer(self, packet):
+    def offer(self, packet, *, materialize=True):
         if threading.get_ident() != self.owner:
             raise RuntimeError('single_registered_window_owner_required')
+        if type(materialize) is not bool:
+            raise ValueError('explicit_registered_window_materialization_required')
         now = self.clock()
         if (not finite(now) or now < 0 or self.last_now is not None and now < self.last_now):
             self.frames.clear()
@@ -80,6 +82,8 @@ class RegisteredRayWindow:
                 or packet.algorithm_stamp - self.frames[0].algorithm_stamp > self.budget.maximum_span_seconds
                 or now - self.frames[0].received_at >= self.budget.maximum_age_seconds):
             self.frames.pop(0)
+        if not materialize:
+            return None
         digest = hashlib.sha256(canonical(asdict(self.selection)))
         scans = []
         for ordinal, frame in enumerate(self.frames):

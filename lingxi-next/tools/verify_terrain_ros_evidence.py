@@ -16,9 +16,14 @@ from terrain_nav2_fixture import projection, validate_provenance
 
 
 def verify(report):
+    return verify_common(report, purpose='live_native_synthetic_terrain_ros_expiry_not_field_acceptance',
+        modes=('expiry', 'death', 'revoke'))
+
+
+def verify_common(report, *, purpose, modes, sources=None):
     if (type(report) is not dict or report.get('schemaVersion') != 1
-            or report.get('purpose') != 'live_native_synthetic_terrain_ros_expiry_not_field_acceptance'
-            or report.get('mode') not in ('expiry', 'death', 'revoke') or report.get('passed') is not True
+            or report.get('purpose') != purpose
+            or report.get('mode') not in modes or report.get('passed') is not True
             or report.get('syntheticInputs') is not True or report.get('rosDistro') != 'humble'
             or report.get('lifecycleStates') != [3] * 4
             or report.get('actualCostmapReplacementVerified') is not True
@@ -30,6 +35,8 @@ def verify(report):
         'robot-navigation/lingxi_navigation/terrain_feed.py', 'robot-navigation/lingxi_navigation/terrain_process.py',
         'robot-navigation/lingxi_navigation/terrain_worker.py', 'robot-navigation/lingxi_navigation/terrain_protocol.py',
         'robot-navigation/lingxi_navigation/terrain.py', 'tools/terrain_nav2_fixture.py', 'tools/run_nav2_offline.py'}
+    if sources is not None:
+        required_sources = set(sources)
     if set(report.get('sourcesSha256', {})) != required_sources:
         raise ValueError('complete_terrain_ros_sources_required')
     preparation_sources = {'robot-navigation/lingxi_navigation/nav2_profile.py',

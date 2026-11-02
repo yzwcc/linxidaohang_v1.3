@@ -78,9 +78,12 @@ class RegisteredTerrainSource:
                     self.generation = packet.generation
                     self.window = RegisteredRayWindow(packet.binding, packet.generation, self.geometry,
                         budget=self.budget, selection=self.selection, clock=self.session.clock)
-                value = self.window.offer(packet)
+                # Retain measured pairs while busy; only build a submission when the lane is ready.
+                value = self.window.offer(packet, materialize=self.lane.snapshot().state == 'ready')
                 if not self._valid(self.session.state()):
                     self._retire('registered_localization_revoked')
+                    return False
+                if value is None:
                     return False
                 accepted = self.lane.submit(value.observations, sequence=packet.native_frame_id,
                                             received_at=value.received_at)

@@ -248,6 +248,17 @@ class SourceTests(unittest.TestCase):
         self.assertEqual(2, self.calls.count('update'))
         self.assertEqual(6, len(self.source.submitted.observations.scans))
 
+    def test_busy_lane_retains_bounded_raw_pairs_without_rebuilding_declared_geometry(self):
+        self.release.clear()
+        self.assertTrue(self.source(self.registered()))
+        wait_for(lambda: 'update' in self.calls)
+        with patch.object(OfflineGeometry, 'apply', side_effect=AssertionError('busy_conversion_not_allowed')):
+            for _ in range(4):
+                self.assertFalse(self.source(self.observe()))
+        self.assertFalse(self.source.retired)
+        self.assertEqual(5, len(self.source.window.frames))
+        self.assertEqual(1, self.calls.count('update'))
+
     def test_wrong_current_frame_or_binding_cannot_enter(self):
         self.accepted()
         old = self.registered()
