@@ -164,6 +164,7 @@ export type RobotState = {
   savedSlamCatalogStatus?: "ready" | "unavailable";
   slamLocalization?: { status: "available"; snapshot: LocalizationState } | { status: "unavailable" };
   slamWorkspace?: true;
+  independentProduct?: true;
   points: MapPoint[];
   tours: TourTask[];
   selectedTourId?: string;

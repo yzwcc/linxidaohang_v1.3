@@ -81,6 +81,47 @@ class SlamDeployment(unittest.TestCase):
         self.assertFalse(any(path.name == first.acquisition_settings.name
             for path in (self.install_root / "releases").rglob("*")))
 
+    def test_product_selection_survives_upgrade_rollback_and_explicit_commissioning_return(self):
+        first = self.arguments()
+        first.product_config = self.root / 'external-product.json'
+        first.product_config.write_text('{"classification":"synthetic selection, not runtime-valid"}')
+        first.product_config.chmod(0o600)
+        deploy.install(first)
+        record = deploy.read_record(self.install_root, first.manifest_sha256)
+        preflight = next(args for args, _ in self.calls if '--check-only' in args)
+        self.assertEqual(str(first.product_config), preflight[preflight.index('--product-config') + 1])
+        self.assertEqual(record['productConfigSha256'], preflight[preflight.index('--product-config-sha256') + 1])
+        second = self.second()
+        deploy.install(second)
+        self.assertEqual(deploy.product_record(self.install_root, record), deploy.product_record(self.install_root,
+            deploy.read_record(self.install_root, second.manifest_sha256)))
+        third = self.second('commissioning-only')
+        third.without_product = True
+        deploy.install(third)
+        self.assertEqual({}, deploy.product_record(self.install_root,
+            deploy.read_record(self.install_root, third.manifest_sha256)))
+        deploy.rollback(argparse.Namespace(root=self.install_root, start=False))
+        self.assertEqual(second.manifest_sha256, deploy.pointer(self.install_root, 'current'))
+        self.assertEqual('{"classification":"synthetic selection, not runtime-valid"}', first.product_config.read_text())
+        self.assertFalse(any(path.name == first.product_config.name for path in
+            (self.install_root / 'releases').rglob('*')))
+
+    def test_changed_product_configuration_blocks_rollback_before_service_changes(self):
+        first = self.arguments()
+        first.product_config = self.root / 'external-product.json'
+        first.product_config.write_text('{}')
+        first.product_config.chmod(0o600)
+        deploy.install(first)
+        second = self.second()
+        second.without_product = True
+        deploy.install(second)
+        first.product_config.write_text('{"changed":true}')
+        before = len(self.calls)
+        with self.assertRaisesRegex(ValueError, 'unchanged_external_product'):
+            deploy.rollback(argparse.Namespace(root=self.install_root, start=False))
+        self.assertEqual(before, len(self.calls))
+        self.assertEqual(second.manifest_sha256, deploy.pointer(self.install_root, 'current'))
+
     def test_failed_selected_activation_preserves_old_selection_and_pairing(self):
         first = self.selected(self.arguments())
         deploy.install(first)

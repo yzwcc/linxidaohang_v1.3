@@ -210,6 +210,25 @@ print(json.dumps({{'modules': len(modules), 'sourceFiles': len(hashes), 'nativeE
         self.assertFalse(trial.output.exists())
         self.assertFalse((root / "external-acquisition.json").exists())
 
+    def test_product_configuration_is_forwarded_only_as_an_explicit_external_selection(self):
+        root, environment, trial = self.fixture()
+        trial.product_config = self.root / 'external-product.json'
+        trial.product_config.write_text('synthetic selection; full validation belongs to managed launcher')
+        trial.product_config_sha256 = bundle.sha256(trial.product_config)
+        trial.check_only = True
+        managed = SimpleNamespace(run=Mock(), validate=Mock())
+        with patch.object(bundle, 'ROOT', root / 'source'), patch.object(launcher.platform, 'machine', return_value='aarch64'), \
+                patch.object(launcher.sys, 'version_info', (3, 10, 0)), patch.dict(os.environ, environment, clear=True), \
+                patch.dict(sys.modules, {'managed_slam': managed}):
+            self.assertEqual(0, launcher.launch(trial))
+            managed.validate.assert_called_once_with(trial)
+            self.assertEqual(environment, dict(os.environ))
+            trial.product_config = root / 'source/package.json'
+            with self.assertRaisesRegex(ValueError, 'outside_runtime'):
+                launcher.launch(trial)
+        managed.run.assert_not_called()
+        self.assertFalse(trial.output.exists())
+
     def test_launcher_rejects_reserved_port_and_conflicting_runtime_overrides(self):
         root, environment, trial = self.fixture()
         changes = [{"LINGXI_PORT": value} for value in ("0", "3000", "03443", "65536")]

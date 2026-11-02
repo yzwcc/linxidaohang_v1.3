@@ -293,7 +293,7 @@ function Overview({
         </div>
         <div className="section metric">
           <div className="metric-label"><MapPinned size={14} />地图与点位</div>
-          <div className="metric-value">{state.maps.length}<span className="muted"> 张地图 · </span>{state.points.length}<span className="muted"> 个点位</span></div>
+          <div className="metric-value">{state.independentProduct ? state.savedSlamMaps?.length ?? 0 : state.maps.length}<span className="muted"> 张地图 · </span>{state.points.length}<span className="muted"> 个点位</span></div>
           <div className="metric-note">当前地图：{activeMap?.name ?? "未选择"}</div>
         </div>
         <div className="section metric">
@@ -304,7 +304,8 @@ function Overview({
       </div>
       <div className="content-grid two" style={{ marginTop: 14 }}>
         <Section title="实时地图" icon={Map} actions={<button className="btn small" onClick={() => setView("mapping")}>打开建图</button>}>
-          {state.navigationExecution ? <LidarCanvas connection={connection} synthetic /> :
+          {state.independentProduct ? <LidarCanvas connection={connection} inactiveNotice={inactiveMappingScanNotice(state)} /> :
+            state.navigationExecution ? <LidarCanvas connection={connection} synthetic /> :
             <MapCanvas grid={state.mapGrid} pose={state.pose} points={activePoints} activeMapName={state.activeMapId} />}
           <div className="inline" style={{ marginTop: 12 }}>
             <span className="tag"><StatusDot ready={Boolean(state.activeMapId)} />{activeMap?.name ?? "未加载地图"}</span>
@@ -740,7 +741,7 @@ function NavigationPage({
   const ready = state.checks.find((item) => item.id === "navigation")?.ready;
   return (
     <div className="page">
-      <PageHeading title="导航管理" description={state.navigationExecution ? "离线 Nav2 · 合成场景" : "基于 X2 原生点到点导航与安全链路"} />
+      <PageHeading title="导航管理" description={state.independentProduct ? "独立导航 · 待标定与实机验收" : state.navigationExecution ? "离线 Nav2 · 合成场景" : "基于 X2 原生点到点导航与安全链路"} />
       {state.actionBusy && (
         <div className={state.actionStatus === "uncertain" ? "notice error" : "notice warn"} style={{ marginBottom: 14 }}>
           <AlertTriangle size={14} />
@@ -872,7 +873,7 @@ function Tours({
                       <td>{tour.steps.length}</td><td>{tour.repeatCount}</td>
                       <td className="muted">{tour.updatedAt.slice(0, 16).replace("T", " ")}</td>
                       <td className="row-actions">
-                        <button className="btn small primary" disabled={tour.requiresReview || state.mapping || navigationBusy(state) || tour.mapId !== state.activeMapId} title="开始讲解" onClick={() => run(`/api/v1/tours/${encodeURIComponent(tour.id)}/start`)}><Play size={12} />开始</button>
+                        <button className="btn small primary" disabled={state.independentProduct || tour.requiresReview || state.mapping || navigationBusy(state) || tour.mapId !== state.activeMapId} title={state.independentProduct ? "独立导航尚未就绪" : "开始讲解"} onClick={() => run(`/api/v1/tours/${encodeURIComponent(tour.id)}/start`)}><Play size={12} />开始</button>
                         <button className="btn icon small danger" title="删除任务" onClick={() => run(`/api/v1/tours/${encodeURIComponent(tour.id)}`, undefined, "DELETE")}><Trash2 size={13} /></button>
                       </td>
                     </tr>
@@ -986,7 +987,7 @@ function SettingsPage({
     setProvider(settings.provider);
     setModel(settings.model);
     setBaseUrl(settings.baseUrl ?? "");
-  }, [settings]);
+  }, [settings?.provider, settings?.model, settings?.baseUrl]);
 
   async function saveSettings(event: React.FormEvent) {
     event.preventDefault();
@@ -1151,10 +1152,10 @@ export default function App() {
   }, [connection]);
 
   const activeMap = useMemo(() => state?.maps.find((map) => map.id === state.activeMapId), [state]);
-  const isolatedLocalization = state?.slamLocalization !== undefined;
+  const isolatedLocalization = state?.slamLocalization !== undefined && !state?.independentProduct;
   const visibleItems = navigationItems.filter((item) => state?.slamWorkspace
     ? ["mapping", "maps", "localization"].includes(item.id) : isolatedLocalization
-    ? ["localization", "maps"].includes(item.id) : item.id !== "localization");
+    ? ["localization", "maps"].includes(item.id) : state?.independentProduct || item.id !== "localization");
   const effectiveView = state?.slamWorkspace && !["mapping", "maps", "localization"].includes(view) ? "mapping"
     : isolatedLocalization && !state?.slamWorkspace && !["localization", "maps"].includes(view) ? "localization" : view;
 
@@ -1193,7 +1194,7 @@ export default function App() {
           <div className="topbar-title">{activeItem?.label ?? "运行总览"}</div>
           <div className="topbar-right">
             {state.demoMode && <span className="status-pill"><span className="status-dot warn" />{state.navigationExecution ? "离线 Nav2" : "演示数据"}</span>}
-            <span className="status-pill"><StatusDot ready={isolatedLocalization || state.connected} />{state.navigationExecution ? state.connected ? "仿真后端在线" : "仿真后端中断" : state.slamWorkspace ? "SLAM 工作区" : isolatedLocalization ? "独立定位控制台" : state.connected ? "机器人在线" : "连接中断"}</span>
+            <span className="status-pill"><StatusDot ready={isolatedLocalization || state.connected} />{state.navigationExecution ? state.connected ? "仿真后端在线" : "仿真后端中断" : state.independentProduct ? "独立系统" : state.slamWorkspace ? "SLAM 工作区" : isolatedLocalization ? "独立定位控制台" : state.connected ? "机器人在线" : "连接中断"}</span>
             {isolatedLocalization && <button className="btn icon" title="断开并清除会话" onClick={() => {
               void api(connection, "/api/v1/session/revoke", { method: "POST" }).catch(() => undefined);
               selectConnection(null);
@@ -1210,7 +1211,7 @@ export default function App() {
           {effectiveView === "maps" && <Maps state={state} connection={connection} run={run} initialPreviewId={mapPreviewId}
           refresh={() => void refresh().catch(() => undefined)} />}
         {effectiveView === "localization" && <LocalizationPanel connection={connection} maps={state.savedSlamMaps}
-          mappingActive={state.slamWorkspace && (state.mapping || state.mappingCleanupComplete !== true)} />}
+          mappingActive={(state.slamWorkspace || state.independentProduct) && (state.mapping || state.mappingCleanupComplete !== true)} />}
         {effectiveView === "navigation" && <NavigationPage state={state} connection={connection} run={run} />}
         {effectiveView === "tours" && <Tours state={state} run={run} refresh={() => void refresh().catch(() => undefined)} />}
         {effectiveView === "settings" && <SettingsPage connection={connection} settings={settings} run={run} refresh={() => void refresh().catch(() => undefined)} onDisconnect={() => {

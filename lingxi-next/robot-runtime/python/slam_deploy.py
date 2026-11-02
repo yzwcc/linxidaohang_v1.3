@@ -143,6 +143,19 @@ def acquisition_record(root, record):
     return {name: record[name] for name in fields}
 
 
+def product_record(root, record):
+    fields = {'productConfig', 'productConfigSha256'}
+    present = fields.intersection(record)
+    if not present:
+        return {}
+    if present != fields or not bundle.digest(record['productConfigSha256']):
+        raise ValueError('paired_deployment_product_record_required')
+    path = private_file(external_file(record['productConfig'], root))
+    if not 0 < path.stat().st_size <= 16384 or bundle.sha256(path) != record['productConfigSha256']:
+        raise ValueError('unchanged_external_product_configuration_required')
+    return {name: record[name] for name in fields}
+
+
 def command(root, release, record, output, *, check=False):
     destination = root / "releases" / release
     if record["manifestSha256"] != release:
@@ -166,6 +179,10 @@ def command(root, release, record, output, *, check=False):
     if acquisition:
         arguments.extend(('--acquisition-settings', acquisition['acquisitionSettings'],
                           '--acquisition-settings-sha256', acquisition['acquisitionSettingsSha256']))
+    product = product_record(root, record)
+    if product:
+        arguments.extend(('--product-config', product['productConfig'],
+                          '--product-config-sha256', product['productConfigSha256']))
     return [*arguments, "--check-only"] if check else arguments
 
 
@@ -238,6 +255,18 @@ def install(args):
             if current is not None:
                 record.update(acquisition_record(root, read_record(root, current)))
         acquisition_record(root, record)
+        selected_product = getattr(args, 'product_config', None)
+        without_product = getattr(args, 'without_product', False)
+        if selected_product is not None and without_product:
+            raise ValueError('one_explicit_product_selection_required')
+        if selected_product is not None:
+            selected_product = private_file(external_file(selected_product, root))
+            record.update(productConfig=str(selected_product), productConfigSha256=bundle.sha256(selected_product))
+        elif not without_product:
+            current = pointer(root, 'current')
+            if current is not None:
+                record.update(product_record(root, read_record(root, current)))
+        product_record(root, record)
         code_file = root / "pairing-code.txt"
         if code_file.exists() or code_file.is_symlink():
             private_file(code_file)
@@ -306,9 +335,15 @@ def main():
     acquisition.add_argument('--acquisition-settings', type=Path)
     acquisition.add_argument('--without-acquisition', action='store_true',
         help='Explicitly disable acquisition on this release; otherwise preserve the current selection.')
+    product = parser.add_mutually_exclusive_group()
+    product.add_argument('--product-config', type=Path)
+    product.add_argument('--without-product', action='store_true',
+        help='Return this release to commissioning-only; preserve external product data.')
     args = parser.parse_args()
     if args.command != 'install' and (args.acquisition_settings is not None or args.without_acquisition):
         raise ValueError('acquisition_selection_only_during_install_required')
+    if args.command != 'install' and (args.product_config is not None or args.without_product):
+        raise ValueError('product_selection_only_during_install_required')
     if args.command == "install" and any(getattr(args, name) is None for name in (
             "bundle", "config", "python", "tls_key", "tls_cert", "manifest_sha256")):
         raise ValueError("explicit_verified_slam_installation_inputs_required")

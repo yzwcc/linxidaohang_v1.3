@@ -21,6 +21,8 @@ def launch(args):
     external = [output, maps, args.config.resolve(strict=True)]
     if getattr(args, 'acquisition_settings', None) is not None:
         external.append(args.acquisition_settings.resolve(strict=True))
+    if getattr(args, 'product_config', None) is not None:
+        external.append(args.product_config.resolve(strict=True))
     if any(path == root or root in path.parents or path in root.parents for path in external):
         raise ValueError("slam_configuration_catalog_and_output_outside_runtime_required")
     for name in ("LINGXI_TLS_KEY", "LINGXI_TLS_CERT"):
@@ -63,6 +65,8 @@ def main():
     parser.add_argument("--check-only", action="store_true")
     parser.add_argument('--acquisition-settings', type=Path)
     parser.add_argument('--acquisition-settings-sha256')
+    parser.add_argument('--product-config', type=Path)
+    parser.add_argument('--product-config-sha256')
     args = parser.parse_args()
     previous = os.umask(0o077)
     try:

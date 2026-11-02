@@ -24,6 +24,15 @@ passes all three current product integration tests. Successful native Linux
 startup remains unverified without an approved privilege setup. This is not
 the complete independent-stack installer or a physical command path.
 
+The [independent product workspace](INDEPENDENT_PRODUCT_WORKSPACE_20261103.md)
+adds explicit shared-runtime opt-in for persistent model/Retriever settings,
+passive Agent voice and product modules under the same paired HTTPS origin.
+Commissioning defaults remain unchanged, and saved raw SLAM maps are not
+promoted into vendor or metric navigation. Upgrade/rollback preserves the
+external product selection and data. Actual Linux HTTPS/Unix/Agent-HTTP tests
+use synthetic sensor and speech workers; physical navigation/actions, live
+AgentSDK acceptance and the complete independent-stack archive remain open.
+
 The [passive live terrain ROS integration](LIVE_TERRAIN_ROS_WIRING_20261103.md)
 adds explicit sidecar selection, existing-executor ownership, steady expiry and
 complete withdrawal/cleanup. Three actual Humble tests use synthetic grid bytes;

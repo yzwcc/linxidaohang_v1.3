@@ -1,6 +1,7 @@
 """Shared runtime configuration and real HTTPS/Unix/process flow using synthetic workers."""
 import base64
 import hashlib
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from html.parser import HTMLParser
 import importlib.util
 import json
@@ -154,11 +155,22 @@ class WorkspaceProcesses(unittest.TestCase):
         finally:
             self.temporary.cleanup()
 
-    def start(self):
+    def product_config(self, agent_port=18180):
+        state, token, configuration = self.root / 'product-state', self.root / 'agent-token', self.root / 'product.json'
+        state.mkdir(mode=0o700, exist_ok=True)
+        token.write_text('synthetic-agent-token-not-a-real-secret\n')
+        token.chmod(0o600)
+        configuration.write_text(json.dumps({'schemaVersion': 1, 'stateDirectory': str(state),
+            'agentUrl': 'http://127.0.0.1:' + str(agent_port), 'agentTokenFile': str(token)}))
+        configuration.chmod(0o600)
+        return configuration
+
+    def start(self, product_config=None):
         output = self.root / ("r" + str(len(self.owners)))
         process = subprocess.Popen([sys.executable, "-B", str(ROOT / "tools/tests/fixtures/slam_workspace_child.py"),
             "owner", "--maps", str(self.maps), "--output", str(output), "--node", NODE, "--bundle", BUNDLE,
-            "--tls-key", str(self.key), "--tls-cert", str(self.cert)],
+            "--tls-key", str(self.key), "--tls-cert", str(self.cert),
+            *(['--product-config', str(product_config)] if product_config else [])],
             env={"PATH": "/usr/bin:/bin", "LANG": "C.UTF-8", "PYTHONDONTWRITEBYTECODE": "1",
                  "LINGXI_SLAM_TEST_SOURCE": str(SOURCE),
                  "LINGXI_SLAM_TEST_WEB": os.environ.get("LINGXI_SLAM_TEST_WEB", str(ROOT / "dist"))},
@@ -176,10 +188,11 @@ class WorkspaceProcesses(unittest.TestCase):
         self.token = self.request("POST", "/session/pair", {"pairingCode": "synthetic-slam-workspace"}, 201)["token"]
         return process, output
 
-    def request(self, method, route, payload=None, expected=200):
+    def request(self, method, route, payload=None, expected=200, headers=None):
         request = Request(self.base + "/api/v1" + route, method=method,
             data=None if payload is None else json.dumps(payload).encode(),
-            headers={"Content-Type": "application/json", **({"Authorization": "Bearer " + self.token} if self.token else {})})
+            headers={"Content-Type": "application/json", **({"Authorization": "Bearer " + self.token} if self.token else {}),
+                **(headers or {})})
         try:
             response = urlopen(request, context=self.ssl, timeout=8)
         except HTTPError as error:
@@ -265,6 +278,78 @@ class WorkspaceProcesses(unittest.TestCase):
                 self.assertGreater(len(response.read()), 100)
         self.stop(process, output)
 
+    def test_product_settings_survive_owner_restart_and_mapping_localization_still_share_the_catalog(self):
+        configuration = self.product_config()
+        process, output = self.start(configuration)
+        self.assertTrue(self.request('GET', '/state')['independentProduct'])
+        self.request('PUT', '/settings/ai', {'provider': 'openai-compatible',
+            'model': 'synthetic-persistent-model', 'baseUrl': 'https://model.invalid'})
+        self.request('PUT', '/settings/credentials', {'apiKey': 'synthetic-write-only-key'})
+        map_id, preview = self.save()
+        self.assertFalse(self.request('GET', '/slam/maps')['maps'][0]['navigationReady'])
+        self.stop(process, output)
+        process, output = self.start(configuration)
+        settings = self.request('GET', '/settings')
+        self.assertEqual('synthetic-persistent-model', settings['model'])
+        self.assertTrue(settings['credentialConfigured'])
+        self.assertNotIn('synthetic-write-only-key', json.dumps(settings))
+        self.assertNotIn('synthetic-write-only-key', json.dumps(self.request('GET', '/state')))
+        self.localize(map_id, preview)
+        self.request('POST', '/navigation/point', {'pointId': 'not-a-metric-map'}, 403)
+        self.assertEqual('stopped', self.stop(process, output)['result'])
+
+    def test_product_local_agent_http_playback_and_passive_event_auth_without_robot_or_cloud(self):
+        calls = []
+
+        class Agent(BaseHTTPRequestHandler):
+            def log_message(self, *_):
+                pass
+
+            def do_GET(self):
+                self.send_response(200)
+                self.end_headers()
+                self.wfile.write(b'{"online":true,"voiceGate":"ready"}')
+
+            def do_POST(self):
+                payload = json.loads(self.rfile.read(int(self.headers['Content-Length'])))
+                calls.append((self.path, self.headers.get('Authorization'), payload))
+                self.send_response(200)
+                self.end_headers()
+                self.wfile.write(b'{"completed":true,"firstAudioMs":20,"confirmed":true}')
+
+        agent = ThreadingHTTPServer(('127.0.0.1', 0), Agent)
+        thread = threading.Thread(target=agent.serve_forever, daemon=True)
+        thread.start()
+        try:
+            process, output = self.start(self.product_config(agent.server_port))
+            state = self.mapping()
+            self.assertTrue(next(item for item in state['checks'] if item['id'] == 'linksoul')['ready'])
+            self.assertFalse(next(item for item in state['checks'] if item['id'] == 'navigation')['ready'])
+            headers = {'X-Agent-Token': 'synthetic-agent-token-not-a-real-secret'}
+            wake = {'kind': 'wake', 'eventId': 'synthetic-wake', 'sessionId': 'synthetic-session',
+                'occurredAt': time.time() * 1000}
+            self.request('POST', '/agent/events', wake, 401)
+            self.request('POST', '/agent/events', wake, 204, headers=headers)
+            recognition = {'kind': 'recognition', 'eventId': 'synthetic-recognition',
+                'sessionId': wake['sessionId'], 'occurredAt': time.time() * 1000,
+                'confidence': 0.99, 'isFinal': True, 'transcript': '请问展馆的开放时间是什么？'}
+            result = self.request('POST', '/agent/events', recognition, headers=headers)
+            self.assertFalse(result['accepted'])
+            self.assertTrue(result['speechDelivered'])
+            self.assertGreaterEqual(result['firstAudioMs'], 20)
+            self.assertEqual('/v1/speak', calls[-1][0])
+            self.assertEqual('Bearer ' + headers['X-Agent-Token'], calls[-1][1])
+            self.assertIn('无法从已配置知识库', calls[-1][2]['text'])
+            self.request('POST', '/agent/events', recognition, 204, headers=headers)
+            self.assertEqual(1, len(calls))
+            self.assertEqual(state['mappingSession'], self.request('GET', '/state')['mappingSession'])
+            self.request('POST', '/mapping/stop-discard', {'session': state['mappingSession']})
+            self.assertEqual('stopped', self.stop(process, output)['result'])
+        finally:
+            agent.shutdown()
+            agent.server_close()
+            thread.join(timeout=3)
+
     def test_mapping_blocks_localization_before_resolver_or_child_creation(self):
         process, output = self.start()
         self.mapping()
@@ -311,14 +396,14 @@ class WorkspaceProcesses(unittest.TestCase):
         ActivityGate(self.maps / ".slam-activity.lock").acquire().close()
 
 
-def serve_fixture():
+def serve_fixture(product=False):
     if not (AVAILABLE and NODE and BUNDLE):
         raise ValueError("explicit_linux_compiled_slam_ui_fixture_required")
     case = WorkspaceProcesses()
     case.setUp()
     process = output = None
     try:
-        process, output = case.start()
+        process, output = case.start(case.product_config() if product else None)
         public_key = subprocess.check_output(["/usr/bin/openssl", "x509", "-in", str(case.cert), "-pubkey", "-noout"])
         der = subprocess.run(["/usr/bin/openssl", "pkey", "-pubin", "-outform", "der"], input=public_key,
                              stdout=subprocess.PIPE, check=True).stdout
@@ -336,7 +421,7 @@ def serve_fixture():
 
 
 if __name__ == "__main__":
-    if sys.argv[1:] == ["--serve-fixture"]:
-        serve_fixture()
+    if sys.argv[1:] in (["--serve-fixture"], ["--serve-product-fixture"]):
+        serve_fixture(product=sys.argv[1] == '--serve-product-fixture')
     else:
         unittest.main()

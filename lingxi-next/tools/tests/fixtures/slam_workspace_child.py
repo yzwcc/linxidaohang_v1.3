@@ -69,6 +69,9 @@ def owner(args):
         api_environment={"PATH": "/usr/bin:/bin", "LANG": "C.UTF-8", "LINGXI_HOST": "127.0.0.1", "LINGXI_PORT": "0",
                          "LINGXI_TLS_KEY": str(args.tls_key), "LINGXI_TLS_CERT": str(args.tls_cert),
                          "LINGXI_WEB_ROOT": os.environ.get("LINGXI_SLAM_TEST_WEB", str(ROOT / "dist")),
+                         **({"LINGXI_PRODUCT_CONFIG": str(args.product_config),
+                             "LINGXI_PRODUCT_CONFIG_SHA256": hashlib.sha256(args.product_config.read_bytes()).hexdigest()}
+                            if args.product_config else {}),
                          "LINGXI_PAIRING_CODE_SHA256": hashlib.sha256(b"synthetic-slam-workspace").hexdigest()},
         limits=MappingOwnerLimits(startup_seconds=15., service_stop_seconds=10., api_stop_seconds=5.))
     report = runtime.run(stop=stop, seconds=None, on_listening=lambda value: print(json.dumps({
@@ -83,6 +86,7 @@ def main():
     for name in ("output", "maps", "runs", "socket", "localization-socket", "node", "bundle", "tls-key", "tls-cert"):
         parser.add_argument("--" + name, type=Path)
     parser.add_argument("--binding")
+    parser.add_argument('--product-config', type=Path)
     parser.add_argument("--parent-stdin", action="store_true")
     args = parser.parse_args()
     return {"owner": owner, "service": service, "mapping": native_mapping,

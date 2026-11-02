@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { buildServer } from "../../robot-api/src/server";
+import { readProductConfiguration } from "./product-config";
 
 export async function startManagedMappingApi(options: { slamConsole?: true } = {}) {
   if (process.platform !== "linux" || process.env.LINGXI_MAPPING_PARENT_STDIN !== "1" ||
@@ -18,6 +19,15 @@ export async function startManagedMappingApi(options: { slamConsole?: true } = {
   }
   const demo = process.env.LINGXI_DEMO_MODE === "1";
   const key = process.env.LINGXI_TLS_KEY, certificate = process.env.LINGXI_TLS_CERT;
+  const productFile = process.env.LINGXI_PRODUCT_CONFIG, productDigest = process.env.LINGXI_PRODUCT_CONFIG_SHA256;
+  if ((productFile || productDigest) && (!options.slamConsole || !productFile || !productDigest || demo)) {
+    throw new Error("explicit_production_shared_product_configuration_required");
+  }
+  const product = productFile ? readProductConfiguration(productFile, productDigest!, [
+    process.env.LINGXI_SAVED_SLAM_DIR!, process.env.LINGXI_DATA_DIR!,
+    ...(process.env.LINGXI_WEB_ROOT ? [path.dirname(process.env.LINGXI_WEB_ROOT)] : []),
+    ...(key ? [key] : []), ...(certificate ? [certificate] : []),
+  ]) : undefined;
   if (!demo && (!key || !certificate)) throw new Error("production_tls_key_and_certificate_required");
   const port = process.env.LINGXI_PORT ?? (demo ? "3010" : options.slamConsole ? "3443" : "3000");
   if (!/^(0|[1-9][0-9]{0,4})$/.test(port) || Number(port) > 65535) {
@@ -25,7 +35,7 @@ export async function startManagedMappingApi(options: { slamConsole?: true } = {
   }
   if (options.slamConsole && port === "3000") throw new Error("existing_console_port_reserved");
   const app = await buildServer({
-    ...(options.slamConsole ? { slamConsole: true } : { mappingConsole: true }),
+    ...(product ? { independentProduct: true, ...product } : options.slamConsole ? { slamConsole: true } : { mappingConsole: true }),
     tlsKey: key ? readFileSync(key) : undefined,
     tlsCert: certificate ? readFileSync(certificate) : undefined,
   });

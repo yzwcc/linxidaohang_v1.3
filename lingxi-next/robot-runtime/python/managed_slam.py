@@ -12,6 +12,7 @@ from controlled_localization import verified_configuration
 from live_points import digest_file
 from managed_mapping import production_api_environment, validate_output
 from slam_owner import ManagedSlamOwner
+from product_configuration import selection as product_selection
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -50,7 +51,7 @@ def validate(args):
         if not path.is_absolute():
             raise ValueError("absolute_verified_slam_runtime_required")
         digest_file(path, expected)
-    return production_api_environment()
+    return {**production_api_environment(), **product_selection(args, config)}
 
 
 def notify_ready(value):
@@ -92,6 +93,8 @@ def main():
     parser.add_argument("--seconds", type=int, help="Omit for a persistent service; native sessions remain bounded.")
     parser.add_argument('--acquisition-settings', type=Path)
     parser.add_argument('--acquisition-settings-sha256')
+    parser.add_argument('--product-config', type=Path)
+    parser.add_argument('--product-config-sha256')
     return run(parser.parse_args())
 
 
