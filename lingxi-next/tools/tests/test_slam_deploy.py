@@ -43,12 +43,119 @@ class SlamDeployment(unittest.TestCase):
             manifest_sha256=report["manifestSha256"], config=self.root / "config.json", python=Path(sys.executable),
             tls_key=self.root / "tls.key", tls_cert=self.root / "tls.crt", port=3443, host="127.0.0.1", start=False)
 
-    def second(self):
+    def second(self, name="second"):
         file = self.assets / "web/assets/main.js"
-        file.write_bytes(b"// second explicitly synthetic web revision\n")
+        file.write_bytes(("// " + name + " explicitly synthetic web revision\n").encode())
         self.build["files"]["web/assets/main.js"] = {"sha256": bundle.sha256(file), "bytes": file.stat().st_size}
         self.build_digest = fixtures.save(self.assets / "build-manifest.json", self.build)
-        return self.arguments("second")
+        return self.arguments(name)
+
+    def selected(self, args, name="acquisition.json"):
+        path = self.root / name
+        path.write_text('{"classification": "synthetic deployment sidecar, not runtime-valid"}')
+        path.chmod(0o600)
+        args.acquisition_settings = path
+        return args
+
+    def test_explicit_selection_is_preflighted_retained_across_upgrade_and_restored_on_rollback(self):
+        first = self.selected(self.arguments())
+        deploy.install(first)
+        record = deploy.read_record(self.install_root, first.manifest_sha256)
+        self.assertEqual(str(first.acquisition_settings), record["acquisitionSettings"])
+        self.assertEqual(bundle.sha256(first.acquisition_settings), record["acquisitionSettingsSha256"])
+        preflight = next(args for args, _ in self.calls if "--check-only" in args)
+        self.assertEqual(str(first.acquisition_settings), preflight[preflight.index("--acquisition-settings") + 1])
+        self.assertEqual(record["acquisitionSettingsSha256"], preflight[preflight.index("--acquisition-settings-sha256") + 1])
+        second = self.second()
+        deploy.install(second)
+        self.assertEqual(deploy.acquisition_record(self.install_root, record),
+            deploy.acquisition_record(self.install_root, deploy.read_record(self.install_root, second.manifest_sha256)))
+        third = self.second("third")
+        third.without_acquisition = True
+        deploy.install(third)
+        self.assertEqual({}, deploy.acquisition_record(self.install_root,
+            deploy.read_record(self.install_root, third.manifest_sha256)))
+        deploy.rollback(argparse.Namespace(root=self.install_root, start=False))
+        self.assertEqual(second.manifest_sha256, deploy.pointer(self.install_root, "current"))
+        self.assertIn("--acquisition-settings", self.calls[-4][0])
+        self.assertFalse(any(path.name == first.acquisition_settings.name
+            for path in (self.install_root / "releases").rglob("*")))
+
+    def test_failed_selected_activation_preserves_old_selection_and_pairing(self):
+        first = self.selected(self.arguments())
+        deploy.install(first)
+        original = deploy.read_record(self.install_root, first.manifest_sha256)
+        pairing = (self.install_root / "pairing-code.txt").read_bytes()
+        second = self.selected(self.second(), "another-acquisition.json")
+        second.start, self.fail_start = True, True
+        with self.assertRaises(subprocess.CalledProcessError):
+            deploy.install(second)
+        self.assertEqual(first.manifest_sha256, deploy.pointer(self.install_root, "current"))
+        self.assertEqual(original, deploy.read_record(self.install_root, first.manifest_sha256))
+        self.assertEqual(pairing, (self.install_root / "pairing-code.txt").read_bytes())
+
+    def test_changed_selection_blocks_upgrade_and_rollback_before_service_changes(self):
+        first = self.selected(self.arguments())
+        deploy.install(first)
+        first.acquisition_settings.write_text("changed external sidecar")
+        second = self.second()
+        before = len(self.calls)
+        with self.assertRaisesRegex(ValueError, "unchanged_external_acquisition"):
+            deploy.install(second)
+        self.assertEqual(before, len(self.calls))
+        self.assertEqual(first.manifest_sha256, deploy.pointer(self.install_root, "current"))
+        # Disabling is explicit and does not silently reuse a changed old sidecar.
+        second.without_acquisition = True
+        deploy.install(second)
+        before = len(self.calls)
+        with self.assertRaisesRegex(ValueError, "unchanged_external_acquisition"):
+            deploy.rollback(argparse.Namespace(root=self.install_root, start=False))
+        self.assertEqual(before, len(self.calls))
+        self.assertEqual(second.manifest_sha256, deploy.pointer(self.install_root, "current"))
+
+    def test_selection_record_requires_private_external_unchanged_bounded_file_and_pair(self):
+        first = self.selected(self.arguments())
+        selected = first.acquisition_settings
+        record = {"acquisitionSettings": str(selected), "acquisitionSettingsSha256": bundle.sha256(selected)}
+        for changed in ({"acquisitionSettings": str(selected)}, {"acquisitionSettingsSha256": "a" * 64},
+                {**record, "acquisitionSettingsSha256": "not-a-digest"}):
+            with self.subTest(record=changed), self.assertRaisesRegex(ValueError, "paired_deployment"):
+                deploy.acquisition_record(self.install_root, changed)
+        selected.chmod(0o644)
+        with self.assertRaisesRegex(ValueError, "owned_private"):
+            deploy.acquisition_record(self.install_root, record)
+        selected.chmod(0o600)
+        link = self.root / "linked-acquisition.json"
+        link.symlink_to(selected)
+        with self.assertRaisesRegex(ValueError, "direct_external"):
+            deploy.acquisition_record(self.install_root, {**record, "acquisitionSettings": str(link)})
+        for payload in (b"", b"x" * 16385):
+            selected.write_bytes(payload)
+            with self.subTest(size=len(payload)), self.assertRaisesRegex(ValueError, "unchanged_external_acquisition"):
+                deploy.acquisition_record(self.install_root, {**record, "acquisitionSettingsSha256": bundle.sha256(selected)})
+        self.assertFalse(self.calls)
+
+    def test_same_release_cannot_silently_change_its_selection(self):
+        first = self.selected(self.arguments())
+        deploy.install(first)
+        before = len(self.calls)
+        first.acquisition_settings, first.without_acquisition = None, True
+        with self.assertRaisesRegex(ValueError, "release_configuration_is_immutable"):
+            deploy.install(first)
+        self.assertEqual(before, len(self.calls))
+        first.acquisition_settings = self.root / "acquisition.json"
+        with self.assertRaisesRegex(ValueError, "one_explicit_acquisition"):
+            deploy.install(first)
+        self.assertEqual(before, len(self.calls))
+
+    def test_selection_cli_is_install_only_and_does_not_change_rollback(self):
+        for command in ("rollback", "run"):
+            for selection in (["--without-acquisition"], ["--acquisition-settings", "/synthetic/settings.json"]):
+                with self.subTest(command=command, selection=selection), patch.object(sys, "argv",
+                        ["slam_deploy.py", command, "--root", str(self.install_root), *selection]), \
+                        self.assertRaisesRegex(ValueError, "only_during_install"):
+                    deploy.main()
+        self.assertFalse(self.install_root.exists())
 
     def test_install_upgrade_rollback_keep_maps_pairing_and_release_sources(self):
         first = self.arguments()
@@ -138,7 +245,7 @@ class SlamDeployment(unittest.TestCase):
         self.assertGreater(self.calls[-1][1]["timeout"], int(values["TimeoutStopSec"]))
 
     def test_service_runner_uses_current_bundle_and_only_reviewed_environment(self):
-        first = self.arguments()
+        first = self.selected(self.arguments())
         deploy.install(first)
         with patch.dict(os.environ, {"NOTIFY_SOCKET": "/synthetic-notify", "NODE_OPTIONS": "unused"}, clear=True), \
                 patch.object(deploy.os, "execve") as execute:
@@ -148,6 +255,9 @@ class SlamDeployment(unittest.TestCase):
         self.assertIn("--maps", arguments)
         self.assertIn(str(self.install_root / "maps"), arguments)
         self.assertNotIn("--seconds", arguments)
+        self.assertEqual(str(first.acquisition_settings), arguments[arguments.index("--acquisition-settings") + 1])
+        self.assertEqual(bundle.sha256(first.acquisition_settings),
+            arguments[arguments.index("--acquisition-settings-sha256") + 1])
         output = Path(arguments[arguments.index("--output") + 1])
         self.assertEqual(deploy.RUN_ID_LENGTH, len(output.name))
         self.assertLess(len(os.fsencode(output / "r" / ("a" * 32) / "localization.sock")), 100)

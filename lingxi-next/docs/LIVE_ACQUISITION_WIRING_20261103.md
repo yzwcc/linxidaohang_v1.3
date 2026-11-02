@@ -20,7 +20,8 @@ supervised `TerrainProcess`; it does not publish a ROS grid or connect to motion
 ## Explicit Selection
 
 The operator-only `--acquisition-settings` option is available on
-`managed_localization.py`, `localization_service.py` and `slam_service.py`.
+`managed_localization.py`, `localization_service.py`, `slam_service.py`,
+`managed_slam.py` and the extracted `launch_slam_bundle.py`.
 The selected local strict-JSON sidecar must name the verified ARM64 component
 and its manifest digest. The runtime checks the current GLIM/GTSAM core,
 source identities, ELF architecture and the already-enabled
@@ -32,9 +33,19 @@ are rejected. Each on-demand launch rechecks the selected inputs. Optional
 terrain additionally requires declared geometry, projection, ground declaration,
 source-bound native build reports and matching AArch64 libraries/dependencies.
 
-No production sidecar or guessed calibration was generated. This option has
-not yet been added to the shared package launcher or release installer; neither
-existing release artifacts nor historical ARM64 evidence certify this wiring.
+The shared launcher requires the sidecar outside its extracted package and
+separate from the persistent maps, run output and frozen native inputs. The
+installer records its path and SHA256 in the immutable release record, verifies
+its private ownership/permissions and rechecks it before preflight and execution.
+Upgrades inherit the current choice unless explicitly replaced or disabled with
+`--without-acquisition`; rollback restores the selected release's own choice.
+No sidecar, component library or calibration is copied into the release archive.
+
+The shared source profile now includes the acquisition module sources, navigation
+Python modules, Patchwork++ lock and ground/OctoMap bridge sources needed by
+runtime provenance checks. The narrower point/mapping profiles are unchanged.
+No production sidecar or guessed calibration was generated. Existing release
+artifacts and historical ARM64 evidence do not certify this wiring.
 
 ## Lifecycle
 
@@ -82,10 +93,56 @@ rtk proxy python -B -m unittest discover -s lingxi-next/tools/tests -q
 The new wiring tests use synthetic ELF/ctypes, sensors and terrain processes.
 They verify lifecycle and admission, not ARM64 loading or real-time throughput.
 
+## Shared Package Selection Follow-up
+
+The shared-launcher and deployment follow-up was checked separately from the
+earlier wiring results above:
+
+- Live acquisition admission/lifecycle suite: 28 passed.
+- Shared bundle contracts: 10 passed and one explicitly skipped in the initial
+  host run. The all-profile JavaScript/Python inventory parity check subsequently
+  passed separately on Windows and Linux with an explicit host Node available.
+- Deployment transactions: 14 passed, including inherited/replaced/disabled
+  selection, unchanged rollback inputs, failed activation and immutable records.
+  Service-manager calls in these tests are stubbed; no target unit was installed.
+- Source inventory checks (`node --test tools/check-live-build.mjs`): 6 passed.
+- Full scientific Python regression: 1,718 discovered, 1,650 passed, 68
+  explicitly skipped, zero failures/errors, 459.222 seconds. Optional private
+  evidence/native integration prerequisites were not supplied; skips do not
+  establish acceptance. The focused suites overlap this regression.
+- Extracted-package workspace suite: 11 passed, no skips, 22.877 seconds.
+  Production Python modules, API, web and JavaScript dependencies came from the
+  new extracted tree. The test driver/native workers/map geometry were synthetic;
+  the explicitly supplied Linux x64 Node was not the bundled ARM64 executable.
+- A separate isolated `python -I` test imported nine real production modules
+  from a freshly extracted test package without the development Python path.
+  Native libraries were not loaded by this import check.
+- Web/API tests: 511 passed and 16 skipped; production type checks/Vite build
+  passed with the existing nonfatal zod annotation warnings.
+
+The real shared archive was prepared, independently verified, extracted to a
+fresh external directory and reverified using its own extracted preparation
+tool. No ARM64 executable or native component was run during these checks.
+
+| Item | Current offline preparation |
+| --- | --- |
+| Archive bytes | 54,496,544 |
+| Source files | 323 |
+| Package files including manifest | 7,901 |
+| Pinned production packages | 95 |
+| Build manifest SHA256 | `10b5135da3b8b80e07efd827c6045e4670916fb88afc1ffec4f1aeb991f818f2` |
+| Archive SHA256 | `982e37e01c8b74fa190b7092c0a46a6921233d45e5ccf98adde42374ab5b2095` |
+| Package manifest SHA256 | `6e0f6a74912e6abe142ee37b734afdc474e388d581e03b313571fec6ae7a1eb4` |
+
+Generated preparation/evidence directories remain private, ignored local
+artifacts, not source-control payloads or a production delivery. The archive
+does not contain a production acquisition sidecar, terrain calibration or
+external native libraries. Its successful preparation is not field acceptance.
+
 ## Remaining Gates
 
 Actual ARM64 module loading, target contracts, passive sensor throughput,
-source-bound shared-package composition and field acceptance remain outstanding.
+live shared-package composition on the robot and field acceptance remain outstanding.
 Metric scale, gravity/ground/base alignment and ground support are not validated.
 Runtime reports keep `physicalScaleValidated`, `groundSupportValidated` and
 `navigationReady` false. No previous private trial is relabeled as a current

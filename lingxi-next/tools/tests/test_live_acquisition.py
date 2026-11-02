@@ -458,15 +458,75 @@ class EntryPointTests(SettingsFixture, unittest.TestCase):
             service.create_manager(self.odometry, maps, runs, acquisition_settings=self.path)
         self.assertEqual(30., manager.call_args.kwargs['process_limits'].shutdown_seconds)
 
+    def test_shared_service_rejects_changed_parent_identity_before_manager_or_catalog_access(self):
+        import localization_service as service
+        with patch.object(service, 'verified_configuration', return_value=({'inputMode': 'live'}, {})), patch.object(
+                service, 'MappingPlatform', return_value=self.platform), patch.object(
+                service, 'SavedMapResolver') as resolver, patch.object(service, 'LocalizationManager') as manager:
+            for selection in (None, self.path):
+                with self.subTest(selection=selection), self.assertRaisesRegex(ValueError, 'same_shared_parent'):
+                    service.create_manager(self.odometry, self.root / 'absent-maps', self.root / 'absent-runs',
+                        acquisition_settings=selection, acquisition_integrity_sha256='0' * 64)
+            resolver.assert_not_called()
+            manager.assert_not_called()
+
+    def shared_arguments(self):
+        node, bundle = self.root / 'node', self.root / 'api.mjs'
+        for file in (node, bundle):
+            file.write_bytes(b'synthetic-only')
+        maps = self.root / 'maps'
+        maps.mkdir(mode=0o700)
+        return SimpleNamespace(config=self.odometry, maps=maps, output=self.root / 'output', seconds=None,
+            node=node, api_bundle=bundle, node_sha256=live.digest(node.read_bytes()),
+            api_sha256=live.digest(bundle.read_bytes()), acquisition_settings=self.path,
+            acquisition_settings_sha256=live.digest(self.path.read_bytes()))
+
+    def test_shared_parent_forwards_verified_identity_without_starting_native(self):
+        import managed_slam as runtime
+        args = self.shared_arguments()
+        selected = self.settings()
+        with patch.object(runtime, 'verified_configuration', return_value=({'inputMode': 'live'}, {})), patch(
+                'mapping_platform.MappingPlatform', return_value=self.platform), patch.object(
+                runtime, 'production_api_environment', return_value={}), patch.object(runtime.signal, 'signal'), patch.object(
+                runtime, 'ManagedSlamOwner') as owner:
+            owner.return_value.run.return_value = {'result': 'stopped'}
+            self.assertEqual(0, runtime.run(args))
+        self.assertEqual(selected.child_arguments(), owner.call_args.args[0][-4:])
+        self.assertFalse(args.output.exists())
+
+    def test_shared_parent_rejects_wrong_digest_missing_pair_and_frozen_input_overlap(self):
+        import managed_slam as runtime
+        args = self.shared_arguments()
+        with patch('mapping_platform.MappingPlatform', return_value=self.platform):
+            args.acquisition_settings_sha256 = '0' * 64
+            with self.assertRaisesRegex(ValueError, 'unchanged_deployed'):
+                runtime.acquisition_selection(args, {})
+            args.acquisition_settings = None
+            with self.assertRaisesRegex(ValueError, 'paired_shared'):
+                runtime.acquisition_selection(args, {})
+            args.acquisition_settings = self.path
+            args.acquisition_settings_sha256 = live.digest(self.path.read_bytes())
+            for output, maps in ((self.component.root / 'new', args.maps), (args.output, self.component.root)):
+                with self.subTest(output=output, maps=maps), self.assertRaisesRegex(ValueError, 'overlap_frozen'):
+                    runtime.acquisition_selection(SimpleNamespace(**{**vars(args), 'output': output, 'maps': maps}), {})
+            self.path = args.maps / 'settings.json'
+            self.write()
+            args.acquisition_settings = self.path
+            with self.assertRaisesRegex(ValueError, 'overlap_frozen'):
+                runtime.acquisition_selection(args, {})
+        self.assertFalse(args.output.exists())
+
     def test_shared_slam_entry_forwards_only_operator_selected_file(self):
         import slam_service
         arguments = ['slam_service.py', '--config', str(self.odometry), '--maps', str(self.root / 'maps'),
             '--runs', str(self.root / 'runs'), '--socket', str(self.root / 'mapping.sock'),
-            '--localization-socket', str(self.root / 'localization.sock'), '--acquisition-settings', str(self.path)]
+            '--localization-socket', str(self.root / 'localization.sock'), '--acquisition-settings', str(self.path),
+            '--acquisition-integrity-sha256', self.settings().identity]
         with patch.object(sys, 'argv', arguments), patch.object(slam_service, 'create_mapping'), patch.object(
                 slam_service, 'create_localization') as localization, patch.object(slam_service, 'serve'):
             slam_service.main()
         self.assertEqual(self.path, localization.call_args.kwargs['acquisition_settings'])
+        self.assertEqual(self.settings().identity, localization.call_args.kwargs['acquisition_integrity_sha256'])
 
     def test_managed_launcher_forwards_identity_and_verifies_terminal_selection(self):
         import managed_localization as runtime

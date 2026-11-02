@@ -130,6 +130,19 @@ def environment(root, record):
             "LINGXI_PAIRING_CODE_SHA256": record["pairingCodeSha256"]}
 
 
+def acquisition_record(root, record):
+    fields = {'acquisitionSettings', 'acquisitionSettingsSha256'}
+    present = fields.intersection(record)
+    if not present:
+        return {}
+    if present != fields or not bundle.digest(record['acquisitionSettingsSha256']):
+        raise ValueError('paired_deployment_acquisition_record_required')
+    path = private_file(external_file(record['acquisitionSettings'], root))
+    if not 0 < path.stat().st_size <= 16384 or bundle.sha256(path) != record['acquisitionSettingsSha256']:
+        raise ValueError('unchanged_external_acquisition_settings_required')
+    return {name: record[name] for name in fields}
+
+
 def command(root, release, record, output, *, check=False):
     destination = root / "releases" / release
     if record["manifestSha256"] != release:
@@ -149,6 +162,10 @@ def command(root, release, record, output, *, check=False):
     arguments = [record["python"], "-I", "-B", str(destination / "source/robot-runtime/python/launch_slam_bundle.py"),
                  "--bundle", str(destination), "--manifest-sha256", release, "--config", str(config),
                  "--maps", str(root / "maps"), "--output", str(output)]
+    acquisition = acquisition_record(root, record)
+    if acquisition:
+        arguments.extend(('--acquisition-settings', acquisition['acquisitionSettings'],
+                          '--acquisition-settings-sha256', acquisition['acquisitionSettingsSha256']))
     return [*arguments, "--check-only"] if check else arguments
 
 
@@ -209,6 +226,18 @@ def install(args):
                   "python": str(args.python), "tlsKey": str(external_file(args.tls_key, root)),
                   "tlsCert": str(external_file(args.tls_cert, root)), "host": args.host, "port": args.port}
         record["configSha256"] = bundle.sha256(Path(record["config"]))
+        selected = getattr(args, 'acquisition_settings', None)
+        disabled = getattr(args, 'without_acquisition', False)
+        if selected is not None and disabled:
+            raise ValueError('one_explicit_acquisition_selection_required')
+        if selected is not None:
+            selected = private_file(external_file(selected, root))
+            record.update(acquisitionSettings=str(selected), acquisitionSettingsSha256=bundle.sha256(selected))
+        elif not disabled:
+            current = pointer(root, 'current')
+            if current is not None:
+                record.update(acquisition_record(root, read_record(root, current)))
+        acquisition_record(root, record)
         code_file = root / "pairing-code.txt"
         if code_file.exists() or code_file.is_symlink():
             private_file(code_file)
@@ -273,7 +302,13 @@ def main():
     parser.add_argument("--manifest-sha256")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=3443)
+    acquisition = parser.add_mutually_exclusive_group()
+    acquisition.add_argument('--acquisition-settings', type=Path)
+    acquisition.add_argument('--without-acquisition', action='store_true',
+        help='Explicitly disable acquisition on this release; otherwise preserve the current selection.')
     args = parser.parse_args()
+    if args.command != 'install' and (args.acquisition_settings is not None or args.without_acquisition):
+        raise ValueError('acquisition_selection_only_during_install_required')
     if args.command == "install" and any(getattr(args, name) is None for name in (
             "bundle", "config", "python", "tls_key", "tls_cert", "manifest_sha256")):
         raise ValueError("explicit_verified_slam_installation_inputs_required")

@@ -25,6 +25,10 @@ or a release switch. The r7 recorded-input installation record below is retained
   pairing credentials, recordings and business maps.
 - Native replay, mapping and point-output adapter sources are included for the
   runtime's provenance checks, not for compilation on the robot.
+- The current shared source profile also includes the passive acquisition native
+  adapter, navigation Python modules, Patchwork++ lock and ground/OctoMap bridge
+  sources. Optional component libraries and their reviewed settings stay external;
+  inclusion of source does not enable terrain, ROS grids or navigation.
 - Existing isolated GLIM/native libraries, point adapter and verified sensor
   configuration remain external requirements. The target must be ordinary-user
   Linux AArch64 with the matching Humble Python 3.10 environment.
@@ -61,6 +65,14 @@ retained in the separate ARM64 commissioning record.
 Preparation, independent verification and extraction checked every archive
 member. Use a new matching manifest after any rebuild; these are not universal
 hashes for future packages.
+
+The 2026-11-03 passive-acquisition selection follow-up has a separate archive
+and manifest, recorded in
+[the current offline verification](LIVE_ACQUISITION_WIRING_20261103.md#shared-package-selection-follow-up).
+Its 11-test extracted composition passed with real packaged Python/API/web
+modules and explicit Linux x64 Node, but synthetic workers and map geometry.
+The r7 table above remains historical; neither its hashes nor its target results
+apply to this newly prepared source or certify ARM64 acquisition loading.
 
 ## Build and Extract
 
@@ -147,6 +159,25 @@ are retained under their manifest SHA256; configuration records are immutable
 for that release. Changed external configuration hashes stop preflight before
 service changes. Pairing is retained, and maps remain under `ROOT/maps`.
 
+For the current launcher/installer, passive acquisition is an explicit optional
+selection. Add `--acquisition-settings /absolute/private-config/acquisition.json`
+to `install` only after its component and settings have been verified. The file
+must be direct, owned by the installing user, mode 0600 (or stricter), nonempty,
+at most 16 KiB and outside both the extracted package and installation root.
+The runtime also refuses map/run/native-input overlap and requires the already
+enabled GLIM IMU-rate trajectory option. It does not edit native configuration.
+
+With neither selection flag, first installation leaves acquisition disabled and
+an upgrade inherits the current release's choice. Use `--without-acquisition`
+to explicitly disable it on the new release, or provide a different verified
+sidecar to replace it. A changed inherited sidecar blocks the upgrade; it is
+never silently rehashed. Path and SHA256 are stored together in each immutable
+release record and checked at preflight and every service start. The sidecar
+and native component remain external, not copied into releases or archives.
+Changing selection for the same manifest is rejected: prepare a new release
+rather than editing its existing record. These options do not apply to `run`
+or `rollback`.
+
 After a successful switch, `previous` references the prior release. To return
 to it, use a verified extracted deployment tool:
 
@@ -161,6 +192,12 @@ including when the cleanup stop itself fails. It never resumes previous work.
 If systemd cannot confirm stop, inspect process/service state before retrying;
 pointer restoration alone is not proof that a failed process has terminated.
 Both releases and maps are retained for diagnosis.
+
+Rollback uses that release's recorded acquisition choice, not the current
+release's choice. Keep its sidecar and native inputs unchanged and available;
+missing, changed or nonprivate settings stop preflight before service changes.
+This is passive data acquisition only, not permission to execute navigation.
+See [the wiring record](LIVE_ACQUISITION_WIRING_20261103.md) for validation scope.
 
 Each service start allocates a fresh 12-character run directory under `ROOT/runs`.
 Native sessions retain their existing time limits and are not replayed after

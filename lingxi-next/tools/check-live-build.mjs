@@ -3,7 +3,7 @@ import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { digest, metadataFiles, sourceDirectories, sourceHashes } from "../robot-runtime/build-live.mjs";
+import { digest, metadataFiles, sourceDirectories, sourceHashes, slamDirectories, slamMetadata } from "../robot-runtime/build-live.mjs";
 
 async function project(t) {
   const root = await mkdtemp(path.join(tmpdir(), "lingxi-live-build-synthetic-"));
@@ -76,9 +76,18 @@ test("mapping profile binds its dedicated builder and refuses unknown profiles",
 test("shared SLAM profile requires its own builder without changing mapping inventory", async (t) => {
   const root = await project(t);
   await assert.rejects(sourceHashes(root, "slam"));
-  await writeFile(path.join(root, "robot-runtime/build-slam.mjs"), "// Synthetic SLAM builder\n");
+  for (const name of slamMetadata) {
+    await mkdir(path.dirname(path.join(root, name)), { recursive: true });
+    await writeFile(path.join(root, name), "synthetic SLAM source\n");
+  }
+  for (const name of slamDirectories) {
+    await mkdir(path.join(root, name), { recursive: true });
+    await writeFile(path.join(root, name, "synthetic.txt"), "synthetic SLAM source\n");
+  }
   const slam = await sourceHashes(root, "slam"), point = await sourceHashes(root);
-  assert.equal(Object.keys(slam).length, Object.keys(point).length + 1);
-  assert.ok(slam["robot-runtime/build-slam.mjs"]);
+  assert.equal(Object.keys(slam).length, Object.keys(point).length + slamMetadata.length + slamDirectories.length);
+  for (const name of slamMetadata) assert.ok(slam[name]);
+  assert.equal(slam["robot-navigation/native-ground/CMakeLists.txt"], undefined);
+  assert.ok(slam["robot-navigation/lingxi_navigation/synthetic.txt"]);
   assert.equal(slam["robot-runtime/build-mapping.mjs"], undefined);
 });

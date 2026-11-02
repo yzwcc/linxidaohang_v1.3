@@ -411,13 +411,16 @@ def serve(endpoint, manager, *, parent_input=None, status=None):
                 signal.signal(value, handler)
 
 
-def create_manager(config_file, maps, runs, *, acquisition_settings=None):
+def create_manager(config_file, maps, runs, *, acquisition_settings=None, acquisition_integrity_sha256=None):
     config, environment = verified_configuration(config_file, allow_live=True)
     platform = MappingPlatform(config)
     acquisition = None
     if acquisition_settings is not None:
         from live_acquisition import AcquisitionSettings
         acquisition = AcquisitionSettings(acquisition_settings, platform)
+    if acquisition_integrity_sha256 is not None and (
+            acquisition is None or acquisition.identity != acquisition_integrity_sha256):
+        raise ValueError('same_shared_parent_acquisition_inputs_required')
     direct(maps, directory=True)
     direct(runs, directory=True)
     if maps == runs or maps in runs.parents or runs in maps.parents:
@@ -446,8 +449,10 @@ def main():
         parser.add_argument("--" + name, type=Path, required=True)
     parser.add_argument("--parent-stdin", action="store_true")
     parser.add_argument('--acquisition-settings', type=Path)
+    parser.add_argument('--acquisition-integrity-sha256')
     args = parser.parse_args()
-    manager = create_manager(args.config, args.maps, args.runs, acquisition_settings=args.acquisition_settings)
+    manager = create_manager(args.config, args.maps, args.runs, acquisition_settings=args.acquisition_settings,
+        acquisition_integrity_sha256=args.acquisition_integrity_sha256)
     serve(args.socket, manager, parent_input=sys.stdin.buffer if args.parent_stdin else None,
           status=lambda value: print(json.dumps(value), flush=True))
 

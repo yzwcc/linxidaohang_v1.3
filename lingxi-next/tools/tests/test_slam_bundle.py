@@ -1,7 +1,10 @@
 """Shared-workspace packaging and launcher contracts using labeled synthetic assets."""
 import argparse
+import importlib.util
+import json
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 from types import SimpleNamespace
@@ -16,12 +19,20 @@ import launch_slam_bundle as launcher
 PROFILE = bundle.SLAM
 save = fixtures.save
 ROOT = Path(__file__).resolve().parents[2]
+HOST_NODE = shutil.which("node")
 
 
 class SlamBundleContracts(unittest.TestCase):
     def setUp(self):
         fixtures.LiveBundleContracts.setUp(self)
-        (self.project / "robot-runtime/build-slam.mjs").write_text("// Synthetic builder\n")
+        for name in PROFILE.metadata:
+            path = self.project / name
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text("synthetic source\n")
+        for name in PROFILE.directories:
+            path = self.project / name
+            path.mkdir(parents=True, exist_ok=True)
+            (path / "synthetic.txt").write_text("synthetic source\n")
         self.build["purpose"] = PROFILE.build_purpose
         self.build["sourceSha256"] = bundle.source_hashes(self.project, profile=PROFILE)
         self.build_digest = save(self.assets / "build-manifest.json", self.build)
@@ -79,9 +90,65 @@ class SlamBundleContracts(unittest.TestCase):
         native += ["robot-slam/native-point-output/" + name for name in (
             "point_output.h", "point_output.cpp", "point_output_contract.cpp", "CMakeLists.txt",
             "exports.map", "verify_exports.cmake")]
+        native += ["robot-slam/native-acquisition-output/" + name for name in (
+            "acquisition.h", "acquisition.cpp", "acquisition_contract.cpp", "CMakeLists.txt", "exports.map")]
+        native += list(PROFILE.metadata) + ["robot-navigation/lingxi_navigation/terrain_worker.py",
+            "robot-navigation/lingxi_navigation/terrain_process.py", "robot-runtime/python/live_acquisition.py"]
         for name in native:
             with self.subTest(name=name):
                 self.assertEqual(bundle.sha256(ROOT / name), sources[name])
+        self.assertNotIn("robot-navigation/native-ground/CMakeLists.txt", sources)
+
+    @unittest.skipUnless(all(importlib.util.find_spec(name) for name in ("numpy", "scipy", "json5")),
+                         "requires isolated scientific Python dependencies")
+    def test_actual_executable_sources_import_from_extracted_package_without_project_pythonpath(self):
+        # Only dependency metadata and web/API assets remain synthetic in this package.
+        synthetic = {"package-lock.json", "docs/slam-point-consumer-preparation-evidence.json"}
+        for name in bundle.source_hashes(ROOT, profile=PROFILE):
+            if name not in synthetic:
+                destination = self.project / name
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(ROOT / name, destination)
+        self.build["sourceSha256"] = bundle.source_hashes(self.project, profile=PROFILE)
+        self.build_digest = save(self.assets / "build-manifest.json", self.build)
+        root, _ = self.extracted()
+        source = root / "source"
+        script = f"""
+import hashlib, json, pathlib, runpy, sys
+source = pathlib.Path({str(source)!r})
+runpy.run_path(str(source / 'robot-runtime/python/launch_slam_bundle.py'))
+import managed_slam, slam_service, localization_service, live_acquisition, acquisition_bundle, check_ground_native
+from lingxi_navigation import terrain_worker, terrain_process
+from lingxi_slam import acquisition_output
+modules = (managed_slam, slam_service, localization_service, live_acquisition, acquisition_bundle,
+           check_ground_native, terrain_worker, terrain_process, acquisition_output)
+assert all(pathlib.Path(module.__file__).resolve().is_relative_to(source) for module in modules)
+assert live_acquisition.ROOT == source
+assert acquisition_bundle.ROOT == source
+hashes = acquisition_bundle.source_hashes()
+for name in live_acquisition.SOURCES:
+    hashes[name] = hashlib.sha256((source / name).read_bytes()).hexdigest()
+assert not any(str({str(ROOT)!r}) == entry for entry in sys.path)
+print(json.dumps({{'modules': len(modules), 'sourceFiles': len(hashes), 'nativeExecuted': False}}))
+"""
+        result = subprocess.run([sys.executable, "-I", "-B", "-c", script], cwd=self.root,
+            capture_output=True, text=True, timeout=30, check=False)
+        self.assertEqual(0, result.returncode, result.stderr)
+        report = json.loads(result.stdout)
+        self.assertEqual(9, report["modules"])
+        self.assertGreater(report["sourceFiles"], 20)
+        self.assertFalse(report["nativeExecuted"])
+
+    @unittest.skipUnless(HOST_NODE, "requires a host Node interpreter, never ARM64 execution")
+    def test_python_and_javascript_share_all_profile_source_inventories(self):
+        builder = (ROOT / "robot-runtime/build-live.mjs").as_uri()
+        for name, profile in (("point", bundle.LIVE), ("mapping", bundle.MAPPING), ("slam", PROFILE)):
+            script = (f"import {{sourceHashes}} from {json.dumps(builder)}; "
+                      f"console.log(JSON.stringify(await sourceHashes({json.dumps(str(ROOT))}, {json.dumps(name)})));")
+            result = subprocess.run([HOST_NODE, "--input-type=module", "-e", script], cwd=self.root,
+                capture_output=True, text=True, timeout=30, check=False)
+            self.assertEqual(0, result.returncode, result.stderr)
+            self.assertEqual(bundle.source_hashes(ROOT, profile=profile), json.loads(result.stdout))
 
     def fixture(self):
         root, report = self.extracted()
@@ -120,6 +187,25 @@ class SlamBundleContracts(unittest.TestCase):
         with patch.dict(os.environ, environment, clear=True), self.assertRaisesRegex(ValueError, "extracted_slam"):
             launcher.launch(trial)
         self.assertFalse(trial.output.exists())
+
+    def test_launcher_forwards_explicit_external_sidecar_to_validation_without_copying_it(self):
+        root, environment, trial = self.fixture()
+        trial.acquisition_settings = self.root / "external-acquisition.json"
+        trial.acquisition_settings.write_text("synthetic operator-only sidecar")
+        trial.acquisition_settings_sha256 = bundle.sha256(trial.acquisition_settings)
+        trial.check_only = True
+        managed = SimpleNamespace(run=Mock(), validate=Mock())
+        with patch.object(bundle, "ROOT", root / "source"), patch.object(launcher.platform, "machine", return_value="aarch64"), \
+                patch.object(launcher.sys, "version_info", (3, 10, 0)), patch.dict(os.environ, environment, clear=True), \
+                patch.dict(sys.modules, {"managed_slam": managed}):
+            self.assertEqual(0, launcher.launch(trial))
+            managed.validate.assert_called_once_with(trial)
+            trial.acquisition_settings = root / "source/package.json"
+            with self.assertRaisesRegex(ValueError, "outside_runtime"):
+                launcher.launch(trial)
+        managed.run.assert_not_called()
+        self.assertFalse(trial.output.exists())
+        self.assertFalse((root / "external-acquisition.json").exists())
 
     def test_launcher_rejects_reserved_port_and_conflicting_runtime_overrides(self):
         root, environment, trial = self.fixture()

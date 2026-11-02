@@ -45,6 +45,7 @@ class BundleProfile:
     archive: str = "live-point-runtime-arm64.tar.gz"
     result_prefix: str = "live_runtime"
     metadata: tuple = ()
+    directories: tuple = ()
 
 
 LIVE = BundleProfile()
@@ -60,7 +61,10 @@ SLAM = BundleProfile(
     purpose="shared_arm64_slam_runtime_preparation",
     build_purpose="shared_slam_assets_not_target_acceptance",
     archive="shared-slam-runtime-arm64.tar.gz", result_prefix="slam_runtime",
-    metadata=("robot-runtime/build-slam.mjs",),
+    metadata=("robot-runtime/build-slam.mjs", "robot-navigation/patchworkpp.lock.json",
+              "robot-navigation/native-ground/ground_bridge.cpp",
+              "robot-navigation/native-octomap/octomap_bridge.cpp"),
+    directories=("robot-navigation/lingxi_navigation", "robot-slam/native-acquisition-output"),
 )
 
 
@@ -105,7 +109,7 @@ def source_hashes(project=None, *, profile=LIVE):
     project = ROOT if project is None else project
     project = project.resolve(strict=True)
     names = set((*METADATA, *profile.metadata))
-    for directory in DIRECTORIES:
+    for directory in (*DIRECTORIES, *profile.directories):
         base = project / directory
         if base.is_symlink() or not base.is_dir():
             raise ValueError("complete_direct_live_source_tree_required")

@@ -18,7 +18,9 @@ def launch(args):
             or os.geteuid() == 0 or sys.version_info[:2] != (3, 10)):
         raise ValueError("ordinary_user_arm64_humble_python310_required")
     output, maps = args.output.absolute(), args.maps.absolute()
-    external = (output, maps, args.config.resolve(strict=True))
+    external = [output, maps, args.config.resolve(strict=True)]
+    if getattr(args, 'acquisition_settings', None) is not None:
+        external.append(args.acquisition_settings.resolve(strict=True))
     if any(path == root or root in path.parents or path in root.parents for path in external):
         raise ValueError("slam_configuration_catalog_and_output_outside_runtime_required")
     for name in ("LINGXI_TLS_KEY", "LINGXI_TLS_CERT"):
@@ -59,6 +61,8 @@ def main():
     parser.add_argument("--manifest-sha256", required=True)
     parser.add_argument("--seconds", type=int)
     parser.add_argument("--check-only", action="store_true")
+    parser.add_argument('--acquisition-settings', type=Path)
+    parser.add_argument('--acquisition-settings-sha256')
     args = parser.parse_args()
     previous = os.umask(0o077)
     try:

@@ -14,6 +14,9 @@ export const metadataFiles = ["package.json", "package-lock.json", "vite.config.
   "docs/slam-point-arm64-target-evidence.json", "docs/slam-point-consumer-preparation-evidence.json",
   "docs/slam-native-point-pipe-evidence.json", "docs/slam-stream-input-evidence.json",
   "robot-slam/runtime-arm64-cp310.lock.json"];
+export const slamDirectories = ["robot-navigation/lingxi_navigation", "robot-slam/native-acquisition-output"];
+export const slamMetadata = ["robot-runtime/build-slam.mjs", "robot-navigation/patchworkpp.lock.json",
+  "robot-navigation/native-ground/ground_bridge.cpp", "robot-navigation/native-octomap/octomap_bridge.cpp"];
 
 export const digest = (bytes) => createHash("sha256").update(bytes).digest("hex");
 
@@ -36,8 +39,8 @@ export async function sourceHashes(project = root, profile = "point") {
   if (!["point", "mapping", "slam"].includes(profile)) throw new Error("explicit_runtime_build_profile_required");
   const names = [...metadataFiles];
   if (profile === "mapping") names.push("robot-runtime/build-mapping.mjs");
-  if (profile === "slam") names.push("robot-runtime/build-slam.mjs");
-  for (const directory of sourceDirectories) {
+  if (profile === "slam") names.push(...slamMetadata);
+  for (const directory of [...sourceDirectories, ...(profile === "slam" ? slamDirectories : [])]) {
     names.push(...(await files(path.join(project, directory), directory)));
   }
   for (const name of await readdir(path.join(project, "tools"))) {
