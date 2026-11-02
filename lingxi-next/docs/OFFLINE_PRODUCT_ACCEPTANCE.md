@@ -17,6 +17,13 @@ or deployment is authorized by completing an offline check.
 | Web and Android | Shared Chinese React console, point-cloud map inspection, landscape Capacitor project; real Nav2 offline point-cloud workspace; source-bound signed APK 0.1.19/code20 verified | Desktop/landscape workflow and connection-loss regressions; APK current-source checks passed, not device acceptance | Real CA trust, Android devices, LAN reconnection and point picking |
 | Deployment | Isolated services, restricted credentials, migration/backup; core-service install/rollback failure recovery and concurrent-install fencing verified in isolated Linux | Complete independent-stack composition and dependency/license audit; current verified core archive explicitly excludes GLIM/localization/OctoMap/Nav2 | Real ARM64 installation with existing vendor system preserved |
 
+The [portable offline workspace milestone](OFFLINE_WORKSPACE_PORTABILITY_20261103.md)
+adds Windows/WSL and ordinary-user Linux launch planning, isolated preflight,
+failure cleanup and actual HTTP lifecycle verification. Windows/WSL real Nav2
+passes all three current product integration tests. Successful native Linux
+startup remains unverified without an approved privilege setup. This is not
+the complete independent-stack installer or a physical command path.
+
 ## Release Rules
 
 - Keep default point-cloud display and clearance Z limits at 0.1--1.4 m. Do not

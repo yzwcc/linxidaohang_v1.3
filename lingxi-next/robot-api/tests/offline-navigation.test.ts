@@ -147,6 +147,22 @@ describe("stdio offline backend framing", () => {
       await expect(backend.state()).rejects.toThrow();
     } finally { vi.useRealTimers(); }
   });
+  it("shares one confirmed close and immediately rejects pending and queued requests", async () => {
+    const backend = child("process.stdin.resume()");
+    const pending = expect(backend.state()).rejects.toThrow();
+    const queued = expect(backend.scene()).rejects.toThrow();
+    const first = backend.close();
+    expect(backend.close()).toBe(first);
+    await Promise.all([first, pending, queued]);
+    await expect(backend.state()).rejects.toThrow();
+  });
+  it("confirms close after a spawn error without waiting for a nonexistent exit event", async () => {
+    const backend = new StdioOfflineNavigationBackend(path.resolve(".local", "missing-offline-executable"), [], process.cwd());
+    children.push(backend);
+    await expect(backend.state()).rejects.toThrow();
+    await backend.close();
+    await expect(backend.scene()).rejects.toThrow();
+  });
 });
 
 describe("offline workspace API and voice isolation", () => {

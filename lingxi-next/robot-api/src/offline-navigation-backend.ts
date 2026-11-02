@@ -30,15 +30,18 @@ export class StdioOfflineNavigationBackend implements OfflineNavigationBackend {
   private pending?: { id: string; finish(error?: Error, value?: unknown): void };
   private tail: Promise<unknown> = Promise.resolve();
   private queued = 0;
+  private processClosed = false;
+  private closing?: Promise<void>;
 
-  constructor(executable: string, args: string[], cwd: string) {
+  constructor(executable: string, args: string[], cwd: string, environment?: NodeJS.ProcessEnv) {
     if (!executable || args.some((arg) => arg.includes("\0"))) throw new Error("explicit_offline_process_required");
-    this.process = spawn(executable, args, { cwd, shell: false, windowsHide: true, stdio: "pipe" });
+    this.process = spawn(executable, args, { cwd, env: environment, shell: false, windowsHide: true, stdio: "pipe" });
     // Do not forward potentially sensitive process output into API logs.
     this.process.stderr.resume();
     this.process.stdout.on("data", (chunk: Buffer) => this.receive(chunk));
     this.process.once("error", () => this.fail());
     this.process.once("exit", () => this.fail());
+    this.process.once("close", () => { this.processClosed = true; });
     this.process.stdin.on("error", () => this.fail());
   }
 
@@ -95,13 +98,27 @@ export class StdioOfflineNavigationBackend implements OfflineNavigationBackend {
   async state() { return this.typed(offlineNavigationStateSchema, { action: "state" }); }
   async scene() { return this.typed(offlineSceneSchema, { action: "scene" }); }
   async command(value: OfflineNavigationCommand) { return this.typed(offlineNavigationStateSchema, value); }
-  async close() {
-    if (!this.closed) this.process.stdin.end();
-    await new Promise<void>((resolve) => {
-      if (this.process.exitCode !== null || this.process.signalCode !== null) { resolve(); return; }
-      const timer = setTimeout(() => { this.fail(); resolve(); }, 3500);
-      this.process.once("exit", () => { clearTimeout(timer); resolve(); });
-    });
+  close(): Promise<void> {
+    return this.closing ??= this.finishClose();
+  }
+
+  private async finishClose() {
     this.closed = true;
+    this.pending?.finish(unavailable());
+    this.process.stdin.end();
+    if (this.processClosed) return;
+    await new Promise<void>((resolve, reject) => {
+      const term = setTimeout(() => this.process.kill("SIGTERM"), 3500);
+      const kill = setTimeout(() => this.process.kill("SIGKILL"), 4000);
+      const deadline = setTimeout(() => {
+        cleanup(); reject(new Error("offline_process_shutdown_unconfirmed"));
+      }, 4500);
+      const done = () => { cleanup(); resolve(); };
+      const cleanup = () => {
+        clearTimeout(term); clearTimeout(kill); clearTimeout(deadline);
+        this.process.removeListener("close", done);
+      };
+      this.process.once("close", done);
+    });
   }
 }

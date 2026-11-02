@@ -1,6 +1,6 @@
 # Offline Navigation Workspace
 
-Updated 2026-11-01. This workspace exercises the product rather than a separate
+Updated 2026-11-03. This workspace exercises the product rather than a separate
 navigation demo: paired HTTP API, WebSocket point cloud, point management,
 task manager, voice routing and tours share the real isolated Nav2 backend.
 Inputs are synthetic and no physical command transport is instantiated.
@@ -18,6 +18,54 @@ $env:LINGXI_OFFLINE_PORT = '3018'
 npm run build
 npm run dev:offline-navigation
 ```
+
+## Start On Ordinary-User Linux
+
+Use the same checkout and separate Humble rootfs, with Linux Node.js and locally
+installed project dependencies. Do not share Windows `node_modules` with a Linux
+installation: tsx/esbuild require their matching platform/version binary.
+
+```bash
+export LINGXI_OFFLINE_NAV2_ROOTFS=/absolute/separate/rootfs
+export LINGXI_OFFLINE_NAV2_CASE=detour
+export LINGXI_OFFLINE_PORT=3018
+npm run build
+npm run dev:offline-navigation
+```
+
+The API refuses UID 0. Only the namespace wrapper runs through `sudo -n`;
+existing administrator-approved noninteractive access is a prerequisite.
+Missing authorization fails preflight, without prompting, spawning a backend,
+opening an API listener or modifying sudo policy. Do not grant unrestricted
+`sudo bash` or authorize user-writable scripts as a shortcut. A restricted
+production privilege broker is not provided by this offline workspace.
+On a workstation without an approved privilege setup, use Windows/WSL instead.
+Successful native Linux startup is not yet verified on this workstation;
+ordinary-user permission denial and root-API refusal are verified.
+
+## Startup And Exit
+
+The launcher resolves checkout, Web assets and private state from its own file
+location, not the caller's working directory. It validates platform, explicit
+rootfs, scene and port before spawning a process. Preflight then exercises the
+actual isolated namespace, Humble imports and required Nav2 package lookup;
+there is no dependency download or fallback demo. Only after a valid scene
+reply does the API bind to loopback.
+
+One Node process owns startup and terminal signals. SIGINT/SIGTERM during
+startup cancels preflight or retires the backend; a late construction result
+cannot open a surviving listener. Server construction, scene and listen failures
+close the services that were created, including the occupied-port case. Closing
+is idempotent: EOF first, bounded termination escalation if necessary, and an
+explicit failure if child closure is not confirmed. Queued requests are rejected,
+not replayed. The namespace wrapper kills its isolated children when it exits.
+
+The entrypoint and backend receive an environment allowlist. Robot bridges,
+mapping/localization sockets, business data paths, pairing/cloud credentials,
+ROS peer settings, Node loader and shell initialization overrides are not
+inherited. The chroot starts with a clean fixed environment.
+
+## Local Operation
 
 Open `http://127.0.0.1:3018/` and pair using the development-only pairing code
 `lingxi-dev-only`. The listener is loopback-only, not a LAN robot deployment.
@@ -57,7 +105,9 @@ $env:LINGXI_OFFLINE_NAV2_ROOTFS = '/absolute/separate/rootfs'
 npx vitest run robot-api/tests/offline-nav2-integration.test.ts
 ```
 
-The opt-in test uses actual ROS Humble Nav2. It covers product API pause/resume,
+The opt-in test uses actual ROS Humble Nav2 on Windows/WSL or approved
+ordinary-user Linux. It first covers real HTTP startup, occupied-port failure
+cleanup, fresh relaunch, pairing/state read and repeated close. It also covers product API pause/resume,
 frozen paused pose, new epoch on resume, awakened voice dispatch and stop, a
 knowledge question that preserves navigation, a two-point tour without return,
 voice pause/resume during a two-point tour, no manual auto-resume after 5.3
@@ -72,3 +122,6 @@ reconciliation; see the active full-product workstream for later test counts.
 The [tour/voice verification](TOUR_VOICE_VERIFICATION_20261101.md) records the
 latest full TypeScript regression and actual isolated Nav2/API checks, with
 explicit stubbed-speech and physical-acceptance limits.
+The [portable workspace verification](OFFLINE_WORKSPACE_PORTABILITY_20261103.md)
+records the latest startup/lifecycle checks, preserved transient failure and
+the unverified successful Linux privilege path.

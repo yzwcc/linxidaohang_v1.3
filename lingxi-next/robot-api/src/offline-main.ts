@@ -1,20 +1,30 @@
-import path from "node:path";
 import { buildServer } from "./server";
 import { StdioOfflineNavigationBackend } from "./offline-navigation-backend";
+import { checkOfflineWorkspace, offlineEnvironment, offlineWorkspacePlan, startOfflineWorkspace } from "./offline-workspace";
 
-const rootfs = process.env.LINGXI_OFFLINE_NAV2_ROOTFS;
-if (process.platform !== "win32" || !rootfs || !/^\/[A-Za-z0-9_./-]+$/.test(rootfs)) throw new Error("explicit_separate_wsl_rootfs_required");
-const scene = process.env.LINGXI_OFFLINE_NAV2_CASE ?? "detour";
-if (!["open", "blocked", "detour", "appearing-wall"].includes(scene)) throw new Error("known_offline_scene_required");
-const output = `/product-offline-${Date.now()}`;
-const backend = new StdioOfflineNavigationBackend("wsl.exe", ["-u", "root", "--", "bash",
-  "tools/nav2-offline-service-isolated.sh", rootfs, scene, output], process.cwd());
-const app = await buildServer({ offlineNavigationBackend: backend,
-  stateDirectory: path.resolve(".local", output.slice(1)), internalAgentToken: "",
-});
-const port = Number(process.env.LINGXI_OFFLINE_PORT ?? "3018");
-if (!Number.isInteger(port) || port < 1024 || port > 65535) throw new Error("bounded_local_port_required");
-for (const event of ["SIGINT", "SIGTERM"] as const) process.once(event, () => { void app.close(); });
-await backend.scene();
-await app.listen({ host: "127.0.0.1", port });
-console.info(`Offline Nav2 workspace: http://127.0.0.1:${port} (synthetic inputs, no robot IO)`);
+const plan = offlineWorkspacePlan(process.env);
+process.env = offlineEnvironment(process.env);
+const controller = new AbortController();
+let workspace: Awaited<ReturnType<typeof startOfflineWorkspace>> | undefined;
+const signals = ["SIGINT", "SIGTERM"] as const;
+const removeSignals = () => { for (const event of signals) process.removeListener(event, stop); };
+function stop() {
+  controller.abort(new Error("offline_workspace_interrupted"));
+  if (workspace) void workspace.close().catch(() => { process.exitCode = 1; }).finally(removeSignals);
+}
+for (const event of signals) process.once(event, stop);
+try {
+  workspace = await startOfflineWorkspace(plan, {
+    check: checkOfflineWorkspace,
+    backend: (value) => new StdioOfflineNavigationBackend(value.executable, value.args, value.cwd, value.environment),
+    app: (backend, value) => buildServer({ offlineNavigationBackend: backend,
+      stateDirectory: value.stateDirectory, staticDirectory: value.staticDirectory, internalAgentToken: "" }),
+  }, controller.signal);
+  console.info(`Offline Nav2 workspace: http://127.0.0.1:${plan.port} (synthetic inputs, no robot IO)`);
+} catch (error) {
+  removeSignals();
+  if (!controller.signal.aborted || error !== controller.signal.reason) {
+    console.error(error instanceof Error ? error.message : "offline_workspace_start_failed");
+    process.exitCode = 1;
+  }
+}

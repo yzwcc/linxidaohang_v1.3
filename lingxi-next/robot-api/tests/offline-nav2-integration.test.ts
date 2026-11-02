@@ -2,10 +2,12 @@ import { afterEach, expect, it } from "vitest";
 import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { createServer } from "node:net";
 import type { FastifyInstance } from "fastify";
-import { StdioOfflineNavigationBackend } from "../src/offline-navigation-backend";
+import { StdioOfflineNavigationBackend, type OfflineNavigationBackend } from "../src/offline-navigation-backend";
 import { buildServer } from "../src/server";
 import { JsonStateStore } from "../src/store";
+import { checkOfflineWorkspace, offlineWorkspacePlan, startOfflineWorkspace } from "../src/offline-workspace";
 import type { OfflineNavigationState } from "../../shared/offline-navigation";
 
 function expectRetiredPoseUnchanged(before: OfflineNavigationState, after: OfflineNavigationState) {
@@ -16,15 +18,70 @@ function expectRetiredPoseUnchanged(before: OfflineNavigationState, after: Offli
   for (const axis of ["x", "y", "yaw"] as const) expect(after.pose[axis]).toBeCloseTo(before.pose[axis], 12);
 }
 
-// Explicit opt-in: WSL rootfs only; never use the robot or replace it with a mock.
+// Explicit opt-in: a separate rootfs only; never use the robot or a mock.
 const rootfs = process.env.LINGXI_OFFLINE_NAV2_ROOTFS;
-let app: FastifyInstance | undefined, directory: string | undefined;
-afterEach(async () => { await app?.close(); app = undefined; if (directory) await rm(directory, { recursive: true, force: true }); });
+const supported = process.platform === "win32" || process.platform === "linux" && process.getuid?.() !== 0;
+async function isolatedBackend(scene: string) {
+  const plan = offlineWorkspacePlan({ ...process.env, LINGXI_OFFLINE_NAV2_CASE: scene });
+  await checkOfflineWorkspace(plan);
+  ownedBackend = new StdioOfflineNavigationBackend(plan.executable, plan.args, plan.cwd, plan.environment);
+  return { backend: ownedBackend,
+    output: plan.args.at(-1)! };
+}
+let app: FastifyInstance | undefined, directory: string | undefined, ownedBackend: StdioOfflineNavigationBackend | undefined;
+afterEach(async () => {
+  try { await app?.close(); } finally { await ownedBackend?.close(); app = undefined; ownedBackend = undefined; }
+  if (directory) await rm(directory, { recursive: true, force: true });
+});
 
-it.skipIf(!rootfs || process.platform !== "win32")("drives real isolated Nav2 from paired Web API and awakened voice, preserving pause epochs", async () => {
+it.skipIf(!rootfs || !supported)("starts the portable HTTP workspace and confirms close after an occupied port", async () => {
+  const occupied = createServer();
+  await new Promise<void>((resolve) => occupied.listen(0, "127.0.0.1", resolve));
+  const address = occupied.address();
+  if (!address || typeof address === "string") throw new Error("local_test_port_required");
+  const plan = offlineWorkspacePlan({ ...process.env, LINGXI_OFFLINE_PORT: String(address.port), LINGXI_OFFLINE_NAV2_CASE: "open" });
+  directory = await mkdtemp(path.join(os.tmpdir(), "portable-nav2-"));
+  plan.stateDirectory = directory;
+  const dependencies = {
+    check: checkOfflineWorkspace,
+    backend: () => {
+      ownedBackend = new StdioOfflineNavigationBackend(plan.executable, plan.args, plan.cwd, plan.environment);
+      return ownedBackend;
+    },
+    app: async (backend: OfflineNavigationBackend) => {
+      app = await buildServer({ offlineNavigationBackend: backend, stateDirectory: directory,
+        staticDirectory: path.join(directory!, "none"), internalAgentToken: "" });
+      return app;
+    },
+  };
+  try {
+    await expect(startOfflineWorkspace(plan, dependencies)).rejects.toMatchObject({ code: "EADDRINUSE" });
+    await expect(ownedBackend!.scene()).rejects.toThrow();
+  } finally {
+    await new Promise<void>((resolve, reject) => occupied.close((error) => error ? reject(error) : resolve()));
+  }
+  // A new launch gets a new ROS output identity; never reuse a failed run's output.
+  const next = offlineWorkspacePlan({ ...process.env, LINGXI_OFFLINE_PORT: String(address.port), LINGXI_OFFLINE_NAV2_CASE: "open" });
+  Object.assign(plan, next, { stateDirectory: directory });
+  const running = await startOfflineWorkspace(plan, dependencies);
+  const origin = `http://127.0.0.1:${plan.port}`;
+  try {
+    const pair = await fetch(`${origin}/api/v1/session/pair`, { method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ pairingCode: "lingxi-dev-only" }) });
+    expect(pair.status).toBe(201);
+    const token = (await pair.json() as { token: string }).token;
+    const state = await fetch(`${origin}/api/v1/state`, { headers: { authorization: `Bearer ${token}` } });
+    expect(state.status).toBe(200);
+    expect((await state.json() as { navigationExecution: unknown }).navigationExecution)
+      .toMatchObject({ backend: "nav2-offline", physicalMotionSent: false, navigationReady: false });
+  } finally { await Promise.all([running.close(), running.close()]); }
+  await expect(ownedBackend!.scene()).rejects.toThrow();
+  await expect(fetch(`${origin}/api/v1/state`)).rejects.toThrow();
+}, 60_000);
+
+it.skipIf(!rootfs || !supported)("drives real isolated Nav2 from paired Web API and awakened voice, preserving pause epochs", async () => {
   directory = await mkdtemp(path.join(os.tmpdir(), "lingxi-real-nav2-"));
-  const backend = new StdioOfflineNavigationBackend("wsl.exe", ["-u", "root", "--", "bash",
-    "tools/nav2-offline-service-isolated.sh", rootfs!, "open", `/api-nav2-${Date.now()}`], process.cwd());
+  const { backend } = await isolatedBackend("open");
   app = await buildServer({ offlineNavigationBackend: backend, stateDirectory: directory,
     staticDirectory: path.join(directory, "none"), internalAgentToken: "offline-integration-only" });
   const paired = await app.inject({ method: "POST", url: "/api/v1/session/pair", payload: { pairingCode: "lingxi-dev-only" } });
@@ -137,11 +194,9 @@ it.skipIf(!rootfs || process.platform !== "win32")("drives real isolated Nav2 fr
     noTourAutoReturn: true, physicalMotionSent: false, navigationReady: false }));
 }, 120_000);
 
-it.skipIf(!rootfs || process.platform !== "win32")("completes a product API detour with real Nav2 controller bounds intact", async () => {
+it.skipIf(!rootfs || !supported)("completes a product API detour with real Nav2 controller bounds intact", async () => {
   directory = await mkdtemp(path.join(os.tmpdir(), "lingxi-real-detour-"));
-  const output = `/api-detour-${Date.now()}`;
-  const backend = new StdioOfflineNavigationBackend("wsl.exe", ["-u", "root", "--", "bash",
-    "tools/nav2-offline-service-isolated.sh", rootfs!, "detour", output], process.cwd());
+  const { backend, output } = await isolatedBackend("detour");
   app = await buildServer({ offlineNavigationBackend: backend, stateDirectory: directory,
     staticDirectory: path.join(directory, "none"), internalAgentToken: "" });
   const paired = await app.inject({ method: "POST", url: "/api/v1/session/pair", payload: { pairingCode: "lingxi-dev-only" } });
