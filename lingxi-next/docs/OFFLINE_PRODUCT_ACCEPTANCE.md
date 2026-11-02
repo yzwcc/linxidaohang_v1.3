@@ -196,3 +196,12 @@ or deployment is authorized by completing an offline check.
   zero skips/failures; Windows: nine current registered ROS evidence tests pass.
   Production live wiring, calibrated support/clearance, ARM64 and field checks
   remain open. No robot connection, UI change, APK or deployment occurred.
+- [Read-only acquisition ground inspection](ACQUISITION_GROUND_INSPECTION_20261103.md)
+  repeats real native segmentation in two bounded independent children on the
+  preserved first/latest samples. Both contain zero native ground labels in
+  the unchanged declared floor band and mixed above-sensor native ground labels.
+  Lower-surface plane fits converge but fail residual consistency; no candidate
+  height/tilt is installed or accepted as physical calibration. Complete numeric
+  imports and source identity are checked. This narrows the ground-evidence
+  failure, not air-clearance, full registered-window or field acceptance. Final
+  focused Linux regression: 258 passed, zero skips/failures, actual native enabled.

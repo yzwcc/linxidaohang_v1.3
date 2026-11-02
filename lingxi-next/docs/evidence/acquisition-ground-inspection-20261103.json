@@ -1,0 +1,158 @@
+{
+  "schemaVersion": 1,
+  "purpose": "recorded_native_odom_ground_inspection_not_registered_navigation",
+  "host": "linux-x86_64",
+  "inputIntegrity": {
+    "receiptSha256": "3eee6f74e01f626fae66c56044769e252931d4c7423e38bdc39f42bcca40219b",
+    "configurationSha256": "52698b9b5320c7b1103ac38e07092f1366e1613fe8dfe3df7335cfd99759ef32",
+    "samplesSha256": {
+      "first": "e5fddfe78d41ff16ebbc2200ecdc980e5470d7e863040e68981e2ded440f2ea4",
+      "latest": "8d608941fdb0f963ef3a1e0f0f6c9d6ea5d434314b7679e7d7ab62422c5093b6"
+    },
+    "sampleFrames": {
+      "first": 1,
+      "latest": 164
+    },
+    "sourcesSha256": {
+      "tools/inspect_acquisition_ground.py": "0af3dbececb8e53f7b88b9ce122cccf24525bdc43517a1f2f5820e44e1eb475d",
+      "tools/check_ground_native.py": "cfa5ac5488d0254360bd8b433527d7d2b83a9ea7987a5c97bb125f6723537aa1",
+      "robot-navigation/lingxi_navigation/ground_inspection.py": "fb60ecbd58b3ec6c9003dfe62966785c9987fb654bb88fa7335c34af660f3ac5",
+      "robot-navigation/lingxi_navigation/ground.py": "58aa45a481cd6d51652c0ee4b862bc68a0f2507ead4f0e488d87a3569f54a2c9",
+      "robot-navigation/lingxi_navigation/recorded_occupancy.py": "af26d7a34ac77b484c976065c5340c7b1ed414eab2b2da5a0541f4f5e678511a",
+      "robot-navigation/lingxi_navigation/occupancy.py": "9807c3b12077dcd314d3413134f34248c1c9ebfcc9a11e8af10c8d549a088710",
+      "robot-slam/lingxi_slam/observation_archive.py": "9b6ea73238d2cc4cd8d96ad66da00d55a2380e9cfb3629ce966eb9f26d418e20"
+    },
+    "nativeLibrarySha256": "0f0f3b74dee2acccb520e6f7a95a668c268fe22a53f165821a5b8427dd4955a6",
+    "nativeBuildSha256": "54fb4cd727f116ec8c86666dd7e70042f254886d3b5f854bc6c83a853d84eafe"
+  },
+  "samples": [
+    {
+      "sample": "first",
+      "frame": 1,
+      "originalOriginSpanDeclaredMetres": 0.014236941424877964,
+      "returns": 7606,
+      "nativeLabels": {
+        "0": 627,
+        "254": 6979,
+        "255": 0
+      },
+      "nativeGroundInDeclaredFloorBand": 0,
+      "nativeGroundAboveSensor": 231,
+      "belowSensorCandidates": 396,
+      "declaredSensorHeightError": 0.014022032993672773,
+      "declaredFloorBandHasNativeGroundReturns": false,
+      "labelBytesSha256": "58740ab2bebb3d8f761b03f3354f118153dfc64a2ad890b5b13b6dcad17b1d03",
+      "planeHint": {
+        "solverConverged": true,
+        "geometricallyConsistent": false,
+        "verticalOffsetDeclaredMetres": 0.8300562868813574,
+        "tiltDegrees": 2.560206361475736,
+        "normalResidualDeclaredMetres": {
+          "median": 0.014287431615272607,
+          "p95": 0.0710389706660953,
+          "maximum": 0.140233169829875
+        },
+        "xySpreadDeclaredMetres": [
+          1.7279363905371865,
+          0.7415279119180856
+        ],
+        "status": "inconclusive_not_a_single_usable_plane"
+      },
+      "issues": [
+        "native_ground_labels_include_above_sensor_returns",
+        "declared_floor_band_has_no_native_ground_returns",
+        "below_sensor_plane_hint_inconclusive"
+      ],
+      "units": "declared_metres_not_physical_calibration",
+      "requiresPhysicalMeasurement": true,
+      "physicalFloorIdentified": false,
+      "physicalScaleValidated": false,
+      "groundSupportValidated": false,
+      "configurationApplied": false,
+      "navigationReady": false
+    },
+    {
+      "sample": "latest",
+      "frame": 164,
+      "originalOriginSpanDeclaredMetres": 0.011049697529001654,
+      "returns": 7602,
+      "nativeLabels": {
+        "0": 728,
+        "254": 6874,
+        "255": 0
+      },
+      "nativeGroundInDeclaredFloorBand": 0,
+      "nativeGroundAboveSensor": 296,
+      "belowSensorCandidates": 432,
+      "declaredSensorHeightError": 0.06037952188896545,
+      "declaredFloorBandHasNativeGroundReturns": false,
+      "labelBytesSha256": "8f1d7ae0053058f1a7875f64cb90d141712f2c66afd9ca74037c8739596abe92",
+      "planeHint": {
+        "solverConverged": true,
+        "geometricallyConsistent": false,
+        "verticalOffsetDeclaredMetres": 0.8280804703751671,
+        "tiltDegrees": 2.4792133886319014,
+        "normalResidualDeclaredMetres": {
+          "median": 0.013568753466616477,
+          "p95": 0.07018202517949082,
+          "maximum": 0.14086740896918562
+        },
+        "xySpreadDeclaredMetres": [
+          1.715762618194862,
+          0.7444639099352498
+        ],
+        "status": "inconclusive_not_a_single_usable_plane"
+      },
+      "issues": [
+        "native_ground_labels_include_above_sensor_returns",
+        "declared_floor_band_has_no_native_ground_returns",
+        "below_sensor_plane_hint_inconclusive"
+      ],
+      "units": "declared_metres_not_physical_calibration",
+      "requiresPhysicalMeasurement": true,
+      "physicalFloorIdentified": false,
+      "physicalScaleValidated": false,
+      "groundSupportValidated": false,
+      "configurationApplied": false,
+      "navigationReady": false
+    }
+  ],
+  "declaration": {
+    "sensor_height_metres": 0.6,
+    "ground_z_metres": 0.0,
+    "minimum_range_metres": 0.3,
+    "maximum_range_metres": 10.0,
+    "height_tolerance_metres": 0.08,
+    "maximum_height_spread_metres": 0.04,
+    "minimum_points_per_cell": 3,
+    "minimum_scans_per_cell": 2
+  },
+  "nativeRevision": "3e6903a1d5537a4cc2ace897b0bbb98a92d6014c",
+  "versions": {
+    "numpy": "2.5.4",
+    "scipy": "1.16.3"
+  },
+  "boundaries": {
+    "robotContacted": false,
+    "sensorsSubscribed": false,
+    "rosNodeStarted": false,
+    "physicalMotionSent": false,
+    "physicalScaleValidated": false,
+    "physicalFloorIdentified": false,
+    "groundSupportValidated": false,
+    "configurationApplied": false,
+    "navigationReady": false,
+    "arm64Executed": false,
+    "independentLocalizationAccuracyValidated": false
+  },
+  "result": "repeated_ground_inspection_not_physical_calibration",
+  "identicalRepeat": true,
+  "workerExitCodes": [
+    0,
+    0
+  ],
+  "privateLogSha256": {
+    "private-worker-0.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "private-worker-1.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+}
