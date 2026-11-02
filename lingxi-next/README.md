@@ -358,6 +358,17 @@ five latest frames per second. Timestamp-aligned TF supplies the common frame
 and robot heading; missing TF explicitly falls back to sensor coordinates with
 no accumulated trace. See `docs/LIDAR.md` for target configuration.
 
+The independent, non-vendor-SLAM product has a separate physical navigation
+adapter/client contract via `LINGXI_NAVIGATION_SOCKET`, disabled by default.
+It requires the explicit independent-product runtime and an external ROS 2/Nav2
+bridge; that physical bridge service is not yet supplied or installed by the
+generic commissioning package. Saved point clouds and HTTP health never grant
+navigation permission. All seven readiness checks must have fresh physical
+evidence, with map, calibration and footprint hashes bound to each response.
+Unconfirmed commands block new navigation until an explicit confirmed stop;
+transport failures are not reconnected or replayed. See the
+[physical bridge contract and remaining gates](docs/PHYSICAL_NAVIGATION_BRIDGE.md).
+
 Native navigation is disabled unless the AIMDK optional navigation component
 is available and its state topic is fresh. Only point-to-point targets,
 pause/resume, and stop are exposed; no velocity, arbitrary joint, or raw ROS

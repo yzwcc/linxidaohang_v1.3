@@ -157,7 +157,9 @@ export type RobotState = {
   activeMapId?: string;
   pose?: RobotPose;
   navigation: NavigationState;
-  navigationExecution?: { backend: "nav2-offline"; syntheticInputs: true; physicalMotionSent: false; navigationReady: false };
+  navigationExecution?:
+    | { backend: "nav2-offline"; syntheticInputs: true; physicalMotionSent: false; navigationReady: false }
+    | { backend: "nav2-ros2"; syntheticInputs: false; physicalMotionSent: boolean; navigationReady: boolean };
   mapGrid?: OccupancyGrid;
   maps: RobotMap[];
   savedSlamMaps?: SavedSlamMap[];

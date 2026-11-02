@@ -70,6 +70,21 @@ sudo systemctl enable --now lingxi-next-agent.service
 
 Java 不从客户端读取密钥，不打印回调内容，SDK 日志关闭。云端断开或关键唤醒/置信度字段缺失时，不继续派发动作。
 
+## 独立物理导航桥
+
+没有选配厂商 SLAM 时，独立产品可通过 `LINGXI_NAVIGATION_SOCKET` 接入外部
+ROS 2/Nav2 物理桥。默认保持关闭，仅 `independentProduct: true` 的运行时
+允许使用，普通 AIMDK 管理 API 不会自动切换。当前提供的是客户端适配契约，
+通用安装器尚不安装物理桥服务，不能把该配置当成已完成的实机导航包。
+
+API 与桥必须使用相同受限 UID，私有目录 `0700`、Socket `0600`。不替换
+AIMDK，不覆盖厂商系统。桥必须提供七项实时准入证据，地图保存或 `/health`
+成功均不代表导航可用。参阅 [物理桥契约](PHYSICAL_NAVIGATION_BRIDGE.md)。
+
+命令超时或回执不确定时禁止新导航，不能自动重连或重放旧动作；只有确认
+输出静止的显式 stop 才能清除适配器的不确定状态。Socket 传输失效时需要先
+现场确认停止、检查桥，再受控重启并确认 stop，不可把重启当作已停止证明。
+
 ## 升级与回滚
 
 升级包使用新的 VERSION，同一安装命令会先停止这三个独立服务、备份配置与数据，再切换链接。配置和厂商地图保留。升级后只有 API 自动启动；现场核对后再启动导航适配与语音，避免升级直接驱动机器人。
@@ -89,4 +104,4 @@ sudo bash /opt/lingxi-next/current/deploy/diagnose.sh
 sudo journalctl -u lingxi-next-api -u lingxi-next-aimdk -u lingxi-next-agent --since "10 minutes ago"
 ```
 
-诊断脚本只输出架构、服务结果、版本和健康结果，不打包地图、知识库、凭据或语音原文。`/health` 仅表示 HTTP 服务存活；管理页面的传感器与导航检查才表示接口是否就绪。
+诊断脚本只输出架构、服务结果、版本、物理桥配置/Socket 存在性和健康结果，不打包地图、知识库、凭据或语音原文。Socket 存在不代表桥监听或导航就绪。`/health` 仅表示 HTTP 服务存活；管理页面的传感器与导航检查才表示接口是否就绪。

@@ -28,6 +28,37 @@ if len(values) > 1:
 print(values[0] if values else 3000)
 PY
 )"
+python3 - /etc/lingxi-next/robot.env <<'PY'
+import pathlib
+import stat
+import sys
+
+config = pathlib.Path(sys.argv[1])
+values = []
+if config.exists():
+    for line in config.read_text().splitlines():
+        if line.startswith("LINGXI_NAVIGATION_SOCKET="):
+            values.append(line.partition("=")[2].strip())
+if len(values) > 1:
+    raise SystemExit("Invalid duplicate navigation bridge configuration")
+value = values[0] if values else ""
+if not value:
+    print("navigation bridge disabled")
+else:
+    endpoint = pathlib.Path(value)
+    if not endpoint.is_absolute() or str(endpoint) != value or len(value.encode("utf-8")) >= 100:
+        raise SystemExit("Invalid navigation bridge socket path")
+    try:
+        metadata = endpoint.lstat()
+    except FileNotFoundError:
+        print("navigation bridge configured but not listening (socket absent)")
+    else:
+        if not stat.S_ISSOCK(metadata.st_mode):
+            raise SystemExit("Invalid navigation bridge socket file type")
+        print("navigation bridge present (not a liveness or readiness check)")
+        if stat.S_IMODE(metadata.st_mode) != 0o600:
+            print("navigation bridge socket permissions require review (expected 0600)")
+PY
 curl --silent --show-error --max-time 3 --cacert /etc/lingxi-next/tls/ca.crt "https://127.0.0.1:$PORT/health"
 echo
 echo "For local error review: journalctl -u lingxi-next-api -u lingxi-next-aimdk -u lingxi-next-agent --since '10 minutes ago'"

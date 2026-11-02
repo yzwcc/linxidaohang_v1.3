@@ -137,7 +137,9 @@ export class UnixMappingBackend implements MappingBackend {
 export function mappingGuard(
   adapter: RobotAdapter, backend: MappingBackend, consoleMode = false,
   points?: { getPointEvent(): LidarEvent },
+  options: { physicalNavigation?: boolean } = {},
 ): RobotAdapter {
+  const physicalNavigation = options.physicalNavigation === true;
   const rejectMotion = async () => { throw new Error("独立建图验证模式不接受机器人运动或资源播放"); };
   return {
     demoMode: adapter.demoMode,
@@ -192,7 +194,9 @@ export function mappingGuard(
               : mapping.phase === "idle" ? "开始采集后检查实时点云"
                 : ["saving", "stopping"].includes(mapping.phase) ? "采集已结束，正在处理地图"
                   : freshLivePoints ? "当前建图会话实时点云已接收" : "等待当前会话的新鲜点云",
-        } : check.id === "navigation" ? { ...check, ready: false, detail: "独立建图验证期间不允许导航" } : check),
+        } : check.id === "navigation" && !physicalNavigation ? {
+          ...check, ready: false, detail: "独立建图验证期间不允许导航"
+        } : check),
       };
     },
     listMaps: () => adapter.listMaps(),
@@ -200,14 +204,14 @@ export function mappingGuard(
     startMapping: async () => { await backend.start(); },
     stopAndSaveMap: async () => { throw new Error("独立 SLAM 地图不能作为 AIMDK 地图激活"); },
     getStoredMapGrid: (map) => adapter.getStoredMapGrid(map),
-    activateMap: rejectMotion,
-    startNavigation: rejectMotion,
-    controlNavigation: (action, identity) => action === "stop"
+    activateMap: physicalNavigation ? (map, initialPose) => adapter.activateMap(map, initialPose) : rejectMotion,
+    startNavigation: physicalNavigation ? (point, map, taskId) => adapter.startNavigation(point, map, taskId) : rejectMotion,
+    controlNavigation: physicalNavigation ? (action, identity) => adapter.controlNavigation(action, identity) : (action, identity) => action === "stop"
       ? adapter.controlNavigation(action, identity) : rejectMotion(),
-    startPresetMotion: rejectMotion,
+    startPresetMotion: physicalNavigation ? (name, monitorCompletion) => adapter.startPresetMotion(name, monitorCompletion) : rejectMotion,
     waitPresetMotion: (identity) => adapter.waitPresetMotion(identity),
     playExpression: (name) => adapter.playExpression(name),
-    executeLinkcraftResource: rejectMotion,
+    executeLinkcraftResource: physicalNavigation ? (id) => adapter.executeLinkcraftResource(id) : rejectMotion,
     confirmActionsIdle: () => adapter.confirmActionsIdle(),
   };
 }

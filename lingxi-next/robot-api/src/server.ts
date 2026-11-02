@@ -13,7 +13,9 @@ import { extractBearer, pairingCodeHash, SessionManager, websocketBearer } from 
 import { AimdkAdapter } from "./adapters/aimdk";
 import { DemoAdapter } from "./adapters/demo";
 import { OfflineNavigationAdapter } from "./adapters/offline-navigation";
+import { PhysicalNavigationAdapter } from "./adapters/physical-navigation";
 import type { OfflineNavigationBackend } from "./offline-navigation-backend";
+import { UnixRosNavigationBackend, type PhysicalNavigationBackend } from "./physical-navigation-backend";
 import {
   aiSettingsSchema,
   pointSchema,
@@ -62,6 +64,7 @@ type ServerOptions = {
   independentProduct?: boolean;
   agentUrl?: string;
   offlineNavigationBackend?: OfflineNavigationBackend;
+  physicalNavigationBackend?: PhysicalNavigationBackend;
 };
 
 const emptySnapshot: RobotSnapshot = {
@@ -118,11 +121,16 @@ class HttpAgentSpeaker implements SpeechOutput {
 
 export async function buildServer(options: ServerOptions = {}): Promise<FastifyInstance> {
   const offlineNavigation = options.offlineNavigationBackend;
+  const independentProduct = options.independentProduct === true;
+  if (!independentProduct && (options.physicalNavigationBackend || process.env.LINGXI_NAVIGATION_SOCKET)) {
+    throw new Error("physical_navigation_requires_independent_product");
+  }
+  const physicalNavigation = options.physicalNavigationBackend ?? (process.env.LINGXI_NAVIGATION_SOCKET
+    ? new UnixRosNavigationBackend(process.env.LINGXI_NAVIGATION_SOCKET) : undefined);
   const demoMode = !!offlineNavigation || (options.demoMode ?? process.env.LINGXI_DEMO_MODE === "1");
   const mappingBackend = options.mappingBackend ?? (process.env.LINGXI_MAPPING_SOCKET
     ? new UnixMappingBackend(process.env.LINGXI_MAPPING_SOCKET) : undefined);
   const slamConsole = options.slamConsole === true;
-  const independentProduct = options.independentProduct === true;
   const sharedSlam = slamConsole || independentProduct;
   const mappingConsole = sharedSlam || options.mappingConsole === true;
   const localizationConsole = sharedSlam || options.localizationConsole === true;
@@ -140,7 +148,7 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
   }
   const isolatedConsole = mappingConsole || localizationConsole;
   if (offlineNavigation && (isolatedConsole || mappingBackend || localizationBackend || options.adapter ||
-      options.lidarSource || options.agentSpeaker || options.savedSlamDirectory || process.env.LINGXI_SAVED_SLAM_DIR)) {
+      options.lidarSource || options.agentSpeaker || options.savedSlamDirectory || process.env.LINGXI_SAVED_SLAM_DIR || physicalNavigation)) {
     throw new Error("isolated_offline_navigation_requires_only_own_backend");
   }
   if (mappingConsole && (!mappingBackend || options.adapter || options.lidarSource)) {
@@ -153,7 +161,14 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
   if (mappingBackend && !slamCatalog) throw new Error("independent_mapping_requires_saved_slam_directory");
   if (localizationBackend && !slamCatalog) throw new Error("localization_requires_saved_slam_directory");
   const mappingPoints = mappingBackend ? new MappingPointSource(mappingBackend, savedSlamDirectory!) : undefined;
-  const adapter = mappingBackend ? mappingGuard(baseAdapter, mappingBackend, mappingConsole, mappingPoints) : baseAdapter;
+  let adapter: RobotAdapter = physicalNavigation
+    ? new PhysicalNavigationAdapter(baseAdapter, physicalNavigation)
+    : baseAdapter;
+  if (mappingBackend) {
+    adapter = mappingGuard(adapter, mappingBackend, mappingConsole, mappingPoints, {
+      physicalNavigation: !!physicalNavigation,
+    });
+  }
   const store = new JsonStateStore(options.stateDirectory ?? process.env.LINGXI_DATA_DIR ?? path.resolve("var/lib/lingxi-next"));
   const hash = options.pairingCodeHash ?? process.env.LINGXI_PAIRING_CODE_SHA256 ??
     (demoMode ? pairingCodeHash(process.env.LINGXI_DEMO_PAIRING_CODE ?? "lingxi-dev-only") : "");
@@ -269,16 +284,18 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
   if (isolatedConsole) {
     app.addHook("onRequest", async (request, reply) => {
       const route = request.routeOptions.url ?? "";
+      const productConfigRoutes = ["/api/v1/settings/ai", "/api/v1/settings/credentials", "/api/v1/settings/navigation",
+        "/api/v1/points", "/api/v1/points/:id", "/api/v1/tours", "/api/v1/tours/:id", "/api/v1/tours/select"];
       if (independentProduct && (route === "/api/v1/agent/events" ||
-          ["/api/v1/settings/ai", "/api/v1/settings/credentials", "/api/v1/settings/navigation",
-            "/api/v1/points", "/api/v1/points/:id", "/api/v1/tours", "/api/v1/tours/:id",
-            "/api/v1/tours/select"].includes(route))) return;
-      const allowed = request.method === "POST" && [
+          productConfigRoutes.includes(route))) return;
+      const allowed = (request.method === "POST" && [
         "/api/v1/session/pair", "/api/v1/session/revoke",
         ...(mappingConsole ? ["/api/v1/mapping/start", "/api/v1/mapping/stop-save", "/api/v1/mapping/stop-discard"] : []),
+        ...(physicalNavigation ? ["/api/v1/tours/:id/start", "/api/v1/navigation/point",
+          "/api/v1/navigation/control", "/api/v1/actions/confirm-idle", "/api/v1/maps/:id/activate"] : []),
         ...(localizationConsole ? ["/api/v1/slam/localization/seed", "/api/v1/slam/localization/pause",
           "/api/v1/slam/localization/stop", "/api/v1/slam/localization/start", "/api/v1/slam/localization/shutdown"] : []),
-      ].includes(route);
+      ].includes(route));
       if (!allowed && !["GET", "HEAD", "OPTIONS"].includes(request.method)) {
         return reply.code(403).send({ message: independentProduct ? "独立导航与动作尚未接入，当前操作不可用" : slamConsole ? "SLAM 工作区仅允许建图、定位和配对操作" : localizationConsole
           ? "独立定位控制台仅允许定位和配对操作" : "独立建图控制台仅允许建图和配对操作" });
@@ -296,7 +313,7 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
         const runtime = await localizationBackend!.runtime!().then(validatedLocalizationRuntime).catch(() => undefined);
         snapshot.mappingControlReady = snapshot.mappingControlReady === true &&
           runtime?.closed === false && runtime.cleanupComplete && ["idle", "stopped", "failed"].includes(runtime.phase);
-        snapshot.navigation = { status: "idle", detail: independentProduct
+        if (!physicalNavigation) snapshot.navigation = { status: "idle", detail: independentProduct
           ? "独立导航待标定与实机验收" : "SLAM 工作区 · 导航尚未接入" };
         if (!independentProduct) return snapshot;
       }
@@ -522,7 +539,14 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
       if (!parsedPose.success) throw deny(400, "初始位姿参数无效");
       const state = await store.read();
       const maps = await adapter.listMaps().catch(() => []);
-      const map = maps.find((item) => item.id === request.params.id) ?? state.maps.find((item) => item.id === request.params.id);
+      let map = maps.find((item) => item.id === request.params.id) ?? state.maps.find((item) => item.id === request.params.id);
+      // A saved GLIM map is only promoted into the managed map set when an
+      // explicit physical bridge confirms activation. Catalog discovery is
+      // deliberately read-only and cannot create points or activate motion.
+      if (!map && physicalNavigation && slamCatalog) {
+        const saved = (await slamCatalog.list().catch(() => [])).find((item) => item.id === request.params.id);
+        if (saved) map = { id: saved.id, name: saved.name, active: false };
+      }
       if (!map) throw deny(404, "地图不存在或 AIMDK 未确认其可用");
       await adapter.activateMap(map, parsedPose.data.initialPose);
       await store.putMap(map);
@@ -546,6 +570,7 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
     }
     const state = await stateResponse();
     if (state.actionBusy) throw deny(409, "机器人动作状态未解除，请先检查动作服务状态");
+    if (physicalNavigation && state.navigation.requiresStop) throw deny(409, "请先确认导航已停止，再开始建图");
     if (jobs.hasActiveJob() || ["requested", "running", "paused"].includes(state.navigation.status)) {
       throw deny(409, "请先停止导航或讲解任务，再开始建图");
     }
@@ -594,7 +619,10 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
     const parsed = pointSchema.omit({ id: true }).safeParse(request.body);
     if (!parsed.success) throw deny(400, "点位数据无效");
     const state = await store.read();
-    if (!state.maps.some((map) => map.id === parsed.data.mapId)) throw deny(404, "地图不存在");
+    const savedSlamMap = physicalNavigation && slamCatalog
+      ? await slamCatalog.list().then((maps) => maps.some((map) => map.id === parsed.data.mapId)).catch(() => false)
+      : false;
+    if (!state.maps.some((map) => map.id === parsed.data.mapId) && !savedSlamMap) throw deny(404, "地图不存在");
     const point = await store.addPoint(parsed.data);
     emitState(await stateResponse());
     return reply.code(201).send({ point });
@@ -620,7 +648,7 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
   app.post<{ Body: unknown }>("/api/v1/tours", async (request, reply) => {
     const parsed = tourSchema.safeParse(request.body);
     if (!parsed.success) throw deny(400, "讲解任务数据无效");
-    await validateTour(parsed.data, store);
+    await validateTour(parsed.data, store, slamCatalog, !!physicalNavigation);
     await store.saveTour(parsed.data as TourTask);
     await store.selectTour(parsed.data.id);
     emitState(await stateResponse());
@@ -629,7 +657,7 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
   app.put<{ Params: { id: string }; Body: unknown }>("/api/v1/tours/:id", async (request) => {
     const parsed = tourSchema.safeParse({ ...(request.body as object), id: request.params.id, updatedAt: new Date().toISOString() });
     if (!parsed.success) throw deny(400, "讲解任务数据无效");
-    await validateTour(parsed.data, store);
+    await validateTour(parsed.data, store, slamCatalog, !!physicalNavigation);
     await store.saveTour(parsed.data as TourTask);
     emitState(await stateResponse());
     return { saved: true };
@@ -972,6 +1000,7 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
     await awaitStops().catch(() => undefined);
     await jobs.dispose().catch(() => undefined);
     await offlineNavigation?.close();
+    await physicalNavigation?.close();
   });
   return app;
 }
@@ -990,9 +1019,14 @@ export async function startServer(): Promise<void> {
   await app.listen({ host, port });
 }
 
-async function validateTour(tour: TourTask, store: JsonStateStore) {
+async function validateTour(tour: TourTask, store: JsonStateStore, slamCatalog?: SavedSlamMapCatalog, physicalNavigation = false) {
   const state = await store.read();
-  if (!state.maps.some((map) => map.id === tour.mapId)) throw Object.assign(new Error("讲解任务地图不存在"), { statusCode: 404 });
+  const inSavedSlamCatalog = physicalNavigation && slamCatalog
+    ? await slamCatalog.list().then((maps) => maps.some((map) => map.id === tour.mapId)).catch(() => false)
+    : false;
+  if (!state.maps.some((map) => map.id === tour.mapId) && !inSavedSlamCatalog) {
+    throw Object.assign(new Error("讲解任务地图不存在"), { statusCode: 404 });
+  }
   const points = new Map(state.points.map((point) => [point.id, point]));
   for (const step of tour.steps) {
     const point = points.get(step.pointId);

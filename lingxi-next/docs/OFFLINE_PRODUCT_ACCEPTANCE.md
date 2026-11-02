@@ -5,6 +5,20 @@ route. Earlier vendor-only acceptance records in ACCEPTANCE.md are historical;
 vendor SLAM licensing is not a prerequisite for this route. No robot connection
 or deployment is authorized by completing an offline check.
 
+The [physical-navigation client milestone](PHYSICAL_NAVIGATION_BRIDGE.md) adds
+explicit independent-product composition, saved-map activation, seven-gate
+admission, task/epoch acknowledgements and a private Unix transport. The external
+physical ROS 2/Nav2 bridge itself, evidence producers and robot output handoff
+remain required; a simulated ready reply is not field acceptance. Configuration
+is disabled by default and cannot enable the vendor or isolated offline runtime.
+Final current-source TypeScript regression: 614 passed / 21 skipped (635 total),
+zero failures. Frontend/API/runtime type checks, production Web build and API/SLAM
+entrypoint bundles passed. The 21 skips include three Linux Socket tests; separate
+actual WSL/Linux Unix roundtrip, correlation-failure and timeout-retirement checks
+passed, as did all eight Linux diagnostic checks and 39 AIMDK Python bridge tests.
+No robot connection, physical bridge service, new APK or full ARM64 release is
+established by this milestone.
+
 | Workstream | Current implemented scope | Required offline integration | Separate field acceptance |
 | --- | --- | --- | --- |
 | Mapping | GLIM CPU full local/global mapping, corrected point-cloud preview, save/reload, per-return observation archive, bounded corrected-history windows and immediate per-frame acquisition export | Observed-map API save/discard, moving replay and recorded immediate-ray export passed; passive live acquisition/terrain composition is wired and offline-tested, but target execution and throughput remain open | Measured scale/heading, loop closure, long walking scan, ARM64 resource limits |

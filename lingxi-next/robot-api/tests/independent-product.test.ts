@@ -9,6 +9,10 @@ import { DemoAdapter } from "../src/adapters/demo";
 import type { MappingBackend, MappingBackendState } from "../src/mapping-backend";
 import type { LocalizationBackend } from "../src/localization-backend";
 import { localizationFixture, localizationRuntimeFixture } from "./fixtures/localization-state";
+import { savedSlamFixture } from "./fixtures/saved-slam-map";
+import type { PhysicalNavigationBackend } from "../src/physical-navigation-backend";
+import type { PhysicalNavigationState } from "../../shared/physical-navigation";
+
 
 describe("explicit independent product composition with synthetic services", () => {
   let app: FastifyInstance, root: string, token: string;
@@ -106,5 +110,94 @@ describe("explicit independent product composition with synthetic services", () 
       { adapter: new DemoAdapter() }, { mappingBackend: undefined }, { localizationBackend: undefined }]) {
       await expect(buildServer({ ...options(), ...conflict })).rejects.toThrow();
     }
+  });
+  it("rejects a navigation socket outside the explicit independent product before creating a client", async () => {
+    vi.stubEnv("LINGXI_NAVIGATION_SOCKET", "/private/navigation.sock");
+    try {
+      await expect(buildServer({ demoMode: true })).rejects.toThrow("physical_navigation_requires_independent_product");
+    } finally { vi.unstubAllEnvs(); }
+  });
+});
+
+describe("physical navigation server composition", () => {
+  let app: FastifyInstance;
+  let root: string;
+
+  function physicalState(mapId: string, session: string, sequence: number): PhysicalNavigationState {
+    return {
+      protocol: 1, source: "ros2-nav2", session, sequence,
+      identity: {
+        mapId, receiptSha256: "c".repeat(64), calibrationSha256: "d".repeat(64),
+        footprintSha256: "e".repeat(64),
+      },
+      phase: "idle", detail: "", ticket: null, pointId: null, requiresStop: false,
+      outputQuiescent: true, pose: { x: 0, y: 0, yaw: 0 },
+      checks: { nav2Lifecycle: true, localization: true, tf: true, costmap: true,
+        terrain: true, footprint: true, velocityOutput: true },
+      navigationReady: true, physicalMotionSent: false,
+    };
+  }
+
+  afterEach(async () => {
+    await app?.close();
+    await rm(root, { recursive: true, force: true });
+  });
+
+  it("promotes a verified saved map only with a physical bridge", async () => {
+    root = await mkdtemp(path.join(tmpdir(), "lx-physical-product-"));
+    const maps = path.join(root, "maps");
+    await mkdir(maps);
+    const session = "a".repeat(32);
+    const fixture = await savedSlamFixture(maps, { session });
+    let sequence = 0;
+    const physical: PhysicalNavigationBackend = {
+      physical: true,
+      state: vi.fn(async () => physicalState(fixture.id, session, ++sequence)),
+      command: vi.fn(async () => physicalState(fixture.id, session, ++sequence)),
+      activateMap: vi.fn(async () => physicalState(fixture.id, session, ++sequence)),
+      close: vi.fn(async () => undefined),
+    };
+    const mapping: MappingBackend = {
+      state: vi.fn(async () => ({ backend: "glim", inputMode: "recorded", phase: "idle", session: null,
+        mapping: false, cleanupComplete: true })),
+      start: vi.fn(async () => ({ backend: "glim", inputMode: "recorded", phase: "running", session,
+        mapping: true, cleanupComplete: false })),
+      finish: vi.fn(async () => ({ session, saved: false, confirmed: true as const })),
+    };
+    const localization: LocalizationBackend = {
+      state: vi.fn(async () => localizationFixture()), command: vi.fn(),
+      runtime: vi.fn(async () => localizationRuntimeFixture()), lifecycle: vi.fn(),
+    };
+    app = await buildServer({ independentProduct: true, demoMode: true, mappingBackend: mapping,
+      localizationBackend: localization, physicalNavigationBackend: physical,
+      savedSlamDirectory: maps, stateDirectory: path.join(root, "state"),
+      staticDirectory: path.join(root, "absent"), pairingCodeHash: pairingCodeHash("physical-product"),
+      internalAgentToken: "synthetic-physical-agent" });
+    const token = (await app.inject({ method: "POST", url: "/api/v1/session/pair",
+      payload: { pairingCode: "physical-product" } })).json().token;
+    const headers = { authorization: `Bearer ${token}` };
+
+    const activate = await app.inject({ method: "POST", url: `/api/v1/maps/${fixture.id}/activate`, headers,
+      payload: {} });
+    expect(activate.statusCode).toBe(200);
+    expect(physical.activateMap).toHaveBeenCalledOnce();
+    expect((await app.inject({ url: "/api/v1/state", headers })).json().maps)
+      .toEqual(expect.arrayContaining([expect.objectContaining({ id: fixture.id, active: true })]));
+
+    const point = await app.inject({ method: "POST", url: "/api/v1/points", headers,
+      payload: { mapId: fixture.id, name: "入口", x: 0, y: 0, yaw: 0 } });
+    expect(point.statusCode).toBe(201);
+
+    const wake = await app.inject({ method: "POST", url: "/api/v1/agent/events",
+      headers: { "x-agent-token": "synthetic-physical-agent" },
+      payload: { kind: "wake", eventId: "physical-wake", sessionId: "physical-voice-session", occurredAt: Date.now() } });
+    expect(wake.statusCode).toBe(204);
+    const question = await app.inject({ method: "POST", url: "/api/v1/agent/events",
+      headers: { "x-agent-token": "synthetic-physical-agent" },
+      payload: { kind: "recognition", eventId: "physical-question", sessionId: "physical-voice-session",
+        occurredAt: Date.now(), transcript: "请问展馆的开放时间是什么？", confidence: 0.99, isFinal: true } });
+    expect(question.statusCode).toBe(200);
+    expect(question.json()).toMatchObject({ category: "rejected", speechDelivered: true });
+    expect(physical.command).not.toHaveBeenCalled();
   });
 });
