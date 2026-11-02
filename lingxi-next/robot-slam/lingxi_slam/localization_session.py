@@ -359,6 +359,38 @@ class LocalizationSession:
             self._publish(generation, result)
         return self.state()
 
+    def register_acquisition(self, packet, points, *, received_at, expected_generation):
+        """Register only the current tracking frame, with its original ingress receipt."""
+        from .registered_acquisition import register_acquisition
+        self._owner()
+        if type(expected_generation) is not int or expected_generation < 0:
+            raise ValueError("explicit_acquisition_localization_generation_required")
+
+        def current(now):
+            return (self.accepting and self.pending is None and self.phase == "tracking"
+                    and self.pose is not None and expected_generation == self.generation
+                    and type(points) is PointPacket and self.last_frame == points.native_frame_id
+                    and self.latest is not None
+                    and self.latest[0].native_frame_id == points.native_frame_id
+                    and self.latest[0].algorithm_stamp == points.algorithm_stamp
+                    and type(received_at) in (float, int) and math.isfinite(received_at)
+                    and self.latest[1] == self.freshness_at == received_at
+                    and 0 <= now - received_at <= self.maximum_age)
+
+        with self.lock:
+            now = self._now_locked()
+            self._expire_locked(now)
+            if not current(now):
+                return None
+            pose = np.array(self.pose, dtype=np.float64)
+        result = register_acquisition(packet, points, binding=self.binding,
+            generation=expected_generation, received_at=received_at, map_from_lidar=pose)
+        # A management thread may have paused/reseeded during the array copy.
+        with self.lock:
+            now = self._now_locked()
+            self._expire_locked(now)
+            return result if current(now) else None
+
     def close_worker(self, *, failed=False):
         if threading.get_ident() != self.owner:
             raise RuntimeError("same_localization_worker_cleanup_owner_required")

@@ -33,6 +33,8 @@ SOURCES = (
     "robot-slam/lingxi_slam/worker.py",
     "robot-slam/lingxi_slam/stream.py",
     "robot-slam/lingxi_slam/point_output.py",
+    "robot-slam/lingxi_slam/acquisition_output.py",
+    "robot-slam/lingxi_slam/registered_acquisition.py",
     "tools/run_glim_supervised_replay.py",
     "robot-slam/lingxi_slam/map_provenance.py",
     "robot-slam/lingxi_slam/base_pose.py",

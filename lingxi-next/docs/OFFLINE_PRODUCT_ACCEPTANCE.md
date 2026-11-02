@@ -1,16 +1,16 @@
 # Full Product Offline Workstream
 
-Updated 2026-11-01. This is the active scope for the independent open-source
+Updated 2026-11-03. This is the active scope for the independent open-source
 route. Earlier vendor-only acceptance records in ACCEPTANCE.md are historical;
 vendor SLAM licensing is not a prerequisite for this route. No robot connection
 or deployment is authorized by completing an offline check.
 
 | Workstream | Current implemented scope | Required offline integration | Separate field acceptance |
 | --- | --- | --- | --- |
-| Mapping | GLIM CPU full local/global mapping, corrected point-cloud preview, save/reload, per-return observation archive, bounded corrected-history windows and immediate per-frame acquisition export | Observed-map API save/discard, two-submap moving replay and actual recorded immediate-ray export passed; live receipt/registration composition and overload regression remain required | Measured scale/heading, loop closure, long walking scan, ARM64 resource limits |
-| Localization | Explicit seeded small-gicp tracking, original-ingress pose freshness, generation-bound callbacks, map provenance, base projection | Replay tracking, bad seeds, loss/recovery, stale generation and current observed-map loading | Independent moving trajectory and ground-truth errors; global relocalization remains a separate capability |
+| Mapping | GLIM CPU full local/global mapping, corrected point-cloud preview, save/reload, per-return observation archive, bounded corrected-history windows and immediate per-frame acquisition export | Observed-map API save/discard, two-submap moving replay and actual recorded immediate-ray export passed; original receipt/same-frame registration and bounded terrain-source composition passed offline; production live wiring remains required | Measured scale/heading, loop closure, long walking scan, ARM64 resource limits |
+| Localization | Explicit seeded small-gicp tracking, original-ingress pose freshness, generation-bound callbacks, same-frame acquisition registration, map provenance, base projection | Replay tracking, bad seeds, loss/recovery, stale generation, current observed-map loading and registration/retirement tests; combined real GLIM/terrain replay remains required | Independent moving trajectory and ground-truth errors; global relocalization remains a separate capability |
 | Global planning | Pinned native Nav2 NavFn over explicit costmaps | Unknown space, blocked goals, complete path identity and bounded worker | Map scale, robot clearance and actual route reachability |
-| Occupancy and ground | Pinned OctoMap acquisition-time rays and Patchwork++ ground fusion; bounded corrected-window producer; repeated recorded replays and actual native terrain-to-Nav2 synthetic trials passed; moving declaration explicitly rejected | Wire supervised live registration/localization and terrain transport; declared-frame results remain separate from metric admission; current static recording has zero supported free cells | Physical scale, ground support, blind spots and real obstacle visibility |
+| Occupancy and ground | Pinned OctoMap acquisition-time rays and Patchwork++ ground fusion; bounded corrected-window producer and generation-bound registered source; recorded replay, actual native terrain-to-Nav2 and registered-source synthetic trials passed | Wire the production live factories and registered-source ROS consumption; declared-frame results remain separate from metric admission; current static recording has zero supported free cells | Physical scale, ground support, blind spots and real obstacle visibility |
 | Local navigation | Real ROS Humble NavFn + RPP + closed-loop smoother passed six synthetic scenes; native OctoMap revisions preserve independent support; paired API/concurrent Web polling passed; DDS publication-age rejection verified in isolated Humble | Integrate recorded metric localization/occupancy/ground support, controller-computation/physical-transport freshness and guarded AIMDK handoff | Walking dynamics, stopping distance, dynamic people/obstacles and emergency stop |
 | Tours and tasks | Multi-point/round sequencing, one retry then skip, manual pause, dialogue quiet-resume, return policy; correlated narration-stop barriers and late-callback tests; real offline Nav2 two-point tour, voice pause/resume and Q&A/no-return passed | Recorded backend integration and actual AgentSDK completion/stop correlation | Actual arrival, interruption/resume and narration at each point |
 | Voice and AI | AgentSDK passive-event gating, deduplication, allowlists, evidence-bound retrieval, timeout/streaming; cloud cancellation, failed-playback stop barriers and superseded-turn regressions passed | Real AgentSDK playback correlation, live cloud matrix and end-to-end latency; offline workspace deliberately stubs playback and disables cloud | 100-wake/8-hour negatives, zero forbidden execution, acoustic P95 first response <=2 s |
@@ -155,3 +155,16 @@ or deployment is authorized by completing an offline check.
   The static replay retains its IMU/extrinsic quality warnings. Original receipt,
   localization generation, saved-map registration and live terrain composition
   remain open, as do ARM64 runtime and physical navigation acceptance.
+- [Registered acquisition and terrain verification](REGISTERED_TERRAIN_VERIFICATION_20261103.md)
+  pairs immediate acquisition with the original scan receipt and same-frame
+  localization generation, transforms both ray ends into saved-map raw units,
+  and composes bounded declared-frame windows with the supervised terrain lane.
+  All 37 new tests and 212 focused regression tests passed with actual terrain
+  libraries and zero skips. This includes a complete synthetic callback chain
+  and a real Patchwork++/OctoMap child after synthetic session registration.
+  Full Python regression: 1,630 discovered, 1,562 passed, 68 optional-environment
+  skips, zero failures/errors; skipped checks are not acceptance evidence.
+  Pause, stop, reseed, loss, expiry and altered result identity cannot revive
+  old terrain. Production live wiring, combined real GLIM/terrain replay,
+  registered-source ROS consumption, metric admission, ARM64 execution and
+  physical navigation remain open. No robot contact or deployment occurred.

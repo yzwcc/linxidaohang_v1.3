@@ -1,5 +1,6 @@
 """Thread ownership, nonblocking reads, idle health and terminal retirement."""
 from dataclasses import replace
+import hashlib
 from pathlib import Path
 import sys
 import threading
@@ -10,6 +11,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(ROOT / 'robot-navigation'), str(Path(__file__).parent)]
 from lingxi_navigation.terrain_lane import TerrainLane
 from lingxi_navigation.terrain_process import TerrainGrid
+from lingxi_navigation.occupancy import canonical
 from test_ground import observations, spec
 
 
@@ -39,8 +41,10 @@ class FakeProcess:
     def update(self, data, *, sequence, received_at):
         self.record('update')
         assert self.release.wait(2.)
+        epoch = hashlib.sha256(canonical([data.map_id, data.receipt_sha256,
+            data.binding_sha256, data.geometry_declaration_sha256])).hexdigest()
         self.grid = TerrainGrid(self.session, sequence, data.sha256, data.revision,
-            'b' * 64, spec(), bytes(spec().width * spec().height), received_at, received_at + .2)
+            epoch, spec(), bytes(spec().width * spec().height), received_at, received_at + .2)
         return self.grid
 
     def current(self):

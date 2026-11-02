@@ -139,19 +139,31 @@ def load_map(directory, map_id, receipt_sha256, profile, profile_sha256, *, sess
 class LocalizedNative:
     """Compose localization on the existing point worker; no new native thread."""
 
-    def __init__(self, session, native_factory):
+    def __init__(self, session, native_factory, *, acquisition_output=None, on_acquisition=None):
         if not isinstance(session, LocalizationSession) or not callable(native_factory):
             raise ValueError("localization_session_and_point_native_factory_required")
+        if acquisition_output is not None or on_acquisition is not None:
+            from lingxi_slam.acquisition_output import NativeAcquisitionOutput
+            if type(acquisition_output) is not NativeAcquisitionOutput or not callable(on_acquisition):
+                raise ValueError("paired_native_acquisition_output_and_consumer_required")
+            acquisition_output.active()
+        self.acquisition_output, self.on_acquisition = acquisition_output, on_acquisition
         self.session, self.closed, self.failed = session, False, False
         self.owner = threading.get_ident()
         self.current_scan = None
+        self.current_points = None
         self.point_delivered = False
         self.last_stamp = self.last_received_at = None
-        session.open_worker()
         try:
+            session.open_worker()
             self.native = native_factory(self.accept)
         except BaseException:
-            session.close_worker(failed=True)
+            try:
+                if session.owner == self.owner:
+                    session.close_worker(failed=True)
+            finally:
+                if self.acquisition_output is not None:
+                    self.acquisition_output.close()
             raise
 
     def accept(self, packet):
@@ -162,6 +174,7 @@ class LocalizedNative:
                 or packet.algorithm_stamp != context[0]):
             raise RuntimeError("current_single_matching_localization_scan_required")
         self.point_delivered = True
+        self.current_points = packet
         return self.session.observe(
             packet, session=self.session.binding.session,
             input_mode=self.session.binding.input_mode, received_at=context[1],
@@ -201,14 +214,26 @@ class LocalizedNative:
             self.session.tick()
             self.current_scan = (stamp, scan.received_at, self.session.state()["generation"])
             self.point_delivered = False
+            self.current_points = None
             self.last_stamp, self.last_received_at = stamp, scan.received_at
-            return self.native.frame(stamp, scan.points, scan.offsets)
+            result = self.native.frame(stamp, scan.points, scan.offsets)
+            if self.acquisition_output is not None:
+                packet = self.acquisition_output.take(stamp, result[0])
+                if (packet is None) != (self.current_points is None):
+                    raise RuntimeError("same_frame_point_and_acquisition_delivery_required")
+                if packet is not None:
+                    registered = self.session.register_acquisition(packet, self.current_points,
+                        received_at=self.current_scan[1], expected_generation=self.current_scan[2])
+                    if registered is not None:
+                        self.on_acquisition(registered)
+            return result
         except BaseException:
             self.failed = True
             self.session.stop_admission()
             raise
         finally:
             self.current_scan = None
+            self.current_points = None
             self.point_delivered = False
 
     def close(self):
@@ -223,7 +248,15 @@ class LocalizedNative:
             self.failed = True
             raise
         finally:
-            self.session.close_worker(failed=self.failed)
+            try:
+                if self.acquisition_output is not None:
+                    try:
+                        self.acquisition_output.close()
+                    except BaseException:
+                        self.failed = True
+                        raise
+            finally:
+                self.session.close_worker(failed=self.failed)
 
 
 def strict_json(payload):
