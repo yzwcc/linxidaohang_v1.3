@@ -16,6 +16,9 @@ The 29 ARM64 contracts were compiled/listed, not run on the target.
 acquisition packets retain their original scan receipt and localization binding.
 Optional declared terrain uses `RegisteredTerrainSource`, `TerrainLane` and a
 supervised `TerrainProcess`; it does not publish a ROS grid or connect to motion.
+The subsequent [private ROS output integration](LIVE_TERRAIN_ROS_WIRING_20261103.md)
+adds an explicit optional output mode to this composition. The original
+no-output behavior and the historical results below remain unchanged.
 
 ## Explicit Selection
 

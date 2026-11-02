@@ -41,6 +41,7 @@ SOURCES = (
     "robot-slam/lingxi_slam/base_pose_input.py",
     "robot-runtime/python/live_base_pose.py",
     "robot-runtime/python/live_acquisition.py",
+    "robot-runtime/python/live_terrain_ros.py",
     "robot-runtime/python/acquisition_bundle.py",
 )
 

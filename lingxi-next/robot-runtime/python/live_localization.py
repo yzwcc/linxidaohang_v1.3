@@ -174,8 +174,16 @@ def child(args, sink, platform):
         with LocalizationControlServer(args.output / "localization.sock", session) as server:
             server.start()
             def runner(*args, **kwargs):
-                return run_passive(*args, **kwargs, **({
-                    "setup": base_owner.setup, "on_sensor": base_owner.sensor} if base_owner is not None else {}))
+                terrain_owner = acquisition.ros_output if acquisition is not None else None
+                options = {}
+                if terrain_owner is not None:
+                    from live_terrain_ros import setup_localization_ros
+                    options['setup'] = lambda node: setup_localization_ros(node, base_owner, terrain_owner)
+                elif base_owner is not None:
+                    options['setup'] = base_owner.setup
+                if base_owner is not None:
+                    options['on_sensor'] = base_owner.sensor
+                return run_passive(*args, **kwargs, **options)
             live = serve(worker, Topics(CLOUD, IMU), sink, runner=runner,
                          session=binding.session, seconds=platform.value["maxSeconds"], on_stopping=revoke,
                          writer_failed=acquisition.unavailable if acquisition is not None else lambda: False)

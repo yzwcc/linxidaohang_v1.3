@@ -164,8 +164,25 @@ class SettingsTests(SettingsFixture, unittest.TestCase):
         geometry, projection, declaration = settings.terrain
         self.assertEqual((1., .6), (geometry.metres_per_raw_unit, declaration.sensor_height_metres))
         self.assertEqual(spec(), projection)
+        self.assertFalse(settings.ros_output)
         self.ground_check.assert_called()
         self.assertNotIn('navigationReady', self.value)
+
+    def test_ros_output_requires_explicit_private_mode_and_existing_declared_terrain(self):
+        self.value['rosOutput'] = {'mode': 'private_declared_terrain'}
+        self.write()
+        with self.assertRaisesRegex(ValueError, 'explicit_private_declared_terrain'):
+            self.settings()
+        self.terrain()
+        settings = self.settings()
+        self.assertTrue(settings.ros_output)
+        self.assertEqual('private_declared_terrain', settings.frozen['rosOutputMode'])
+        self.assertTrue(set(live.ROS_SOURCES) <= set(settings.frozen['sourceSha256']))
+        for value in (None, True, {'mode': 'live_navigation'}, {'mode': 'private_declared_terrain', 'topic': '/map'}):
+            self.value['rosOutput'] = value
+            self.write()
+            with self.assertRaisesRegex(ValueError, 'explicit_private_declared_terrain'):
+                self.settings()
 
     def test_wrong_terrain_architecture_build_source_or_dependency_is_rejected(self):
         terrain = self.terrain()
@@ -308,6 +325,21 @@ class CompositionTests(SettingsFixture, unittest.TestCase):
         self.assertNotEqual(threading.get_ident(), self.native_calls[0][1])
         self.assertTrue(composition.summary()['nativeClosed'])
 
+    def test_explicit_ros_owner_starts_without_source_and_closed_composition_hides_late_grid(self):
+        self.terrain()
+        self.value['rosOutput'] = {'mode': 'private_declared_terrain'}
+        self.write()
+        composition = live.AcquisitionComposition(self.settings(), self.session, self.root)
+        self.addCleanup(composition.finish)
+        self.assertIsNotNone(composition.ros_output)
+        self.assertFalse(composition.ros_output.started)
+        self.assertEqual('starting', composition.terrain_snapshot().state)
+        composition.revoke()
+        source = Mock()
+        with patch.object(composition, 'source', source):
+            self.assertIsNone(composition.terrain_snapshot().grid)
+            source.snapshot.assert_not_called()
+
     def test_wrong_owner_close_and_duplicate_factory_do_not_touch_native(self):
         self.open()
         self.assertIsInstance(other_thread(self.native.close)[0], RuntimeError)
@@ -417,6 +449,29 @@ class CompositionTests(SettingsFixture, unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'unchanged_acquisition'):
             self.composition.finish()
         self.path.write_bytes(before)
+
+    def test_ros_terminal_requires_selected_mode_and_complete_owned_shutdown(self):
+        self.track()
+        self.native.close()
+        report = self.composition.finish()
+        expected = dict(self.composition.settings.frozen, rosOutputMode='private_declared_terrain')
+        ros = dict(mode='private_declared_terrain', started=True, closed=True, failed=False,
+            publications=2, physicalScaleValidated=False, groundSupportValidated=False,
+            physicalMotionSent=False, navigationReady=False)
+        value = dict(report, inputIntegrity=expected, terrainRosOutput=ros)
+        live.verify_terminal(value, expected, estimated_poses=self.frames)
+        for malformed in (None, [], 'invalid', 1):
+            for identity in (expected, self.composition.settings.frozen):
+                with self.subTest(malformed=malformed), self.assertRaisesRegex(ValueError, 'passive_acquisition_cleanup'):
+                    live.verify_terminal(malformed, identity, estimated_poses=self.frames)
+        for key, change in (('started', False), ('closed', False), ('failed', True),
+                ('publications', 1), ('publications', True), ('navigationReady', True), ('physicalMotionSent', True)):
+            with self.subTest(key=key), self.assertRaisesRegex(ValueError, 'passive_ros_terrain_cleanup'):
+                live.verify_terminal(dict(value, terrainRosOutput=dict(ros, **{key: change})), expected,
+                    estimated_poses=self.frames)
+        with self.assertRaisesRegex(ValueError, 'explicit_passive_ros_terrain_selection'):
+            live.verify_terminal(dict(report, terrainRosOutput=ros), self.composition.settings.frozen,
+                estimated_poses=self.frames)
 
 
 @unittest.skipUnless(AVAILABLE and sys.platform == 'linux', 'requires Linux runtime dependencies')

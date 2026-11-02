@@ -1,4 +1,4 @@
-"""Explicit passive acquisition composition; no ROS map or motion publication."""
+"""Explicit passive acquisition; optional private ROS terrain, never motion."""
 from pathlib import Path
 import sys
 import threading
@@ -13,7 +13,7 @@ from lingxi_slam.acquisition_output import NativeAcquisitionOutput
 from lingxi_navigation.ground import GroundDeclaration
 from lingxi_navigation.occupancy import ClearanceProjection, DEPENDENCIES, canonical, digest_value
 from lingxi_navigation.recorded_occupancy import OfflineGeometry
-from lingxi_navigation.terrain_lane import TerrainLane
+from lingxi_navigation.terrain_lane import TerrainLane, LaneSnapshot
 from lingxi_navigation.terrain_process import TerrainProcess
 
 PURPOSE = 'passive_acquisition_and_declared_terrain_not_navigation'
@@ -24,6 +24,8 @@ SOURCES = ('robot-runtime/python/live_acquisition.py', 'robot-runtime/python/acq
     'robot-navigation/lingxi_navigation/terrain_worker.py', 'robot-navigation/lingxi_navigation/ground.py',
     'robot-navigation/lingxi_navigation/occupancy.py', 'robot-navigation/lingxi_navigation/recorded_occupancy.py',
     'tools/check_ground_native.py')
+ROS_SOURCES = ('robot-runtime/python/live_terrain_ros.py',
+    'robot-navigation/lingxi_navigation/terrain_ros.py', 'robot-navigation/lingxi_navigation/terrain_feed.py')
 
 
 def metadata(path, expected, maximum=262144):
@@ -92,12 +94,16 @@ class AcquisitionSettings:
             raise ValueError('bounded_local_acquisition_settings_required')
         payload = self.path.read_bytes()
         value = strict_json(payload)
-        if (type(value) is not dict or set(value) not in (
-                {'schemaVersion', 'purpose', 'acquisition'}, {'schemaVersion', 'purpose', 'acquisition', 'terrain'})
+        if (type(value) is not dict or not {'schemaVersion', 'purpose', 'acquisition'} <= set(value)
+                or set(value) - {'schemaVersion', 'purpose', 'acquisition', 'terrain', 'rosOutput'}
                 or type(value['schemaVersion']) is not int or value['schemaVersion'] != 1
                 or value['purpose'] != PURPOSE or type(value['acquisition']) is not dict
                 or set(value['acquisition']) != {'root', 'manifestSha256'}):
             raise ValueError('explicit_passive_acquisition_settings_required')
+        self.ros_output = 'rosOutput' in value
+        if self.ros_output and ('terrain' not in value or type(value['rosOutput']) is not dict
+                or value['rosOutput'] != {'mode': 'private_declared_terrain'}):
+            raise ValueError('explicit_private_declared_terrain_ros_output_required')
         selection = value['acquisition']
         root = Path(selection['root'])
         bundle = acquisition_bundle.verify_bundle(root, selection['manifestSha256'],
@@ -125,7 +131,10 @@ class AcquisitionSettings:
                     raise ValueError('matching_arm64_terrain_native_libraries_required')
         frozen = dict(settingsSha256=digest(payload), acquisitionManifestSha256=selection['manifestSha256'],
             acquisitionLibrarySha256=self.library_sha256, odometryConfigurationSha256=digest(config_bytes),
-            sourceSha256={name: digest((ROOT / name).read_bytes()) for name in SOURCES})
+            sourceSha256={name: digest((ROOT / name).read_bytes()) for name in
+                (*SOURCES, *(ROS_SOURCES if self.ros_output else ()))})
+        if self.ros_output:
+            frozen['rosOutputMode'] = 'private_declared_terrain'
         if self.path.read_bytes() != payload or config_path.read_bytes() != config_bytes:
             raise ValueError('unchanged_acquisition_settings_during_preflight_required')
         return frozen
@@ -156,6 +165,19 @@ class AcquisitionComposition:
         self.failure_reason = self.retirement_reason = None
         self.counts = None
         self.registered_packets = self.registered_returns = self.submissions = 0
+        self.ros_output = None
+        if settings.ros_output:
+            from live_terrain_ros import LiveTerrainRosOutput
+            self.ros_output = LiveTerrainRosOutput(settings.terrain[1], self.terrain_snapshot, self.revoke)
+
+    def terrain_snapshot(self):
+        with self.lock:
+            source, closed = self.source, self.closed
+        if closed:
+            return LaneSnapshot(0, 'retired', failure='live_acquisition_revoked')
+        if source is not None:
+            return source.snapshot()
+        return LaneSnapshot(0, 'starting', failure='terrain_starting')
 
     def factory(self, point_factory):
         with self.lock:
@@ -287,11 +309,27 @@ class AcquisitionComposition:
             terrainChildCleaned=self.lane is None or self.service is not None and self.service.cleanup_complete,
             failed=self.failed, failureReason=self.failure_reason, retirementReason=self.retirement_reason,
             inputIntegrity=self.settings.frozen,
+            **({'terrainRosOutput': self.ros_output.summary()} if self.ros_output is not None else {}),
             physicalScaleValidated=False, groundSupportValidated=False, navigationReady=False)
 
 
 def verify_terminal(value, expected, *, estimated_poses):
-    if (type(value) is not dict or value.get('inputIntegrity') != expected
+    if type(value) is not dict:
+        raise ValueError('complete_passive_acquisition_cleanup_required')
+    ros = value.get('terrainRosOutput')
+    if 'rosOutputMode' in expected:
+        if (expected['rosOutputMode'] != 'private_declared_terrain' or value.get('terrainConfigured') is not True
+                or type(ros) is not dict or set(ros) != {'mode', 'started', 'closed', 'failed', 'publications',
+                    'physicalScaleValidated', 'groundSupportValidated', 'physicalMotionSent', 'navigationReady'}
+                or ros.get('mode') != expected['rosOutputMode']
+                or ros.get('started') is not True or ros.get('closed') is not True or ros.get('failed') is not False
+                or type(ros.get('publications')) is not int or ros['publications'] < 2
+                or any(ros.get(key) is not False for key in ('physicalScaleValidated',
+                    'groundSupportValidated', 'physicalMotionSent', 'navigationReady'))):
+            raise ValueError('complete_passive_ros_terrain_cleanup_required')
+    elif ros is not None:
+        raise ValueError('explicit_passive_ros_terrain_selection_required')
+    if (value.get('inputIntegrity') != expected
             or value.get('configured') is not True or value.get('nativeCreated') is not True
             or type(value.get('terrainConfigured')) is not bool or value.get('failureReason') is not None
             or any(value.get(name) is not True for name in ('nativeClosed', 'sourceRetired', 'gridAbsent',

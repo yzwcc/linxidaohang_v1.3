@@ -93,7 +93,9 @@ class SlamBundleContracts(unittest.TestCase):
         native += ["robot-slam/native-acquisition-output/" + name for name in (
             "acquisition.h", "acquisition.cpp", "acquisition_contract.cpp", "CMakeLists.txt", "exports.map")]
         native += list(PROFILE.metadata) + ["robot-navigation/lingxi_navigation/terrain_worker.py",
-            "robot-navigation/lingxi_navigation/terrain_process.py", "robot-runtime/python/live_acquisition.py"]
+            "robot-navigation/lingxi_navigation/terrain_process.py", "robot-runtime/python/live_acquisition.py",
+            "robot-runtime/python/live_terrain_ros.py", "robot-navigation/lingxi_navigation/terrain_ros.py",
+            "robot-navigation/lingxi_navigation/terrain_feed.py"]
         for name in native:
             with self.subTest(name=name):
                 self.assertEqual(bundle.sha256(ROOT / name), sources[name])
@@ -117,16 +119,16 @@ class SlamBundleContracts(unittest.TestCase):
 import hashlib, json, pathlib, runpy, sys
 source = pathlib.Path({str(source)!r})
 runpy.run_path(str(source / 'robot-runtime/python/launch_slam_bundle.py'))
-import managed_slam, slam_service, localization_service, live_acquisition, acquisition_bundle, check_ground_native
+import managed_slam, slam_service, localization_service, live_acquisition, live_terrain_ros, acquisition_bundle, check_ground_native
 from lingxi_navigation import terrain_worker, terrain_process
 from lingxi_slam import acquisition_output
-modules = (managed_slam, slam_service, localization_service, live_acquisition, acquisition_bundle,
+modules = (managed_slam, slam_service, localization_service, live_acquisition, live_terrain_ros, acquisition_bundle,
            check_ground_native, terrain_worker, terrain_process, acquisition_output)
 assert all(pathlib.Path(module.__file__).resolve().is_relative_to(source) for module in modules)
 assert live_acquisition.ROOT == source
 assert acquisition_bundle.ROOT == source
 hashes = acquisition_bundle.source_hashes()
-for name in live_acquisition.SOURCES:
+for name in (*live_acquisition.SOURCES, *live_acquisition.ROS_SOURCES):
     hashes[name] = hashlib.sha256((source / name).read_bytes()).hexdigest()
 assert not any(str({str(ROOT)!r}) == entry for entry in sys.path)
 print(json.dumps({{'modules': len(modules), 'sourceFiles': len(hashes), 'nativeExecuted': False}}))
@@ -135,7 +137,7 @@ print(json.dumps({{'modules': len(modules), 'sourceFiles': len(hashes), 'nativeE
             capture_output=True, text=True, timeout=30, check=False)
         self.assertEqual(0, result.returncode, result.stderr)
         report = json.loads(result.stdout)
-        self.assertEqual(9, report["modules"])
+        self.assertEqual(10, report["modules"])
         self.assertGreater(report["sourceFiles"], 20)
         self.assertFalse(report["nativeExecuted"])
 
