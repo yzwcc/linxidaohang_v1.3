@@ -75,3 +75,8 @@ Follow-up: [passive live acquisition wiring](LIVE_ACQUISITION_WIRING_20261103.md
 adds the optional operator-selected lifecycle composition. That later offline
 milestone does not change this component's zero ARM64 target executions or
 constitute deployment, physical calibration or navigation acceptance.
+
+The [target trial preparation](ACQUISITION_ARM64_TARGET_PREPARATION_20261103.md)
+now supplies the source-bound isolated loader and all 29 synthetic target
+checks. Its input bundle and x86 helper control have passed offline checks;
+direct LAN access still blocks actual ARM64 acquisition execution.
