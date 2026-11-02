@@ -205,3 +205,11 @@ or deployment is authorized by completing an offline check.
   imports and source identity are checked. This narrows the ground-evidence
   failure, not air-clearance, full registered-window or field acceptance. Final
   focused Linux regression: 258 passed, zero skips/failures, actual native enabled.
+- [ARM64 per-return acquisition component](ACQUISITION_ARM64_COMPONENT_20261103.md)
+  compiles and links the current host-tested adapter and fixture using the
+  existing pinned Jammy core. Exact five-function exports and all 29 configured
+  target contracts are checked without target execution. A separate component
+  manifest binds source, library and core identities before native loading.
+  Acquisition Python regression: 47 passed; existing actual x86 native contracts:
+  29 passed; Windows component checks: seven passed. Live factory wiring,
+  ARM64 execution, calibration and physical acceptance remain open.
