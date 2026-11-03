@@ -1,5 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { mkdir, mkdtemp, rm } from "node:fs/promises";
+import { execFileSync } from "node:child_process";
+import { existsSync } from "node:fs";
+import { mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
+import https from "node:https";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import type { FastifyInstance } from "fastify";
@@ -12,6 +15,42 @@ import { localizationFixture, localizationRuntimeFixture } from "./fixtures/loca
 import { savedSlamFixture } from "./fixtures/saved-slam-map";
 import type { PhysicalNavigationBackend } from "../src/physical-navigation-backend";
 import type { PhysicalNavigationState } from "../../shared/physical-navigation";
+import type { ActionsBackend, ActionsState } from "../src/actions-backend";
+
+async function tlsMaterial(root: string) {
+  const keyPath = path.join(root, "test.key"), certPath = path.join(root, "test.crt");
+  const windowsGitOpenSsl = path.join(process.env.ProgramFiles ?? "C:/Program Files", "Git/usr/bin/openssl.exe");
+  const candidates = process.platform === "win32" ? ["openssl", ...(existsSync(windowsGitOpenSsl) ? [windowsGitOpenSsl] : [])]
+    : ["openssl"];
+  for (const executable of candidates) {
+    try {
+      execFileSync(executable, ["req", "-x509", "-newkey", "rsa:2048", "-nodes", "-keyout", keyPath,
+        "-out", certPath, "-days", "1", "-subj", "/CN=localhost"], { stdio: "ignore" });
+      return { key: await readFile(keyPath), cert: await readFile(certPath) };
+    } catch { /* Try the next local OpenSSL installation. */ }
+  }
+  throw new Error("local_openssl_required_for_production_https_test");
+}
+
+function secureRequest(origin: string, method: string, route: string, payload?: object, token?: string) {
+  return new Promise<{ statusCode: number; body: string; json: () => unknown }>((resolve, reject) => {
+    const body = payload === undefined ? undefined : JSON.stringify(payload);
+    const request = https.request(new URL(route, origin), {
+      method, rejectUnauthorized: false,
+      headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(body ? { "Content-Type": "application/json", "Content-Length": Buffer.byteLength(body) } : {}) },
+    }, (response) => {
+      let text = "";
+      response.setEncoding("utf8");
+      response.on("data", (part: string) => { text += part; });
+      response.on("end", () => resolve({ statusCode: response.statusCode ?? 0, body: text,
+        json: () => JSON.parse(text) as unknown }));
+    });
+    request.on("error", reject);
+    if (body) request.write(body);
+    request.end();
+  });
+}
 
 
 describe("explicit independent product composition with synthetic services", () => {
@@ -71,6 +110,46 @@ describe("explicit independent product composition with synthetic services", () 
   it("still rejects remote cleartext credential submission", async () => {
     expect((await app.inject({ method: "PUT", url: "/api/v1/settings/credentials", headers: headers(),
       remoteAddress: "192.168.1.20", payload: { apiKey: "synthetic-key" } })).statusCode).toBe(426);
+  });
+  it("routes independent action readiness and explicit idle confirmation through the actions-only backend", async () => {
+    const bridge: ActionsState = {
+      bridgeMode: "actions-only", physicalActionsEnabled: false, bridgeEpoch: "b".repeat(32),
+      sequence: 0, observedAtMs: Date.now(), actionBusy: true, actionStatus: "linkcraft-awaiting-operator",
+      motionPresets: [], linkcraftResources: [], expressions: ["开心"],
+      actionServices: { presetMotion: true, expression: true, linkcraftCatalog: true,
+        linkcraftExecution: true, linkcraftCatalogFresh: true },
+    };
+    const actions: ActionsBackend = { state: vi.fn(async () => ({ ...bridge, sequence: ++bridge.sequence })),
+      playExpression: vi.fn(async () => undefined), confirmIdle: vi.fn(async () => { bridge.actionBusy = false; bridge.actionStatus = null; }) };
+    const external = vi.spyOn(globalThis, "fetch").mockImplementation(async () => new Response("{}", { status: 503 }));
+    const tls = await tlsMaterial(root);
+    const isolated = await buildServer({ ...options(), demoMode: false, actionsBackend: actions,
+      tlsKey: tls.key, tlsCert: tls.cert });
+    const origin = await isolated.listen({ host: "127.0.0.1", port: 0 });
+    const paired = await secureRequest(origin, "POST", "/api/v1/session/pair", { pairingCode: "synthetic-product" });
+    expect(paired.statusCode).toBe(201);
+    const pairedValue = paired.json() as { token: string };
+    token = pairedValue.token;
+    try {
+      const locked = await secureRequest(origin, "GET", "/api/v1/state", undefined, token);
+      expect(locked.json()).toMatchObject({ actionBusy: true,
+        checks: expect.arrayContaining([expect.objectContaining({ id: "actions", ready: false })]),
+        motionPresets: [], linkcraftResources: [] });
+      expect((await secureRequest(origin, "POST", "/api/v1/actions/confirm-idle", { confirmed: false }, token)).statusCode).toBe(400);
+      const confirmed = await secureRequest(origin, "POST", "/api/v1/actions/confirm-idle", { confirmed: true }, token);
+      expect(confirmed.statusCode).toBe(200);
+      expect(actions.confirmIdle).toHaveBeenCalledOnce();
+      expect((await secureRequest(origin, "GET", "/api/v1/state", undefined, token)).json()).toMatchObject({
+        actionBusy: false, expressions: ["开心"] });
+      vi.mocked(localization.runtime!).mockResolvedValue({ ...localizationRuntimeFixture(), phase: "running",
+        generation: 1, runId: "f".repeat(32), selectedMap: { mapId: `slam-${"b".repeat(32)}`,
+          receiptSha256: "c".repeat(64) }, cleanupComplete: false });
+      expect((await secureRequest(origin, "GET", "/api/v1/state", undefined, token)).json()).toMatchObject({
+        actionBusy: false, expressions: [], checks: expect.arrayContaining([
+          expect.objectContaining({ id: "actions", ready: false, detail: "定位运行期间动作暂不可用" }),
+        ]) });
+      expect(actions.playExpression).not.toHaveBeenCalled();
+    } finally { external.mockRestore(); await isolated.close(); }
   });
   it("uses verified local voice events for evidence-bound Q&A without stopping mapping", async () => {
     mapping = { ...mapping, mapping: true, phase: "running", cleanupComplete: false, session: "a".repeat(32) };

@@ -52,10 +52,14 @@ def selection(args, config):
         raise ValueError('unchanged_product_configuration_required')
     value = json.loads(data)
     fields = {'schemaVersion', 'stateDirectory', 'agentUrl', 'agentTokenFile'}
-    if (type(value) is not dict or set(value) not in (fields, fields | {'navigationSocket'})
+    allowed = (fields, fields | {'navigationSocket'}, fields | {'actionsBridgeEndpoint'},
+               fields | {'navigationSocket', 'actionsBridgeEndpoint'})
+    if (type(value) is not dict or set(value) not in allowed
             or type(value['schemaVersion']) is not int or value['schemaVersion'] != 1
             or any(type(value[name]) is not str for name in ('stateDirectory', 'agentUrl', 'agentTokenFile'))):
         raise ValueError('explicit_product_configuration_schema_required')
+    if 'actionsBridgeEndpoint' in value and value['actionsBridgeEndpoint'] != 'http://127.0.0.1:18082/v1':
+        raise ValueError('explicit_loopback_actions_bridge_endpoint_required')
     if not re.fullmatch(r'http://127\.0\.0\.1:([1-9][0-9]{0,4})', value['agentUrl']) or int(value['agentUrl'].rsplit(':', 1)[1]) > 65535:
         raise ValueError('local_product_agent_endpoint_required')
     state = private_path(value['stateDirectory'], directory=True)

@@ -88,7 +88,7 @@ export interface RobotAdapter {
   controlNavigation(action: "pause" | "resume" | "stop", taskId?: string): Promise<void>;
   startPresetMotion(name: string, monitorCompletion?: boolean): Promise<string>;
   waitPresetMotion(taskId: string): Promise<void>;
-  playExpression(name: string): Promise<void>;
+  playExpression(name: string, authorize?: () => boolean): Promise<void>;
   executeLinkcraftResource(id: string): Promise<void>;
   confirmActionsIdle(): Promise<void>;
 }

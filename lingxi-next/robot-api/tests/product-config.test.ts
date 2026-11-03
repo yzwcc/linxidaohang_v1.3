@@ -45,6 +45,14 @@ describe("explicit private product configuration", () => {
       expect(() => readProductConfiguration(file, save(), [])).toThrow();
     }
   });
+  it("accepts only the explicitly pinned loopback action bridge endpoint", () => {
+    expect(readProductConfiguration(file, save({ actionsBridgeEndpoint: "http://127.0.0.1:18082/v1" }), [])
+      .actionsBridgeEndpoint).toBe("http://127.0.0.1:18082/v1");
+    for (const value of [null, true, "http://127.0.0.1:18082", "http://127.0.0.1:18083/v1",
+      "https://127.0.0.1:18082/v1", "http://0.0.0.0:18082/v1", "http://localhost:18082/v1"]) {
+      expect(() => readProductConfiguration(file, save({ actionsBridgeEndpoint: value }), [])).toThrow();
+    }
+  });
   it.each([null, true, 5, "", [], {}])("rejects invalid optional navigation selection %j", (navigationSocket) => {
     expect(() => readProductConfiguration(file, save({ navigationSocket }), [])).toThrow();
   });

@@ -21,12 +21,14 @@ acceptance. No robot was contacted or changed for this milestone.
   evidence-bound Retriever/LLM path and correlated playback/stop interface.
   Agent HTTP is explicitly loopback-only. Its bearer token is read from a
   separate private file; it is not embedded in the configuration or package.
-- No AIMDK adapter is constructed. Vendor maps, vendor navigation and robot
-  actions are not admitted by this mode. Without an explicit `navigationSocket`,
+- No full AIMDK adapter is constructed. Vendor maps, vendor navigation and
+  physical robot actions are not admitted by this mode. Without an explicit `navigationSocket`,
   point navigation, tour execution and map activation remain unavailable.
   Selecting a separately supervised ROS 2/Nav2 bridge connects the existing
   evidence-bound navigation adapter; it does not make its readiness gates true.
-  Action confirmation remains unavailable. Voice cannot bypass these limits.
+  Without an explicit `actionsBridgeEndpoint`, action confirmation remains
+  unavailable. The optional actions-only bridge permits allowlisted expressions
+  and operator confirmation, not physical actions. Voice cannot bypass these limits.
 - Saved SLAM maps remain receipt-verified `native-raw` records with
   `navigationReady: false` in the catalog. Only an explicitly selected bridge
   can activate a map through its separate evidence contract; saving a map or
@@ -44,7 +46,8 @@ symlinks and overlap with runtime/catalog/native inputs are rejected.
   "schemaVersion": 1,
   "stateDirectory": "/home/OPERATOR/lingxi-product-state",
   "agentUrl": "http://127.0.0.1:18180",
-  "agentTokenFile": "/home/OPERATOR/lingxi-secrets/agent-token"
+  "agentTokenFile": "/home/OPERATOR/lingxi-secrets/agent-token",
+  "actionsBridgeEndpoint": "http://127.0.0.1:18082/v1"
 }
 ```
 
@@ -53,7 +56,21 @@ bridge, at least 32 printable ASCII characters. Configuration supports no
 inline model key, arbitrary bridge URL, vendor adapter or motion override.
 Model/Retriever credentials are submitted through paired HTTPS settings.
 
-An optional fifth field selects an existing independently supervised physical
+The optional `actionsBridgeEndpoint` selects only the fixed loopback AIMDK
+actions-only bridge. It enables allowlisted expression playback and explicit
+idle confirmation; preset motions and LinkCraft execution remain rejected.
+The installed API and bridge read their shared private bearer token from the
+robot environment file. Enable `lingxi-next-actions.service` explicitly only
+after the actions-only bridge and its AIMDK dependencies have been verified;
+it conflicts with the full AIMDK bridge and is never automatically started.
+Mapping, localization lifecycle, map activation and navigation writes share a
+fail-fast API operation lock. Expressions are hidden and rejected while mapping,
+navigation, or localization is active or not confirmed clean. A missing or
+unavailable localization status fails closed. Stop paths remain available for
+recovery. This is process-local API serialization, not a substitute for the
+separate GLIM/Nav2 owner's generation-bound motion interlock.
+
+An optional `navigationSocket` field selects an existing independently supervised physical
 navigation bridge on Linux:
 
 ```json

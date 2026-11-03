@@ -90,6 +90,10 @@ class AgentConfigurationTest {
         config = AgentConfiguration.load(env);
         assertEquals("https://127.0.0.1:3456", config.api().toString());
         assertEquals(18181, config.playbackAddress().getPort());
+        save(env, temporary, Map.of("actionsBridgeEndpoint", "http://127.0.0.1:18082/v1"));
+        assertEquals("https://127.0.0.1:3456", AgentConfiguration.load(env).api().toString());
+        save(env, temporary, Map.of("actionsBridgeEndpoint", "http://0.0.0.0:18082/v1"));
+        assertThrows(Exception.class, () -> AgentConfiguration.load(env));
     }
 
     @Test void incompleteUnpinnedOrDisabledSelectionNeverFallsBackToCore() throws Exception {

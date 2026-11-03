@@ -10,6 +10,7 @@ const configurationSchema = z.object({
     Number(value.split(":").at(-1)) <= 65535),
   agentTokenFile: z.string().min(1),
   navigationSocket: z.string().min(1).optional(),
+  actionsBridgeEndpoint: z.literal("http://127.0.0.1:18082/v1").optional(),
 }).strict();
 
 function privatePath(file: string, directory = false) {
@@ -63,5 +64,6 @@ export function readProductConfiguration(file: string, expected: string, exclude
   const token = readFileSync(configuration.agentTokenFile, "utf8").trim();
   if (!/^[\x21-\x7e]{32,4096}$/.test(token)) throw new Error("valid_product_agent_token_required");
   return { stateDirectory: configuration.stateDirectory, agentUrl: configuration.agentUrl, internalAgentToken: token,
-    ...(configuration.navigationSocket ? { navigationSocket: configuration.navigationSocket } : {}) };
+    ...(configuration.navigationSocket ? { navigationSocket: configuration.navigationSocket } : {}),
+    ...(configuration.actionsBridgeEndpoint ? { actionsBridgeEndpoint: configuration.actionsBridgeEndpoint } : {}) };
 }

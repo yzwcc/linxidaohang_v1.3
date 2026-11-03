@@ -69,6 +69,16 @@ class ProductConfiguration(unittest.TestCase):
             with self.subTest(value=value), self.assertRaisesRegex(ValueError, 'local_product_agent'):
                 product.selection(self.args, {})
 
+    def test_action_bridge_requires_fixed_loopback_endpoint(self):
+        self.save(actionsBridgeEndpoint='http://127.0.0.1:18082/v1')
+        self.assertEqual({'LINGXI_PRODUCT_CONFIG', 'LINGXI_PRODUCT_CONFIG_SHA256'},
+                         set(product.selection(self.args, {})))
+        for value in (None, True, 'http://127.0.0.1:18083/v1', 'http://localhost:18082/v1',
+                      'https://127.0.0.1:18082/v1', 'http://127.0.0.1:18082'):
+            self.save(actionsBridgeEndpoint=value)
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                product.selection(self.args, {})
+
     def test_runtime_catalog_native_inputs_and_configuration_cannot_overlap_state(self):
         for state in (self.maps, self.root, self.args.output):
             self.save(stateDirectory=str(state))

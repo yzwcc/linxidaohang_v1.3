@@ -1,7 +1,6 @@
 [Unit]
 Description=Lingxi Next Physical ROS 2/Nav2 Navigation Bridge
-After=network.target lingxi-next-aimdk.service
-Requires=lingxi-next-aimdk.service
+After=network.target
 
 [Service]
 User=lingxi-next

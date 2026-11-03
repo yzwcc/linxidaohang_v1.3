@@ -253,7 +253,7 @@ export class PhysicalNavigationAdapter implements RobotAdapter {
 
   startPresetMotion(name: string, monitorCompletion?: boolean) { return this.delegate.startPresetMotion(name, monitorCompletion); }
   waitPresetMotion(taskId: string) { return this.delegate.waitPresetMotion(taskId); }
-  playExpression(name: string) { return this.delegate.playExpression(name); }
+  playExpression(name: string, authorize?: () => boolean) { return this.delegate.playExpression(name, authorize); }
   executeLinkcraftResource(id: string) { return this.delegate.executeLinkcraftResource(id); }
 
   close() { return this.backend.close(); }

@@ -1,8 +1,10 @@
 # Lingxi Next
 
 An explicit, offline-verified AIMDK action compatibility mode now initializes
-without vendor SLAM/navigation interfaces. Physical actions remain unadmitted
-until the independent lifecycle interlock is integrated. See
+without vendor SLAM/navigation interfaces. The independent product can opt into
+its allowlisted expressions and explicit idle confirmation via pinned external
+configuration. Physical actions remain unadmitted until the independent
+lifecycle interlock is integrated. See
 [Isolated AIMDK Action Compatibility Mode](docs/AIMDK_ACTIONS_ONLY.md).
 
 Saved raw point clouds now support an offline, map-bound measured survey

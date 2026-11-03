@@ -42,6 +42,7 @@ function createTaskId(): string {
 export class JobManager {
   private current?: ActiveJob;
   private generation = 0;
+
   private lastInteractionAt = Date.now();
   private dialogueCount = 0;
   private readonly records: JobRecord[] = [];
@@ -345,7 +346,7 @@ export class JobManager {
           }
           await this.waitReady(job);
           if (!this.isCurrent(job)) return;
-          if (step.expression) await this.adapter.playExpression(step.expression);
+          if (step.expression) await this.adapter.playExpression(step.expression, () => this.isCurrent(job));
         } catch {
           if (!this.isCurrent(job)) return;
           hadErrors = true;

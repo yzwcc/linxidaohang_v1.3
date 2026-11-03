@@ -32,6 +32,7 @@ def validate_output(output, config, immutable_files, *, existing=False):
 def production_api_environment():
     api = {"PATH": "/usr/bin:/bin", "LANG": "C.UTF-8"}
     for name in ("LINGXI_TLS_KEY", "LINGXI_TLS_CERT", "LINGXI_PAIRING_CODE_SHA256",
+                 "LINGXI_AIMDK_BRIDGE_TOKEN",
                  "LINGXI_HOST", "LINGXI_PORT", "LINGXI_WEB_ROOT"):
         if name in os.environ:
             api[name] = os.environ[name]

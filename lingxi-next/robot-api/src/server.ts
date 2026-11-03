@@ -9,6 +9,7 @@ import { timingSafeEqual } from "node:crypto";
 import type { TLSSocket } from "node:tls";
 import { z } from "zod";
 import type { LidarEvent, MapPoint, RobotMap, RobotState, TourTask, VoiceDiagnostics, VoiceEvent, VoiceReply } from "../../shared/contracts";
+import { ProductActionsAdapter, type ActionsBackend } from "./actions-backend";
 import { extractBearer, pairingCodeHash, SessionManager, websocketBearer } from "./auth";
 import { AimdkAdapter } from "./adapters/aimdk";
 import { DemoAdapter } from "./adapters/demo";
@@ -67,6 +68,7 @@ type ServerOptions = {
   agentUrl?: string;
   offlineNavigationBackend?: OfflineNavigationBackend;
   physicalNavigationBackend?: PhysicalNavigationBackend;
+  actionsBackend?: ActionsBackend;
 };
 
 const emptySnapshot: RobotSnapshot = {
@@ -160,6 +162,9 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
     options.adapter ?? (demoMode ? new DemoAdapter() : new AimdkAdapter(process.env.AIMDK_BRIDGE_URL));
   const savedSlamDirectory = options.savedSlamDirectory ?? process.env.LINGXI_SAVED_SLAM_DIR;
   const slamCatalog = savedSlamDirectory ? new SavedSlamMapCatalog(savedSlamDirectory) : undefined;
+  if (options.actionsBackend && (!independentProduct || !mappingBackend || !localizationBackend || !slamCatalog || demoMode)) {
+    throw new Error("product_actions_require_explicit_independent_runtime_without_demo_mode");
+  }
   if (mappingBackend && !slamCatalog) throw new Error("independent_mapping_requires_saved_slam_directory");
   if (localizationBackend && !slamCatalog) throw new Error("localization_requires_saved_slam_directory");
   const mappingPoints = mappingBackend ? new MappingPointSource(mappingBackend, savedSlamDirectory!) : undefined;
@@ -171,6 +176,8 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
       physicalNavigation: !!physicalNavigation,
     });
   }
+  const productActions = options.actionsBackend ? new ProductActionsAdapter(adapter, options.actionsBackend) : undefined;
+  if (productActions) adapter = productActions;
   const stateDirectory = options.stateDirectory ?? process.env.LINGXI_DATA_DIR ?? path.resolve("var/lib/lingxi-next");
   const store = new JsonStateStore(stateDirectory);
   const calibration = slamCatalog ? new CalibrationService(slamCatalog, path.join(stateDirectory, "calibration-reviews")) : undefined;
@@ -187,6 +194,13 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
       }
     : new HttpAgentSpeaker(agentUrl, agentToken));
   const jobs = new JobManager(adapter, store, speaker);
+  productActions?.setJobBusy(() => jobs.hasActiveJob());
+  productActions?.setActivityBusy(async () => {
+    try {
+      const runtime = await localizationBackend?.runtime?.();
+      return !runtime || !runtime.cleanupComplete || !["idle", "stopped", "failed"].includes(runtime.phase);
+    } catch { return true; }
+  });
   const answerer = new Answerer(store, adapter, offlineNavigation ? {
     fetcher: async () => { throw new Error("offline_workspace_cloud_disabled"); },
   } : {});
@@ -298,6 +312,7 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
         ...(mappingConsole ? ["/api/v1/mapping/start", "/api/v1/mapping/stop-save", "/api/v1/mapping/stop-discard"] : []),
         ...(physicalNavigation ? ["/api/v1/tours/:id/start", "/api/v1/navigation/point",
           "/api/v1/navigation/control", "/api/v1/actions/confirm-idle", "/api/v1/maps/:id/activate"] : []),
+        ...(options.actionsBackend ? ["/api/v1/actions/confirm-idle"] : []),
         ...(localizationConsole ? ["/api/v1/slam/localization/seed", "/api/v1/slam/localization/pause",
           "/api/v1/slam/localization/stop", "/api/v1/slam/localization/start", "/api/v1/slam/localization/shutdown"] : []),
       ].includes(route));
@@ -522,14 +537,17 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
       if (!localizationBackend.lifecycle) throw deny(501, "当前入口不支持按需启动定位进程");
       const parsed = (action === "start" ? localizationStartSchema : localizationShutdownSchema).safeParse(request.body);
       if (!parsed.success) throw deny(400, "定位服务、代次或地图身份无效");
-      if (sharedSlam && action === "start") {
-        const mapping = await mappingBackend!.state();
-        if (mapping.mapping || !mapping.cleanupComplete || !["idle", "failed"].includes(mapping.phase)) {
-          throw deny(409, "请先结束建图并等待清理确认");
+      const run = async () => {
+        if (sharedSlam && action === "start") {
+          const mapping = await mappingBackend!.state();
+          if (mapping.mapping || !mapping.cleanupComplete || !["idle", "failed"].includes(mapping.phase)) {
+            throw deny(409, "请先结束建图并等待清理确认");
+          }
         }
-      }
-      const command = { ...parsed.data, action } as LocalizationLifecycleCommand;
-      return reply.code(202).send(confirmedLocalizationLifecycle(command, await localizationBackend.lifecycle(command)));
+        const command = { ...parsed.data, action } as LocalizationLifecycleCommand;
+        return reply.code(202).send(confirmedLocalizationLifecycle(command, await localizationBackend!.lifecycle!(command)));
+      };
+      return action === "start" && productActions ? productActions.runActivityControl(run) : run();
     });
   }
   for (const action of ["seed", "pause", "stop"] as const) {
@@ -538,10 +556,13 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
       if (!secureRequest(request)) throw deny(426, "定位控制必须通过 HTTPS");
       const parsed = (action === "seed" ? localizationSeedSchema : localizationIdentitySchema).safeParse(request.body);
       if (!parsed.success) throw deny(400, "定位身份、参考帧或位姿矩阵无效");
-      const command = { ...parsed.data, action } as LocalizationCommand;
-      const result = confirmedLocalizationCommand(command, await localizationBackend.command(command));
-      // Acceptance only queues the worker request; it does not confirm localization.
-      return reply.code(202).send(result);
+      const run = async () => {
+        const command = { ...parsed.data, action } as LocalizationCommand;
+        const result = confirmedLocalizationCommand(command, await localizationBackend!.command!(command));
+        // Acceptance only queues the worker request; it does not confirm localization.
+        return reply.code(202).send(result);
+      };
+      return action !== "stop" && productActions ? productActions.runActivityControl(run) : run();
     });
   }
   app.post<{ Params: { id: string }; Body?: { initialPose?: { x: number; y: number; yaw: number } } }>(
@@ -617,7 +638,8 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
       if (!identity.success) throw deny(400, "独立建图操作需要当前会话标识");
       const current = await mappingBackend.state();
       if (current.session !== identity.data.session) throw deny(409, "建图会话状态已变化，请刷新后确认");
-      const result = await mappingBackend.finish(identity.data.session, true, name);
+      const finish = () => mappingBackend.finish(identity.data.session, true, name);
+      const result = productActions ? await productActions.runMappingControl(finish) : await finish();
       const map = (await slamCatalog!.list()).find((item) => item.id === result.mapId);
       if (!map || map.name !== name || map.inputMode !== current.inputMode) throw deny(503, "保存结果尚未通过地图目录校验");
       emitState(await stateResponse());
@@ -633,7 +655,8 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
     if (!mappingBackend) throw deny(501, "当前建图后端尚未提供放弃接口");
     const identity = z.object({ session: z.string().regex(/^[a-f0-9]{32}$/) }).strict().safeParse(request.body);
     if (!identity.success) throw deny(400, "独立建图操作需要当前会话标识");
-    await mappingBackend.finish(identity.data.session, false);
+    const finish = () => mappingBackend!.finish(identity.data.session, false);
+    if (productActions) await productActions.runMappingControl(finish); else await finish();
     emitState(await stateResponse());
     return { confirmed: true, saved: false };
   });
@@ -1012,6 +1035,7 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
     }
   }, 200);
   app.addHook("onClose", async () => {
+    productActions?.close();
     clearInterval(timer);
     clearInterval(lidarTimer);
     await mappingPoints?.close();

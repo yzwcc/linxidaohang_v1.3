@@ -47,8 +47,15 @@ final class AgentConfiguration {
         Set<String> fields = Set.of("schemaVersion", "stateDirectory", "agentUrl", "agentTokenFile");
         Set<String> withNavigation = new HashSet<>(fields);
         withNavigation.add("navigationSocket");
-        if (value == null || !(fields.equals(value.keySet()) || withNavigation.equals(value.keySet())) ||
+        Set<String> withActions = new HashSet<>(fields);
+        withActions.add("actionsBridgeEndpoint");
+        Set<String> withNavigationAndActions = new HashSet<>(withNavigation);
+        withNavigationAndActions.add("actionsBridgeEndpoint");
+        if (value == null || !(fields.equals(value.keySet()) || withNavigation.equals(value.keySet()) ||
+                withActions.equals(value.keySet()) || withNavigationAndActions.equals(value.keySet())) ||
                 !Integer.valueOf(1).equals(value.get("schemaVersion"))) throw invalid();
+        if (value.containsKey("actionsBridgeEndpoint") &&
+                !"http://127.0.0.1:18082/v1".equals(value.get("actionsBridgeEndpoint"))) throw invalid();
         for (String field : List.of("stateDirectory", "agentUrl", "agentTokenFile")) {
             if (!(value.get(field) instanceof String text) || text.isBlank()) throw invalid();
         }

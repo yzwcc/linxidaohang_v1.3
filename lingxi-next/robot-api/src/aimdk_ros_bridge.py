@@ -10,6 +10,7 @@ import hmac
 import math
 import os
 import re
+import secrets
 import sqlite3
 import struct
 import threading
@@ -273,6 +274,9 @@ class X2Node(Node):
             raise ValueError("Full AIMDK bridge requires the ROS mapping message packages")
         super().__init__("lingxi_next_adapter")
         self.mode = mode
+        self.bridge_epoch = secrets.token_hex(16)
+        self.state_sequence = 0
+        self.action_requests: set[str] = set()
         reliable_transient = QoSProfile(
             depth=10,
             reliability=ReliabilityPolicy.RELIABLE,
@@ -675,6 +679,10 @@ class X2Node(Node):
                 {"id": item["id"], "name": item["name"]}
                 for item in self.linkcraft_resource_records.values()
             ] if resources_fresh else []
+            if self.state_sequence >= MAX_SAFE_MAP_ID:
+                raise AdapterError("动作桥接状态计数耗尽，请检查后重启服务")
+            self.state_sequence += 1
+            sequence = self.state_sequence
         integrated_ready = bool(self.publisher and self.publisher.get_subscription_count() > 0)
         map_service_ready = self._client_ready(self.map_client)
         preset_available = all(self._client_ready(client) for client in (
@@ -726,6 +734,9 @@ class X2Node(Node):
         pose = odom if odom_fresh else None
         return {
             "bridgeMode": self.mode,
+            "bridgeEpoch": self.bridge_epoch,
+            "sequence": sequence,
+            "observedAtMs": int(now * 1000),
             "physicalActionsEnabled": physical_actions_enabled,
             "actionServices": {
                 "presetMotion": preset_available,
@@ -1503,14 +1514,16 @@ class BridgeHandler(BaseHTTPRequestHandler):
                     raise AdapterError("动作状态监控参数无效", 400)
                 return self.send_json(202, self.node.start_preset_motion(name, monitor_completion=monitor))
             if path == "/v1/expression":
+                self.require_action_request(body, {"name"})
                 result = self.node.play_expression(body.get("name"))
-                return self.send_json(202, result)
+                return self.send_action_json(202, result, body)
             if path == "/v1/linkcraft/resource":
                 result = self.node.execute_linkcraft_resource(body.get("id"))
                 return self.send_json(202, result)
             if path == "/v1/actions/confirm-idle":
+                self.require_action_request(body, {"confirmed"})
                 result = self.node.confirm_actions_idle(body.get("confirmed"))
-                return self.send_json(200, result)
+                return self.send_action_json(200, result, body)
             raise AdapterError("接口不存在", 404)
         except AdapterError as error:
             return self.send_json(error.status, {"message": str(error), "uncertain": error.uncertain})
@@ -1518,6 +1531,24 @@ class BridgeHandler(BaseHTTPRequestHandler):
             return self.send_json(400, {"message": "请求格式无效"})
         except Exception:
             return self.send_json(500, {"message": "AIMDK 桥接内部错误"})
+
+    def require_action_request(self, body: dict[str, Any], fields: set[str]) -> None:
+        if self.node.mode == "full":
+            return
+        request_id = body.get("requestId")
+        if (set(body) != fields | {"bridgeEpoch", "requestId"}
+                or body.get("bridgeEpoch") != self.node.bridge_epoch
+                or not isinstance(request_id, str) or re.fullmatch("[a-f0-9]{32}", request_id) is None):
+            raise AdapterError("动作请求不属于当前桥接进程或格式无效", 409)
+        with self.node.lock:
+            if request_id in self.node.action_requests or len(self.node.action_requests) >= 4096:
+                raise AdapterError("动作请求已处理或当前桥接请求容量已满", 409)
+            self.node.action_requests.add(request_id)
+
+    def send_action_json(self, status: int, value: dict[str, Any], body: dict[str, Any]) -> None:
+        if self.node.mode != "full":
+            value = {**value, "bridgeEpoch": self.node.bridge_epoch, "requestId": body["requestId"]}
+        return self.send_json(status, value)
 
     def require_route(self, path: str, method: str) -> None:
         if self.node.mode == "full":

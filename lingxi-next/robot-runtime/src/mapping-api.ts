@@ -3,6 +3,7 @@ import path from "node:path";
 import { buildServer } from "../../robot-api/src/server";
 import { UnixRosNavigationBackend } from "../../robot-api/src/physical-navigation-backend";
 import { readProductConfiguration } from "./product-config";
+import { HttpActionsBackend } from "../../robot-api/src/actions-backend";
 
 export async function startManagedMappingApi(options: { slamConsole?: true } = {}) {
   if (process.platform !== "linux" || process.env.LINGXI_MAPPING_PARENT_STDIN !== "1" ||
@@ -36,10 +37,14 @@ export async function startManagedMappingApi(options: { slamConsole?: true } = {
     throw new Error("valid_mapping_api_listen_port_required");
   }
   if (options.slamConsole && port === "3000") throw new Error("existing_console_port_reserved");
-  const { navigationSocket, ...productOptions } = product ?? {};
+  const { navigationSocket, actionsBridgeEndpoint, ...productOptions } = product ?? {};
+  const actionToken = actionsBridgeEndpoint ? process.env.LINGXI_AIMDK_BRIDGE_TOKEN : undefined;
+  if (actionsBridgeEndpoint && !actionToken) throw new Error("private_aimdk_action_bridge_token_required");
   const app = await buildServer({
     ...(product ? { independentProduct: true, ...productOptions,
       physicalNavigationBackend: navigationSocket ? new UnixRosNavigationBackend(navigationSocket) : undefined,
+      actionsBackend: actionsBridgeEndpoint
+        ? new HttpActionsBackend(actionsBridgeEndpoint, actionToken!) : undefined,
     } : options.slamConsole ? { slamConsole: true } : { mappingConsole: true }),
     tlsKey: key ? readFileSync(key) : undefined,
     tlsCert: certificate ? readFileSync(certificate) : undefined,

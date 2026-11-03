@@ -86,6 +86,9 @@ class BridgeCallbacks(unittest.TestCase):
     def setUp(self):
         self.node = bridge.X2Node.__new__(bridge.X2Node)
         self.node.mode = "full"
+        self.node.bridge_epoch = "a" * 32
+        self.node.state_sequence = 0
+        self.node.action_requests = set()
         self.node.lock = threading.RLock()
         self.node.last_map = None
         self.node.last_navigation = {"taskId": "101", "mapId": 9, "status": "requested"}
@@ -497,6 +500,9 @@ class ActionServices(unittest.TestCase):
     def node(self):
         node = bridge.X2Node.__new__(bridge.X2Node)
         node.mode = "full"
+        node.bridge_epoch = "a" * 32
+        node.state_sequence = 0
+        node.action_requests = set()
         node.lock = threading.RLock()
         node.motion_action_lock = threading.Lock()
         node.motion_source_ready = False
@@ -984,12 +990,16 @@ class ActionsOnlyMode(unittest.TestCase):
         client.responses = [obj(success=True)]
         factory = lambda: obj(header=obj(header=obj(stamp=None)), emotion_id=0, mode=0, priority=0)
         with patch.object(bridge, "PlayEmoji", request_type(factory)):
-            handler = self.handler(node, "/v1/expression", {"name": "开心"})
+            handler = self.handler(node, "/v1/expression", {
+                "name": "开心", "bridgeEpoch": node.bridge_epoch, "requestId": "a" * 32,
+            })
             handler.do_POST()
             self.assertEqual(202, handler.send_json.call_args.args[0])
             self.assertEqual(bridge.EXPRESSIONS["开心"], client.requests[0].emotion_id)
             node._set_action_interlock("uncertain")
-            handler = self.handler(node, "/v1/expression", {"name": "开心"})
+            handler = self.handler(node, "/v1/expression", {
+                "name": "开心", "bridgeEpoch": node.bridge_epoch, "requestId": "b" * 32,
+            })
             handler.do_POST()
             self.assertEqual(409, handler.send_json.call_args.args[0])
         self.assertEqual(1, len(client.requests))
