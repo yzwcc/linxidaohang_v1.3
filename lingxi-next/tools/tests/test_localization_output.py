@@ -20,8 +20,8 @@ if AVAILABLE:
 
 
 class SyntheticLiveFixture:
-    def prepare(self):
-        self.now = 100.
+    def prepare(self, now=100.):
+        self.now = now
         self.binding = LocalizationBinding('a' * 32, 'live', 'slam-' + 'b' * 32, 'c' * 64, 'd' * 64, 'e' * 64)
         self.session = LocalizationSession(self.binding, lambda: None, clock=lambda: self.now,
                                            base_metres_per_map_unit=2.)

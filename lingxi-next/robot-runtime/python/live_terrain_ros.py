@@ -14,11 +14,17 @@ MODE = 'private_declared_terrain'
 
 
 class LiveTerrainRosOutput:
-    def __init__(self, projection, snapshot, retire):
+    def __init__(self, projection, snapshot, retire, *, observations=None):
         if type(projection) is not ClearanceProjection or not callable(snapshot) or not callable(retire):
             raise ValueError('explicit_passive_terrain_source_and_projection_required')
         self.projection, self.read_snapshot, self.retire_source = projection, snapshot, retire
         self.namespace = 'lingxi_offline_' + secrets.token_hex(16)
+        self.saved_map = observations is not None
+        if self.saved_map:
+            from live_localization_ros import LiveLocalizationRosOutput
+            if type(observations) is not LiveLocalizationRosOutput:
+                raise ValueError('owned_saved_map_observations_required')
+            self.namespace = observations.namespace
         self.owner = self.node = self.executor = self.publisher = None
         self.started = self.closed = self.failed = False
         self.revoked = False
@@ -52,7 +58,8 @@ class LiveTerrainRosOutput:
             self.node = rclpy.create_node('declared_terrain', namespace=self.namespace,
                 context=sensor_node.context, use_global_arguments=False,
                 enable_rosout=False, start_parameter_services=False)
-            self.publisher = TerrainRosPublisher(self.node, self, self.projection)
+            options = dict(saved_map=True) if self.saved_map else {}
+            self.publisher = TerrainRosPublisher(self.node, self, self.projection, **options)
             if self.executor.add_node(self.node) is False:
                 raise RuntimeError('terrain_ros_node_not_attached')
             return self.close
@@ -91,7 +98,8 @@ class LiveTerrainRosOutput:
             raise RuntimeError('passive_ros_terrain_cleanup_failed')
 
     def summary(self):
-        return dict(mode=MODE, started=self.started, closed=self.closed, failed=self.failed,
+        return dict(mode='private_saved_map_terrain' if self.saved_map else MODE,
+            started=self.started, closed=self.closed, failed=self.failed,
             publications=self.publisher.publications if self.publisher is not None else self.final_publications,
             physicalScaleValidated=False, groundSupportValidated=False,
             physicalMotionSent=False, navigationReady=False)

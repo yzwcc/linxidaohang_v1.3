@@ -1,5 +1,12 @@
 # Live Native Terrain ROS Verification
 
+Current-source rerun: 2026-11-03, after saved-map terrain alignment. All three
+declared-mode trials were actually rebuilt and rerun sequentially as
+`terrain-ros-MODE-20261103-a`. Each passed all 14 checks; the committed reports
+and withdrawal table below now describe those runs. The older focused-suite
+counts below remain historical. These larger-budget trials do not validate
+the new saved-map mode's 300 ms acquisition deadline or target throughput.
+
 Date: 2026-11-01. Host: WSL Ubuntu x86_64; isolated Ubuntu 22.04 ROS Humble
 rootfs, Python 3.10, g++ 11.4. This extends the
 [supervised transport](TERRAIN_TRANSPORT_VERIFICATION_20261101.md) with an actual
@@ -39,9 +46,9 @@ or end-to-end latency acceptance result.
 
 | Scenario | Observed source withdrawal after expiry/trigger | Raw report |
 | --- | --- | --- |
-| Original TTL expires while ROS `/clock` is paused | 0.040531 s | [expiry](evidence/terrain-ros-expiry-20261101.json) |
-| Actual native child receives SIGKILL, without another input | 0.019517 s | [death](evidence/terrain-ros-death-20261101.json) |
-| Explicit source retirement, equivalent to map revocation | 0.020929 s | [revoke](evidence/terrain-ros-revoke-20261101.json) |
+| Original TTL expires while ROS `/clock` is paused | 0.028191 s | [expiry](evidence/terrain-ros-expiry-20261101.json) |
+| Actual native child receives SIGKILL, without another input | 0.043809 s | [death](evidence/terrain-ros-death-20261101.json) |
+| Explicit source retirement, equivalent to map revocation | 0.044608 s | [revoke](evidence/terrain-ros-revoke-20261101.json) |
 
 Each trial first obtains a real planned path and nonzero synthetic controller
 output. After withdrawal, a newly attached DDS reader receives an unknown map;

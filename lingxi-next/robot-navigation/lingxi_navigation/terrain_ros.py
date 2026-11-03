@@ -11,9 +11,9 @@ from .terrain_feed import ExpiringTerrainFeed
 
 
 class TerrainRosPublisher:
-    def __init__(self, node, lane, projection, *, period_seconds=.05):
+    def __init__(self, node, lane, projection, *, period_seconds=.05, saved_map=False):
         if (type(projection) is not ClearanceProjection or not finite(period_seconds)
-                or not .01 <= period_seconds <= .2):
+                or not .01 <= period_seconds <= .2 or type(saved_map) is not bool):
             raise ValueError('bounded_full_terrain_publication_required')
         from rclpy.clock import Clock, ClockType
         from rclpy.qos import QoSProfile, DurabilityPolicy, ReliabilityPolicy
@@ -24,7 +24,8 @@ class TerrainRosPublisher:
         if (not namespace.startswith('lingxi_offline_') or len(namespace) != 47
                 or any(char not in '0123456789abcdef' for char in namespace[15:])):
             raise ValueError('isolated_offline_terrain_namespace_required')
-        self.frame_id, self.feed, self.last_grid = namespace + '_map', None, None
+        self.saved_map = saved_map
+        self.frame_id, self.feed, self.last_grid = 'lingxi_saved_map' if saved_map else namespace + '_map', None, None
         self.closed, self.publications, self.last_failure = False, 0, 'no_terrain'
         qos = QoSProfile(depth=1, reliability=ReliabilityPolicy.RELIABLE,
                          durability=DurabilityPolicy.TRANSIENT_LOCAL)
@@ -61,7 +62,19 @@ class TerrainRosPublisher:
         spec = self.projection
         msg = self.message_type()
         msg.header.frame_id = self.frame_id
-        msg.header.stamp = self.node.get_clock().now().to_msg()
+        now = self.node.get_clock().now().nanoseconds
+        stamp = now
+        if self.saved_map and snapshot.grid is not None and self.last_failure is None:
+            grid = snapshot.grid
+            if (grid.coordinate_frame == self.frame_id
+                    and type(grid.oldest_scan_ns) is int and type(grid.latest_scan_ns) is int
+                    and 0 <= now - grid.oldest_scan_ns <= 300_000_000
+                    and 0 <= now - grid.latest_scan_ns <= 300_000_000):
+                stamp = grid.latest_scan_ns
+            else:
+                costs = (-1,) * (spec.width * spec.height)
+                self.last_failure = 'original_terrain_scan_time_unavailable'
+        msg.header.stamp.sec, msg.header.stamp.nanosec = divmod(stamp, 10**9)
         msg.info.width, msg.info.height, msg.info.resolution = spec.width, spec.height, spec.resolution_metres
         msg.info.origin.position.x, msg.info.origin.position.y = spec.origin_x_metres, spec.origin_y_metres
         msg.info.origin.orientation.w = 1.

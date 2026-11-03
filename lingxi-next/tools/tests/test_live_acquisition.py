@@ -203,6 +203,28 @@ class SettingsTests(SettingsFixture, unittest.TestCase):
             with self.subTest(value=value), self.assertRaisesRegex(ValueError, 'explicit_private_saved_map'):
                 self.settings()
 
+    def test_saved_map_terrain_requires_paired_observations_identity_geometry_and_same_explicit_scale(self):
+        terrain = self.terrain()
+        self.value['rosOutput'] = {'mode': 'private_saved_map_terrain'}
+        self.write()
+        with self.assertRaisesRegex(ValueError, 'paired_saved_map'):
+            self.settings()
+        self.value['localizationRosOutput'] = {'mode': 'private_saved_map_observations'}
+        self.write()
+        with self.assertRaisesRegex(ValueError, 'same_explicit_saved_map'):
+            self.settings()
+        self.platform.value = dict(basePose=dict(metresPerMapUnit=1.))
+        settings = self.settings()
+        self.assertTrue(settings.saved_map_terrain)
+        self.assertEqual('private_saved_map_terrain', settings.frozen['rosOutputMode'])
+        self.platform.value['basePose']['metresPerMapUnit'] = 2.
+        with self.assertRaisesRegex(ValueError, 'same_explicit_saved_map'):
+            self.settings()
+        terrain['geometry']['declared_from_raw'][3] = .1
+        self.write()
+        with self.assertRaisesRegex(ValueError, 'identity_saved_map'):
+            self.settings()
+
     def test_wrong_terrain_architecture_build_source_or_dependency_is_rejected(self):
         terrain = self.terrain()
         dependency = Path(terrain['octomap']['library']).parent / 'lib' / sorted(live.DEPENDENCIES)[0]
@@ -358,6 +380,41 @@ class CompositionTests(SettingsFixture, unittest.TestCase):
         with patch.object(composition, 'source', source):
             self.assertIsNone(composition.terrain_snapshot().grid)
             source.snapshot.assert_not_called()
+
+    def test_saved_terrain_submission_waits_for_exact_post_projection_hook_and_revoke_clears_slot(self):
+        from test_localization_output import SyntheticLiveFixture
+        fixture = SyntheticLiveFixture()
+        fixture.prepare()
+        terrain = self.terrain()
+        terrain['geometry']['metres_per_raw_unit'] = fixture.session.base_scale
+        self.platform.value = dict(basePose=dict(metresPerMapUnit=fixture.session.base_scale))
+        self.value['rosOutput'] = {'mode': 'private_saved_map_terrain'}
+        self.value['localizationRosOutput'] = {'mode': 'private_saved_map_observations'}
+        self.write()
+        composition = live.AcquisitionComposition(self.settings(), fixture.session, self.root)
+        self.addCleanup(composition.revoke)
+        source = Mock()
+        source.snapshot.return_value = live.LaneSnapshot(0, 'ready')
+        composition.source = source
+        packet, timing, _ = fixture.offer(capture=False)
+        composition.accept(packet)
+        source.assert_not_called()
+        self.assertIs(packet, composition.pending_terrain)
+        composition.capture_terrain(timing.header_ns + 1, timing.algorithm_stamp)
+        source.assert_not_called()
+        self.assertIsNone(composition.pending_terrain)
+        composition.accept(packet)
+        composition.capture_terrain(timing.header_ns, timing.algorithm_stamp)
+        source.assert_called_once_with(packet, scan_header_ns=timing.header_ns)
+        self.assertEqual(1, composition.submissions)
+        self.assertEqual(composition.localization_ros_output.namespace, composition.ros_output.namespace)
+        composition.accept(packet)
+        composition.revoke()
+        self.assertIsNone(composition.pending_terrain)
+        composition.accept(packet)
+        composition.capture_terrain(timing.header_ns, timing.algorithm_stamp)
+        self.assertIsNone(composition.pending_terrain)
+        self.assertEqual(1, source.call_count)
 
     def test_localization_output_requires_live_scale_and_receives_exact_registered_packet(self):
         self.value['localizationRosOutput'] = {'mode': 'private_saved_map_observations'}

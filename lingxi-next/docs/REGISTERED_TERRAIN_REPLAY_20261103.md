@@ -1,5 +1,11 @@
 # Actual Recorded Localization And Native Terrain
 
+Historical evidence notice: the saved-map terrain alignment update changes
+common runtime sources. This recording has not been rerun for that update;
+the original aggregate digests remain intact, so its current-source assertion
+now fails. The measurements below describe private run `-c` only, not current
+source acceptance. See [the alignment milestone](SAVED_MAP_TERRAIN_ALIGNMENT_20261103.md).
+
 Date: 2026-11-03. Offline Linux x86_64 only. No robot IO, sensor subscription,
 ROS node, deployment, physical command, Web/Android change or new recording.
 The retained user recording is replayed at 1x; no synthetic geometry replaces

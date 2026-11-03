@@ -165,6 +165,8 @@ def child(args, sink, platform):
         base_owner.frame(header, algorithm, pose, statistics)
         if observation_owner is not None:
             observation_owner.capture(header, algorithm)
+        if acquisition is not None:
+            acquisition.capture_terrain(header, algorithm)
 
     worker = SensorWorker(
         factory, SensorProfile("lidar_chest_front", "lidar_imu_chest_front",

@@ -8,10 +8,11 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).parent))
 from test_localization_output import SyntheticLiveFixture
+from test_saved_map_terrain import SavedMapTerrainFixture
 
 
 @unittest.skipUnless(os.environ.get('LINGXI_VERIFY_LOCALIZATION_OUTPUT_ROS') == '1', 'explicit isolated Humble required')
-class HumbleOutputTests(SyntheticLiveFixture, unittest.TestCase):
+class HumbleOutputTests(SavedMapTerrainFixture, SyntheticLiveFixture, unittest.TestCase):
     def setUp(self):
         if set(os.listdir('/sys/class/net')) != {'lo'} or os.environ.get('ROS_LOCALHOST_ONLY') != '1':
             raise RuntimeError('isolated_loopback_humble_required')
@@ -21,7 +22,7 @@ class HumbleOutputTests(SyntheticLiveFixture, unittest.TestCase):
         from nav_msgs.msg import Odometry
         from sensor_msgs.msg import PointCloud2
         from tf2_msgs.msg import TFMessage
-        self.prepare()
+        self.prepare(now=time.monotonic())
         self.context = Context()
         rclpy.init(args=[], context=self.context)
         self.addCleanup(self.context.try_shutdown)
@@ -167,6 +168,81 @@ class HumbleOutputTests(SyntheticLiveFixture, unittest.TestCase):
         self.assertEqual((), tuple(node.publishers))
         with self.assertRaisesRegex(RuntimeError, 'cannot_restart'):
             self.output.setup(self.node)
+
+    def terrain_output(self):
+        from nav_msgs.msg import OccupancyGrid
+        from live_terrain_ros import LiveTerrainRosOutput
+        from test_ground import spec
+        self.terrain()
+        owner = LiveTerrainRosOutput(spec(), self.source.snapshot, self.source.retire, observations=self.output)
+        owner.setup(self.node)
+        self.addCleanup(owner.close)
+        grids = []
+        self.node.create_subscription(OccupancyGrid, '/' + owner.namespace + '/traversable_map', grids.append, 10)
+        self.spin(.2)
+        self.assertTrue(grids)
+        self.assertEqual({-1}, set(grids[-1].data))
+        return owner, grids
+
+    def test_saved_map_terrain_cloud_odom_and_tf_share_frame_scale_and_original_time(self):
+        owner, grids = self.terrain_output()
+        stamp = self.node.get_clock().now().nanoseconds - 110_000_000
+        self.scan(stamp=stamp)
+        self.result()
+        self.scan(2, stamp + 100_000_000, x=.05)
+        grid = self.result()
+        self.spin(.07)
+        self.assertTrue(all(self.samples.values()))
+        values = [message for message in grids if set(message.data) == {0}]
+        self.assertTrue(values)
+        self.assertEqual(self.output.namespace, owner.namespace)
+        for message in (values[-1], self.samples['odometry'][-1], self.samples['points'][-1],
+                *self.samples['tf'][-1].transforms):
+            self.assertEqual(stamp + 100_000_000,
+                message.header.stamp.sec * 10**9 + message.header.stamp.nanosec)
+        self.assertEqual('lingxi_saved_map', values[-1].header.frame_id)
+        self.assertEqual(stamp, grid.oldest_scan_ns)
+        self.assertEqual((64, 64), (values[-1].info.width, values[-1].info.height))
+        self.assertAlmostEqual(-3.2, values[-1].info.origin.position.x)
+        self.assertAlmostEqual(.1, values[-1].info.resolution)
+        self.spin(.25)
+        self.assertEqual({-1}, set(grids[-1].data))
+        self.assertFalse(owner.summary()['navigationReady'])
+
+    def test_saved_map_terrain_cannot_refresh_an_old_or_future_acquisition_window(self):
+        owner, grids = self.terrain_output()
+        now = self.node.get_clock().now().nanoseconds
+        self.scan(stamp=now - 700_000_000)
+        self.result()
+        self.scan(2, now - 600_000_000)
+        self.result()
+        self.spin(.07)
+        self.assertTrue(all(set(message.data) == {-1} for message in grids))
+        self.assertEqual('original_terrain_scan_time_unavailable', owner.publisher.last_failure)
+        self.scan(3, now + 500_000_000)
+        self.result()
+        self.scan(4, now + 600_000_000)
+        self.result()
+        self.spin(.07)
+        self.assertTrue(all(set(message.data) == {-1} for message in grids))
+        self.session.phase = 'lost'
+        self.spin(.07)
+        self.session.phase = 'tracking'
+        self.assertIsNone(self.source.snapshot().grid)
+        self.assertEqual({-1}, set(grids[-1].data))
+
+    def test_saved_map_header_uses_original_latest_but_vetoes_expired_oldest_scan(self):
+        from dataclasses import replace
+        owner, grids = self.terrain_output()
+        stamp = self.node.get_clock().now().nanoseconds - 20_000_000
+        self.scan(stamp=stamp)
+        original = self.result()
+        # Synthetic lane fixture: fresh receipt/latest cannot hide an old contributing scan.
+        old = replace(original, oldest_scan_ns=stamp - 400_000_000)
+        from lingxi_navigation.terrain_lane import LaneSnapshot
+        with patch.object(owner, 'read_snapshot', return_value=LaneSnapshot(1, 'ready', old.session, old)):
+            self.spin(.07)
+        self.assertTrue(all(set(message.data) == {-1} for message in grids))
 
 
 if __name__ == '__main__':

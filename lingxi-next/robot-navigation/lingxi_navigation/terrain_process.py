@@ -35,6 +35,9 @@ class TerrainGrid:
     costs: bytes
     received_at: float
     expires_at: float
+    coordinate_frame: object = None
+    oldest_scan_ns: object = None
+    latest_scan_ns: object = None
 
     def __post_init__(self):
         if (type(self.session) is not str or len(self.session) != 32
@@ -48,6 +51,11 @@ class TerrainGrid:
                 or not finite(self.received_at) or not finite(self.expires_at)
                 or not 0 <= self.received_at < self.expires_at <= self.received_at + 15.):
             raise ValueError('complete_session_bound_expiring_terrain_grid_required')
+        if ((self.coordinate_frame, self.oldest_scan_ns, self.latest_scan_ns) != (None, None, None)
+                and (self.coordinate_frame != 'lingxi_saved_map'
+                    or type(self.oldest_scan_ns) is not int or type(self.latest_scan_ns) is not int
+                    or not 0 < self.oldest_scan_ns <= self.latest_scan_ns < 2**63)):
+            raise ValueError('complete_original_scan_saved_map_terrain_time_required')
 
 
 class TerrainProcess:

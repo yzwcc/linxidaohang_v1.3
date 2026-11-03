@@ -15,6 +15,7 @@ from lingxi_navigation.occupancy import ClearanceProjection, DEPENDENCIES, canon
 from lingxi_navigation.recorded_occupancy import OfflineGeometry
 from lingxi_navigation.terrain_lane import TerrainLane, LaneSnapshot
 from lingxi_navigation.terrain_process import TerrainProcess
+from lingxi_navigation.terrain import TerrainBudget
 
 PURPOSE = 'passive_acquisition_and_declared_terrain_not_navigation'
 SOURCES = ('robot-runtime/python/live_acquisition.py', 'robot-runtime/python/acquisition_bundle.py',
@@ -111,12 +112,15 @@ class AcquisitionSettings:
             raise ValueError('explicit_passive_acquisition_settings_required')
         self.ros_output = 'rosOutput' in value
         if self.ros_output and ('terrain' not in value or type(value['rosOutput']) is not dict
-                or value['rosOutput'] != {'mode': 'private_declared_terrain'}):
+                or value['rosOutput'] not in ({'mode': 'private_declared_terrain'}, {'mode': 'private_saved_map_terrain'})):
             raise ValueError('explicit_private_declared_terrain_ros_output_required')
         self.localization_ros_output = 'localizationRosOutput' in value
         if self.localization_ros_output and (type(value['localizationRosOutput']) is not dict
                 or value['localizationRosOutput'] != {'mode': 'private_saved_map_observations'}):
             raise ValueError('explicit_private_saved_map_observations_required')
+        self.saved_map_terrain = self.ros_output and value['rosOutput']['mode'] == 'private_saved_map_terrain'
+        if self.saved_map_terrain and not self.localization_ros_output:
+            raise ValueError('paired_saved_map_terrain_and_observations_required')
         selection = value['acquisition']
         root = Path(selection['root'])
         bundle = acquisition_bundle.verify_bundle(root, selection['manifestSha256'],
@@ -132,6 +136,13 @@ class AcquisitionSettings:
         self.library = root / 'lib' / acquisition_bundle.LIBRARY
         self.library_sha256 = bundle['files']['lib/' + acquisition_bundle.LIBRARY]['sha256']
         self.terrain = terrain_settings(value['terrain']) if 'terrain' in value else None
+        if self.saved_map_terrain:
+            import numpy as np
+            if not np.array_equal(np.array(self.terrain[0].declared_from_raw).reshape(4, 4), np.eye(4)):
+                raise ValueError('identity_saved_map_terrain_geometry_required')
+            base = getattr(self.platform, 'value', {}).get('basePose', {})
+            if base.get('metresPerMapUnit') != self.terrain[0].metres_per_raw_unit:
+                raise ValueError('same_explicit_saved_map_base_and_terrain_scale_required')
         if self.terrain is not None:
             terrain = value['terrain']
             paths = [Path(terrain[name]['library']) for name in ('ground', 'octomap')]
@@ -148,7 +159,7 @@ class AcquisitionSettings:
                 (*SOURCES, *(ROS_SOURCES if self.ros_output else ()),
                  *(LOCALIZATION_ROS_SOURCES if self.localization_ros_output else ()))})
         if self.ros_output:
-            frozen['rosOutputMode'] = 'private_declared_terrain'
+            frozen['rosOutputMode'] = value['rosOutput']['mode']
         if self.localization_ros_output:
             frozen['localizationRosOutputMode'] = 'private_saved_map_observations'
         if self.terrain is not None and 'targetTrial' in value['terrain']:
@@ -185,14 +196,18 @@ class AcquisitionComposition:
         self.failure_reason = self.retirement_reason = None
         self.counts = None
         self.registered_packets = self.registered_returns = self.submissions = 0
-        self.ros_output = None
-        if settings.ros_output:
-            from live_terrain_ros import LiveTerrainRosOutput
-            self.ros_output = LiveTerrainRosOutput(settings.terrain[1], self.terrain_snapshot, self.revoke)
+        self.pending_terrain = None
+        self.terrain_budget = (TerrainBudget(maximum_span_seconds=.2, maximum_processing_seconds=.2,
+            maximum_age_seconds=.3) if settings.saved_map_terrain else TerrainBudget())
         self.localization_ros_output = None
         if settings.localization_ros_output:
             from live_localization_ros import LiveLocalizationRosOutput
             self.localization_ros_output = LiveLocalizationRosOutput(session)
+        self.ros_output = None
+        if settings.ros_output:
+            from live_terrain_ros import LiveTerrainRosOutput
+            options = dict(observations=self.localization_ros_output) if settings.saved_map_terrain else {}
+            self.ros_output = LiveTerrainRosOutput(settings.terrain[1], self.terrain_snapshot, self.revoke, **options)
 
     def terrain_snapshot(self):
         with self.lock:
@@ -237,10 +252,11 @@ class AcquisitionComposition:
                     self.service = TerrainProcess(ground_library=Path(ground['library']), ground_sha256=ground['sha256'],
                         octomap_library=Path(octomap['library']), octomap_sha256=octomap['sha256'],
                         dependencies=octomap['dependencies'], projection=projection, declaration=declaration,
-                        stderr_path=self.output / 'private-terrain.log')
+                        stderr_path=self.output / 'private-terrain.log', budget=self.terrain_budget)
                     return self.service
                 self.lane = TerrainLane(native_terrain)
-                self.source = RegisteredTerrainSource(self.session, self.lane, geometry, projection=projection)
+                self.source = RegisteredTerrainSource(self.session, self.lane, geometry, projection=projection,
+                    budget=self.terrain_budget, saved_map=self.settings.saved_map_terrain)
             self.rays = NativeAcquisitionOutput(self.settings.library)
             verify_loaded_libraries({self.settings.library: self.settings.library_sha256}, Path('/proc/self/maps').read_text())
             result = AcquiringNative(self.session, point_factory, acquisition_output=self.rays, on_acquisition=self.accept)
@@ -266,7 +282,21 @@ class AcquisitionComposition:
         self.registered_returns += len(packet.origins)
         if self.localization_ros_output is not None:
             self.localization_ros_output.offer(packet)
-        if self.source is not None and self.source(packet):
+        if self.settings.saved_map_terrain:
+            self.pending_terrain = None if self.closed else packet
+        elif self.source is not None and self.source(packet):
+            self.submissions += 1
+
+    def capture_terrain(self, header, algorithm):
+        """Join after LiveBasePose.frame on the same native owner, never latest-TF."""
+        packet, self.pending_terrain = self.pending_terrain, None
+        if packet is None or self.source is None or self.closed:
+            return
+        base = self.session.state().get('basePose', {})
+        if (packet.algorithm_stamp != algorithm or base.get('status') != 'available'
+                or base.get('scanHeaderNs') != str(header) or base.get('lastFrame') != packet.native_frame_id):
+            return
+        if self.source(packet, scan_header_ns=header):
             self.submissions += 1
 
     def unavailable(self):
@@ -302,6 +332,7 @@ class AcquisitionComposition:
             self.localization_ros_output.retire()
         with self.lock:
             self.closed = True
+            self.pending_terrain = None
             source = self.source
         if source is not None:
             source.retire('live_acquisition_revoked')
@@ -348,7 +379,8 @@ def verify_terminal(value, expected, *, estimated_poses):
         raise ValueError('complete_passive_acquisition_cleanup_required')
     ros = value.get('terrainRosOutput')
     if 'rosOutputMode' in expected:
-        if (expected['rosOutputMode'] != 'private_declared_terrain' or value.get('terrainConfigured') is not True
+        if (expected['rosOutputMode'] not in ('private_declared_terrain', 'private_saved_map_terrain')
+                or value.get('terrainConfigured') is not True
                 or type(ros) is not dict or set(ros) != {'mode', 'started', 'closed', 'failed', 'publications',
                     'physicalScaleValidated', 'groundSupportValidated', 'physicalMotionSent', 'navigationReady'}
                 or ros.get('mode') != expected['rosOutputMode']

@@ -5,10 +5,13 @@ from pathlib import Path
 import sys
 import threading
 
+import numpy as np
+
 ROOT = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(ROOT / 'robot-slam'), str(ROOT / 'robot-navigation')]
 from lingxi_slam.localization_session import LocalizationSession
 from lingxi_slam.registered_acquisition import RegisteredAcquisition
+from lingxi_slam.base_pose import timestamp
 from lingxi_navigation.recorded_occupancy import OfflineGeometry, RaySelection
 from lingxi_navigation.occupancy import ClearanceProjection, canonical
 from lingxi_navigation.registered_window import RegisteredRayWindow
@@ -25,12 +28,20 @@ class RegisteredTerrainSource:
     an explicit new composition is required, never an automatic old-job retry.
     """
 
-    def __init__(self, session, lane, geometry, *, projection, budget=TerrainBudget(), selection=RaySelection()):
+    def __init__(self, session, lane, geometry, *, projection, budget=TerrainBudget(), selection=RaySelection(),
+                 saved_map=False):
         if (type(session) is not LocalizationSession or type(lane) is not TerrainLane
                 or type(geometry) is not OfflineGeometry or type(projection) is not ClearanceProjection
                 or type(budget) is not TerrainBudget
                 or type(selection) is not RaySelection):
             raise ValueError('explicit_localization_lane_and_offline_geometry_required')
+        if type(saved_map) is not bool or saved_map and (session.binding.input_mode != 'live'
+                or session.base_scale is None or geometry.metres_per_raw_unit != session.base_scale
+                or not np.array_equal(np.array(geometry.declared_from_raw).reshape(4, 4), np.eye(4))
+                or budget.maximum_age_seconds > .3):
+            raise ValueError('same_saved_map_scale_identity_geometry_and_fresh_window_required')
+        self.saved_map, self.scan_stamps = saved_map, {}
+        self.submitted_stamps = self.annotated_grid = self.raw_grid = None
         state = lane.snapshot()
         if state.grid is not None or lane.last_sequence != -1 or state.state not in ('starting', 'ready'):
             raise ValueError('new_exclusive_registered_terrain_lane_required')
@@ -50,6 +61,8 @@ class RegisteredTerrainSource:
         if not self.retired:
             self.retired = True
             self.submitted = None
+            self.scan_stamps.clear()
+            self.submitted_stamps = self.annotated_grid = self.raw_grid = None
             if self.window is not None:
                 self.window.clear()
             self.lane.retire(reason)
@@ -58,7 +71,7 @@ class RegisteredTerrainSource:
         with self.lock:
             self._retire(reason)
 
-    def __call__(self, packet):
+    def __call__(self, packet, *, scan_header_ns=None):
         with self.lock:
             if self.retired:
                 return False
@@ -75,12 +88,28 @@ class RegisteredTerrainSource:
                         or state['referenceFrame'] != packet.native_frame_id):
                     self._retire('registered_localization_revoked')
                     return False
+                if self.saved_map:
+                    base = state.get('basePose', {})
+                    if (type(scan_header_ns) is not int or base.get('status') != 'available'
+                            or base.get('lastFrame') != packet.native_frame_id
+                            or base.get('scanHeaderNs') != str(scan_header_ns)
+                            or base.get('metresPerMapUnit') != self.geometry.metres_per_raw_unit
+                            or base.get('coordinateFrame') != 'lingxi_saved_map'
+                            or not np.allclose(packet.map_lidar_pose, state['mapFromSensor'], rtol=0, atol=1e-8)):
+                        raise ValueError('same_frame_original_scan_base_projection_required')
+                    stamp = timestamp(int(base['effectiveScanNs']))
+                    if self.scan_stamps and stamp <= max(self.scan_stamps.values()):
+                        raise ValueError('increasing_original_terrain_scan_time_required')
+                    self.scan_stamps[packet.native_frame_id] = stamp
                 if self.window is None:
                     self.generation = packet.generation
                     self.window = RegisteredRayWindow(packet.binding, packet.generation, self.geometry,
                         projection=self.projection, budget=self.budget, selection=self.selection, clock=self.session.clock)
                 # Retain measured pairs while busy; only build a submission when the lane is ready.
                 value = self.window.offer(packet, materialize=self.lane.snapshot().state == 'ready')
+                if self.saved_map:
+                    self.scan_stamps = {frame.native_frame_id: self.scan_stamps[frame.native_frame_id]
+                                        for frame in self.window.frames}
                 if not self._valid(self.session.state()):
                     self._retire('registered_localization_revoked')
                     return False
@@ -90,6 +119,9 @@ class RegisteredTerrainSource:
                                             received_at=value.received_at)
                 if accepted:
                     self.submitted = value
+                    if self.saved_map:
+                        self.submitted_stamps = (self.scan_stamps[self.window.frames[0].native_frame_id], stamp)
+                        self.annotated_grid = self.raw_grid = None
                     self.submitted_sha256 = value.observations.sha256
                     batch = value.observations
                     self.submitted_epoch_sha256 = hashlib.sha256(canonical([batch.map_id,
@@ -124,6 +156,13 @@ class RegisteredTerrainSource:
                         self._retire('registered_localization_revoked')
                     if self.retired:
                         return self.lane.snapshot()
+                    if self.saved_map:
+                        if grid is not self.raw_grid:
+                            oldest, latest = self.submitted_stamps
+                            self.annotated_grid = replace(grid, coordinate_frame='lingxi_saved_map',
+                                oldest_scan_ns=oldest, latest_scan_ns=latest)
+                            self.raw_grid = grid
+                        return replace(result, grid=self.annotated_grid)
                 return replace(result, grid=None) if self.retired else result
             except BaseException:
                 self._retire('registered_localization_unavailable')
