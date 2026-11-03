@@ -10,6 +10,7 @@ from pathlib import Path
 import selectors
 import signal
 import socket
+import socketserver
 import ssl
 import subprocess
 import sys
@@ -114,7 +115,8 @@ class WorkspaceConfiguration(unittest.TestCase):
                   "OMP_NUM_THREADS": "2", "OPENBLAS_NUM_THREADS": "2"}
         with patch.object(sys, "argv", arguments), patch("managed_slam.verified_configuration", return_value=(
                 {"pointAdapter": str(frozen)}, native)), patch("managed_slam.signal.signal"), \
-                patch.dict(os.environ, {**required, "LINGXI_DEMO_MODE": "1", "NODE_OPTIONS": "--inspect"}, clear=True), \
+                patch.dict(os.environ, {**required, "LINGXI_DEMO_MODE": "1", "NODE_OPTIONS": "--inspect",
+                    "LINGXI_NAVIGATION_SOCKET": "/unreviewed/navigation.sock"}, clear=True), \
                 patch("managed_slam.ManagedSlamOwner") as owner:
             owner.return_value.run.return_value = {"result": "stopped"}
             self.assertEqual(0, managed_slam.main())
@@ -155,13 +157,14 @@ class WorkspaceProcesses(unittest.TestCase):
         finally:
             self.temporary.cleanup()
 
-    def product_config(self, agent_port=18180):
+    def product_config(self, agent_port=18180, navigation_socket=None):
         state, token, configuration = self.root / 'product-state', self.root / 'agent-token', self.root / 'product.json'
         state.mkdir(mode=0o700, exist_ok=True)
         token.write_text('synthetic-agent-token-not-a-real-secret\n')
         token.chmod(0o600)
         configuration.write_text(json.dumps({'schemaVersion': 1, 'stateDirectory': str(state),
-            'agentUrl': 'http://127.0.0.1:' + str(agent_port), 'agentTokenFile': str(token)}))
+            'agentUrl': 'http://127.0.0.1:' + str(agent_port), 'agentTokenFile': str(token),
+            **({'navigationSocket': str(navigation_socket)} if navigation_socket else {})}))
         configuration.chmod(0o600)
         return configuration
 
@@ -178,15 +181,25 @@ class WorkspaceProcesses(unittest.TestCase):
         self.owners.append((process, output))
         with selectors.DefaultSelector() as selector:
             selector.register(process.stdout, selectors.EVENT_READ)
-            self.assertTrue(selector.select(22), "shared owner startup deadline")
+            if not selector.select(22):
+                self.fail('shared owner startup deadline: ' + self.startup_logs(output))
             line = process.stdout.readline()
         if not line:
-            self.fail(process.stderr.read(4096).decode())
+            self.fail('shared owner exited before listening: ' + self.startup_logs(output))
         status = json.loads(line)
         self.status, self.base = status, "https://127.0.0.1:" + str(status["port"])
         self.token = None
         self.token = self.request("POST", "/session/pair", {"pairingCode": "synthetic-slam-workspace"}, 201)["token"]
         return process, output
+
+    def startup_logs(self, output):
+        records = {}
+        for name in ('owner-report.json', 'private-api.log', 'private-service.log'):
+            file = output / name
+            if file.is_file():
+                with file.open('rb') as stream:
+                    records[name] = stream.read(4096).decode(errors='replace')
+        return json.dumps(records)
 
     def request(self, method, route, payload=None, expected=200, headers=None):
         request = Request(self.base + "/api/v1" + route, method=method,
@@ -349,6 +362,95 @@ class WorkspaceProcesses(unittest.TestCase):
             agent.shutdown()
             agent.server_close()
             thread.join(timeout=3)
+
+    def test_explicit_product_navigation_socket_roundtrip_and_disconnect_never_admit_motion(self):
+        parent = self.root / 'navigation'
+        parent.mkdir(mode=0o700)
+        endpoint = parent / 'bridge.sock'
+        calls = []
+        lock = threading.Lock()
+
+        class SyntheticNavigation(socketserver.StreamRequestHandler):
+            def handle(self):
+                request = json.loads(self.rfile.readline(65536))
+                with lock:
+                    calls.append(request['action'])
+                    sequence = len(calls)
+                if request['action'] != 'state':
+                    response = {'id': request['id'], 'ok': False, 'code': 'synthetic_motion_forbidden', 'status': 409}
+                else:
+                    response = {'id': request['id'], 'ok': True, 'value': {
+                        'protocol': 1, 'source': 'ros2-nav2', 'session': 'a' * 32, 'sequence': sequence,
+                        'identity': {'mapId': 'slam-' + 'b' * 32, 'receiptSha256': 'c' * 64,
+                            'calibrationSha256': 'd' * 64, 'footprintSha256': 'e' * 64},
+                        'phase': 'idle', 'detail': 'synthetic-private-navigation-fixture',
+                        'ticket': None, 'pointId': None, 'requiresStop': False, 'outputQuiescent': True,
+                        'pose': {'x': 0, 'y': 0, 'yaw': 0},
+                        'checks': {name: False for name in ('nav2Lifecycle', 'localization', 'tf',
+                            'costmap', 'terrain', 'footprint', 'velocityOutput')},
+                        'navigationReady': False, 'physicalMotionSent': False}}
+                try:
+                    self.wfile.write(json.dumps(response).encode() + b'\n')
+                except BrokenPipeError:
+                    pass
+
+        def start_bridge():
+            server = socketserver.ThreadingUnixStreamServer(str(endpoint), SyntheticNavigation)
+            endpoint.chmod(0o600)
+            thread = threading.Thread(target=server.serve_forever, kwargs={'poll_interval': .02}, daemon=True)
+            thread.start()
+            return server, thread
+
+        def stop_bridge(server, thread):
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=3)
+            endpoint.unlink()
+
+        server, thread = start_bridge()
+        try:
+            process, output = self.start(self.product_config(navigation_socket=endpoint))
+            state = self.request('GET', '/state')
+            self.assertTrue(state['independentProduct'])
+            self.assertEqual('synthetic-private-navigation-fixture', state['navigation']['detail'])
+            self.assertEqual({'backend': 'nav2-ros2', 'syntheticInputs': False,
+                'navigationReady': False, 'physicalMotionSent': False}, state['navigationExecution'])
+            self.assertFalse(next(item for item in state['checks'] if item['id'] == 'navigation')['ready'])
+            self.request('POST', '/navigation/point', {'pointId': 'not-a-metric-map'}, 404)
+            mapping = self.mapping()
+            self.request('POST', '/mapping/stop-discard', {'session': mapping['mappingSession']})
+            self.assertGreaterEqual(len(calls), 2)
+            self.assertEqual({'state'}, set(calls))
+        finally:
+            stop_bridge(server, thread)
+        failed = self.request('GET', '/state')
+        self.assertEqual('failed', failed['navigation']['status'])
+        self.assertTrue(failed['navigation']['requiresStop'])
+        self.assertFalse(failed['navigationExecution']['navigationReady'])
+        self.request('PUT', '/settings/navigation', {'idleReturnSeconds': 30})
+        count = len(calls)
+        server, thread = start_bridge()
+        try:
+            for _ in range(2):
+                state = self.request('GET', '/state')
+                self.assertTrue(state['navigation']['requiresStop'])
+            self.assertEqual(count, len(calls), 'retired transport must not reconnect or replay')
+            self.assertEqual('stopped', self.stop(process, output)['result'])
+        finally:
+            stop_bridge(server, thread)
+
+    def test_absent_selected_navigation_socket_keeps_paired_management_available(self):
+        parent = self.root / 'navigation'
+        parent.mkdir(mode=0o700)
+        process, output = self.start(self.product_config(navigation_socket=parent / 'missing.sock'))
+        state = self.request('GET', '/state')
+        self.assertTrue(state['independentProduct'])
+        self.assertTrue(state['navigation']['requiresStop'])
+        self.assertFalse(state['navigationExecution']['navigationReady'])
+        self.request('PUT', '/settings/ai', {'provider': 'openai-compatible',
+            'model': 'synthetic-disconnected-model', 'baseUrl': 'https://model.invalid'})
+        self.assertEqual('synthetic-disconnected-model', self.request('GET', '/settings')['model'])
+        self.assertEqual('stopped', self.stop(process, output)['result'])
 
     def test_mapping_blocks_localization_before_resolver_or_child_creation(self):
         process, output = self.start()

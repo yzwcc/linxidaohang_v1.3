@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { buildServer } from "../../robot-api/src/server";
+import { UnixRosNavigationBackend } from "../../robot-api/src/physical-navigation-backend";
 import { readProductConfiguration } from "./product-config";
 
 export async function startManagedMappingApi(options: { slamConsole?: true } = {}) {
@@ -25,6 +26,7 @@ export async function startManagedMappingApi(options: { slamConsole?: true } = {
   }
   const product = productFile ? readProductConfiguration(productFile, productDigest!, [
     process.env.LINGXI_SAVED_SLAM_DIR!, process.env.LINGXI_DATA_DIR!,
+    process.execPath, path.resolve(process.argv[1]),
     ...(process.env.LINGXI_WEB_ROOT ? [path.dirname(process.env.LINGXI_WEB_ROOT)] : []),
     ...(key ? [key] : []), ...(certificate ? [certificate] : []),
   ]) : undefined;
@@ -34,8 +36,11 @@ export async function startManagedMappingApi(options: { slamConsole?: true } = {
     throw new Error("valid_mapping_api_listen_port_required");
   }
   if (options.slamConsole && port === "3000") throw new Error("existing_console_port_reserved");
+  const { navigationSocket, ...productOptions } = product ?? {};
   const app = await buildServer({
-    ...(product ? { independentProduct: true, ...product } : options.slamConsole ? { slamConsole: true } : { mappingConsole: true }),
+    ...(product ? { independentProduct: true, ...productOptions,
+      physicalNavigationBackend: navigationSocket ? new UnixRosNavigationBackend(navigationSocket) : undefined,
+    } : options.slamConsole ? { slamConsole: true } : { mappingConsole: true }),
     tlsKey: key ? readFileSync(key) : undefined,
     tlsCert: certificate ? readFileSync(certificate) : undefined,
   });

@@ -1,10 +1,11 @@
-"""Explicit local product composition; no vendor or physical command admission."""
+"""Explicit product composition; socket selection does not grant readiness."""
 import hashlib
 import json
 import os
 from pathlib import Path
 import re
 import stat
+import sys
 
 
 def private_path(value, *, directory=False):
@@ -14,6 +15,26 @@ def private_path(value, *, directory=False):
             or not (stat.S_ISDIR(info.st_mode) if directory else stat.S_ISREG(info.st_mode))
             or (os.name == 'posix' and (info.st_uid != os.geteuid() or info.st_mode & 0o077))):
         raise ValueError('direct_owned_private_product_path_required')
+    return path
+
+
+def navigation_socket(value):
+    if (sys.platform != 'linux' or type(value) is not str or not value or '\x00' in value
+            or len(value.encode('utf-8')) >= 100):
+        raise ValueError('private_absolute_linux_navigation_socket_required')
+    path = Path(value)
+    if not path.is_absolute() or str(path) != value:
+        raise ValueError('private_absolute_linux_navigation_socket_required')
+    try:
+        private_path(str(path.parent), directory=True)
+    except OSError as error:
+        raise ValueError('existing_private_navigation_socket_parent_required') from error
+    try:
+        info = path.lstat()
+    except FileNotFoundError:
+        return path
+    if not stat.S_ISSOCK(info.st_mode) or info.st_uid != os.geteuid() or info.st_mode & 0o077:
+        raise ValueError('owned_private_navigation_socket_required')
     return path
 
 
@@ -30,7 +51,8 @@ def selection(args, config):
     if hashlib.sha256(data).hexdigest() != expected:
         raise ValueError('unchanged_product_configuration_required')
     value = json.loads(data)
-    if (type(value) is not dict or set(value) != {'schemaVersion', 'stateDirectory', 'agentUrl', 'agentTokenFile'}
+    fields = {'schemaVersion', 'stateDirectory', 'agentUrl', 'agentTokenFile'}
+    if (type(value) is not dict or set(value) not in (fields, fields | {'navigationSocket'})
             or type(value['schemaVersion']) is not int or value['schemaVersion'] != 1
             or any(type(value[name]) is not str for name in ('stateDirectory', 'agentUrl', 'agentTokenFile'))):
         raise ValueError('explicit_product_configuration_schema_required')
@@ -42,12 +64,17 @@ def selection(args, config):
         raise ValueError('bounded_valid_product_agent_token_required')
     from managed_mapping import validate_output
     validate_output(state, config, (file, token, args.config, args.node, args.api_bundle), existing=True)
-    paths = [file, state, token, args.maps, args.output]
+    selected = [file, state, token]
+    if 'navigationSocket' in value:
+        endpoint = navigation_socket(value['navigationSocket'])
+        validate_output(endpoint.parent, config, (file, token, args.config, args.node, args.api_bundle), existing=True)
+        selected.append(endpoint.parent)
+    paths = [*selected, args.maps, args.output]
     for name in ('LINGXI_TLS_KEY', 'LINGXI_TLS_CERT', 'LINGXI_WEB_ROOT'):
         if os.environ.get(name):
             path = Path(os.environ[name]).resolve(strict=True)
             paths.append(path.parent if name == 'LINGXI_WEB_ROOT' else path)
-    for index, left in enumerate(paths[:3]):
+    for index, left in enumerate(selected):
         for right in paths[index + 1:]:
             if left == right or left in right.parents or right in left.parents:
                 raise ValueError('separate_product_configuration_state_and_runtime_required')

@@ -22,11 +22,15 @@ acceptance. No robot was contacted or changed for this milestone.
   Agent HTTP is explicitly loopback-only. Its bearer token is read from a
   separate private file; it is not embedded in the configuration or package.
 - No AIMDK adapter is constructed. Vendor maps, vendor navigation and robot
-  actions are not admitted by this mode. Existing metadata can be maintained,
-  but point navigation, tour execution, map activation and action confirmation
-  remain unavailable. Voice cannot bypass those adapter/readiness limits.
+  actions are not admitted by this mode. Without an explicit `navigationSocket`,
+  point navigation, tour execution and map activation remain unavailable.
+  Selecting a separately supervised ROS 2/Nav2 bridge connects the existing
+  evidence-bound navigation adapter; it does not make its readiness gates true.
+  Action confirmation remains unavailable. Voice cannot bypass these limits.
 - Saved SLAM maps remain receipt-verified `native-raw` records with
-  `navigationReady: false`; they are never promoted to metric business maps.
+  `navigationReady: false` in the catalog. Only an explicitly selected bridge
+  can activate a map through its separate evidence contract; saving a map or
+  connecting a socket never admits it automatically.
   Overview and mapping use the point-cloud renderer, not a raster fallback.
 
 ## Explicit External Configuration
@@ -49,6 +53,33 @@ bridge, at least 32 printable ASCII characters. Configuration supports no
 inline model key, arbitrary bridge URL, vendor adapter or motion override.
 Model/Retriever credentials are submitted through paired HTTPS settings.
 
+An optional fifth field selects an existing independently supervised physical
+navigation bridge on Linux:
+
+```json
+"navigationSocket": "/home/OPERATOR/lingxi-navigation-control/nav.sock"
+```
+
+Leave it out for the default non-actuating product workspace. The direct parent
+directory must already exist, belong to the runtime UID and have no group/other
+permissions (`0700`). The normalized absolute path must be under 100 UTF-8
+bytes. An existing endpoint must be a real owned private Unix socket (`0600`),
+not a symlink or regular file. Preflight permits a missing socket, but not a
+missing parent. Both Python preflight and the API validate this selection.
+The entire socket parent must be separate from configuration, secrets, product
+state, catalog, run output and packaged/native inputs. Do not place it inside
+the managed per-start output directory.
+
+The field is covered by the same configuration digest and existing
+install/upgrade/rollback selection. The managed launcher still discards ambient
+`LINGXI_NAVIGATION_SOCKET`; environment injection is not a selection mechanism.
+This option does not install/start ROS, publish velocity or configure the
+physical bridge. A missing or disconnected bridge leaves HTTPS settings
+available but reports navigation unavailable. Transport failure permanently
+retires that client: restoring the socket does not reconnect or replay work.
+Follow [the physical bridge recovery procedure](PHYSICAL_NAVIGATION_BRIDGE.md)
+before a controlled restart. No configuration option bypasses the seven gates.
+
 `managed_slam.py` and `launch_slam_bundle.py` accept the paired arguments
 `--product-config ABSOLUTE_FILE --product-config-sha256 SHA256`. The launcher
 keeps the existing external TLS, verified bundle, ordinary-user ARM64/Python
@@ -68,16 +99,25 @@ credentials automatically.
 
 ## Verification And Limits
 
-- Windows full API/Web regression: 581 passed, 18 explicit environment skips.
+- Windows full API/Web regression: 621 passed, 24 explicit environment skips.
   Production TypeScript and Vite build passed; managed shared API compiled.
-- Actual ordinary-user Linux processes: 13 workspace tests passed in 137.973 s.
+- Linux targeted API/configuration/Unix transport regression: 67 passed and one
+  explicitly non-Linux case skipped. Linux product configuration (13), installer
+  (16), shared bundle (12) and source inventory (6) checks passed.
+- Actual ordinary-user Linux processes: 15 workspace tests passed in 216.136 s.
   This includes HTTPS/Unix ownership, synthetic map save/reload, localization,
   restart-persistent product settings, loopback Agent HTTP playback and passive
-  callback authentication. The Agent and sensor workers are labeled synthetic;
-  no real speech hardware, cloud service or ARM64 execution is claimed.
-- The first concurrent run had one unchanged 22-second startup deadline
-  failure. The complete retry passed without deadline changes. Keep that
-  first failure as a startup/resource-limit observation, not a passed run.
+  callback authentication. New selected-navigation checks use a real private
+  Unix socket with explicitly synthetic state: all seven readiness gates are
+  false, no motion is sent, a missing bridge preserves paired management, and
+  disconnect permanently retires transport without reconnect/replay. The Agent
+  and sensor workers are also synthetic; no real speech hardware, cloud service
+  or ARM64 execution is claimed.
+- Earlier attempts included one selected-socket startup deadline failure and a
+  concurrent full run with 13 passes and two existing product startup failures.
+  The standalone complete retry passed without changing the 22-second startup
+  deadline. Bounded owner/child logs now accompany startup failures. These
+  earlier failures remain observations, not passed runs or diagnosed causes.
 - Product configuration and installer tests check bounded private inputs,
   source/archive inventory, explicit opt-in, upgrade/rollback preservation and
   rejection of modified selections. These are not field-calibration evidence.

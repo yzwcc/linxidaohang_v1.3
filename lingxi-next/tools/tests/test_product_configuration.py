@@ -4,6 +4,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import socket
 import sys
 import tempfile
 import unittest
@@ -94,6 +95,86 @@ class ProductConfiguration(unittest.TestCase):
             state.mkdir(mode=0o700)
             self.save(stateDirectory=str(state))
             with self.assertRaisesRegex(ValueError, 'separate_product'):
+                product.selection(self.args, {})
+
+    def test_navigation_socket_rejects_invalid_schema_values_on_every_platform(self):
+        for value in (None, True, 5, '', [], {}):
+            self.save(navigationSocket=value)
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                product.selection(self.args, {})
+
+    @unittest.skipUnless(sys.platform == 'linux', 'requires Linux Unix sockets')
+    def test_optional_navigation_endpoint_can_be_absent_but_parent_must_be_private(self):
+        parent = self.root / 'navigation'
+        parent.mkdir(mode=0o700)
+        endpoint = parent / 'bridge.sock'
+        self.save(navigationSocket=str(endpoint))
+        result = product.selection(self.args, {})
+        self.assertEqual({'LINGXI_PRODUCT_CONFIG', 'LINGXI_PRODUCT_CONFIG_SHA256'}, set(result))
+        self.assertFalse(endpoint.exists())
+        parent.chmod(0o755)
+        with self.assertRaisesRegex(ValueError, 'private_product_path'):
+            product.selection(self.args, {})
+
+    @unittest.skipUnless(sys.platform == 'linux', 'requires Linux Unix sockets')
+    def test_present_navigation_endpoint_requires_private_owned_real_socket(self):
+        parent = self.root / 'navigation'
+        parent.mkdir(mode=0o700)
+        endpoint = parent / 'bridge.sock'
+        self.save(navigationSocket=str(endpoint))
+        with socket.socket(socket.AF_UNIX) as server:
+            server.bind(str(endpoint))
+            endpoint.chmod(0o600)
+            self.assertIn('LINGXI_PRODUCT_CONFIG', product.selection(self.args, {}))
+            endpoint.chmod(0o666)
+            with self.assertRaisesRegex(ValueError, 'private_navigation_socket'):
+                product.selection(self.args, {})
+            endpoint.chmod(0o600)
+            with patch.object(os, 'geteuid', return_value=os.geteuid() + 1):
+                with self.assertRaises(ValueError):
+                    product.navigation_socket(str(endpoint))
+        endpoint.unlink()
+        endpoint.write_text('not a socket')
+        endpoint.chmod(0o600)
+        with self.assertRaisesRegex(ValueError, 'private_navigation_socket'):
+            product.selection(self.args, {})
+        endpoint.unlink()
+        endpoint.symlink_to(parent / 'missing')
+        with self.assertRaises(ValueError):
+            product.selection(self.args, {})
+
+    @unittest.skipUnless(sys.platform == 'linux', 'requires Linux Unix sockets')
+    def test_navigation_parent_cannot_overlap_state_catalog_outputs_package_or_native_inputs(self):
+        for parent in (self.state, self.maps, self.root):
+            self.save(navigationSocket=str(parent / 'bridge.sock'))
+            with self.subTest(parent=parent), self.assertRaises(ValueError):
+                product.selection(self.args, {})
+        parent = self.root / 'navigation'
+        parent.mkdir(mode=0o700)
+        self.save(navigationSocket=str(parent / 'bridge.sock'))
+        for config in ({'bundle': str(parent)}, {'pointAdapter': str(parent / 'adapter.so')}):
+            with self.subTest(config=config), self.assertRaises(ValueError):
+                product.selection(self.args, config)
+        for name in ('config', 'node', 'api_bundle', 'output'):
+            with self.subTest(name=name), patch.object(self.args, name, parent / 'runtime'):
+                with self.assertRaises(ValueError):
+                    product.selection(self.args, {})
+        web = parent / 'web'
+        web.mkdir()
+        with patch.dict(os.environ, {'LINGXI_WEB_ROOT': str(web)}), self.assertRaises(ValueError):
+            product.selection(self.args, {})
+
+    @unittest.skipUnless(sys.platform == 'linux', 'requires Linux Unix sockets')
+    def test_navigation_endpoint_requires_direct_normalized_bounded_linux_path(self):
+        parent = self.root / 'navigation'
+        parent.mkdir(mode=0o700)
+        link = self.root / 'navigation-link'
+        link.symlink_to(parent, target_is_directory=True)
+        for endpoint in ('relative.sock', str(parent) + '/./bridge.sock', str(parent) + '/bridge.sock/',
+                str(parent / 'missing' / 'bridge.sock'), str(link / 'bridge.sock'),
+                str(parent / ('z' * 100)), str(parent / ('\u6d4b' * 34)), str(parent / 'bad\x00name')):
+            self.save(navigationSocket=endpoint)
+            with self.subTest(endpoint=repr(endpoint)), self.assertRaises(ValueError):
                 product.selection(self.args, {})
 
     @unittest.skipUnless(os.name == 'posix', 'requires Linux private owner semantics')
