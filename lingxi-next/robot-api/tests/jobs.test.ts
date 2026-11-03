@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { RobotSnapshot } from "../src/domain";
 import { DemoAdapter } from "../src/adapters/demo";
 import { JobManager } from "../src/jobs";
+import { ActionAuthorizationRevoked } from "../src/action-authorization";
 import { MemoryStore, map, point, tour } from "./fixtures";
 
 describe("navigation and tour lifecycle", () => {
@@ -144,6 +145,38 @@ describe("navigation and tour lifecycle", () => {
     await vi.advanceTimersByTimeAsync(30);
     expect(speak).toHaveBeenCalledTimes(2);
     expect(cancel).toHaveBeenCalledTimes(1);
+  });
+
+  it("revokes a pending expression for a new interaction revision and reattempts only after five quiet seconds", async () => {
+    let release!: () => void;
+    const writes: string[] = [];
+    const expression = vi.spyOn(adapter, "playExpression").mockImplementationOnce(async (name, authorize) => {
+      await new Promise<void>((resolve) => { release = resolve; });
+      if (!authorize?.()) throw new ActionAuthorizationRevoked();
+      writes.push(name);
+    }).mockImplementation(async (name, authorize) => {
+      if (!authorize?.()) throw new ActionAuthorizationRevoked();
+      writes.push(name);
+    });
+    await jobs.startTour({ ...tour, steps: [{ ...tour.steps[0], expression: "平静" }] });
+    await vi.advanceTimersByTimeAsync(20);
+    nav = { status: "finished", taskId: nav.taskId };
+    await vi.advanceTimersByTimeAsync(20);
+    expect(expression).toHaveBeenCalledOnce();
+    jobs.beginDialogue();
+    await jobs.interruptTour();
+    jobs.endDialogue();
+    release();
+    await vi.advanceTimersByTimeAsync(4990);
+    expect(writes).toEqual([]);
+    expect(speak).not.toHaveBeenCalled();
+    expect(expression).toHaveBeenCalledOnce();
+    await vi.advanceTimersByTimeAsync(30);
+    expect(writes).toEqual(["平静"]);
+    expect(expression).toHaveBeenCalledTimes(2);
+    expect(speak).toHaveBeenCalledOnce();
+    expect(jobs.history()).toEqual([]);
+    expect(jobs.state().detail).toBe("讲解已完成");
   });
   it("does not automatically return home after a tour", async () => {
     await jobs.startTour(tour);

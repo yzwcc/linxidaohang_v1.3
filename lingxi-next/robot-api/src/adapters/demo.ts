@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { LidarFrame, MapPoint, OccupancyGrid, RobotMap } from "../../../shared/contracts";
 import type { RobotAdapter, RobotSnapshot } from "../domain";
+import { assertActionAuthorized } from "../action-authorization";
 
 function demoGrid() {
   const width = 72;
@@ -154,8 +155,10 @@ export class DemoAdapter implements RobotAdapter {
     return undefined;
   }
 
-  async playExpression(name: string): Promise<void> {
+  async playExpression(name: string, authorize?: () => boolean): Promise<void> {
+    assertActionAuthorized(authorize);
     const snapshot = await this.getSnapshot();
+    assertActionAuthorized(authorize);
     if (!snapshot.expressions.includes(name)) throw new Error("该表情未配置");
   }
 

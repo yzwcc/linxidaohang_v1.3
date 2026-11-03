@@ -294,6 +294,13 @@ describe("independent recorded mapping controls", () => {
     expect(originalMotion).not.toHaveBeenCalled();
   });
 
+  it("preserves the current tour expression authorization through the mapping wrapper", async () => {
+    const original = vi.spyOn(adapter, "playExpression");
+    const authorize = () => false;
+    await expect(mappingGuard(adapter, backend).playExpression("平静", authorize)).rejects.toThrow("动作请求已失效");
+    expect(original).toHaveBeenCalledExactlyOnceWith("平静", authorize);
+  });
+
   it("requires a saved-map directory whenever the independent backend is configured", async () => {
     await expect(buildServer({ demoMode: true, mappingBackend: backend })).rejects.toThrow(
       "independent_mapping_requires_saved_slam_directory");

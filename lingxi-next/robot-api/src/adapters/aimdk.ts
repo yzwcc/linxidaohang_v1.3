@@ -1,6 +1,7 @@
 import type { LidarFrame, MapPoint, RobotMap } from "../../../shared/contracts";
 import type { OccupancyGrid } from "../../../shared/contracts";
 import type { RobotAdapter, RobotSnapshot } from "../domain";
+import { assertActionAuthorized } from "../action-authorization";
 
 export class AimdkAdapter implements RobotAdapter {
   readonly demoMode = false;
@@ -97,7 +98,8 @@ export class AimdkAdapter implements RobotAdapter {
     throw new Error("预设动作在期限内未确认结束");
   }
 
-  async playExpression(name: string): Promise<void> {
+  async playExpression(name: string, authorize?: () => boolean): Promise<void> {
+    assertActionAuthorized(authorize);
     const result = await this.request<{ accepted: boolean; completed: boolean }>(
       "/expression", { method: "POST", body: { name } },
     );

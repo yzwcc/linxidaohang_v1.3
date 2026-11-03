@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AimdkAdapter } from "../src/adapters/aimdk";
+import { ActionAuthorizationRevoked } from "../src/action-authorization";
 
 const response = (status: number, body: unknown) => new Response(JSON.stringify(body), {
   status,
@@ -8,6 +9,14 @@ const response = (status: number, body: unknown) => new Response(JSON.stringify(
 
 describe("AIMDK HTTP adapter action semantics", () => {
   afterEach(() => vi.unstubAllGlobals());
+
+  it("does not write a stale tour expression through the native adapter", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(new AimdkAdapter().playExpression("开心", () => false))
+      .rejects.toBeInstanceOf(ActionAuthorizationRevoked);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
 
   it("dispatches one preset request and polls its matching task to completion", async () => {
     const fetchMock = vi.fn()

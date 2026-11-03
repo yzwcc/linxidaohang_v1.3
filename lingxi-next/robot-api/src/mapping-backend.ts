@@ -210,7 +210,7 @@ export function mappingGuard(
       ? adapter.controlNavigation(action, identity) : rejectMotion(),
     startPresetMotion: physicalNavigation ? (name, monitorCompletion) => adapter.startPresetMotion(name, monitorCompletion) : rejectMotion,
     waitPresetMotion: (identity) => adapter.waitPresetMotion(identity),
-    playExpression: (name) => adapter.playExpression(name),
+    playExpression: (name, authorize) => adapter.playExpression(name, authorize),
     executeLinkcraftResource: physicalNavigation ? (id) => adapter.executeLinkcraftResource(id) : rejectMotion,
     confirmActionsIdle: () => adapter.confirmActionsIdle(),
   };

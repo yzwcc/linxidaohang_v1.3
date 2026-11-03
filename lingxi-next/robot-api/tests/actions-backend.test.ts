@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { DemoAdapter } from "../src/adapters/demo";
 import { HttpActionsBackend, ProductActionsAdapter, ProductOperations } from "../src/actions-backend";
+import { ActionAuthorizationRevoked } from "../src/action-authorization";
 
 const endpoint = "http://127.0.0.1:18082/v1";
 const token = "synthetic-private-action-token-not-a-secret";
@@ -21,6 +22,13 @@ const json = (value: unknown, status = 200) => new Response(JSON.stringify(value
 afterEach(() => vi.unstubAllGlobals());
 
 describe("independent product actions bridge", () => {
+  it("rejects an already-revoked expression locally without reading or writing the bridge", async () => {
+    const fetcher = vi.fn();
+    vi.stubGlobal("fetch", fetcher);
+    const backend = new HttpActionsBackend(endpoint, token);
+    await expect(backend.playExpression("开心", () => false)).rejects.toBeInstanceOf(ActionAuthorizationRevoked);
+    expect(fetcher).not.toHaveBeenCalled();
+  });
   it("reads only a fresh actions-only service state and retains no physical capability", async () => {
     const fetcher = vi.fn(async () => json(state()));
     vi.stubGlobal("fetch", fetcher);
@@ -136,7 +144,7 @@ describe("product adapter operation ownership", () => {
     adapter.setJobBusy(() => true);
     await adapter.playExpression("开心", () => current);
     current = false;
-    await expect(adapter.playExpression("开心", () => current)).rejects.toThrow("任务运行期间");
+    await expect(adapter.playExpression("开心", () => current)).rejects.toThrow("动作请求已失效");
     expect(backend.playExpression).toHaveBeenCalledOnce();
   });
 

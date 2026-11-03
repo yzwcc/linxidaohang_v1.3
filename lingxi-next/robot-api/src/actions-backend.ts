@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { z } from "zod";
 import type { RobotAdapter, RobotSnapshot } from "./domain";
+import { assertActionAuthorized } from "./action-authorization";
 
 const expressions = ["眨眼", "平静", "卖萌", "开心", "悲伤", "同情", "疑惑", "震惊", "严肃", "思考"] as const;
 const stateSchema = z.object({
@@ -102,11 +103,12 @@ export class HttpActionsBackend implements ActionsBackend {
     return this.serialized(async () => {
       let dispatched = false;
       try {
+        assertActionAuthorized(authorize);
         const state = await this.read();
         if (this.uncertain || state.actionBusy || !state.expressions.includes(name as typeof expressions[number])) {
           throw denied("表情不可用或动作状态尚未确认");
         }
-        if (!authorize()) throw denied("动作请求已失效");
+        assertActionAuthorized(authorize);
         dispatched = true;
         await this.command("/expression", { name }, state);
       } catch (error) { if (dispatched && uncertainty(error)) this.uncertain = true; throw error; }
@@ -227,13 +229,15 @@ export class ProductActionsAdapter implements RobotAdapter {
   async startPresetMotion(): Promise<never> { throw denied("独立模式实体动作未准入"); }
   async waitPresetMotion(): Promise<never> { throw denied("独立模式实体动作未准入"); }
   async executeLinkcraftResource(): Promise<never> { throw denied("独立模式实体动作未准入"); }
-  playExpression(name: string, authorize?: () => boolean) {
-    const internal = authorize?.() === true;
+  async playExpression(name: string, authorize?: () => boolean) {
+    assertActionAuthorized(authorize);
+    const internal = authorize !== undefined;
     if (this.operations.isJobBusy() && !internal) return Promise.reject(denied("讲解任务运行期间不接受独立表情请求"));
     return this.operations.run(async (current) => {
       const state = await this.delegate.getSnapshot();
       let localizationBusy = true;
       try { localizationBusy = await this.activityBusy(); } catch { /* Unknown localization state blocks actions. */ }
+      assertActionAuthorized(authorize);
       if (localizationBusy) throw denied("定位运行期间不接受表情请求");
       if (!current() || state.mapping || state.actionBusy || state.navigation.requiresStop ||
           ["requested", "running", "paused"].includes(state.navigation.status)) {

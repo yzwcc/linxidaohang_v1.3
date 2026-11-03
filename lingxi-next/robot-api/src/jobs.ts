@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { MapPoint, NavigationState, RobotMap, TourTask } from "../../shared/contracts";
 import type { RobotAdapter } from "./domain";
 import type { StateStore } from "./store";
+import { ActionAuthorizationRevoked } from "./action-authorization";
 
 export interface SpeechOutput {
   // Resolves when playback ends; firstAudioMs is measured by the output adapter.
@@ -346,7 +347,8 @@ export class JobManager {
           }
           await this.waitReady(job);
           if (!this.isCurrent(job)) return;
-          if (step.expression) await this.adapter.playExpression(step.expression, () => this.isCurrent(job));
+          if (step.expression) await this.playTourExpression(job, step.expression);
+          if (!this.isCurrent(job)) return;
         } catch {
           if (!this.isCurrent(job)) return;
           hadErrors = true;
@@ -413,6 +415,24 @@ export class JobManager {
       }
     }
     if (this.isCurrent(job)) this.end(job, hadErrors ? "讲解已结束，存在失败或跳过项" : "讲解已完成");
+  }
+
+  private async playTourExpression(job: ActiveJob, name: string): Promise<void> {
+    while (this.isCurrent(job)) {
+      await this.waitReady(job);
+      if (!this.isCurrent(job)) return;
+      const interruption = job.interruption;
+      const authorize = () => this.isCurrent(job) && !job.manualPaused &&
+        interruption === job.interruption && this.dialogueCount === 0;
+      try {
+        await this.adapter.playExpression(name, authorize);
+        return;
+      } catch (error) {
+        // Only a locally confirmed pre-write revocation can be tried after
+        // resume. A lost/invalid remote acknowledgement is never replayed.
+        if (!(error instanceof ActionAuthorizationRevoked) || authorize()) throw error;
+      }
+    }
   }
 
   private async waitForCompletion(job: ActiveJob, taskId: string): Promise<boolean> {

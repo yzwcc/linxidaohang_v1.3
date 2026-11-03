@@ -62,6 +62,13 @@ expressions, occupied mapping/localization/navigation, missing pairing and
 plaintext requests do not dispatch an expression. This is a management API;
 no new Web control or Android build is included in this increment.
 
+Tour expressions now carry both job identity and interaction revision through
+preflight and the final write boundary. Only a typed local pre-write revocation
+can wait for resume/quiet and be attempted again; remote errors and invalid
+acknowledgements never qualify. See the separate
+[tour-expression verification](TOUR_EXPRESSION_VERIFICATION_20261103.md).
+This does not relax the localization or physical-action restrictions below.
+
 Product mutations share fail-fast API ownership, not a queue. Localization
 start/seed/pause participate in that ownership; expressions are unavailable
 until localization is stopped and cleanup is confirmed. Active localization is
