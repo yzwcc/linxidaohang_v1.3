@@ -28,6 +28,7 @@ SOURCES = ('robot-runtime/python/live_acquisition.py', 'robot-runtime/python/acq
 ROS_SOURCES = ('robot-runtime/python/live_terrain_ros.py',
     'robot-navigation/lingxi_navigation/terrain_ros.py', 'robot-navigation/lingxi_navigation/terrain_feed.py')
 LOCALIZATION_ROS_SOURCES = ('robot-runtime/python/live_localization_ros.py',
+    'robot-navigation/lingxi_navigation/owned_inputs.py',
     'robot-runtime/python/live_base_pose.py', 'robot-slam/lingxi_slam/base_pose.py',
     'robot-slam/lingxi_slam/registered_acquisition.py')
 
@@ -356,6 +357,22 @@ class AcquisitionComposition:
         if self.settings.verify() != self.settings.frozen:
             raise ValueError('unchanged_acquisition_inputs_at_shutdown_required')
         return self.summary()
+
+    def navigation_inputs(self, state):
+        observations, terrain = self.localization_ros_output, self.ros_output
+        with self.lock:
+            if (self.closed or self.failed or not self.settings.saved_map_terrain
+                    or observations is None or terrain is None):
+                return None
+        sample = observations.snapshot()
+        if (sample is None or sample.generation != state.get('generation')
+                or state.get('binding') != self.session.state()['binding']
+                or any(not owner.started or owner.closed or owner.failed or owner.revoked
+                       for owner in (observations, terrain))
+                or not terrain.saved_map or terrain.namespace != observations.namespace):
+            return None
+        from lingxi_navigation.owned_inputs import descriptor
+        return descriptor(state, observations.namespace)
 
     def summary(self):
         lane = self.source.snapshot() if self.source is not None else None

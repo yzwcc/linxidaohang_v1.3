@@ -420,6 +420,49 @@ class CompositionTests(SettingsFixture, unittest.TestCase):
         self.assertIsNone(composition.pending_terrain)
         self.assertEqual(1, source.call_count)
 
+    def test_navigation_discovery_requires_actual_paired_live_owners_and_current_observation(self):
+        from test_localization_output import SyntheticLiveFixture
+        fixture = SyntheticLiveFixture()
+        fixture.prepare()
+        terrain = self.terrain()
+        terrain['geometry']['metres_per_raw_unit'] = fixture.session.base_scale
+        self.platform.value = dict(basePose=dict(metresPerMapUnit=fixture.session.base_scale))
+        self.value['rosOutput'] = {'mode': 'private_saved_map_terrain'}
+        self.value['localizationRosOutput'] = {'mode': 'private_saved_map_observations'}
+        self.write()
+        composition = live.AcquisitionComposition(self.settings(), fixture.session, self.root)
+        self.addCleanup(composition.revoke)
+        fixture.output = composition.localization_ros_output
+        fixture.offer()
+        fixture.now += .1
+        fixture.offer(2, 1_100_000_000, .1)
+        state = fixture.session.state()
+        self.assertIsNone(composition.navigation_inputs(state))
+        # Unit test only: no ROS node or robot IO is created by these flags.
+        composition.localization_ros_output.started = composition.ros_output.started = True
+        value = composition.navigation_inputs(state)
+        self.assertEqual(fixture.output.namespace, value['namespace'])
+        self.assertFalse(value['navigationReady'])
+        self.assertIsNone(composition.navigation_inputs(dict(state, generation=99)))
+        self.assertIsNone(composition.navigation_inputs(dict(state,
+            binding=dict(state['binding'], session='f' * 32))))
+        for key in ('closed', 'failed', 'revoked'):
+            setattr(composition.ros_output, key, True)
+            with self.subTest(key=key):
+                self.assertIsNone(composition.navigation_inputs(state))
+            setattr(composition.ros_output, key, False)
+        composition.ros_output.namespace = 'lingxi_offline_' + 'b' * 32
+        self.assertIsNone(composition.navigation_inputs(state))
+        composition.ros_output.namespace = fixture.output.namespace
+        fixture.now += .31
+        self.assertIsNone(composition.navigation_inputs(state))
+        composition.revoke()
+        self.assertIsNone(composition.navigation_inputs(state))
+
+    def test_navigation_discovery_is_absent_without_saved_map_pair(self):
+        self.create()
+        self.assertIsNone(self.composition.navigation_inputs(self.session.state()))
+
     def test_localization_output_requires_live_scale_and_receives_exact_registered_packet(self):
         self.value['localizationRosOutput'] = {'mode': 'private_saved_map_observations'}
         self.write()

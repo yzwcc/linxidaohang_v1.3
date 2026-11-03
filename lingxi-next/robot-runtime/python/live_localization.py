@@ -185,7 +185,8 @@ def child(args, sink, platform):
               "versions": {**{name: version(name) for name in ("numpy", "scipy", "small-gicp")},
                            "python": host_platform.python_version(), "input": "installed_humble_rclpy"}}
     try:
-        with LocalizationControlServer(args.output / "localization.sock", session) as server:
+        with LocalizationControlServer(args.output / "localization.sock", session,
+                navigation_inputs=acquisition.navigation_inputs if acquisition is not None else None) as server:
             server.start()
             def runner(*args, **kwargs):
                 terrain_owner = acquisition.ros_output if acquisition is not None else None

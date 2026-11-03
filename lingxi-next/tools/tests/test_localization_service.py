@@ -404,20 +404,47 @@ class ManagerTests(unittest.TestCase):
         with self.assertRaises(service.ControlError):
             self.manager.navigation_snapshot()
 
+    def test_owned_snapshot_requires_child_envelope_and_matching_topology(self):
+        from lingxi_navigation.owned_inputs import descriptor
+        from test_localization_guard import snapshot
+        self.manager.owned_ros_inputs = True
+        self.start()
+        state = snapshot()['state']
+        state['binding'] = asdict(self.manager.current['binding'])
+        value = dict(state=state, inputs=descriptor(state, 'lingxi_offline_' + 'a' * 32))
+        requests = []
+        def exchange(endpoint, request):
+            requests.append(request)
+            return {'ok': True, 'value': json.loads(json.dumps(value))}
+        self.manager.exchange = exchange
+        self.assertEqual(value['inputs'], self.manager.navigation_snapshot()['inputs'])
+        self.assertEqual([{'action': 'navigation_snapshot'}], requests)
+        for bad in (state, dict(value, extra=True),
+                    dict(value, inputs=dict(value['inputs'], generation=99)),
+                    dict(value, inputs=dict(value['inputs'], navigationReady=True))):
+            self.manager.exchange = lambda *_: {'ok': True, 'value': bad}
+            with self.subTest(bad=bad), self.assertRaises(service.ControlError):
+                self.manager.navigation_snapshot()
+        self.manager.exchange = lambda *_: {'ok': True, 'value': dict(state=state, inputs=None)}
+        self.assertIsNone(self.manager.navigation_snapshot()['inputs'])
+
     def test_actual_private_unix_reader_is_read_only_and_loss_is_not_auto_rearmed(self):
         from test_localization_guard import BINDING, snapshot
         from test_physical_bridge import evidence
         from lingxi_navigation.localization_guard import LocalizationMonitor, LocalizationGuard
         from lingxi_navigation.physical_bridge import MapEvidence
+        from lingxi_navigation.owned_inputs import descriptor
+        self.manager.owned_ros_inputs = True
         self.start()
         identity = MapEvidence(MAP, RECEIPT, evidence().calibrationSha256, evidence().footprintSha256)
         state = snapshot(identity)['state']
         state['binding'] = asdict(self.manager.current['binding'])
-        self.manager.exchange = lambda *_: {'ok': True, 'value': json.loads(json.dumps(state))}
+        inputs = descriptor(state, 'lingxi_offline_' + 'a' * 32)
+        self.manager.exchange = lambda *_: {'ok': True, 'value': json.loads(json.dumps(dict(state=state, inputs=inputs)))}
         endpoint = self.root / 'nav-snapshot.sock'
         server = service.LocalizationServiceServer(endpoint, self.manager)
         thread = threading.Thread(target=server.serve_forever, kwargs={'poll_interval': .01})
-        monitor = LocalizationMonitor(endpoint, identity, BINDING)
+        monitor = LocalizationMonitor(endpoint, identity, BINDING, require_inputs=True)
         guard = LocalizationGuard(monitor)
         try:
             thread.start()
@@ -426,6 +453,13 @@ class ManagerTests(unittest.TestCase):
             self.assertIsNone(guard.current())
             self.assertEqual(identity, guard.activate_map(MAP, None))
             self.assertEqual(self.manager.instance, guard.current().token[0])
+            self.assertEqual(inputs['namespace'], guard.current().ros_inputs.namespace)
+            inputs = None
+            self.wait(lambda: monitor.current() is None)
+            inputs = descriptor(state, 'lingxi_offline_' + 'b' * 32)
+            self.wait(lambda: monitor.current() is not None)
+            self.assertIsNone(guard.current())
+            guard.activate_map(MAP, None)
             state['state'] = 'lost'
             self.wait(lambda: monitor.current() is None)
             state['state'] = 'tracking'

@@ -365,6 +365,46 @@ class ControlAndOwnership(unittest.TestCase):
             self.assertFalse(endpoint.exists())
             self.assertTrue(self.session.state()["cleanupComplete"])
 
+    def test_navigation_snapshot_tolerates_frame_progress_but_not_lifecycle_changes(self):
+        from types import SimpleNamespace
+        from unittest.mock import Mock
+        before = self.session.state()
+        topology = {'unitTestOnly': True}
+        after = {**before, 'lastFrame': before['lastFrame'] + 1}
+        server = SimpleNamespace(session=SimpleNamespace(state=Mock(side_effect=[before, after])),
+            navigation_inputs=lambda state: topology)
+        result = control.LocalizationControlServer.dispatch(server, {'action': 'navigation_snapshot'})
+        self.assertEqual({'state': after, 'inputs': topology}, result)
+        for key, value in (('generation', before['generation'] + 1), ('workerClosed', True),
+                           ('requestPending', True), ('cleanupComplete', True), ('state', 'stopped')):
+            server.session.state = Mock(side_effect=[before, {**before, key: value}])
+            with self.subTest(key=key):
+                self.assertIsNone(control.LocalizationControlServer.dispatch(server,
+                    {'action': 'navigation_snapshot'})['inputs'])
+
+    def test_real_worker_socket_combines_inputs_without_changing_public_state(self):
+        with tempfile.TemporaryDirectory(prefix='lxi-') as temporary:
+            endpoint = Path(temporary) / 'worker.sock'
+            provider_calls = []
+            def provider(state):
+                provider_calls.append(state)
+                return {'unitTestOnly': True}
+            with control.LocalizationControlServer(endpoint, self.session, navigation_inputs=provider) as server:
+                server.start()
+                def send(value):
+                    with socket.socket(socket.AF_UNIX) as client:
+                        client.settimeout(2.)
+                        client.connect(str(endpoint))
+                        client.sendall((json.dumps(value) + '\n').encode())
+                        return json.loads(client.makefile('rb').readline())
+                public = send({'action': 'state'})['value']
+                combined = send({'action': 'navigation_snapshot'})['value']
+                self.assertEqual(public, combined['state'])
+                self.assertEqual({'unitTestOnly': True}, combined['inputs'])
+                self.assertEqual([public], provider_calls)
+                self.assertNotIn('inputs', public)
+                self.assertFalse(send({'action': 'navigation_snapshot', 'extra': 1})['ok'])
+
     def test_invalid_bounded_socket_requests_do_not_kill_control(self):
         with tempfile.TemporaryDirectory() as temporary:
             endpoint = Path(temporary) / "localization.sock"

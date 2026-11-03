@@ -284,7 +284,7 @@ class LocalizationRequest(socketserver.StreamRequestHandler):
             line = self.rfile.readline(4097)
             if len(line) > 4096 or not line.endswith(b"\n"):
                 raise ValueError("bounded_localization_request_required")
-            result = {"ok": True, "value": dispatch(self.server.session, strict_json(line))}
+            result = {"ok": True, "value": self.server.dispatch(strict_json(line))}
         except LocalizationControlError as error:
             result = {"ok": False, "code": error.code, "status": error.status}
         except (ValueError, TypeError, UnicodeError):
@@ -300,14 +300,16 @@ class LocalizationRequest(socketserver.StreamRequestHandler):
 class LocalizationControlServer(getattr(socketserver, "UnixStreamServer", socketserver.TCPServer)):
     """One bounded request at a time; native calls never execute in this thread."""
 
-    def __init__(self, endpoint, session):
+    def __init__(self, endpoint, session, *, navigation_inputs=None):
         endpoint = Path(endpoint)
         parent = direct(endpoint.parent, directory=True)
         if (sys.platform != "linux" or os.geteuid() == 0 or not isinstance(session, LocalizationSession)
+                or navigation_inputs is not None and not callable(navigation_inputs)
                 or endpoint.exists() or endpoint.is_symlink() or parent.st_uid != os.geteuid()
                 or parent.st_mode & 0o077 or len(os.fsencode(endpoint)) >= 100):
             raise ValueError("new_private_same_user_localization_socket_required")
         self.session, self.endpoint, self.thread, self.identity = session, endpoint, None, None
+        self.navigation_inputs = navigation_inputs
         super().__init__(str(endpoint), LocalizationRequest, bind_and_activate=False)
         try:
             self.server_bind()
@@ -317,6 +319,17 @@ class LocalizationControlServer(getattr(socketserver, "UnixStreamServer", socket
         except BaseException:
             self.server_close()
             raise
+
+    def dispatch(self, value):
+        if type(value) is dict and value == {'action': 'navigation_snapshot'}:
+            before = self.session.state()
+            inputs = self.navigation_inputs(before) if self.navigation_inputs is not None else None
+            after = self.session.state()
+            if any(before.get(key) != after.get(key) for key in ('binding', 'generation', 'state',
+                    'requestPending', 'workerReady', 'workerClosed', 'cleanupComplete')):
+                inputs = None
+            return dict(state=after, inputs=inputs)
+        return dispatch(self.session, value)
 
     def start(self):
         if self.thread is not None:

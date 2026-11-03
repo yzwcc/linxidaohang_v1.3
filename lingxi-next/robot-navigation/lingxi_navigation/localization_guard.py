@@ -13,6 +13,7 @@ import time
 
 from .navfn import finite
 from .physical_bridge import BridgeError, MapEvidence
+from .owned_inputs import parse_descriptor
 
 
 def _hex(value, length):
@@ -49,10 +50,11 @@ class LocalizationSnapshot:
     polled_at: float
     progress_at: float
     revision: int = 0
+    ros_inputs: object = None
 
 
-def parse_snapshot(value, identity, binding, started_at):
-    if type(value) is not dict or set(value) != {'runtime', 'state'}:
+def parse_snapshot(value, identity, binding, started_at, *, require_inputs=False):
+    if type(value) is not dict or set(value) not in ({'runtime', 'state'}, {'runtime', 'state', 'inputs'}):
         raise ValueError('bound_localization_snapshot_required')
     runtime, state = value['runtime'], value['state']
     if type(runtime) is not dict or type(state) is not dict:
@@ -96,11 +98,14 @@ def parse_snapshot(value, identity, binding, started_at):
                                                   [0., 0., 1., 0.], [0., 0., 0., 1.]]))
     if max(abs(frame[i][3]) for i in range(3)) > 500:
         raise ValueError('bounded_navigation_from_raw_translation_required')
+    inputs = parse_descriptor(value['inputs'], state) if value.get('inputs') is not None else None
+    if require_inputs and inputs is None:
+        raise ValueError('owned_saved_map_ros_inputs_required')
     token = (runtime['serviceId'], runtime['generation'], runtime['runId'],
              tuple(sorted(actual.items())), state['generation'], base['metresPerMapUnit'],
-             tuple(cell for row in frame for cell in row))
+             tuple(cell for row in frame for cell in row), inputs.namespace if inputs is not None else None)
     return LocalizationSnapshot(token, state['lastFrame'], int(base['effectiveScanNs']),
-        (matrix[0][3], matrix[1][3], math.atan2(matrix[1][0], matrix[0][0])), started_at, started_at)
+        (matrix[0][3], matrix[1][3], math.atan2(matrix[1][0], matrix[0][0])), started_at, started_at, ros_inputs=inputs)
 
 
 def _strict_json(payload):
@@ -118,13 +123,15 @@ def _strict_json(payload):
 class LocalizationMonitor:
     """One bounded background reader; the ROS/output owner only reads memory."""
     def __init__(self, endpoint, identity, binding, *, clock=time.monotonic, exchange=None,
-                 maximum_age=.3, progress_timeout=.5):
+                 maximum_age=.3, progress_timeout=.5, require_inputs=False):
         if (type(identity) is not MapEvidence or set(binding) != {'points_sha256', 'profile_sha256'}
                 or any(not _hex(value, 64) for value in binding.values())
+                or type(require_inputs) is not bool
                 or any(not finite(value) or not .05 <= value <= 1. for value in (maximum_age, progress_timeout))):
             raise ValueError('explicit_localization_monitor_identity_required')
         self.endpoint, self.identity, self.binding = Path(endpoint), identity, dict(binding)
         self.clock, self.maximum_age, self.progress_timeout = clock, maximum_age, progress_timeout
+        self.require_inputs = require_inputs
         self.exchange = exchange or self._exchange
         self.lock, self.stopping = threading.Lock(), threading.Event()
         self.sample, self.watermark, self.revision, self.thread = None, None, 0, None
@@ -174,7 +181,7 @@ class LocalizationMonitor:
     def refresh(self):
         started = self.clock()
         try:
-            sample = parse_snapshot(self.exchange(), self.identity, self.binding, started)
+            sample = parse_snapshot(self.exchange(), self.identity, self.binding, started, require_inputs=self.require_inputs)
         except Exception:
             with self.lock:
                 self._withdraw()

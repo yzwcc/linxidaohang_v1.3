@@ -17,6 +17,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'robot-navigation'))
 from lingxi_navigation.localization_guard import LocalizationGuard, LocalizationMonitor, parse_snapshot, _strict_json
 from lingxi_navigation.physical_bridge import BridgeError
+from lingxi_navigation.owned_inputs import descriptor
 from test_physical_bridge import FakeClock, evidence
 
 BINDING = dict(points_sha256='d' * 64, profile_sha256='e' * 64)
@@ -95,6 +96,33 @@ class GuardTests(unittest.TestCase):
         self.assertIsNone(self.guard.current())
         self.activate()
         self.assertIsNotNone(self.guard.current())
+
+    def test_required_owned_topology_cannot_fall_back_to_legacy_or_recover_implicitly(self):
+        self.monitor.require_inputs = True
+        self.monitor.refresh()
+        self.assertIsNone(self.monitor.current())
+        self.value['inputs'] = descriptor(self.value['state'], 'lingxi_offline_' + 'a' * 32)
+        self.monitor.refresh()
+        self.activate()
+        self.assertEqual('lingxi_offline_' + 'a' * 32, self.guard.current().ros_inputs.namespace)
+        self.value['inputs'] = None
+        self.monitor.refresh()
+        self.assertIsNone(self.guard.current())
+        self.value['inputs'] = descriptor(self.value['state'], 'lingxi_offline_' + 'a' * 32)
+        self.monitor.refresh()
+        self.assertIsNone(self.guard.current())
+        self.activate()
+        self.value['inputs'] = descriptor(self.value['state'], 'lingxi_offline_' + 'b' * 32)
+        self.monitor.refresh()
+        self.assertIsNone(self.guard.current())
+
+    def test_present_owned_topology_is_validated_even_in_legacy_mode(self):
+        self.value['inputs'] = descriptor(self.value['state'], 'lingxi_offline_' + 'a' * 32)
+        self.monitor.refresh()
+        self.activate()
+        self.value['inputs']['generation'] += 1
+        self.monitor.refresh()
+        self.assertIsNone(self.guard.current())
 
     def test_navigation_frame_change_revokes_activation_but_explicit_identity_is_legacy_equivalent(self):
         self.activate()

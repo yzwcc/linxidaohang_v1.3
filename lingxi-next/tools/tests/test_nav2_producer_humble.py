@@ -21,6 +21,7 @@ from lingxi_navigation.localization_guard import LocalizationGuard, Localization
 from lingxi_navigation.nav2_producer import Nav2Generation, Nav2MapSelection, OwnedNav2Backend, spin_callbacks
 from lingxi_navigation.physical_bridge import BridgeError, MapEvidence, PhysicalNavigationBridge
 from lingxi_navigation.physical_maps import load_map_selection
+from lingxi_navigation.owned_inputs import OwnedRosInputs, descriptor
 from lingxi_navigation.physical_ros import AimdkVelocityOutput, FileMapActivator, digest_footprint
 
 
@@ -50,14 +51,16 @@ class ActualOwnedNav2Tests(unittest.TestCase):
         footprint = self.root / 'footprint.json'
         footprint.write_text('{"testOnlyRadius":0.3}', encoding='utf-8')
         self.identity = MapEvidence('slam-' + 'a' * 32, 'a' * 64, 'b' * 64, digest_footprint(footprint))
-        self.profile = replace(profile(self.identity), map_frame='lingxi_saved_map', sensor_frame='lidar_chest_front')
+        self.profile = replace(profile(self.identity),
+            **OwnedRosInputs('lingxi_offline_' + 'd' * 32).profile_options())
         self.localization_value = snapshot(self.identity)
         self.localization_value['state']['mapFromSensor'][0][3] = 0.
         self.localization_value['state']['mapFromSensor'][1][3] = 0.
         self.localization_value['state']['basePose']['mapFromBase'][0][3] = 0.
         self.localization_value['state']['basePose']['mapFromBase'][1][3] = 0.
+        self.localization_value['inputs'] = descriptor(self.localization_value['state'], 'lingxi_offline_' + 'd' * 32)
         self.monitor = LocalizationMonitor('/synthetic-localization-not-a-service.sock', self.identity, BINDING,
-            exchange=lambda: copy.deepcopy(self.localization_value))
+            exchange=lambda: copy.deepcopy(self.localization_value), require_inputs=True)
         self.addCleanup(self.monitor.close)
         self.localization = LocalizationGuard(self.monitor)
         self.localization_enabled, self.published_frames = True, 7
@@ -70,8 +73,8 @@ class ActualOwnedNav2Tests(unittest.TestCase):
             ('cloud', PointCloud2, self.profile.cloud_topic, sensor_qos),
             ('odom', Odometry, self.profile.odometry_topic, sensor_qos),
             ('terrain', OccupancyGrid, self.profile.terrain_topic, latched_qos),
-            ('tf', TFMessage, '/tf', tf_qos),
-            ('tf_static', TFMessage, '/tf_static', latched_qos)):
+            ('tf', TFMessage, self.profile.tf_topic, tf_qos),
+            ('tf_static', TFMessage, self.profile.tf_static_topic, latched_qos)):
             self.publishers[name] = self.node.create_publisher(kind, topic, qos)
         self.publishers['tf_static'].publish(TFMessage(transforms=[
             evidence_fixtures.ActualPhysicalEvidenceTests.transform(self.profile.base_frame, self.profile.sensor_frame, 0)]))
@@ -316,11 +319,27 @@ class ActualOwnedNav2Tests(unittest.TestCase):
         (directory / 'footprint.json').write_bytes(footprint.read_bytes())
         activator = FileMapActivator(catalog)
         self.identity = activator.evidence('slam-' + 'c' * 32)
-        self.profile = replace(self.profile, limits=replace(self.profile.limits, identity=self.identity))
+        self.profile = replace(self.profile, limits=replace(self.profile.limits, identity=self.identity),
+            **OwnedRosInputs('lingxi_offline_' + 'e' * 32).profile_options())
         self.localization_value['runtime']['selectedMap'] = dict(mapId=self.identity.mapId,
             receiptSha256=self.identity.receiptSha256)
         self.localization_value['state']['binding'].update(map_id=self.identity.mapId,
             receipt_sha256=self.identity.receiptSha256)
+        self.localization_value['inputs'] = descriptor(self.localization_value['state'], 'lingxi_offline_' + 'e' * 32)
+        from rclpy.qos import QoSProfile, DurabilityPolicy, ReliabilityPolicy
+        for key, topic in (('cloud', self.profile.cloud_topic), ('odom', self.profile.odometry_topic),
+                           ('terrain', self.profile.terrain_topic), ('tf', self.profile.tf_topic),
+                           ('tf_static', self.profile.tf_static_topic)):
+            old = self.publishers[key]
+            message_type = old.msg_type
+            self.node.destroy_publisher(old)
+            qos = QoSProfile(depth=1 if key != 'tf' else 100,
+                reliability=ReliabilityPolicy.BEST_EFFORT if key in ('cloud', 'odom') else ReliabilityPolicy.RELIABLE,
+                durability=DurabilityPolicy.TRANSIENT_LOCAL if key in ('terrain', 'tf_static') else DurabilityPolicy.VOLATILE)
+            self.publishers[key] = self.node.create_publisher(message_type, topic, qos)
+        from tf2_msgs.msg import TFMessage
+        self.publishers['tf_static'].publish(TFMessage(transforms=[
+            evidence_fixtures.ActualPhysicalEvidenceTests.transform(self.profile.base_frame, self.profile.sensor_frame, 0)]))
         profile_file = self.root / 'map-switch-profile.json'
         limits = self.profile.limits
         profile_file.write_text(json.dumps(dict(schema=1, footprintSha256=self.identity.footprintSha256,
@@ -328,20 +347,18 @@ class ActualOwnedNav2Tests(unittest.TestCase):
             lateral=limits.lateral, angular=limits.angular, acceleration=limits.acceleration,
             deceleration=limits.deceleration, angularAcceleration=limits.angular_acceleration,
             commandAge=limits.command_age, firstCommandTimeout=limits.first_command_timeout)), encoding='utf-8')
-        options = {key: getattr(self.profile, key) for key in ('map_frame', 'base_frame', 'sensor_frame',
-            'cloud_topic', 'odometry_topic', 'terrain_topic', 'tf_topic', 'tf_static_topic')}
-
-        def reader(endpoint, identity, binding):
+        def reader(endpoint, identity, binding, **kwargs):
             self.monitor = LocalizationMonitor(endpoint, identity, binding,
-                exchange=lambda: copy.deepcopy(self.localization_value))
+                exchange=lambda: copy.deepcopy(self.localization_value), **kwargs)
             self.addCleanup(self.monitor.close)
             return self.monitor
 
         def loader(map_id):
             with patch('lingxi_navigation.physical_maps.LocalizationMonitor', side_effect=reader):
                 selection = load_map_selection(activator, map_id, footprint=footprint,
-                    profile_file=profile_file, profile_options=options, localization_endpoint='/synthetic-only.sock',
-                    run_root=self.root, executor=self.executor, output=self.output, operation_gate=None, activate=True)
+                    profile_file=profile_file, profile_options={}, localization_endpoint='/synthetic-only.sock',
+                    run_root=self.root, executor=self.executor, output=self.output, operation_gate=None,
+                    activate=True, input_mode='owned-localization')
             self.localization = selection.localization
             def factory(ticket):
                 generation = selection.factory(ticket)

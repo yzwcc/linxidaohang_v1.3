@@ -39,6 +39,24 @@ def _bool_env(name: str) -> bool:
     return os.environ.get(name, "").strip().lower() in {"1", "true", "yes"}
 
 
+def _profile_inputs():
+    mode = os.environ.get('LINGXI_NAVIGATION_INPUTS', 'explicit').strip()
+    names = dict(map_frame='LINGXI_MAP_FRAME', base_frame='LINGXI_BASE_FRAME',
+        sensor_frame='LINGXI_SENSOR_FRAME', cloud_topic='LINGXI_POINTCLOUD_TOPIC',
+        odometry_topic='LINGXI_ODOMETRY_TOPIC', terrain_topic='LINGXI_TERRAIN_TOPIC',
+        tf_topic='LINGXI_TF_TOPIC', tf_static_topic='LINGXI_TF_STATIC_TOPIC')
+    if mode == 'owned-localization':
+        if any(os.environ.get(name, '').strip() for name in names.values()):
+            raise RuntimeError('owned_navigation_rejects_manual_topic_and_frame_overrides')
+        return mode, {}
+    if mode != 'explicit':
+        raise RuntimeError('explicit_navigation_input_mode_required')
+    options = {key: _required_env(name) for key, name in names.items() if key not in ('tf_topic', 'tf_static_topic')}
+    options.update(tf_topic=os.environ.get('LINGXI_TF_TOPIC', '/tf'),
+                   tf_static_topic=os.environ.get('LINGXI_TF_STATIC_TOPIC', '/tf_static'))
+    return mode, options
+
+
 def _close_runtime(rclpy, node, executor, output, backend, socket=None):
     errors = []
     closers = [(value.close, {}) for value in (socket, backend, output) if value is not None]
@@ -71,13 +89,8 @@ def build_runtime():
     identity = map_activator.evidence(map_id)
     localization_endpoint = _required_env('LINGXI_LOCALIZATION_SOCKET')
     profile_file = Path(_required_env("LINGXI_NAV2_PROFILE_FILE"))
-    profile_options = dict(
-        map_frame=_required_env("LINGXI_MAP_FRAME"), base_frame=_required_env("LINGXI_BASE_FRAME"),
-        sensor_frame=_required_env("LINGXI_SENSOR_FRAME"), cloud_topic=_required_env("LINGXI_POINTCLOUD_TOPIC"),
-        odometry_topic=_required_env("LINGXI_ODOMETRY_TOPIC"), terrain_topic=_required_env("LINGXI_TERRAIN_TOPIC"),
-        tf_topic=os.environ.get("LINGXI_TF_TOPIC", "/tf"),
-        tf_static_topic=os.environ.get("LINGXI_TF_STATIC_TOPIC", "/tf_static"))
-    read_map_inputs(map_activator, map_id, footprint, profile_file, profile_options)
+    input_mode, profile_options = _profile_inputs()
+    read_map_inputs(map_activator, map_id, footprint, profile_file, profile_options, input_mode=input_mode)
     run_root = Path(_required_env("LINGXI_NAV2_RUN_ROOT"))
     if (not run_root.is_absolute() or run_root.resolve(strict=True) != run_root or not run_root.is_dir()
             or run_root.stat().st_uid != os.geteuid() or run_root.stat().st_mode & 0o077):
@@ -99,7 +112,7 @@ def build_runtime():
             return load_map_selection(map_activator, chosen_id, footprint=footprint,
                 profile_file=profile_file, profile_options=profile_options,
                 localization_endpoint=localization_endpoint, run_root=run_root, executor=executor,
-                output=output, operation_gate=operation_gate, activate=activate)
+                output=output, operation_gate=operation_gate, activate=activate, input_mode=input_mode)
 
         selection = select_map(map_id, activate=False)
         if selection.identity != identity:

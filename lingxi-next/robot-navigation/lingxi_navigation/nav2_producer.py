@@ -35,8 +35,7 @@ def _direct(path, *, directory=False):
     return path
 
 
-def load_profile(path, identity, *, map_frame, base_frame, sensor_frame, cloud_topic,
-                 odometry_topic, terrain_topic, tf_topic='/tf', tf_static_topic='/tf_static'):
+def load_configuration(path, identity):
     path = _direct(path)
     if path.stat().st_size > 16384:
         raise ValueError('bounded_physical_nav2_profile_required')
@@ -57,8 +56,30 @@ def load_profile(path, identity, *, map_frame, base_frame, sensor_frame, cloud_t
     limits = VelocityLimits(identity, value['forward'], value['lateral'], value['angular'],
         value['acceleration'], value['deceleration'], value['angularAcceleration'],
         value['commandAge'], value['firstCommandTimeout'])
-    return PhysicalNav2Profile(limits, value['clearanceRadiusMetres'], value['stoppingMarginMetres'],
-        map_frame, base_frame, sensor_frame, cloud_topic, odometry_topic, terrain_topic, tf_topic, tf_static_topic)
+    return Nav2Configuration(limits, value['clearanceRadiusMetres'], value['stoppingMarginMetres'])
+
+
+@dataclass(frozen=True)
+class Nav2Configuration:
+    limits: VelocityLimits
+    clearance_radius_metres: float
+    stopping_margin_metres: float
+
+    def __post_init__(self):
+        if (type(self.limits) is not VelocityLimits
+                or not finite(self.clearance_radius_metres) or not .1 <= self.clearance_radius_metres <= 1.5
+                or not finite(self.stopping_margin_metres) or not .05 <= self.stopping_margin_metres <= 1.
+                or self.limits.lateral != 0.
+                or max(self.limits.forward / self.limits.deceleration,
+                       self.limits.angular / self.limits.angular_acceleration) > 2.7):
+            raise ValueError('explicit_bounded_physical_nav2_profile_required')
+
+    def bind(self, **options):
+        return PhysicalNav2Profile(self.limits, self.clearance_radius_metres, self.stopping_margin_metres, **options)
+
+
+def load_profile(path, identity, **options):
+    return load_configuration(path, identity).bind(**options)
 
 
 @dataclass(frozen=True)
@@ -76,20 +97,15 @@ class PhysicalNav2Profile:
     tf_static_topic: str = '/tf_static'
 
     def __post_init__(self):
+        Nav2Configuration(self.limits, self.clearance_radius_metres, self.stopping_margin_metres)
         frames = (self.map_frame, self.base_frame, self.sensor_frame)
         topics = (self.cloud_topic, self.odometry_topic, self.terrain_topic, self.tf_topic, self.tf_static_topic)
-        if (type(self.limits) is not VelocityLimits
-                or any(type(value) is not str or not re.fullmatch('[A-Za-z][A-Za-z0-9_/]{0,119}', value)
+        if (any(type(value) is not str or not re.fullmatch('[A-Za-z][A-Za-z0-9_/]{0,119}', value)
                        or '//' in value or value.endswith('/') for value in frames)
                 or len(set(frames)) != 3
                 or any(type(value) is not str or not re.fullmatch('/[A-Za-z_][A-Za-z0-9_/]{0,199}', value)
                        or '//' in value or value.endswith('/') for value in topics)
-                or len(set(topics)) != len(topics)
-                or not finite(self.clearance_radius_metres) or not .1 <= self.clearance_radius_metres <= 1.5
-                or not finite(self.stopping_margin_metres) or not .05 <= self.stopping_margin_metres <= 1.
-                or self.limits.lateral != 0.
-                or max(self.limits.forward / self.limits.deceleration,
-                       self.limits.angular / self.limits.angular_acceleration) > 2.7):
+                or len(set(topics)) != len(topics)):
             raise ValueError('explicit_bounded_physical_nav2_profile_required')
 
     @property

@@ -100,13 +100,14 @@ class LocalizationManager:
 
     def __init__(self, runs, resolve_map, command_factory, environment, *, input_mode,
                  owner_factory=ProcessSupervisor, exchange=None, activity_gate=None, operation_gate=None,
-                 process_limits=None):
+                 process_limits=None, owned_ros_inputs=False):
         self.runs = Path(runs)
         parent = direct(self.runs, directory=True)
         if (sys.platform != "linux" or os.geteuid() == 0 or parent.st_uid != os.geteuid()
                 or parent.st_mode & 0o077 or not callable(resolve_map)
                 or not callable(command_factory) or not callable(owner_factory)
-                or input_mode not in ("recorded", "live")
+                or input_mode not in ("recorded", "live") or type(owned_ros_inputs) is not bool
+                or owned_ros_inputs and input_mode != 'live'
                 or process_limits is not None and type(process_limits) is not ProcessLimits
                 or len(os.fsencode(self.runs / ("a" * 32) / "localization.sock")) >= 100):
             raise ValueError("explicit_localization_service_configuration_required")
@@ -117,6 +118,7 @@ class LocalizationManager:
         self.instance = uuid.uuid4().hex
         self.activity_gate = activity_gate
         self.operation_gate = operation_gate
+        self.owned_ros_inputs = owned_ros_inputs
         self.lock, self.closed, self.generation, self.current = threading.RLock(), False, 0, None
 
     def runtime(self):
@@ -271,7 +273,8 @@ class LocalizationManager:
                     or current["stop"].is_set() or current["owner"].snapshot()["state"] != "running"):
                 raise ControlError("localization_worker_unavailable", 503)
             generation, binding = self.generation, asdict(current["binding"])
-            if value.get("action") != "state" and value.get("binding") != binding:
+            navigation = value == {'action': 'navigation_snapshot'} and self.owned_ros_inputs
+            if value.get("action") != "state" and not navigation and value.get("binding") != binding:
                 raise ControlError("localization_binding_changed")
             endpoint = current["output"] / "localization.sock"
         try:
@@ -282,7 +285,16 @@ class LocalizationManager:
                         and re.fullmatch(r"[a-z_]{1,100}", response["code"])):
                     raise ControlError(response["code"], response["status"])
                 raise ValueError("valid_localization_response_required")
-            result = response["value"]
+            payload = response['value']
+            if navigation:
+                if type(payload) is not dict or set(payload) != {'state', 'inputs'}:
+                    raise ValueError('owned_localization_snapshot_required')
+                result = payload['state']
+                if payload['inputs'] is not None:
+                    from lingxi_navigation.owned_inputs import parse_descriptor
+                    parse_descriptor(payload['inputs'], result)
+            else:
+                result = payload
             if (result["binding"] != binding or result["sourceFrame"] != LOCALIZATION_SOURCE_FRAME
                     or any(result[name] is not False for name in ("localizationReady", "navigationReady"))):
                 raise ValueError("bound_localization_response_required")
@@ -295,7 +307,7 @@ class LocalizationManager:
                     or current["stop"].is_set() or current["phase"] != "running"
                     or current["owner"].snapshot()["state"] != "running"):
                 raise ControlError("localization_runtime_changed")
-        return result
+        return payload if navigation else result
 
     def close(self):
         with self.lock:
@@ -315,6 +327,9 @@ class LocalizationManager:
         # Serialize lifecycle changes around the child's already-fenced state
         # read. The private service handles requests sequentially, including seeds.
         with self.lock:
+            if self.owned_ros_inputs:
+                result = self.proxy({'action': 'navigation_snapshot'})
+                return {'runtime': self.runtime(), **result}
             state = self.proxy({"action": "state"})
             return {"runtime": self.runtime(), "state": state}
 
@@ -460,6 +475,7 @@ def create_manager(config_file, maps, runs, *, acquisition_settings=None, acquis
         return result
 
     return LocalizationManager(runs, resolver, command, environment, input_mode=config["inputMode"],
+        owned_ros_inputs=bool(config['inputMode'] == 'live' and acquisition is not None and acquisition.saved_map_terrain),
         activity_gate=ActivityGate(maps / ".slam-activity.lock"),
         operation_gate=OperationGate(maps, shared=True),
         process_limits=ProcessLimits(startup_seconds=30., progress_seconds=2., shutdown_seconds=30.)
