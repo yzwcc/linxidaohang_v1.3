@@ -30,6 +30,8 @@ import { JsonStateStore } from "./store";
 import { validatedLidarFrame } from "./lidar";
 import { measureVadToFirstAudio, summarizeVoiceSamples } from "./voice/diagnostics";
 import { SavedSlamMapCatalog } from "./slam-map-catalog";
+import { CalibrationService } from "./calibration";
+import { calibrationSurveySchema, calibrationReviewRequestSchema } from "../../shared/calibration";
 import { mappingConsoleAdapter, mappingGuard, UnixMappingBackend, type MappingBackend } from "./mapping-backend";
 import { MappingPointSource } from "./mapping-points";
 import {
@@ -169,7 +171,9 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
       physicalNavigation: !!physicalNavigation,
     });
   }
-  const store = new JsonStateStore(options.stateDirectory ?? process.env.LINGXI_DATA_DIR ?? path.resolve("var/lib/lingxi-next"));
+  const stateDirectory = options.stateDirectory ?? process.env.LINGXI_DATA_DIR ?? path.resolve("var/lib/lingxi-next");
+  const store = new JsonStateStore(stateDirectory);
+  const calibration = slamCatalog ? new CalibrationService(slamCatalog, path.join(stateDirectory, "calibration-reviews")) : undefined;
   const hash = options.pairingCodeHash ?? process.env.LINGXI_PAIRING_CODE_SHA256 ??
     (demoMode ? pairingCodeHash(process.env.LINGXI_DEMO_PAIRING_CODE ?? "lingxi-dev-only") : "");
   if (!hash) throw new Error("LINGXI_PAIRING_CODE_SHA256 is required");
@@ -290,6 +294,7 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
           productConfigRoutes.includes(route))) return;
       const allowed = (request.method === "POST" && [
         "/api/v1/session/pair", "/api/v1/session/revoke",
+        ...(slamCatalog ? ["/api/v1/slam/maps/:id/calibration/candidate", "/api/v1/slam/maps/:id/calibration/review"] : []),
         ...(mappingConsole ? ["/api/v1/mapping/start", "/api/v1/mapping/stop-save", "/api/v1/mapping/stop-discard"] : []),
         ...(physicalNavigation ? ["/api/v1/tours/:id/start", "/api/v1/navigation/point",
           "/api/v1/navigation/control", "/api/v1/actions/confirm-idle", "/api/v1/maps/:id/activate"] : []),
@@ -482,6 +487,24 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
   app.get<{ Params: { id: string } }>("/api/v1/slam/maps/:id/points", async (request) => {
     if (!slamCatalog) throw deny(503, "独立 SLAM 地图目录尚未配置");
     return slamCatalog.preview(request.params.id);
+  });
+  app.get<{ Params: { id: string } }>("/api/v1/slam/maps/:id/calibration", async (request) => {
+    if (!calibration) throw deny(503, "独立 SLAM 地图目录尚未配置");
+    return calibration.history(request.params.id);
+  });
+  app.post<{ Params: { id: string } }>("/api/v1/slam/maps/:id/calibration/candidate", async (request) => {
+    if (!calibration) throw deny(503, "独立 SLAM 地图目录尚未配置");
+    if (!secureRequest(request)) throw deny(426, "标定测量必须通过 HTTPS");
+    const parsed = calibrationSurveySchema.safeParse(request.body);
+    if (!parsed.success || parsed.data.binding.mapId !== request.params.id) throw deny(400, "测量记录、地图身份或检查点无效");
+    return calibration.candidate(parsed.data);
+  });
+  app.post<{ Params: { id: string } }>("/api/v1/slam/maps/:id/calibration/review", async (request) => {
+    if (!calibration) throw deny(503, "独立 SLAM 地图目录尚未配置");
+    if (!secureRequest(request)) throw deny(426, "标定审核必须通过 HTTPS");
+    const parsed = calibrationReviewRequestSchema.safeParse(request.body);
+    if (!parsed.success || parsed.data.survey.binding.mapId !== request.params.id) throw deny(400, "审核记录或候选身份无效");
+    return calibration.review(parsed.data.survey, parsed.data.candidateSha256, parsed.data.reviewer);
   });
   app.get("/api/v1/slam/localization", async () => {
     if (!localizationBackend) throw deny(503, "独立定位控制台尚未启动");

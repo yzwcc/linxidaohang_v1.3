@@ -46,6 +46,7 @@ import { RobotSession } from "./robot-session";
 import MapCanvas from "./MapCanvas";
 import LidarCanvas from "./LidarCanvas";
 import LocalizationPanel from "./LocalizationPanel";
+import CalibrationPanel from "./CalibrationPanel";
 import { confirmedMappingSave, inactiveMappingScanNotice, mappingCaptureLimit, mappingFeedback } from "./mapping-view";
 
 type View = "overview" | "mapping" | "maps" | "localization" | "navigation" | "tours" | "settings";
@@ -664,7 +665,8 @@ function Maps({
         <Section title={previewId ? `点云 · ${state.savedSlamMaps?.find((map) => map.id === previewId)?.name ?? "已保存地图"}` : "地图与点位"} icon={Compass}
           actions={previewId ? <button className="btn icon small" title="返回导航地图" onClick={() => setPreviewId("")}><X size={14} /></button> : undefined}>
           {previewId ? (
-            savedPreview ? <><LidarCanvas key={previewId} preview={savedPreview} /><div className="helper" style={{ marginTop: 10 }}>GLIM 原始坐标单位；标定、定位和导航尚未验证。</div></>
+            savedPreview ? <><CalibrationPanel key={`${connection.baseUrl}:${connection.token}:${savedPreview.mapId}:${savedPreview.receiptSha256}:${savedPreview.pointsSha256}`}
+              connection={connection} preview={savedPreview} /><div className="helper" style={{ marginTop: 10 }}>GLIM 原始坐标单位；标定、定位和导航尚未验证。</div></>
               : <div className="empty" role="status">{previewBusy ? "正在读取点云" : "点云不可用，请刷新后重试"}</div>
           ) : readOnly ? <div className="empty">选择已保存地图查看点云</div> : state.navigationExecution ? (
             <LidarCanvas connection={connection} synthetic />

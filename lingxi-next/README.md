@@ -1,5 +1,11 @@
 # Lingxi Next
 
+Saved raw point clouds now support an offline, map-bound measured survey
+calibration candidate and review audit. This workflow requires independently
+measured 3D landmarks, keeps fit and holdout points separate, and never applies
+runtime transforms or enables navigation. See
+[Measured Map Calibration Review](docs/MEASURED_MAP_CALIBRATION_REVIEW.md).
+
 A clean-room local console and Android companion for AgiBot Lingxi X2. This
 project does not include or modify the V1.3.9/R19 business code.
 

@@ -9,6 +9,21 @@ export type LidarViewport = {
   width: number; height: number; scale: number; centerX: number; centerY: number; pan: CanvasPoint;
 };
 
+export function nearestLidarPoint(points: number[], view: LidarViewport, screen: CanvasPoint,
+  slice?: LidarZSlice): number | undefined {
+  if (!Number.isFinite(screen.x) || !Number.isFinite(screen.y) || screen.x < 0 || screen.x > view.width ||
+      screen.y < 0 || screen.y > view.height) return;
+  let best = 10 ** 2, selected: number | undefined;
+  for (let index = 0; index + 2 < points.length; index += 3) {
+    const [x, y, z] = points.slice(index, index + 3);
+    if (![x, y, z].every(Number.isFinite) || slice && (z < slice.min || z > slice.max)) continue;
+    const point = lidarToScreen(view, { x, y });
+    const distance = (point.x - screen.x) ** 2 + (point.y - screen.y) ** 2;
+    if (distance < best) { best = distance; selected = index / 3; }
+  }
+  return selected;
+}
+
 export function lidarViewport(bounds: ReturnType<typeof lidarBounds>, width: number, height: number,
   zoom: number, pan: CanvasPoint): LidarViewport {
   if (![...Object.values(bounds), width, height, zoom, pan.x, pan.y].every(Number.isFinite) ||
