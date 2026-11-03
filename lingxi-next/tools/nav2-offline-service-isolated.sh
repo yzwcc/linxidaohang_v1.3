@@ -6,8 +6,9 @@ if [[ ${1:-} == --verify-live-terrain-output ]]; then mode=verify-live-terrain-o
 if [[ ${1:-} == --verify-physical-evidence ]]; then mode=verify-physical-evidence; shift; fi
 if [[ ${1:-} == --verify-physical-action ]]; then mode=verify-physical-action; shift; fi
 if [[ ${1:-} == --verify-physical-velocity ]]; then mode=verify-physical-velocity; shift; fi
+if [[ ${1:-} == --verify-nav2-producer ]]; then mode=verify-nav2-producer; shift; fi
 if [[ ${EUID} != 0 || $# != 3 ]]; then
-  echo 'usage: sudo -n bash tools/nav2-offline-service-isolated.sh [--check|--verify-live-terrain-output|--verify-physical-evidence|--verify-physical-action|--verify-physical-velocity] ROOTFS CASE NEW_OUTPUT' >&2
+  echo 'usage: sudo -n bash tools/nav2-offline-service-isolated.sh [--check|--verify-live-terrain-output|--verify-physical-evidence|--verify-physical-action|--verify-physical-velocity|--verify-nav2-producer] ROOTFS CASE NEW_OUTPUT' >&2
   exit 2
 fi
 for tool in realpath unshare mount ip chroot; do command -v "$tool" >/dev/null; done
@@ -44,6 +45,10 @@ exec unshare --mount --net --ipc --pid --fork --kill-child=KILL /bin/bash -c '
     source /opt/ros/humble/setup.bash
     export ROS_LOCALHOST_ONLY=1 ROS_DOMAIN_ID=174 RMW_IMPLEMENTATION=rmw_fastrtps_cpp
     export PYTHONDONTWRITEBYTECODE=1 RCUTILS_LOGGING_USE_STDOUT=0
+    if [[ $3 == verify-nav2-producer ]]; then
+      export LINGXI_VERIFY_NAV2_PRODUCER_ROS=1 LINGXI_NAV2_TEST_OUTPUT="$2"
+      exec python3 -B -m unittest discover -s /work/tools/tests -p test_nav2_producer_humble.py -v
+    fi
     if [[ $3 == verify-live-terrain-output ]]; then
       export LINGXI_VERIFY_LIVE_TERRAIN_ROS=1
       exec python3 -B -m unittest discover -s /work/tools/tests -p test_live_terrain_ros_humble.py

@@ -69,8 +69,18 @@ def parameters(platform, behavior_tree_path, through_poses_tree_path, namespace,
             or type(namespace) is not str or re.fullmatch('lingxi_offline_[0-9a-f]{32}', namespace) is None
             or map_mode not in ('latched_obstacles', 'support_fused_revisions')):
         raise ValueError('explicit_offline_platform_and_behavior_tree_required')
+    return _parameters(platform, behavior_tree_path, through_poses_tree_path, namespace,
+                       map_mode=map_mode)
+
+
+def _parameters(platform, behavior_tree_path, through_poses_tree_path, namespace, *,
+                map_mode, use_sim_time=True, frames=None, topics=None):
+    """Shared Nav2 algorithms; admission and source ownership belong to callers."""
     topic = '/' + namespace + '/'
     frame = namespace + '_'
+    frames = frames or dict(map=frame + 'map', local=frame + 'odom', base=frame + 'base')
+    topics = topics or dict(map=topic + 'traversable_map', odom=topic + 'odom',
+                            cloud=topic + 'registered_obstacles')
     radius = float(platform.clearance_radius_metres)
     margin = float(platform.stopping_margin_metres)
     vx = float(platform.maximum_forward_metres_per_second)
@@ -80,7 +90,7 @@ def parameters(platform, behavior_tree_path, through_poses_tree_path, namespace,
     # Humble updateWithMax replaces master NO_INFORMATION with ray-cleared FREE.
     # Until a verified ground-support mask is integrated, obstacles latch; no
     # automatic ray/footprint clearing or recovery service may open unknown ground.
-    source = dict(topic=topic + 'registered_obstacles', data_type='PointCloud2',
+    source = dict(topic=topics['cloud'], data_type='PointCloud2',
                   marking=True, clearing=False, min_obstacle_height=.1,
                   max_obstacle_height=1.4, observation_persistence=0.,
                   expected_update_rate=.2, obstacle_max_range=5., obstacle_min_range=0.,
@@ -90,15 +100,15 @@ def parameters(platform, behavior_tree_path, through_poses_tree_path, namespace,
         envelope = (radius + margin) / math.cos(math.pi / 16)
         footprint = [[envelope * math.cos(2 * math.pi * i / 16),
                       envelope * math.sin(2 * math.pi * i / 16)] for i in range(16)]
-        value = dict(use_sim_time=True, global_frame=frame,
-                     robot_base_frame=namespace + '_base', update_frequency=10.,
+        value = dict(use_sim_time=use_sim_time, global_frame=frame,
+                     robot_base_frame=frames['base'], update_frequency=10.,
                      publish_frequency=5., resolution=.05, robot_radius=radius,
                      footprint=json.dumps(footprint), footprint_padding=0., transform_tolerance=.1,
                      track_unknown_space=True, rolling_window=rolling,
                      always_send_full_costmap=True,
                      plugins=['static_layer', 'obstacle_layer', 'inflation_layer'],
                      static_layer=dict(plugin='nav2_costmap_2d::StaticLayer',
-                         map_topic=topic + 'traversable_map',
+                         map_topic=topics['map'],
                          map_subscribe_transient_local=True, subscribe_to_updates=False),
                      obstacle_layer=dict(plugin='nav2_costmap_2d::ObstacleLayer',
                          observation_sources='lidar', combination_method=1,
@@ -119,7 +129,7 @@ def parameters(platform, behavior_tree_path, through_poses_tree_path, namespace,
         return dict(ros__parameters=value)
 
     controller = dict(
-        use_sim_time=True, controller_frequency=20., odom_topic=topic + 'odom',
+        use_sim_time=use_sim_time, controller_frequency=20., odom_topic=topics['odom'],
         failure_tolerance=0., min_x_velocity_threshold=.001, min_y_velocity_threshold=.001,
         min_theta_velocity_threshold=.001, progress_checker_plugin='progress_checker',
         goal_checker_plugins=['goal_checker'], controller_plugins=['FollowPath'],
@@ -143,26 +153,26 @@ def parameters(platform, behavior_tree_path, through_poses_tree_path, namespace,
             regulated_linear_scaling_min_radius=max(.9, vx / wz),
             regulated_linear_scaling_min_speed=.02))
     return dict(
-        planner_server=dict(ros__parameters=dict(use_sim_time=True,
+        planner_server=dict(ros__parameters=dict(use_sim_time=use_sim_time,
             expected_planner_frequency=1., planner_plugins=['GridBased'],
             GridBased=dict(plugin='nav2_navfn_planner/NavfnPlanner', tolerance=.0,
                            use_astar=False, allow_unknown=False))),
         controller_server=dict(ros__parameters=controller),
-        velocity_smoother=dict(ros__parameters=dict(use_sim_time=True,
+        velocity_smoother=dict(ros__parameters=dict(use_sim_time=use_sim_time,
             # Proportional dv scaling can retain closed-loop odometry roundoff
             # above a speed bound. Keep independently constrained axes instead.
             smoothing_frequency=20., scale_velocities=False, feedback='CLOSED_LOOP',
             max_velocity=[vx, 0., wz], min_velocity=[0., 0., -wz],
             max_accel=[accel, accel, yaw_accel], max_decel=[-accel, -accel, -yaw_accel],
-            odom_topic=topic + 'odom', odom_duration=.05,
+            odom_topic=topics['odom'], odom_duration=.05,
             deadband_velocity=[0., 0., 0.], velocity_timeout=.15)),
-        local_costmap=dict(local_costmap=costmap(frame + 'odom', True)),
-        global_costmap=dict(global_costmap=costmap(frame + 'map', False)),
-        bt_navigator_navigate_to_pose_rclcpp_node=dict(ros__parameters=dict(use_sim_time=True)),
-        bt_navigator_navigate_through_poses_rclcpp_node=dict(ros__parameters=dict(use_sim_time=True)),
-        bt_navigator=dict(ros__parameters=dict(use_sim_time=True,
-            global_frame=frame + 'map', robot_base_frame=frame + 'base',
-            odom_topic=topic + 'odom', bt_loop_duration=10, default_server_timeout=20,
+        local_costmap=dict(local_costmap=costmap(frames['local'], True)),
+        global_costmap=dict(global_costmap=costmap(frames['map'], False)),
+        bt_navigator_navigate_to_pose_rclcpp_node=dict(ros__parameters=dict(use_sim_time=use_sim_time)),
+        bt_navigator_navigate_through_poses_rclcpp_node=dict(ros__parameters=dict(use_sim_time=use_sim_time)),
+        bt_navigator=dict(ros__parameters=dict(use_sim_time=use_sim_time,
+            global_frame=frames['map'], robot_base_frame=frames['base'],
+            odom_topic=topics['odom'], bt_loop_duration=10, default_server_timeout=20,
             wait_for_service_timeout=1000,
             default_nav_to_pose_bt_xml=str(behavior_tree_path),
             default_nav_through_poses_bt_xml=str(through_poses_tree_path),

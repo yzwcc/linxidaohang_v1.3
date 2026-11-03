@@ -197,6 +197,21 @@ class SensorTests(unittest.TestCase):
             ("map", "base_link", self.clock.ros), ("base_link", "lidar", self.clock.ros)],
             self.sensors.tf_buffer.queries)
         self.sensors.tf_buffer.available = False
+        original = self.sensors.observe()
+        self.clock.advance(.1)
+        self.feed()
+        retained = self.sensors.observe()
+        self.assertEqual(original.observed_at, retained.observed_at)
+        self.assertEqual(original.pose, retained.pose)
+        self.clock.advance(.31)
+        self.feed()
+        self.unavailable()
+
+    def test_invalid_new_sensor_revokes_aligned_pair_without_waiting_for_expiry(self):
+        self.feed()
+        self.sensors.observe()
+        self.sensors.tf_buffer.available = False
+        self.assertFalse(self.sensors._cloud(cloud(self.clock.ros + 1)))
         self.unavailable()
 
     def test_split_tf_static_zero_stamp_is_retained_separately(self):

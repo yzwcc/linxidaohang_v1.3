@@ -1,8 +1,9 @@
 # 物理导航桥契约
 
-更新于 2026-11-03。本轮已提供独立产品的 ROS 2/Nav2 物理桥生产骨架、私有
-Unix Socket 客户端与 AIMDK 输出适配器；真实机器人 topic/frame、Nav2 controller
-输出、地图格式和现场安全验收仍需在目标机上完成。离线测试不代表机器人能够导航。
+更新于 2026-11-03。独立产品的 ROS 2/Nav2 物理桥已装配每任务独占生产进程、私有
+Unix Socket、Action 客户端及 AIMDK 速度适配器，并通过真实 Humble/Nav2 离线组合测试。
+真实机器人 topic/frame、地图加载与定位初值、ARM64 运行及现场验收仍未完成。
+测试传感器和 AIMDK 输出为替身，离线通过不代表机器人能够导航。
 
 ### ROS 传感器证据更新
 
@@ -12,18 +13,20 @@ Unix Socket 客户端与 AIMDK 输出适配器；真实机器人 topic/frame、N
 证据时间取最旧的必需采集时间，不以轮询时间或 DDS 到达时间刷新旧数据。
 过期、未来、重复和倒序数据不能续期；时钟异常、TF 环路或静态标定变化会锁住准入。
 
-这部分在隔离的真实 Humble/FastDDS/tf2 环境通过了 4 项测试，没有连接机器人。
+这部分在隔离的真实 Humble/FastDDS/tf2 环境通过了 5 项测试，没有连接机器人。
 本次源代码更新晚于 0.1.22，未改写原安装包或 APK。详细结果及限制见
 [ROS 证据验证记录](PHYSICAL_ROS_EVIDENCE_20261103.md)。
 
 当前 `AimdkVelocityOutput.command` 已提供按任务、地图证据、时效和速度限制校验的非零速度转发；
-`ControllerVelocityChannel` 已接入 `RosNavigationBackend` 的可选组合路径，清退先关闭速度订阅源。
-但部署入口尚未提供每任务独占的 Nav2 进程/Action 客户端管理，也没有装配该速度通道，
-因此真实 AIMDK 输出缺少该通道时明确报告 `velocityOutput=false`，不能启动物理导航。
-`FileMapActivator.activate_map` 仍只有地图证据核验，尚未加载 Nav2 地图或设置定位初值。
+部署入口通过 `OwnedNav2Backend` 管理每个 epoch 的 Nav2 进程、Action 客户端和
+`ControllerVelocityChannel`。确认初始停止后才预热，没有就绪前不排队发送目标。
+暂停后先撤销输出，再清退整个生产进程组；继续必须使用新 epoch，不能复用旧控制流。
+`FileMapActivator` 仍只核验保存地图证据；生产后端的 `activate_map` 明确拒绝，
+尚未加载 Nav2 地图或设置定位初值，不能把地图目录存在当作定位初始化成功。
 地形 `OccupancyGrid` 的新鲜度也不等于地面支撑、标定或几何精度验收通过。
 物理桥不会随此次更新自动启用；ARM64 目标运行验证及实机导航仍未完成。
-新增速度通道的验证与限制见 [速度链路记录](PHYSICAL_VELOCITY_VALIDATION_20261103.md)。
+速度通道的验证与限制见 [速度链路记录](PHYSICAL_VELOCITY_VALIDATION_20261103.md)，
+本轮生产进程组合见 [Nav2 生产者记录](PHYSICAL_NAV2_PRODUCER_20261103.md)。
 
 ## AIMDK v1.1.0 输出确认
 
@@ -141,7 +144,7 @@ API 校验字段一致性，但不能替桥证明实际传感器新鲜度或底�
 适配器只有收到新的、身份匹配且输出已静止的显式 `stop` 回执才解除不确定
 状态。正常轮询即使再次返回就绪也不能解除这一状态。
 
-输出所有者只在 Nav2 Action 已终止且当前零速状态回执有效后，通过
+输出所有者只在 Nav2 Action 已终止或整个独占生产进程已确认退出，并且当前零速状态回执有效后，通过
 `complete_retirement(nonce)` 退出清退状态；仅仅读取输出回执不释放所有权。
 确认记录保留原时间与原任务，显式启动下一代任务时作废。重复 arm、覆盖正在
 清退的 nonce、旧任务回执和零速发布异常不能授予新任务所有权。
@@ -189,5 +192,6 @@ ROS 接口、地图精度、定位、避障、Android 真机或语音首响指�
 同日后续增加真实 Humble ActionServer/ActionClient 与生命周期服务的 4 项协议测试：
 启动/暂停/继续/停止、取消 ACK 不等于终止、暂停后才接单和旧任务回调隔离，全部通过。
 测试服务端不运行 Nav2 规划器/控制器，传感器和输出回执为受控测试替身，没有物理发布者。
-最终 Linux `test_physical*.py` 为 47 项通过、8 项 opt-in 测试跳过；这 8 项分别在
-隔离 ROS 环境通过，不能据此宣称机器人能够运动或避障。
+这属于较早的协议验证。最新 Linux `test_physical*.py` 为 66 项通过、14 项 opt-in
+测试跳过；14 项分别在隔离 ROS 环境通过。独占 Nav2 生产者的单元及实际进程测试另见
+[生产者记录](PHYSICAL_NAV2_PRODUCER_20261103.md)，不能据此宣称机器人能够运动或避障。

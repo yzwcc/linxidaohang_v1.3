@@ -40,14 +40,32 @@ class VelocityLimits:
                 or any(not finite(value) or not low <= value <= high for value, low, high in bounds)):
             raise ValueError('explicit_map_bound_physical_velocity_limits_required')
 
-    def bounded(self, values, previous, elapsed):
+    def _velocity(self, values):
         ranges = ((0., self.forward), (-self.lateral, self.lateral), (-self.angular, self.angular))
-        if (not finite(elapsed) or elapsed <= 0 or len(values) != 3
+        if (len(values) != 3
                 or any(not finite(value) or value < low - 8 * math.ulp(high)
                        or value > high + 8 * math.ulp(high)
                        for value, (low, high) in zip(values, ranges))):
             raise ValueError('controller_velocity_out_of_bounds')
-        values = tuple(min(high, max(low, value)) for value, (low, high) in zip(values, ranges))
+        return tuple(min(high, max(low, value)) for value, (low, high) in zip(values, ranges))
+
+    def slew(self, values, previous, elapsed):
+        values = self._velocity(values)
+        if not finite(elapsed) or elapsed <= 0:
+            raise ValueError('controller_acceleration_window_required')
+        result = []
+        for index, (old, desired) in enumerate(zip(previous, values)):
+            limit = (self.angular_acceleration if index == 2 else
+                     min(self.acceleration, self.deceleration) if old * desired < 0 else
+                     self.acceleration if abs(desired) > abs(old) else self.deceleration)
+            delta = limit * elapsed
+            result.append(min(old + delta, max(old - delta, desired)))
+        return self.bounded(result, previous, elapsed)
+
+    def bounded(self, values, previous, elapsed):
+        values = self._velocity(values)
+        if not finite(elapsed) or elapsed <= 0:
+            raise ValueError('controller_velocity_out_of_bounds')
         for index, (old, new) in enumerate(zip(previous, values)):
             limit = (self.angular_acceleration if index == 2 else
                      self.acceleration if abs(new) > abs(old) else self.deceleration)
@@ -186,7 +204,7 @@ class ControllerVelocityChannel:
                 raise ValueError('controller_output_expired')
             command = self.source.take()
             if command is not None:
-                if self.output.command(command, self.limits, observation) is not True:
+                if self.output.slew_command(command, self.limits, observation) is not True:
                     raise ValueError('controller_command_not_accepted')
                 self.last_generated = command.generated_at
         except Exception:

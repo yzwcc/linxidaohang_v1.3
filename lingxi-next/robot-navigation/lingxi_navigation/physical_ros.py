@@ -11,7 +11,7 @@ normal development machine.
 from __future__ import annotations
 
 from array import array
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 import hashlib
 import json
 import math
@@ -391,6 +391,7 @@ class RosSensorEvidence:
         self.latest_cloud = self.latest_odom = None
         self.latest_global = self.latest_local = self.latest_terrain = None
         self.receipts, self.previous_stamps, self.tf_parents = {}, {}, {}
+        self.aligned_samples = None
         self.closed = self.clock_failed = self.tf_failed = False
         self.anchor = None
         self.last_clock = None
@@ -562,6 +563,16 @@ class RosSensorEvidence:
         cloud_ok = fresh("cloud")
         localization_ok = fresh("odom")
         tf_ok = self._tf_ready()
+        # DDS callbacks are not atomic across sensor/TF topics. Retain only a
+        # previously transformable pair, never renew its acquisition deadline
+        # with newer sensor messages that have no matching transform yet.
+        if tf_ok and cloud_ok and localization_ok:
+            self.aligned_samples = (self.receipts["cloud"], self.receipts["odom"], self.latest_odom[1])
+        aligned = self.aligned_samples
+        if not tf_ok and not self.tf_failed and cloud_ok and localization_ok and aligned is not None:
+            deadline = min(.3, self.maximum_age)
+            tf_ok = all(0 <= now - receipt[1] <= deadline
+                        and 0 <= (ros - receipt[0]) / 1e9 <= deadline for receipt in aligned[:2])
         global_ok = fresh("global")
         local_ok = fresh("local")
         terrain_ok = fresh("terrain")
@@ -572,8 +583,9 @@ class RosSensorEvidence:
                   "velocityOutput": False}
         if not all(checks[key] for key in ("localization", "tf", "costmap", "terrain", "footprint")):
             raise RuntimeError("current_ros_sensor_evidence_unavailable")
-        acquired_at = min(receipt[1] for receipt in self.receipts.values())
-        return Observation(self.identity, acquired_at, self.latest_odom[1], checks, False)
+        acquired_at = min(*(self.receipts[name][1] for name in ("global", "local", "terrain")),
+                          *(receipt[1] for receipt in aligned[:2]))
+        return Observation(self.identity, acquired_at, aligned[2], checks, False)
 
     def close(self):
         self.closed = True
@@ -584,6 +596,7 @@ class RosSensorEvidence:
                 pass
         self.subscriptions = []
         self.receipts.clear()
+        self.aligned_samples = None
         if hasattr(self, "tf_buffer"):
             self.tf_buffer.clear()
 
@@ -771,6 +784,23 @@ class AimdkVelocityOutput:
         return (0 <= self.clock() - stamp <= self.maximum_age
                 and current in (self.STABLE, self.SAFE))
 
+    def reserve(self, ticket: Ticket, identity: MapEvidence):
+        """Transfer idle ownership without arming or relabeling a stop receipt.
+
+        A start can fail before constructing its DDS reader. Reserving first
+        ensures that even that failure requires a new stop for the new ticket.
+        """
+        self._owned()
+        proof = self.completed_retirement
+        if (type(ticket) is not Ticket or self.armed or not self.ready(identity)
+                or proof is None or proof.ticket != self.ticket
+                or not proof.output_quiescent or proof.observed_at > self.clock()
+                or ticket == self.ticket
+                or (self.ticket is not None and ticket.epoch == self.ticket.epoch)):
+            raise RuntimeError('confirmed_idle_output_reservation_required')
+        self.ticket = ticket
+        self.completed_retirement = None
+
     def arm(self, ticket: Ticket, identity: MapEvidence) -> bool:
         self._owned()
         if type(ticket) is not Ticket or self.armed or not self.ready(identity):
@@ -790,6 +820,30 @@ class AimdkVelocityOutput:
         if not self.closed and not self.controller_fault:
             self.armed, self.controller_fault = False, True
             self.publisher.publish(self._message())
+
+    def slew_command(self, command, limits, observation):
+        """Shape a valid requested speed using real source and dispatch intervals.
+
+        Nav2's fixed-rate smoother can tick early or jitter. Keep its original
+        timestamp/identity, and let command() independently enforce every bound.
+        No delayed callback or nominal smoothing period grants extra slew time.
+        """
+        from .physical_velocity import ControllerCommand, VelocityLimits
+        self._owned()
+        if (type(command) is not ControllerCommand or type(limits) is not VelocityLimits
+                or command.ticket != self.ticket or not self.armed or self.closed or self.retiring is not None):
+            return self.command(command, limits, observation)
+        try:
+            now = self.clock()
+            origin = self.armed_at if self.last_command_at is None else self.last_command_at
+            generated_origin = self.armed_at if self.last_command_generated is None else self.last_command_generated
+            values = limits.slew((command.forward, command.lateral, command.angular), self.last_velocity,
+                                 min(now - origin, command.generated_at - generated_origin))
+            shaped = replace(command, forward=values[0], lateral=values[1], angular=values[2])
+        except Exception:
+            self.fence_controller()
+            raise
+        return self.command(shaped, limits, observation)
 
     def command(self, command, limits, observation):
         from .physical_bridge import Observation
@@ -826,6 +880,7 @@ class AimdkVelocityOutput:
             # This records an attempted nonzero dispatch, not measured robot motion.
             self.physical_motion_sent = self.physical_motion_sent or any(value != 0. for value in values)
             self.publisher.publish(self._message(*values))
+            self.last_command_at = self.clock()
             return True
         except Exception:
             self.fence_controller()

@@ -100,6 +100,48 @@ class PhysicalVelocityTests(unittest.TestCase):
         self.assertEqual(.02, self.node.publisher.messages[-1].forward_velocity)
         self.assertTrue(self.output.physical_motion_sent)
 
+    def test_slew_uses_actual_first_tick_and_jitter_without_renewing_source_time(self):
+        channel = self.channel()
+        generation = NS(ticket=self.ticket, accepted_at=self.clock(), retiring=False, terminal=False)
+        origin, previous = self.clock(), (0., 0., 0.)
+        source_origin = origin
+        for elapsed, transport, desired in ((.036, .001, .025), (.041, .004, .05),
+                                             (.053, .001, .075), (.043, .002, 0.)):
+            self.advance(elapsed)
+            generated = self.clock() - transport
+            message = NS(linear=NS(x=desired, y=0., z=0.), angular=NS(x=0., y=0., z=.08))
+            channel.source.reader.samples.append((message, generated))
+            channel.poll(generation, self.observation())
+            current = self.output.last_velocity
+            self.limits.bounded(current, previous, min(self.clock() - origin, generated - source_origin))
+            self.assertEqual(generated, self.output.last_command_generated)
+            self.assertEqual(generated, channel.last_generated)
+            self.assertEqual(channel.source.sequence, self.output.command_sequence)
+            if previous == (0., 0., 0.):
+                self.assertLess(current[0], desired)
+            origin, source_origin, previous = self.clock(), generated, current
+        self.assertTrue(self.output.armed)
+
+    def test_slew_never_softens_invalid_speed_sensor_or_generation_rejection(self):
+        self.arm()
+        self.advance(.036)
+        old = self.command(ticket=Ticket('tour', '2' * 32), namespace='/lingxi_nav_' + '2' * 32)
+        self.assertFalse(self.output.slew_command(old, self.limits, self.observation()))
+        self.assertTrue(self.output.armed)
+        with self.assertRaisesRegex(ValueError, 'velocity_out_of_bounds'):
+            self.output.slew_command(self.command(speed=.31), self.limits, self.observation())
+        self.assert_zero()
+        self.assertFalse(self.output.armed)
+
+    def test_slew_sign_reversal_obeys_asymmetric_acceleration_and_deceleration(self):
+        limits = replace(self.limits, acceleration=.8, deceleration=.2)
+        previous = (.1, .01, -.1)
+        values = limits.slew((.2, -.1, .5), previous, .025)
+        self.assertAlmostEqual(.12, values[0])
+        self.assertAlmostEqual(.005, values[1])
+        self.assertAlmostEqual(-.075, values[2])
+        self.assertEqual(values, limits.bounded(values, previous, .025))
+
     def test_old_epoch_and_retired_callbacks_are_inert(self):
         self.arm()
         self.advance()

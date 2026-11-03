@@ -90,8 +90,9 @@ class PhysicalNavigationBridge:
     """backend owns sensor evidence, map activation, ActionClient and output fencing.
 
     retire(ticket, nonce) must revoke the output generation BEFORE requesting
-    action cancellation. retirement(nonce) combines terminal action observation
-    with a fresh, matching physical-output receipt, never a cancel ACK alone.
+    action cancellation. retirement(nonce) requires terminal action observation
+    or verified teardown of its entire owned producer, plus a fresh matching
+    physical-output receipt, never a cancel ACK alone.
     """
     def __init__(self, backend, identity, *, clock=time.monotonic, input_timeout=.3,
                  acceptance_timeout=3., retirement_timeout=3.):
@@ -203,6 +204,14 @@ class PhysicalNavigationBridge:
                 self.phase, self.retiring, self.detail, self.requires_stop = 'failed', 'failed', 'output_retirement_timeout', True
         if self.closed:
             self.last_checks = dict.fromkeys(CHECKS, False)
+        elif (not self.requires_stop and self.retiring is None and self.output_quiescent
+                and self.phase in ('idle', 'paused', 'finished')):
+            prepare = getattr(self.backend, 'prepare', None)
+            if prepare is not None:
+                try:
+                    prepare()
+                except Exception:
+                    self._fault('navigation_preparation_failed')
 
     def state(self, *, poll=True):
         self._owned()
@@ -295,7 +304,15 @@ class PhysicalNavigationBridge:
             point_id = request['pointId'] if action == 'start' else self.point_id
             if type(point_id) is not str or not re.fullmatch('[A-Za-z0-9_-]{1,120}', point_id):
                 raise BridgeError('navigation_point_id_invalid', 400)
-            self.ticket, self.point_id, self.goal = Ticket(task, secrets.token_hex(16)), point_id, goal
+            allocate = getattr(self.backend, 'new_ticket', None)
+            try:
+                ticket = allocate(task) if allocate is not None else Ticket(task, secrets.token_hex(16))
+                if (type(ticket) is not Ticket or ticket.task_id != task
+                        or (self.ticket is not None and ticket.epoch == self.ticket.epoch)):
+                    raise ValueError('fresh_owned_navigation_ticket_required')
+            except Exception as error:
+                raise BridgeError('navigation_preparation_not_ready', 503) from error
+            self.ticket, self.point_id, self.goal = ticket, point_id, goal
             self.phase, self.detail, self.output_quiescent = 'requested', 'navigation_requested', False
             self.requested_at = self.clock()
             try:

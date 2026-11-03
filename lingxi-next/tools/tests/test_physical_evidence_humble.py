@@ -127,16 +127,34 @@ class ActualPhysicalEvidenceTests(unittest.TestCase):
         self.assertGreater(time.monotonic() - value.observed_at, .019)
         self.assertEqual(3, len(self.sensors.tf_parents))
 
-    def test_fresh_sensor_messages_cannot_hide_missing_new_tf(self):
+    def test_delayed_tf_keeps_prior_pair_only_until_its_acquisition_deadline(self):
         self.publish()
         self.until(self.ready)
+        previous = self.ready()
         time.sleep(.06)
         stamp = self.publish(transforms=False)
         self.until(lambda: self.sensors.receipts.get("odom", (0,))[0] == stamp - 10_000_000)
+        delayed = self.ready()
+        self.assertIsNotNone(delayed)
+        self.assertEqual(previous.observed_at, delayed.observed_at)
+        deadline = time.monotonic() + .4
+        while time.monotonic() < deadline:
+            self.publish(transforms=False)
+            for _ in range(12):
+                self.executor.spin_once(timeout_sec=.001)
         self.assertIsNone(self.ready())
         self.assertFalse(self.sensors.tf_failed)
         self.publish()
         self.until(self.ready)
+
+    def test_invalid_tf_revokes_prior_aligned_pair_immediately(self):
+        from tf2_msgs.msg import TFMessage
+        self.publish()
+        self.until(self.ready)
+        changed = self.transform("unconfigured_parent", "base_link", self.node.get_clock().now().nanoseconds)
+        self.publishers["tf"].publish(TFMessage(transforms=[changed]))
+        self.until(lambda: self.sensors.tf_failed)
+        self.assertIsNone(self.ready())
 
     def test_delayed_dds_data_and_idle_expiry_revoke_evidence(self):
         self.publish()
