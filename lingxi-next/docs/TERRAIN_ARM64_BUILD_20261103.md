@@ -38,7 +38,7 @@ recipe/export lists, OctoMap lock and third-party notices. Point/mapping profile
 ownership remains distinct. Existing immutable archives are not rewritten or
 relabeled as containing these current sources.
 
-## Actual Prepared Build
+## Original Prepared Build
 
 Private output: `terrain-arm64-build-20261103-c` in the existing WSL user's
 `.cache/lingxi-next`. Earlier builds are retained separately. Generated binaries,
@@ -64,6 +64,39 @@ and extracted into a separate user-cache directory, not installed. Its SHA256 is
 Both extracted library hashes match the existing target lock; the distribution
 copyright is copied unchanged. Source URL:
 <https://ports.ubuntu.com/pool/universe/o/octomap/liboctomap1.9_1.9.7+dfsg-3_arm64.deb>.
+
+## Optimized Current-Source Rebuild
+
+After the [native scan-accumulation optimization](TERRAIN_NATIVE_THROUGHPUT_20261103.md),
+both adapters were actually rebuilt in new private output
+`terrain-arm64-scan-20261103-a`; the original `terrain-arm64-build-20261103-c`
+and its reports remain preserved as historical evidence. The current OctoMap
+adapter source SHA256 is
+`4a53f10d231f3781c665bd84a973080319cad0063ec45979d558c5e439240dea`.
+
+Actual configure/compile/link and a separate read-only `verify` invocation
+passed. Both artifacts remain ELF64 AArch64 with GLIBC 2.17, GLIBCXX 3.4.29,
+CXXABI 1.3.9 and exactly four expected C exports each. Runtime dependency
+aliases, original notices, frozen compiled inputs and current sources were
+rechecked. The unchanged ground binary retains the SHA256 above; current
+clearance SHA256 is
+`850e46d490aee169022f80c221c8421c76e91e70740127777f09488d3b7fbc9c`.
+
+Current private build-report SHA256:
+`6cf5d1ff417da69585ad452cbac7282da5551b61e111da8b91475410e6aee84c`.
+The new source-bound x86_64 ground/fusion receipt passed all 21 real-native
+contracts without skips in 0.159 s; its SHA256 is
+`88ead39e55ba86b906b24a9824baf9ff58f7bb136af9c1df1f014fb9a8209659`.
+The Linux build-tool and target-trial suites were rerun: eight passed in
+0.084 s and twenty passed in 2.599 s, respectively, with no skips or failures.
+Their SSH lifecycle tests use mocks, not a robot connection.
+
+The matching [target trial](TERRAIN_ARM64_TARGET_PREPARATION_20261103.md)
+was prepared and integrity-checked from this new build. No target code was
+executed, no new robot connection was attempted, and no target-throughput,
+ground calibration or navigation readiness is inferred. The older trial must
+not be used as evidence for the optimized current sources. APK/package remain
+0.1.22 and were not rebuilt.
 
 ## Verification
 
@@ -103,7 +136,7 @@ cannot satisfy `AcquisitionSettings` ground/clearance admission. Actual target
 loading, contracts and current-source throughput must be verified before
 selecting these libraries in the passive live composition.
 
-The LAN recheck again connected to TCP/22 but received EOF before an SSH banner;
+The earlier LAN recheck connected to TCP/22 but received EOF before an SSH banner;
 no authentication, upload, route change or robot command occurred. The complete
 independent-stack installer, guarded physical command path, real-sensor ground
 calibration, cloud/audio and Android-device acceptance remain unfinished.

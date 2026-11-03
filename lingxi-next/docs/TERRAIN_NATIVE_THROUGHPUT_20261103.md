@@ -74,6 +74,10 @@ families. The separate scientific Linux live-acquisition collection passed
 contracts passed all eight tests in 0.074 s; these do not execute target code.
 The collections overlap and are not summed into an independent coverage total.
 
+The optimized sources were subsequently [cross-built for ARM64](TERRAIN_ARM64_BUILD_20261103.md#optimized-current-source-rebuild),
+with separate static verification and a matching 21-contract private target
+trial prepared. No ARM64 code, robot IO or target throughput was exercised.
+
 All three generic and all four registered-source actual Humble ROS trials were
 rerun sequentially with a fresh rootfs-compatible GCC 11 native build. All 14
 common checks and raw-costmap regrades passed in each. See the updated

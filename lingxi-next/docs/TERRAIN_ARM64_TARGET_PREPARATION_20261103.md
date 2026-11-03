@@ -16,10 +16,10 @@ NavFn dependency, the existing 21 ground/fusion contracts, a standalone probe,
 two AArch64 adapters, two pinned OctoMap libraries and original license notices.
 No maps, recordings, credentials or business data are included.
 
-The current preparation completed in the ordinary WSL user cache under
+The original preparation completed in the ordinary WSL user cache under
 `terrain-target-trial-20261103-b`, from `terrain-arm64-build-20261103-c`.
 It includes the shared result validator used by both the runner and runtime.
-The earlier `a` bundle is preserved, not overwritten. Current manifest SHA256:
+The earlier `a` bundle is preserved, not overwritten. Original manifest SHA256:
 
 ```text
 48769048242daaa2eb4c05ff0c494021e111569fcb94d1d90307ac3cc0a637d5
@@ -32,6 +32,24 @@ relative dependency aliases and current source identities. Additional files,
 empty directories, altered sources or libraries, and x86 replacement libraries
 are rejected. The real preparation also exercises the builder report actual
 `file` field rather than an assumed artifact path.
+
+After the [native scan-accumulation optimization](TERRAIN_NATIVE_THROUGHPUT_20261103.md),
+the current trial was actually prepared from the source-bound rebuild
+`terrain-arm64-scan-20261103-a` into new private directory
+`terrain-target-scan-20261103-a`. All earlier bundles remain unchanged. Current
+manifest SHA256:
+
+```text
+b86464a7a2f7c063d3ab6cfd2f3f499146bd95deaf251480dd34c6e7d48c96d8
+```
+
+Preparation verified all 13 regular files, two relative dependency aliases,
+21 exact contract IDs, current production sources and the real current build
+report before returning `arm64_terrain_trial_prepared_not_executed`. The Linux
+target-trial suite was rerun: all 20 passed without skips in 2.599 s. The
+current source-bound x86_64 native ground/fusion collection passed all 21 in
+0.159 s. These are not target execution or live-throughput results. No robot
+connection, upload or deployment was attempted during this rebuild/preparation.
 
 ## Execution Contract
 
@@ -71,7 +89,7 @@ existing connector; do not place credentials in arguments or files.
   0.35 seconds. This is synthetic host algorithm evidence, not target timing.
 - The real AArch64 bundle preparation succeeded; no ARM64 executable or library
   was executed during preparation. All admission boundary fields remain false.
-- The current LAN recheck used the Meta interface and returned EOF before an
+- The earlier LAN recheck used the Meta interface and returned EOF before an
   SSH banner. No authentication, upload, robot command, deployment or network
   configuration change occurred. No additional scan is needed for this trial.
 
