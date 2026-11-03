@@ -4,9 +4,11 @@ Candidate support is not a metric CostmapSnapshot and cannot authorize motion.
 No interpolation fills holes: only repeatedly observed, near-level floor returns
 can support a cell. Empty air, sparse patches and out-of-range returns stay unknown.
 """
+from array import array
 import ctypes
 from dataclasses import dataclass, field
 import hashlib
+from itertools import chain
 import math
 from pathlib import Path
 import threading
@@ -109,7 +111,8 @@ class PatchworkSegmenter:
                 or not 3 <= len(points) <= 8192 or any(type(point) is not tuple or len(point) != 3
                     or any(not finite(value) or abs(value) > 100 for value in point) for point in points)):
             raise ValueError('bounded_finite_gravity_aligned_sensor_points_required')
-        xyz = (ctypes.c_double * (len(points) * 3))(*(v for point in points for v in point))
+        packed = array('d', chain.from_iterable(points))
+        xyz = (ctypes.c_double * len(packed)).from_buffer(packed)
         labels, counts = (ctypes.c_uint8 * len(points))(), (ctypes.c_uint64 * 3)()
         status = self.native.lingxi_ground_segment(xyz, len(points), declaration.sensor_height_metres,
             declaration.minimum_range_metres, declaration.maximum_range_metres, labels, len(points), counts)
@@ -177,8 +180,9 @@ def declared_ground_candidates(observations, projection, declaration, segmenter)
     totals = [0, 0, 0]
     for scan in observations.scans:
         anchor = scan.returns[0].origin_metres
-        points = tuple(tuple(value - origin for value, origin in zip(ray.endpoint_metres, anchor))
-                       for ray in scan.returns)
+        ax, ay, az = anchor
+        points = tuple((ray.endpoint_metres[0] - ax, ray.endpoint_metres[1] - ay,
+                        ray.endpoint_metres[2] - az) for ray in scan.returns)
         # Tiny scans supply no plane evidence; preserve them as unclassified.
         if len(points) >= 3:
             result = segmenter.segment(points, declaration)
@@ -198,7 +202,10 @@ def declared_ground_candidates(observations, projection, declaration, segmenter)
             cy = math.floor((y - projection.origin_y_metres) / projection.resolution_metres)
             if not 0 <= cx < projection.width or not 0 <= cy < projection.height:
                 continue
-            cell = cells.setdefault(cy * projection.width + cx, [0, set(), math.inf, -math.inf, False, False])
+            index = cy * projection.width + cx
+            cell = cells.get(index)
+            if cell is None:
+                cell = cells[index] = [0, set(), math.inf, -math.inf, False, False]
             dz = z - declaration.ground_z_metres
             # Even points Patchwork calls ground must not promote a step/platform.
             if dz > declaration.height_tolerance_metres or dz < -declaration.height_tolerance_metres:

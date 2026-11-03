@@ -89,12 +89,15 @@ three generic native/ROS trials were also rerun as
 `terrain-ros-MODE-20261103-a`, each passing all 14 checks. These are regressions
 of the existing declared-frame modes, not fresh-grid throughput evidence.
 
-The recorded replay aggregate in `REGISTERED_TERRAIN_REPLAY_20261103.md` is
-still historical: its original source digests are intentionally retained.
-Its 8-test collection currently has 7 passes and 1 source-identity assertion
-failure after this update, and requires a real new
-recorded replay before it may count as current evidence. No hashes, counts or
-results have been relabeled to manufacture a passing replay.
+The recorded aggregate temporarily became historical after this update: its
+8-test collection then had 7 passes and 1 source-identity assertion failure.
+The [throughput follow-up](TERRAIN_THROUGHPUT_20261103.md) actually reran the
+recorded chain as `registered-replay-20261103-d`, regraded the private raw grids
+and regenerated the aggregate. It observed 24 submissions / 23 fresh results,
+still zero supported free cells. This resolves the old source-identity gap,
+not floor calibration or the new live admission deadlines. Registered ROS
+trials were actually rerun as `registered-ros-MODE-20261103-f` and generic
+trials as `terrain-ros-MODE-20261103-g`; no old failure was relabeled as a pass.
 
 ## Reproduction
 

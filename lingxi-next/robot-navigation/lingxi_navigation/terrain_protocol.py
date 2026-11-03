@@ -1,6 +1,10 @@
 """Bounded private stdio protocol; never an HTTP or arbitrary-pickle endpoint."""
+from array import array
+import base64
+from itertools import chain
 import json
 import struct
+import sys
 
 from .occupancy import DeclaredObservationBatch, LidarReturn, ScanObservation, canonical
 
@@ -49,17 +53,29 @@ def read_message(stream):
     return decode(exact(size))
 
 
-def encode_observations(data, budget):
+def encode_observations(data, budget, *, packed=False):
     if type(data) is not DeclaredObservationBatch:
         raise ValueError('declared_terrain_batch_required_not_metric_admission')
+    if type(packed) is not bool:
+        raise ValueError('explicit_terrain_encoding_required')
     if (len(data.scans) > budget.maximum_scans
             or sum(len(scan.returns) for scan in data.scans) > budget.maximum_rays
             or data.scans[-1].stamp - data.scans[0].stamp > budget.maximum_span_seconds):
         raise ValueError('terrain_window_budget_exceeded')
     fields = {name: getattr(data, name) for name in data.__dataclass_fields__
               if name not in ('scans', 'frame', 'units')}
-    return dict(**fields, scans=[dict(ordinal=scan.ordinal, stamp=scan.stamp, source_sha256=scan.source_sha256,
-        returns=[ray.origin_metres + ray.endpoint_metres for ray in scan.returns]) for scan in data.scans])
+    scans = []
+    for scan in data.scans:
+        item = dict(ordinal=scan.ordinal, stamp=scan.stamp, source_sha256=scan.source_sha256)
+        if packed:
+            values = array('d', chain.from_iterable(ray.origin_metres + ray.endpoint_metres for ray in scan.returns))
+            if sys.byteorder != 'little':
+                values.byteswap()
+            item['returns_f64le'] = base64.b64encode(values).decode('ascii')
+        else:
+            item['returns'] = [ray.origin_metres + ray.endpoint_metres for ray in scan.returns]
+        scans.append(item)
+    return dict(**fields, scans=scans)
 
 
 def decode_observations(value, budget):
@@ -69,15 +85,27 @@ def decode_observations(value, budget):
         raise ValueError('bounded_complete_terrain_batch_required')
     scans, count = [], 0
     for scan in value['scans']:
-        if (type(scan) is not dict or set(scan) != {'ordinal', 'stamp', 'source_sha256', 'returns'}
-                or type(scan['returns']) is not list or not 1 <= len(scan['returns']) <= 8192):
+        if type(scan) is not dict:
             raise ValueError('bounded_complete_terrain_scan_required')
-        count += len(scan['returns'])
+        if set(scan) == {'ordinal', 'stamp', 'source_sha256', 'returns_f64le'}:
+            encoded = scan['returns_f64le']
+            if type(encoded) is not str or not 64 <= len(encoded) <= 8192 * 64 or len(encoded) % 64:
+                raise ValueError('bounded_complete_packed_terrain_scan_required')
+            raw = base64.b64decode(encoded, validate=True)
+            if len(raw) != len(encoded) // 64 * 48:
+                raise ValueError('complete_packed_terrain_returns_required')
+            size, returns, ray_type = len(raw) // 48, struct.iter_unpack('<6d', raw), tuple
+        elif (set(scan) == {'ordinal', 'stamp', 'source_sha256', 'returns'}
+                and type(scan['returns']) is list and 1 <= len(scan['returns']) <= 8192):
+            size, returns, ray_type = len(scan['returns']), scan['returns'], list
+        else:
+            raise ValueError('bounded_complete_terrain_scan_required')
+        count += size
         if count > budget.maximum_rays:
             raise ValueError('terrain_window_budget_exceeded')
         rays = []
-        for ray in scan['returns']:
-            if type(ray) is not list or len(ray) != 6:
+        for ray in returns:
+            if type(ray) is not ray_type or len(ray) != 6:
                 raise ValueError('per_return_origin_and_endpoint_required')
             rays.append(LidarReturn(tuple(ray[:3]), tuple(ray[3:])))
         scans.append(ScanObservation(scan['ordinal'], scan['stamp'], scan['source_sha256'], tuple(rays)))

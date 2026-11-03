@@ -159,7 +159,7 @@ class TerrainProcess:
             if (self.state != 'ready' or type(sequence) is not int or not self.sequence < sequence < 2**53
                     or not finite(received_at) or not 0 <= received_at <= now):
                 raise ValueError('ready_ordered_terrain_request_required')
-            data = encode_observations(observations, self.budget)
+            data = encode_observations(observations, self.budget, packed=True)
             capture = (observations.scans[-1].stamp, observations.scans[-1].source_sha256)
             effective = min(received_at, self.capture_received) if capture == self.capture else received_at
             self.capture, self.capture_received, self.sequence = capture, effective, sequence

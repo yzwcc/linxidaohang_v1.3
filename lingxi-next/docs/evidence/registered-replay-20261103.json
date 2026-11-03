@@ -1,124 +1,124 @@
 {
-    "schemaVersion":  1,
-    "purpose":  "paced_recorded_registered_terrain_diagnostic_not_navigation_acceptance",
-    "host":  "linux-x86_64",
-    "replayRate":  1.0,
-    "sourcesSha256":  {
-                          "tools/run_registered_terrain_replay.py":  "b4f41c08aba1e28fce8e0ce5ce14a51efb3a4fb6de08b6b313574380d40cc947",
-                          "robot-runtime/python/localization_control.py":  "1be4c4e0d7499c84eb8667ca95c8fcc7ad74fc786f1ce7446aec5742a5e6da83",
-                          "robot-runtime/python/registered_terrain.py":  "9fab301e6464c64daa768820a654b0a417d748e3550ffbc1dd51715f0eb89d54",
-                          "robot-slam/lingxi_slam/localization_session.py":  "3ea70114263892321ea17143c171c6fcbf5bf7dbe6d6b351f63c2bbd43df8fc1",
-                          "robot-slam/lingxi_slam/localization_tracking.py":  "c4b99640f0c9380bcc44f0daa0b1f2c37b760ba2559cf5f636483ec253444611",
-                          "robot-slam/lingxi_slam/seeded_localization.py":  "19b46738ef21e60c043b9c3785efcfb1da4572c4f03217cc8ea48873d86000f7",
-                          "robot-slam/lingxi_slam/registered_acquisition.py":  "333ee2c408048ffbe81462e6f281bbc47c8a2db2e0403fb075168fe3ddfdb4eb",
-                          "robot-navigation/lingxi_navigation/registered_window.py":  "6e9a6a068887c3fc4e882582b50d1a3b7ec3c1ec37c40b1bfe3313ae9bdab75a",
-                          "robot-navigation/lingxi_navigation/terrain_lane.py":  "dfc28ad18e4a266eea7593c33f99c1fdcf6ede7122ac774700930dd705c077c0",
-                          "robot-navigation/lingxi_navigation/terrain_process.py":  "588cd963ced5d780a2546a1dff966ae0d5dd141ae4f4a311c1264fe6d4803b49",
-                          "robot-navigation/lingxi_navigation/terrain_protocol.py":  "25055c0b272bfc177bfc422e96b263589f969369497d5256222cd354a93ecfd9",
-                          "robot-navigation/lingxi_navigation/terrain_worker.py":  "914cb99f8063156e223ceef515aa7e8b5cfc1766b746c41423719bd95547d964",
-                          "robot-navigation/lingxi_navigation/terrain.py":  "96c0bc5f7add0f24c9832fe674b5addca9902a78c0ee8769c837c79d2e776897",
-                          "robot-navigation/lingxi_navigation/ground.py":  "58aa45a481cd6d51652c0ee4b862bc68a0f2507ead4f0e488d87a3569f54a2c9",
-                          "robot-navigation/lingxi_navigation/occupancy.py":  "9807c3b12077dcd314d3413134f34248c1c9ebfcc9a11e8af10c8d549a088710",
-                          "robot-navigation/lingxi_navigation/recorded_occupancy.py":  "af26d7a34ac77b484c976065c5340c7b1ed414eab2b2da5a0541f4f5e678511a"
-                      },
-    "privateEvidenceSha256":  {
-                                  "child-report.json":  "7203eb9f8496bfe0bf6758b30042aa66f283166c7ee99892640d742590869a82",
-                                  "chain-report.json":  "a21e2367d73c338aa51bcfcaf66728d5f0c3259a4111c9270df85a88b346dcb1",
-                                  "private-child.log":  "58d7c72c664410f9482d7746c81c6469529c857db1b2afa051cf44c042fb7d38",
-                                  "private-terrain.log":  "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
-                              },
-    "privateSupervisorReportSha256":  "d2132b4c104e2676c603827693e90087712be4bb6770a1e3fe377a08ff8f76e2",
-    "boundaries":  {
-                       "recordedPoseUsedForInitialSeed":  true,
-                       "possibleMappingSequenceReuse":  true,
-                       "replayIngressReceiptNotHistoricalFreshness":  true,
-                       "declaredGroundFrameNotCalibration":  true,
-                       "robotContacted":  false,
-                       "sensorsSubscribed":  false,
-                       "rosNodeStarted":  false,
-                       "physicalMotionSent":  false,
-                       "physicalScaleValidated":  false,
-                       "groundSupportValidated":  false,
-                       "navigationReady":  false,
-                       "arm64Executed":  false,
-                       "independentLocalizationAccuracyValidated":  false,
-                       "liveThroughputValidated":  false
-                   },
-    "budget":  {
-                   "maximum_scans":  32,
-                   "maximum_rays":  65536,
-                   "maximum_span_seconds":  4.0,
-                   "maximum_processing_seconds":  2.0,
-                   "maximum_age_seconds":  3.0,
-                   "maximum_work_units":  4000000
-               },
-    "projection":  {
-                       "width":  128,
-                       "height":  128,
-                       "resolution_metres":  0.1,
-                       "origin_x_metres":  -6.4,
-                       "origin_y_metres":  -6.4,
-                       "minimum_z_metres":  0.1,
-                       "maximum_z_metres":  1.4,
-                       "maximum_range_metres":  10.0
-                   },
-    "grade":  {
-                  "completeInput":  true,
-                  "retirementVerified":  true,
-                  "defaultBudgetAccepted":  true,
-                  "pendingAtEnd":  true,
-                  "observedTerrainResults":  18,
-                  "supportedFreeCellsObserved":  false,
-                  "navigationReady":  false
-              },
-    "sensorMessages":  4144,
-    "imuMessages":  3947,
-    "cloudMessages":  197,
-    "processedScans":  196,
-    "estimatedPoses":  165,
-    "pointPackets":  164,
-    "registeredPackets":  161,
-    "registeredReturns":  1223474,
-    "pointStateCounts":  {
-                             "unseeded":  1,
-                             "acquiring":  2,
-                             "tracking":  161
-                         },
-    "submissions":  19,
-    "observedResults":  18,
-    "workUnits":  {
-                      "minimum":  1067431,
-                      "maximum":  3654793,
-                      "workEvictedScansAtLastSubmission":  150
-                  },
-    "originalIngressToObservationSeconds":  {
-                                                "minimum":  0.300300753,
-                                                "maximum":  1.301143382
-                                            },
-    "observedSupportedFreeCells":  0,
-    "nativeFailureReason":  null,
-    "final":  {
-                  "beforeState":  "tracking",
-                  "laneState":  "busy",
-                  "laneFailure":  "terrain_pending",
-                  "retired":  true,
-                  "gridAbsent":  true,
-                  "workerClosed":  true,
-                  "terrainOwnerClosed":  true,
-                  "terrainChildCleaned":  true,
-                  "pointCounts":  {
-                                      "callbacks":  165,
-                                      "initializationSkips":  1,
-                                      "copies":  164,
-                                      "takes":  164,
-                                      "discardedOnClose":  0
-                                  },
-                  "acquisitionCounts":  {
-                                            "callbacks":  165,
-                                            "initializationSkips":  1,
-                                            "copies":  164,
-                                            "takes":  164,
-                                            "discardedOnClose":  0
-                                        }
-              }
+  "schemaVersion": 1,
+  "purpose": "paced_recorded_registered_terrain_diagnostic_not_navigation_acceptance",
+  "host": "linux-x86_64",
+  "replayRate": 1.0,
+  "sourcesSha256": {
+    "tools/run_registered_terrain_replay.py": "b4f41c08aba1e28fce8e0ce5ce14a51efb3a4fb6de08b6b313574380d40cc947",
+    "robot-runtime/python/localization_control.py": "1be4c4e0d7499c84eb8667ca95c8fcc7ad74fc786f1ce7446aec5742a5e6da83",
+    "robot-runtime/python/registered_terrain.py": "e566fbc78827b3297ddd8d9cbcbdf7f86515b751bb751ed9cc781e1c5a93fbe6",
+    "robot-slam/lingxi_slam/localization_session.py": "3ea70114263892321ea17143c171c6fcbf5bf7dbe6d6b351f63c2bbd43df8fc1",
+    "robot-slam/lingxi_slam/localization_tracking.py": "c4b99640f0c9380bcc44f0daa0b1f2c37b760ba2559cf5f636483ec253444611",
+    "robot-slam/lingxi_slam/seeded_localization.py": "19b46738ef21e60c043b9c3785efcfb1da4572c4f03217cc8ea48873d86000f7",
+    "robot-slam/lingxi_slam/registered_acquisition.py": "333ee2c408048ffbe81462e6f281bbc47c8a2db2e0403fb075168fe3ddfdb4eb",
+    "robot-navigation/lingxi_navigation/registered_window.py": "6e9a6a068887c3fc4e882582b50d1a3b7ec3c1ec37c40b1bfe3313ae9bdab75a",
+    "robot-navigation/lingxi_navigation/terrain_lane.py": "dfc28ad18e4a266eea7593c33f99c1fdcf6ede7122ac774700930dd705c077c0",
+    "robot-navigation/lingxi_navigation/terrain_process.py": "4648f12f9f9e449ca2276dc55fe01b2e62ee52713ebee3477505a67cc0bd2e80",
+    "robot-navigation/lingxi_navigation/terrain_protocol.py": "6154e402e8b433d05cdb6b15bf23de55c114d061241ee57219d4d9681bd4f4f7",
+    "robot-navigation/lingxi_navigation/terrain_worker.py": "914cb99f8063156e223ceef515aa7e8b5cfc1766b746c41423719bd95547d964",
+    "robot-navigation/lingxi_navigation/terrain.py": "96c0bc5f7add0f24c9832fe674b5addca9902a78c0ee8769c837c79d2e776897",
+    "robot-navigation/lingxi_navigation/ground.py": "a47b949bc326f6b40d9613c23c5daf447658b003285b77a455429fabc34d2e4b",
+    "robot-navigation/lingxi_navigation/occupancy.py": "3e0f425075466c5d82199586bbb5ff5ee8c42ef004944f9c8cc63736ca790a67",
+    "robot-navigation/lingxi_navigation/recorded_occupancy.py": "af26d7a34ac77b484c976065c5340c7b1ed414eab2b2da5a0541f4f5e678511a"
+  },
+  "privateEvidenceSha256": {
+    "child-report.json": "09c21c60579d7e90c6b61228cae3495ff554ab7d33204a78e5c8a7f89fc68e6c",
+    "chain-report.json": "8dcd3a14b9441a3851e8b761c0dd66e25d3beff01369d116809dcb491097bb7b",
+    "private-child.log": "2d72ef6e66347a856e12bad99202f70ce4f66b7886643babcdffc96910cc3f1d",
+    "private-terrain.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "privateSupervisorReportSha256": "6ddf48eb5484d6a5b6926a329289d8255aa7da4e7ea45ae8766d6b589a2c3b4d",
+  "boundaries": {
+    "recordedPoseUsedForInitialSeed": true,
+    "possibleMappingSequenceReuse": true,
+    "replayIngressReceiptNotHistoricalFreshness": true,
+    "declaredGroundFrameNotCalibration": true,
+    "robotContacted": false,
+    "sensorsSubscribed": false,
+    "rosNodeStarted": false,
+    "physicalMotionSent": false,
+    "physicalScaleValidated": false,
+    "groundSupportValidated": false,
+    "navigationReady": false,
+    "arm64Executed": false,
+    "independentLocalizationAccuracyValidated": false,
+    "liveThroughputValidated": false
+  },
+  "budget": {
+    "maximum_scans": 32,
+    "maximum_rays": 65536,
+    "maximum_span_seconds": 4.0,
+    "maximum_processing_seconds": 2.0,
+    "maximum_age_seconds": 3.0,
+    "maximum_work_units": 4000000
+  },
+  "projection": {
+    "width": 128,
+    "height": 128,
+    "resolution_metres": 0.1,
+    "origin_x_metres": -6.4,
+    "origin_y_metres": -6.4,
+    "minimum_z_metres": 0.1,
+    "maximum_z_metres": 1.4,
+    "maximum_range_metres": 10.0
+  },
+  "grade": {
+    "completeInput": true,
+    "retirementVerified": true,
+    "defaultBudgetAccepted": true,
+    "pendingAtEnd": true,
+    "observedTerrainResults": 23,
+    "supportedFreeCellsObserved": false,
+    "navigationReady": false
+  },
+  "sensorMessages": 4144,
+  "imuMessages": 3947,
+  "cloudMessages": 197,
+  "processedScans": 196,
+  "estimatedPoses": 165,
+  "pointPackets": 164,
+  "registeredPackets": 161,
+  "registeredReturns": 1223474,
+  "pointStateCounts": {
+    "unseeded": 1,
+    "acquiring": 2,
+    "tracking": 161
+  },
+  "submissions": 24,
+  "observedResults": 23,
+  "workUnits": {
+    "minimum": 1067431,
+    "maximum": 3656731,
+    "workEvictedScansAtLastSubmission": 156
+  },
+  "originalIngressToObservationSeconds": {
+    "minimum": 0.30051248999999913,
+    "maximum": 1.1011489169999997
+  },
+  "observedSupportedFreeCells": 0,
+  "nativeFailureReason": null,
+  "final": {
+    "beforeState": "tracking",
+    "laneState": "busy",
+    "laneFailure": "terrain_pending",
+    "retired": true,
+    "gridAbsent": true,
+    "workerClosed": true,
+    "terrainOwnerClosed": true,
+    "terrainChildCleaned": true,
+    "pointCounts": {
+      "callbacks": 165,
+      "initializationSkips": 1,
+      "copies": 164,
+      "takes": 164,
+      "discardedOnClose": 0
+    },
+    "acquisitionCounts": {
+      "callbacks": 165,
+      "initializationSkips": 1,
+      "copies": 164,
+      "takes": 164,
+      "discardedOnClose": 0
+    }
+  }
 }

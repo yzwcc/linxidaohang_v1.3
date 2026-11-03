@@ -37,10 +37,10 @@ ray packet is submitted after the accepted window.
 
 | Trigger | Final Localization State | Source Withdrawal After Trigger/Expiry | Evidence |
 | --- | --- | --- | --- |
-| Pause | paused | 0.028598 s | [pause](evidence/registered-terrain-ros-pause-20261103.json) |
-| Stop | stopped | 0.036212 s | [stop](evidence/registered-terrain-ros-stop-20261103.json) |
-| Reseed | tracking in a newer generation | 0.020309 s | [reseed](evidence/registered-terrain-ros-reseed-20261103.json) |
-| Corrected-point input expires | lost | 0.001270 s after the original localization deadline | [loss](evidence/registered-terrain-ros-loss-20261103.json) |
+| Pause | paused | 0.045245 s | [pause](evidence/registered-terrain-ros-pause-20261103.json) |
+| Stop | stopped | 0.019964 s | [stop](evidence/registered-terrain-ros-stop-20261103.json) |
+| Reseed | tracking in a newer generation | 0.011550 s | [reseed](evidence/registered-terrain-ros-reseed-20261103.json) |
+| Corrected-point input expires | lost | 0.041834 s after the original localization deadline | [loss](evidence/registered-terrain-ros-loss-20261103.json) |
 
 Before the trigger, the actual planner returns a path and the actual controller
 produces nonzero synthetic output. Afterwards the source publishes full
@@ -50,8 +50,8 @@ the existing 300 ms queued-command drain, no nonzero output was observed.
 Reseeding restores the session to tracking but cannot revive the old terrain
 source; a new source composition is still required for the new generation.
 
-Final oldest-ingress-to-result samples were 1.850--1.993 seconds. During native
-work, 23--25 ROS map publications continued per trial. These are host samples, not an
+Final oldest-ingress-to-result samples were 1.581--1.637 seconds. During native
+work, 20--21 ROS map publications continued per trial. These are host samples, not an
 ARM64 throughput guarantee, P95 estimate, voice latency result, physical stop
 acknowledgement or moving-obstacle acceptance. The fixture uses a larger trial
 budget of 131,072 rays and 15-second terrain TTL; the separate
@@ -64,7 +64,9 @@ before terrain submission. Its private failure report/log remain preserved in
 After adding projection-work-bounded windows, all four modes were rerun
 sequentially as `registered-ros-MODE-20261103-d`. After the saved-map terrain
 alignment update, all four were actually rerun sequentially as
-`registered-ros-MODE-20261103-e`; the committed reports and table now bind
+`registered-ros-MODE-20261103-e`. Following the exact-double packing and native
+buffer optimization, all four modes were actually rerun sequentially as
+`registered-ros-MODE-20261103-f`; the committed reports and table now bind
 these current-source runs. All prior outputs remain under the existing
 private Humble rootfs. Passing the standalone reruns does not
 establish the cause or prove reliable startup under concurrency. No timeout was
@@ -79,7 +81,17 @@ windows, wrong generations/states, missing sources and unsupported physical
 acceptance flags. The nine tests pass on both scientific Linux and Windows.
 Existing terrain ROS evidence tests remain unchanged and passing.
 
-The projection-work/replay follow-up passed all 246 focused scientific Linux
+The final expanded throughput follow-up completed 177 actual-native focused
+tests: 176 passed, one NavFn-library skip, zero failures/errors, 25.238 seconds.
+This includes all eight current-source recorded replay checks, all nine
+registered ROS checks, all eight generic ROS checks and four benchmark checks.
+The eleven packing/digest tests, four benchmark evidence tests and nine
+registered ROS evidence tests pass on Windows. See the
+[throughput report](TERRAIN_THROUGHPUT_20261103.md) for exact-output comparisons
+and the host-only timing limitations. These collections overlap and are not
+added together as an independent coverage total.
+
+The historical projection-work/replay follow-up passed all 246 focused scientific Linux
 tests with actual native terrain libraries enabled, zero skips and zero
 failures, in 28.591 seconds. The previous 222-test result in 38.531 seconds
 belongs to the earlier ROS milestone. This is not a new full-suite run; the
@@ -108,8 +120,8 @@ Only synthetic reports are committed, not native logs or robot business data.
 The new [saved-map terrain alignment](SAVED_MAP_TERRAIN_ALIGNMENT_20261103.md)
 has separate actual-Humble transport tests with synthetic terrain results.
 This larger declared-frame fixture does not establish the new 300 ms input
-deadline. The recorded replay below is historical after the source update;
-its source assertion is intentionally not relabeled as passing.
+deadline. The separate recorded replay has its own source-bound evidence and
+does not establish live throughput or supported floor.
 
 The registered source is now verified with actual isolated ROS consumers.
 The combined actual GLIM/registrar/terrain replay now completes a paced

@@ -59,7 +59,7 @@ class RecordedChainTests(unittest.TestCase):
         self.assertEqual((4144, 3947, 197, 196, 165, 164, 161, 1223474), tuple(value[key] for key in
             ('sensorMessages', 'imuMessages', 'cloudMessages', 'processedScans', 'estimatedPoses',
              'pointPackets', 'registeredPackets', 'registeredReturns')))
-        self.assertEqual((19, 18, 0), tuple(value[key] for key in
+        self.assertEqual((24, 23, 0), tuple(value[key] for key in
             ('submissions', 'observedResults', 'observedSupportedFreeCells')))
         self.assertTrue(value['grade']['defaultBudgetAccepted'])
         self.assertTrue(value['grade']['pendingAtEnd'])

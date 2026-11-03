@@ -1,7 +1,10 @@
 """Per-return visibility into a conservative, map-bound Nav2 clearance costmap."""
+from array import array
 import ctypes
 from dataclasses import dataclass, field
+from functools import cached_property
 import hashlib
+from itertools import chain
 import json
 import math
 from pathlib import Path
@@ -63,7 +66,7 @@ class ScanObservation:
                 or any(type(ray) is not LidarReturn for ray in self.returns)):
             raise ValueError("bounded_source_bound_lidar_scan_required")
 
-    @property
+    @cached_property
     def sha256(self):
         digest = hashlib.sha256(canonical({"ordinal": self.ordinal, "stamp": self.stamp,
             "sourceSha256": self.source_sha256, "returns": len(self.returns)}))
@@ -92,7 +95,7 @@ class ObservationBatch:
                 or not ordered_scans(self.scans)):
             raise ValueError("complete_ordered_map_bound_metric_observations_required")
 
-    @property
+    @cached_property
     def sha256(self):
         fields = {key: getattr(self, key) for key in self.__dataclass_fields__ if key != "scans"}
         return hashlib.sha256(canonical({**fields, "scans": [scan.sha256 for scan in self.scans]})).hexdigest()
@@ -119,7 +122,7 @@ class DeclaredObservationBatch:
                 or not ordered_scans(self.scans)):
             raise ValueError("source_bound_offline_declared_observations_required")
 
-    @property
+    @cached_property
     def sha256(self):
         fields = {key: getattr(self, key) for key in self.__dataclass_fields__ if key != "scans"}
         return hashlib.sha256(canonical({**fields, "scans": [scan.sha256 for scan in self.scans]})).hexdigest()
@@ -235,13 +238,13 @@ class OctomapProjector:
                 or type(maximum_work_units) is not int or not 1 <= maximum_work_units <= 16000000):
             raise ValueError("typed_observations_projection_and_work_budget_required")
         count = sum(len(scan.returns) for scan in scans)
-        rays = (ctypes.c_double * (count * 6))()
+        packed = array('d', chain.from_iterable(ray.origin_metres + ray.endpoint_metres
+                                              for scan in scans for ray in scan.returns))
+        rays = (ctypes.c_double * len(packed)).from_buffer(packed)
         ends = (ctypes.c_uint32 * len(scans))()
         offset = 0
         for index, scan in enumerate(scans):
-            for ray in scan.returns:
-                rays[offset * 6:offset * 6 + 6] = ray.origin_metres + ray.endpoint_metres
-                offset += 1
+            offset += len(scan.returns)
             ends[index] = offset
         size = projection.width * projection.height
         output, stats = (ctypes.c_uint8 * size)(), (ctypes.c_uint64 * 7)()
