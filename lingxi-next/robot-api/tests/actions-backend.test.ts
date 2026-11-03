@@ -148,23 +148,31 @@ describe("product adapter operation ownership", () => {
     expect(backend.playExpression).toHaveBeenCalledOnce();
   });
 
-  it("refuses expressions while localization is starting, running, stopping, or unconfirmed", async () => {
+  it("allows face expressions only during confirmed tracking and still blocks localization changes", async () => {
     let localizationBusy = true;
+    let trackingReady = false;
     const backend = actions();
     const delegate = new DemoAdapter();
     const startMapping = vi.spyOn(delegate, "startMapping");
     const adapter = new ProductActionsAdapter(delegate, backend, new ProductOperations());
     adapter.setActivityBusy(async () => localizationBusy);
-    await expect(adapter.playExpression("开心")).rejects.toThrow("定位运行期间");
+    adapter.setExpressionLocalizationReady(async () => trackingReady);
+    await expect(adapter.playExpression("开心")).rejects.toThrow("定位未稳定跟踪");
     await expect(adapter.startMapping()).rejects.toThrow("定位正在运行");
     expect((await adapter.getSnapshot()).expressions).toEqual([]);
     expect((await adapter.getSnapshot()).checks.find((check) => check.id === "actions")?.ready).toBe(false);
     expect(backend.playExpression).not.toHaveBeenCalled();
     expect(startMapping).not.toHaveBeenCalled();
+    trackingReady = true;
+    await adapter.playExpression("开心");
+    expect((await adapter.getSnapshot()).expressions).toEqual(["开心", "平静"]);
+    expect((await adapter.getSnapshot()).checks.find((check) => check.id === "actions")?.ready).toBe(true);
+    await expect(adapter.startMapping()).rejects.toThrow("定位正在运行");
+    expect(startMapping).not.toHaveBeenCalled();
     localizationBusy = false;
     await adapter.playExpression("开心");
     await adapter.startMapping();
-    expect(backend.playExpression).toHaveBeenCalledOnce();
+    expect(backend.playExpression).toHaveBeenCalledTimes(2);
     expect(startMapping).toHaveBeenCalledOnce();
   });
 
@@ -213,8 +221,27 @@ describe("product adapter operation ownership", () => {
       { id: "m", name: "M", active: true, createdAt: "2026-11-03" }, "synthetic-navigation");
     expect(navigate).toHaveBeenCalledOnce();
     adapter.setActivityBusy(async () => { throw new Error("localization offline"); });
-    await expect(adapter.playExpression("开心")).rejects.toThrow("定位运行期间");
+    adapter.setExpressionLocalizationReady(async () => true);
+    await expect(adapter.playExpression("开心")).rejects.toThrow("定位未稳定跟踪");
     await expect(adapter.startMapping()).rejects.toThrow("定位正在运行");
+    expect(backend.playExpression).not.toHaveBeenCalled();
+  });
+
+  it.each(["requested", "running", "paused", "unconfirmed-stop", "mapping", "action"])(
+    "still refuses expressions for %s even if localization tracks", async (mode) => {
+    const backend = actions();
+    const delegate = new DemoAdapter();
+    const original = await delegate.getSnapshot();
+    vi.spyOn(delegate, "getSnapshot").mockResolvedValue({ ...original, mapping: mode === "mapping",
+      actionBusy: mode === "action", navigation: {
+        status: mode === "requested" || mode === "running" || mode === "paused" ? mode : "finished",
+        requiresStop: mode === "unconfirmed-stop", taskId: "navigation-1", detail: "synthetic" } });
+    const adapter = new ProductActionsAdapter(delegate, backend, new ProductOperations());
+    adapter.setActivityBusy(async () => true);
+    adapter.setExpressionLocalizationReady(async () => true);
+    expect((await adapter.getSnapshot()).expressions).toEqual([]);
+    expect((await adapter.getSnapshot()).checks.find((check) => check.id === "actions")?.ready).toBe(false);
+    await expect(adapter.playExpression("开心")).rejects.toThrow("建图、导航或未确认状态");
     expect(backend.playExpression).not.toHaveBeenCalled();
   });
 

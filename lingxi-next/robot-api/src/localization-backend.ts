@@ -4,6 +4,7 @@ import { z } from "zod";
 import {
   localizationIdentitySchema, localizationSeedSchema, localizationStateSchema, sameLocalizationBinding,
   localizationRuntimeSchema, localizationStartSchema, localizationShutdownSchema, localizationLifecycleConfirmed,
+  sameLocalizationRuntime, localizationStateMatchesRuntime,
   type LocalizationCommand, type LocalizationState, type LocalizationRuntime, type LocalizationLifecycleCommand,
 } from "../../shared/localization";
 
@@ -41,6 +42,19 @@ export function validatedLocalizationRuntime(value: unknown): LocalizationRuntim
   const result = localizationRuntimeSchema.safeParse(value);
   if (!result.success) throw unavailable();
   return result.data;
+}
+
+/** Face-only display admission; runtime and worker generations are independent. */
+export async function localizationAllowsFaceExpression(backend: LocalizationBackend): Promise<boolean> {
+  try {
+    if (!backend.runtime) return false;
+    const before = validatedLocalizationRuntime(await backend.runtime());
+    if (before.closed || before.phase !== "running") return false;
+    const state = validatedLocalizationState(await backend.state());
+    const after = validatedLocalizationRuntime(await backend.runtime());
+    return sameLocalizationRuntime(before, after) && localizationStateMatchesRuntime(state, after) &&
+      state.state === "tracking" && !state.cleanupComplete;
+  } catch { return false; }
 }
 
 export function confirmedLocalizationLifecycle(command: LocalizationLifecycleCommand, value: unknown) {

@@ -37,7 +37,7 @@ import { mappingConsoleAdapter, mappingGuard, UnixMappingBackend, type MappingBa
 import { MappingPointSource } from "./mapping-points";
 import {
   confirmedLocalizationCommand, UnixLocalizationBackend, UnixLocalizationServiceBackend, validatedLocalizationState,
-  confirmedLocalizationLifecycle, validatedLocalizationRuntime, type LocalizationBackend,
+  confirmedLocalizationLifecycle, validatedLocalizationRuntime, localizationAllowsFaceExpression, type LocalizationBackend,
 } from "./localization-backend";
 import {
   localizationIdentitySchema, localizationSeedSchema, localizationStartSchema, localizationShutdownSchema,
@@ -197,10 +197,12 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
   productActions?.setJobBusy(() => jobs.hasActiveJob());
   productActions?.setActivityBusy(async () => {
     try {
-      const runtime = await localizationBackend?.runtime?.();
-      return !runtime || !runtime.cleanupComplete || !["idle", "stopped", "failed"].includes(runtime.phase);
+      const runtime = validatedLocalizationRuntime(await localizationBackend?.runtime?.());
+      return runtime.closed || !runtime.cleanupComplete || !["idle", "stopped", "failed"].includes(runtime.phase);
     } catch { return true; }
   });
+  productActions?.setExpressionLocalizationReady(() => localizationBackend
+    ? localizationAllowsFaceExpression(localizationBackend) : Promise.resolve(false));
   const answerer = new Answerer(store, adapter, offlineNavigation ? {
     fetcher: async () => { throw new Error("offline_workspace_cloud_disabled"); },
   } : {});

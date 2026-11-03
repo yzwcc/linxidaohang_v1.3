@@ -83,7 +83,7 @@ class ActivityGate:
 
 
 class OperationGate(ActivityGate):
-    """Same catalog: mapping/expressions exclusive, localization/Nav2 shared."""
+    """Same catalog: mapping exclusive; localization, Nav2 and face expressions shared."""
 
     def __init__(self, maps, *, shared=False):
         super().__init__(Path(maps) / ".robot-operation.lock", shared=shared)

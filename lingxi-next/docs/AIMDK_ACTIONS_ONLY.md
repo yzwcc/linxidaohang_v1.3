@@ -58,8 +58,10 @@ The paired HTTPS `POST /api/v1/actions/expression` route accepts only
 `{"name":"<configured expression>"}` with no extra fields. It is available only
 with the explicitly selected independent actions backend. Its HTTP 202 response
 is `{"accepted":true,"completed":false}`, never a completion claim. Unknown
-expressions, occupied mapping/localization/navigation, missing pairing and
-plaintext requests do not dispatch an expression. This is a management API;
+expressions, mapping, active/paused navigation, unstable or unconfirmed localization,
+missing pairing and plaintext requests do not dispatch an expression. A stable,
+current-generation localization tracker may coexist with a face expression at a
+stopped tour point. This is a management API;
 no new Web control or Android build is included in this increment.
 
 Tour expressions now carry both job identity and interaction revision through
@@ -67,14 +69,19 @@ preflight and the final write boundary. Only a typed local pre-write revocation
 can wait for resume/quiet and be attempted again; remote errors and invalid
 acknowledgements never qualify. See the separate
 [tour-expression verification](TOUR_EXPRESSION_VERIFICATION_20261103.md).
-This does not relax the localization or physical-action restrictions below.
+These revocation checks remain in force with the face-display exception below.
 
 Product mutations share fail-fast API ownership, not a queue. Localization
-start/seed/pause participate in that ownership; expressions are unavailable
-until localization is stopped and cleanup is confirmed. Active localization is
-not reported as a physical action and does not veto the separately guarded Nav2
-navigation path. Stop/shutdown remain recovery paths. This deliberately
-conservative expression policy is not full tour/action product acceptance.
+start/seed/pause participate in that ownership and cannot overlap a pending
+expression or active mapping/navigation. Mapping and map activation still require
+localization cleanup. Expressions may coexist only with a current runtime
+whose selected map matches a validated worker-reported `tracking` state. The
+same runtime identity is required before and after reading the worker; its
+process generation is independent of the worker's reset generation. Starting,
+stopping, lost, paused, mismatched or unreadable localization blocks expressions;
+terminal runtimes permit expressions only after confirmed cleanup. Active localization is not
+reported as a physical action and does not veto the separately guarded Nav2
+navigation path. Stop/shutdown remain recovery paths.
 
 ## Cross-Process Operation Lease
 
@@ -87,14 +94,25 @@ continues to exclude concurrent mapping and localization sensor owners.
 | Mapping | Exclusive | Confirmed native process/monitor cleanup |
 | Localization | Shared | Confirmed native process/monitor cleanup |
 | Nav2 preparation and active generation | Shared | Generation cleanup plus output retirement proof |
-| Allowlisted expression dispatch | Exclusive | Service acknowledgement or bounded dispatch failure |
+| Allowlisted face expression dispatch | Shared | Service acknowledgement or bounded dispatch failure |
 
-All acquisitions are nonblocking. Busy expressions return HTTP 409 before any
-AIMDK service dispatch. Missing/invalid catalog configuration or an unavailable
-lease component returns 503, with no fallback. No old request is queued.
-Localization can coexist with Nav2, but an expression requires localization to
-be stopped as well. An expression acknowledgement is not physical completion;
-the existing persistent uncertain-dispatch interlock remains in force.
+All acquisitions are nonblocking. Mapping keeps the exclusive lease; localization,
+Nav2 and allowlisted face expressions use shared leases. Thus expression dispatch
+can run alongside the saved-map localization sensor process, while mapping still
+blocks it before any AIMDK write. The product API separately refuses expressions
+while Nav2 is requested, running, paused or not confirmed quiescent. Missing or
+invalid catalog configuration or an unavailable lease component returns 503,
+with no fallback. No old request is queued. An expression acknowledgement is
+not physical completion; the existing persistent uncertain-dispatch interlock
+remains in force.
+
+`PlayEmoji` is the AIMDK face-screen expression service, not a joint, preset-body
+motion or base-navigation service. See the [official X2 screen-control
+documentation](https://x2-aimdk.agibot.com/zh-cn/dev/Interface/interactor/screen.html).
+Its priority can replace other face/video display content, so this exception
+only authorizes the configured face expressions; it does not authorize preset
+motions, LinkCraft resources or movement. The existing tour-generation and
+interaction-revision checks still apply at the write boundary.
 
 `ProcessSupervisor` passes both lease descriptors only to the owned native child;
 the fresh map-reload subprocess preserves both. Closing a parent's descriptor

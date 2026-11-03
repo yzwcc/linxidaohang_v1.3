@@ -146,25 +146,32 @@ export class ProductActionsAdapter implements RobotAdapter {
   readonly demoMode = false;
   private readonly operations: ProductOperations;
   private activityBusy: () => Promise<boolean> = async () => false;
+  private expressionLocalizationReady: () => Promise<boolean> = async () => false;
   constructor(private readonly delegate: RobotAdapter, private readonly actions: ActionsBackend,
     operations = new ProductOperations()) { this.operations = operations; }
   setJobBusy(jobBusy: () => boolean) { this.operations.setJobBusy(jobBusy); }
   setActivityBusy(activityBusy: () => Promise<boolean>) { this.activityBusy = activityBusy; }
+  setExpressionLocalizationReady(ready: () => Promise<boolean>) { this.expressionLocalizationReady = ready; }
   close() { this.operations.close(); }
+
+  private async localizationBlocksExpression() {
+    try { return await this.activityBusy() && !(await this.expressionLocalizationReady()); }
+    catch { return true; }
+  }
 
   async getSnapshot(): Promise<RobotSnapshot> {
     const original = await this.delegate.getSnapshot();
     try {
-      const [state, localizationBusy] = await Promise.all([this.actions.state(), this.activityBusy()]);
+      const [state, localizationBlocked] = await Promise.all([this.actions.state(), this.localizationBlocksExpression()]);
       const navigationBusy = !!original.mapping || original.navigation.requiresStop ||
         ["requested", "running", "paused"].includes(original.navigation.status);
-      const locked = state.actionBusy || localizationBusy || navigationBusy;
+      const locked = !!original.actionBusy || state.actionBusy || this.operations.busy || localizationBlocked || navigationBusy;
       return { ...original, actionBusy: !!original.actionBusy || state.actionBusy || this.operations.busy,
         actionStatus: state.actionStatus ?? (this.operations.busy ? "dispatching" : undefined),
         motionPresets: [], linkcraftResources: [], expressions: locked ? [] : state.expressions,
         checks: [...original.checks.filter((check) => check.id !== "actions"), { id: "actions", label: "动作服务",
           ready: state.actionServices.expression && !locked,
-          detail: state.actionBusy ? "动作状态待确认" : localizationBusy ? "定位运行期间动作暂不可用"
+          detail: state.actionBusy ? "动作状态待确认" : localizationBlocked ? "定位未稳定跟踪，表情暂不可用"
             : navigationBusy ? "建图或导航期间动作暂不可用" : "独立表情已接入，实体动作未准入" }],
       };
     } catch {
@@ -235,10 +242,9 @@ export class ProductActionsAdapter implements RobotAdapter {
     if (this.operations.isJobBusy() && !internal) return Promise.reject(denied("讲解任务运行期间不接受独立表情请求"));
     return this.operations.run(async (current) => {
       const state = await this.delegate.getSnapshot();
-      let localizationBusy = true;
-      try { localizationBusy = await this.activityBusy(); } catch { /* Unknown localization state blocks actions. */ }
+      const localizationBlocked = await this.localizationBlocksExpression();
       assertActionAuthorized(authorize);
-      if (localizationBusy) throw denied("定位运行期间不接受表情请求");
+      if (localizationBlocked) throw denied("定位未稳定跟踪，当前不接受表情请求");
       if (!current() || state.mapping || state.actionBusy || state.navigation.requiresStop ||
           ["requested", "running", "paused"].includes(state.navigation.status)) {
         throw denied("建图、导航或未确认状态期间不接受表情请求");

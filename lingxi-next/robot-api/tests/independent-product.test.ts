@@ -11,7 +11,7 @@ import { pairingCodeHash } from "../src/auth";
 import { DemoAdapter } from "../src/adapters/demo";
 import type { MappingBackend, MappingBackendState } from "../src/mapping-backend";
 import type { LocalizationBackend } from "../src/localization-backend";
-import { localizationFixture, localizationRuntimeFixture } from "./fixtures/localization-state";
+import { identityMatrix, localizationFixture, localizationRuntimeFixture } from "./fixtures/localization-state";
 import { savedSlamFixture } from "./fixtures/saved-slam-map";
 import type { PhysicalNavigationBackend } from "../src/physical-navigation-backend";
 import type { PhysicalNavigationState } from "../../shared/physical-navigation";
@@ -159,10 +159,17 @@ describe("explicit independent product composition with synthetic services", () 
           receiptSha256: "c".repeat(64) }, cleanupComplete: false });
       expect((await secureRequest(origin, "GET", "/api/v1/state", undefined, token)).json()).toMatchObject({
         actionBusy: false, expressions: [], checks: expect.arrayContaining([
-          expect.objectContaining({ id: "actions", ready: false, detail: "定位运行期间动作暂不可用" }),
+          expect.objectContaining({ id: "actions", ready: false, detail: "定位未稳定跟踪，表情暂不可用" }),
         ]) });
       expect((await secureRequest(origin, "POST", "/api/v1/actions/expression", { name: "开心" }, token)).statusCode).toBe(409);
-      expect(actions.playExpression).toHaveBeenCalledOnce();
+      vi.mocked(localization.state).mockResolvedValue({ ...localizationFixture(), generation: 7,
+        state: "tracking", reason: "tracking", consecutiveMatches: 3, mapFromSensor: identityMatrix });
+      expect((await secureRequest(origin, "GET", "/api/v1/state", undefined, token)).json()).toMatchObject({
+        actionBusy: false, expressions: ["开心"], checks: expect.arrayContaining([
+          expect.objectContaining({ id: "actions", ready: true }),
+        ]) });
+      expect((await secureRequest(origin, "POST", "/api/v1/actions/expression", { name: "开心" }, token)).statusCode).toBe(202);
+      expect(actions.playExpression).toHaveBeenCalledTimes(2);
     } finally { external.mockRestore(); await isolated.close(); }
   });
   it("uses verified local voice events for evidence-bound Q&A without stopping mapping", async () => {

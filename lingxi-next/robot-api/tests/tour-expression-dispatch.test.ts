@@ -109,9 +109,9 @@ describe("synthetic tour with real composed adapters and loopback expression HTT
     const mapping = mappingGuard(physical, { state: async () => idle, start: vi.fn(), finish: vi.fn() }, true,
       undefined, { physicalNavigation: true });
     adapter = new ProductActionsAdapter(mapping, actions);
-    // The real product still blocks expressions during localization. This
-    // fixture explicitly tests only the idle-localization dispatch boundary.
-    adapter.setActivityBusy(async () => false);
+    // Exercise tour dispatch while a current localization tracker remains active.
+    adapter.setActivityBusy(async () => true);
+    adapter.setExpressionLocalizationReady(async () => true);
     const store = new MemoryStore();
     store.state.maps = [{ ...map, id: mapId }];
     store.state.activeMapId = mapId;

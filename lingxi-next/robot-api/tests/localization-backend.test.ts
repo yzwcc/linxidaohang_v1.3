@@ -1,10 +1,11 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { createServer, type Server, type Socket } from "node:net";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { UnixLocalizationServiceBackend, validatedLocalizationState } from "../src/localization-backend";
-import { localizationStateSchema } from "../../shared/localization";
+import { UnixLocalizationServiceBackend, validatedLocalizationState, localizationAllowsFaceExpression,
+  type LocalizationBackend } from "../src/localization-backend";
+import { localizationStateSchema, type LocalizationState, type LocalizationRuntime } from "../../shared/localization";
 import { identityMatrix, localizationFixture, localizationRuntimeFixture } from "./fixtures/localization-state";
 
 describe("localization state validation", () => {
@@ -26,6 +27,62 @@ describe("localization state validation", () => {
     { coordinateUnits: "metres" }, { sourceFrame: "IMU" }, { sourceFrame: undefined },
   ])("rejects inconsistent state %j", (patch) => {
     expect(localizationStateSchema.safeParse({ ...localizationFixture(), ...patch }).success).toBe(false);
+  });
+});
+
+describe("localization face-display admission", () => {
+  const running = (): LocalizationRuntime => ({ ...localizationRuntimeFixture(), phase: "running", generation: 3,
+    runId: "2".repeat(32), selectedMap: { mapId: localizationFixture().binding.map_id,
+      receiptSha256: localizationFixture().binding.receipt_sha256 }, cleanupComplete: false });
+  const tracking = (): LocalizationState => ({ ...localizationFixture(), state: "tracking", generation: 7,
+    consecutiveMatches: 3, mapFromSensor: identityMatrix });
+  function backend(): LocalizationBackend {
+    return { state: vi.fn(async () => tracking()), runtime: vi.fn(async () => running()), command: vi.fn() };
+  }
+  it("allows validated tracking without conflating worker reset and process generations", async () => {
+    const service = backend();
+    expect(await localizationAllowsFaceExpression(service)).toBe(true);
+    expect(service.runtime).toHaveBeenCalledTimes(2);
+    expect(service.command).not.toHaveBeenCalled();
+  });
+  it.each(["unseeded", "seed_requested", "acquiring", "lost", "paused", "stopped", "failed"] as const)(
+    "refuses worker %s without any writes", async (state) => {
+      const service = backend();
+      vi.mocked(service.state).mockResolvedValue({ ...tracking(), state, mapFromSensor: null });
+      expect(await localizationAllowsFaceExpression(service)).toBe(false);
+      expect(service.command).not.toHaveBeenCalled();
+    });
+  it.each([
+    { requestPending: true }, { workerClosed: true }, { workerReady: false }, { cleanupComplete: true },
+    { consecutiveMatches: 2 }, { mapFromSensor: null },
+  ])("rejects inconsistent tracking %j", async (patch) => {
+    const service = backend();
+    vi.mocked(service.state).mockResolvedValue({ ...tracking(), ...patch });
+    expect(await localizationAllowsFaceExpression(service)).toBe(false);
+  });
+  it.each([
+    { map_id: `slam-${"9".repeat(32)}` }, { receipt_sha256: "9".repeat(64) }, { input_mode: "live" as const },
+  ])("rejects a different selected map identity %j", async (patch) => {
+    const service = backend(), value = tracking();
+    vi.mocked(service.state).mockResolvedValue({ ...value, binding: { ...value.binding, ...patch } });
+    expect(await localizationAllowsFaceExpression(service)).toBe(false);
+  });
+  it.each([
+    { generation: 4 }, { runId: "3".repeat(32) }, { serviceId: "3".repeat(32) }, { closed: true },
+    { phase: "stopping" as const }, { phase: "starting" as const },
+  ])("rejects a runtime change while reading tracker state %j", async (patch) => {
+    const service = backend();
+    vi.mocked(service.runtime!).mockResolvedValueOnce(running()).mockResolvedValue({ ...running(), ...patch });
+    expect(await localizationAllowsFaceExpression(service)).toBe(false);
+  });
+  it.each(["before", "state", "after", "missing"])("fails closed for an unavailable %s observation", async (stage) => {
+    const service = backend();
+    const error = new Error("synthetic-unavailable");
+    if (stage === "missing") service.runtime = undefined;
+    else if (stage === "state") vi.mocked(service.state).mockRejectedValue(error);
+    else if (stage === "before") vi.mocked(service.runtime!).mockRejectedValue(error);
+    else vi.mocked(service.runtime!).mockResolvedValueOnce(running()).mockRejectedValue(error);
+    expect(await localizationAllowsFaceExpression(service)).toBe(false);
   });
 });
 

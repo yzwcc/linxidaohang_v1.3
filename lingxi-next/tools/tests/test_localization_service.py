@@ -126,7 +126,7 @@ class ManagerTests(unittest.TestCase):
         self.addCleanup(mapping.close)
         return mapping
 
-    def test_localization_shares_with_navigation_but_excludes_expression_and_mapping(self):
+    def test_localization_shares_with_navigation_and_excludes_mapping(self):
         self.manager.operation_gate = OperationGate(self.root, shared=True)
         mapping = self.shared_mapping()
         mapping.operation_gate = OperationGate(self.root)
@@ -145,7 +145,7 @@ class ManagerTests(unittest.TestCase):
             navigation.close()
         OperationGate(self.root).acquire().close()
 
-    def test_expression_lock_rejects_localization_without_generation_change_or_resolution(self):
+    def test_exclusive_operation_lock_rejects_localization_without_generation_change_or_resolution(self):
         self.manager.operation_gate = OperationGate(self.root, shared=True)
         held = OperationGate(self.root).acquire()
         before = self.manager.runtime()

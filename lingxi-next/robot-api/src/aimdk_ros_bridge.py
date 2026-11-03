@@ -1118,9 +1118,9 @@ class X2Node(Node):
         if not maps:
             raise AdapterError("机器人操作互锁未配置地图目录", 503)
         try:
-            return OperationGate(Path(maps)).acquire()
+            return OperationGate(Path(maps), shared=True).acquire()
         except ActivityBusy:
-            raise AdapterError("建图、定位或导航正在占用机器人操作窗口", 409) from None
+            raise AdapterError("建图正在占用机器人操作窗口", 409) from None
         except (OSError, ValueError):
             raise AdapterError("机器人操作互锁状态不可用", 503) from None
 

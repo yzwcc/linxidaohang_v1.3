@@ -1029,26 +1029,38 @@ class ActionsOnlyMode(unittest.TestCase):
         self.assertTrue(all(not client.requests for client in self.clients.values()))
 
     @unittest.skipUnless(sys.platform == 'linux' and os.geteuid() != 0, 'requires ordinary-user Linux locks')
-    def test_real_shared_navigation_lease_blocks_http_expression_and_release_allows_dispatch(self):
+    def test_real_shared_localization_lease_allows_expression_but_mapping_blocks_it(self):
         with tempfile.TemporaryDirectory(prefix='lxemoji-') as maps, \
                 patch.dict(os.environ, {'LINGXI_MAP_ROOT': maps}):
             node = self.node()
             node.get_clock = lambda: obj(now=lambda: obj(to_msg=lambda: 'stamp'))
-            node.expression_client.responses = [obj(success=True)]
+            node.expression_client.responses = [obj(success=True), obj(success=True)]
             factory = lambda: obj(header=obj(header=obj(stamp=None)), emotion_id=0, mode=0, priority=0)
             held = OperationGate(Path(maps), shared=True).acquire()
             try:
                 handler = self.handler(node, '/v1/expression', {
                     'name': '开心', 'bridgeEpoch': node.bridge_epoch, 'requestId': 'c' * 32})
-                handler.do_POST()
-                self.assertEqual(409, handler.send_json.call_args.args[0])
-                self.assertEqual([], node.expression_client.requests)
+                with patch.object(bridge, 'PlayEmoji', request_type(factory)):
+                    handler.do_POST()
+                self.assertEqual(202, handler.send_json.call_args.args[0])
+                self.assertEqual(1, len(node.expression_client.requests))
             finally:
                 held.close()
+            mapping = OperationGate(Path(maps)).acquire()
+            try:
+                handler = self.handler(node, '/v1/expression', {
+                    'name': '开心', 'bridgeEpoch': node.bridge_epoch, 'requestId': 'd' * 32})
+                handler.do_POST()
+                self.assertEqual(409, handler.send_json.call_args.args[0])
+                self.assertEqual(1, len(node.expression_client.requests))
+            finally:
+                mapping.close()
             with patch.object(bridge, 'PlayEmoji', request_type(factory)):
                 def check_held(*_args, **_kwargs):
+                    concurrent = OperationGate(Path(maps), shared=True).acquire()
+                    concurrent.close()
                     with self.assertRaises(ActivityBusy):
-                        OperationGate(Path(maps), shared=True).acquire()
+                        OperationGate(Path(maps)).acquire()
                     return obj(success=True)
                 with patch.object(node, '_call_service', side_effect=check_held) as dispatch:
                     self.assertTrue(node.play_expression('开心')['accepted'])
