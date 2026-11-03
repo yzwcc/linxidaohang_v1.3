@@ -3,14 +3,72 @@ import { createHmac } from "node:crypto";
 import { Answerer } from "../src/voice/answerer";
 import { DemoAdapter } from "../src/adapters/demo";
 import { MemoryStore } from "./fixtures";
+import type { RobotSnapshot } from "../src/domain";
+
+async function liveRobot(patch: Partial<RobotSnapshot> = {}) {
+  const robot = Object.assign(new DemoAdapter(), { demoMode: false });
+  const state = await robot.getSnapshot();
+  robot.getSnapshot = async () => ({ ...state,
+    poseEvidence: { source: "aimdk-map-odometry", coordinateUnits: "metres", observedAtMs: Date.now() },
+    ...patch });
+  return robot;
+}
 
 describe("grounded answers and bounded cloud calls", () => {
   it("answers robot pose from live state without model or knowledge calls", async () => {
     const fetcher = vi.fn();
-    const result = await new Answerer(new MemoryStore(), new DemoAdapter(), { fetcher }).answer("机器人当前坐标是什么");
+    const result = await new Answerer(new MemoryStore(), await liveRobot(), { fetcher }).answer("机器人当前坐标是什么");
     expect(result.source).toBe("robot-state");
     expect(result.text).toContain("3.10");
     expect(fetcher).not.toHaveBeenCalled();
+  });
+  it.each(["机器人在哪里", "你在哪", "你现在的位置是什么", "它的朝向是什么"])(
+    "routes current robot location to evidence instead of the model: %s", async (question) => {
+      const fetcher = vi.fn();
+      const answer = await new Answerer(new MemoryStore(), await liveRobot(), { fetcher }).answer(question);
+      expect(answer.source).toBe("robot-state");
+      expect(fetcher).not.toHaveBeenCalled();
+    });
+  it.each([
+    ["missing evidence", { poseEvidence: undefined }],
+    ["stale observation", { poseEvidence: { source: "aimdk-map-odometry", coordinateUnits: "metres", observedAtMs: Date.now() - 2100 } }],
+    ["future observation", { poseEvidence: { source: "aimdk-map-odometry", coordinateUnits: "metres", observedAtMs: Date.now() + 60_000 } }],
+    ["unmeasured scale", { poseEvidence: { source: "independent-localization", coordinateUnits: "declared-metres", observedAtMs: Date.now() } }],
+    ["unready localization", { checks: [{ id: "odom", label: "odom", ready: false }] }],
+    ["missing localization check", { checks: [] }],
+    ["invalid coordinates", { pose: { x: NaN, y: 0, yaw: 0 } }],
+    ["no coordinates", { pose: undefined }],
+    ["disconnected", { connected: false }],
+    ["synthetic navigation", { navigationExecution: { backend: "nav2-offline", syntheticInputs: true, physicalMotionSent: false, navigationReady: false } }],
+  ] satisfies [string, Partial<RobotSnapshot>][])("does not report %s as a live position", async (_name, patch) => {
+    const fetcher = vi.fn();
+    const emit = vi.fn();
+    const answer = await new Answerer(new MemoryStore(), await liveRobot(patch), { fetcher })
+      .streamAnswer("机器人当前坐标是什么", emit);
+    expect(answer.source).toBe("refusal");
+    expect(answer.text).not.toContain("米");
+    expect(emit).toHaveBeenCalledExactlyOnceWith(answer.text);
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+  it("does not describe demo coordinates as the real robot's position", async () => {
+    const fetcher = vi.fn();
+    const robot = await liveRobot();
+    Object.defineProperty(robot, "demoMode", { value: true });
+    expect((await new Answerer(new MemoryStore(), robot, { fetcher }).answer("机器人当前坐标是什么")).source).toBe("refusal");
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+  it("does not replace an old observation time with a fresh snapshot time", async () => {
+    const robot = await liveRobot({ poseEvidence: { source: "aimdk-map-odometry", coordinateUnits: "metres", observedAtMs: Date.now() - 5000 },
+      updatedAt: new Date().toISOString() });
+    expect((await new Answerer(new MemoryStore(), robot).answer("机器人当前坐标是什么")).source).toBe("refusal");
+  });
+  it("does not confuse an ordinary algorithm question with live robot status", async () => {
+    const store = new MemoryStore();
+    store.credentials.apiKey = "model-test-key";
+    const fetcher = vi.fn(async () => Response.json({ choices: [{ message: { content: "导航算法用于规划路线。" } }] }));
+    const result = await new Answerer(store, await liveRobot(), { fetcher }).answer("你能介绍导航算法吗");
+    expect(result.source).toBe("model");
+    expect(fetcher).toHaveBeenCalledOnce();
   });
   it("refuses unsupported live state instead of inventing battery level", async () => {
     const fetcher = vi.fn();

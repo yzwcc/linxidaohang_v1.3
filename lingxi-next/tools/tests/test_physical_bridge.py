@@ -7,6 +7,7 @@ import socket
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "robot-navigation"))
@@ -123,6 +124,30 @@ class BridgeTests(unittest.TestCase):
         self.assertTrue(state["outputQuiescent"])
         return state
 
+    def test_pose_evidence_uses_observation_age_not_state_poll_time(self):
+        self.backend.observe = lambda: Observation(self.identity, 99.8, self.backend.pose, self.backend.checks, False)
+        with patch('lingxi_navigation.physical_bridge.time.time', return_value=1000.):
+            state = self.bridge.state()
+        self.assertEqual(999800, state['poseObservedAtMs'])
+        self.clock.advance(.2)
+        self.assertIsNone(self.bridge.state(poll=False)['poseObservedAtMs'])
+
+    def test_default_lost_and_future_pose_have_no_current_evidence(self):
+        self.assertIsNone(self.bridge.state(poll=False)['poseObservedAtMs'])
+        self.assertIsNotNone(self.bridge.state()['poseObservedAtMs'])
+        self.backend.observe = lambda: None
+        self.assertIsNone(self.bridge.state()['poseObservedAtMs'])
+        self.backend.observe = lambda: Observation(self.identity, self.clock() + .1, self.backend.pose, self.backend.checks, False)
+        self.assertIsNone(self.bridge.state()['poseObservedAtMs'])
+
+    def test_pose_evidence_requires_localization_and_tf_not_terrain(self):
+        self.backend.checks['terrain'] = False
+        self.assertIsNotNone(self.bridge.state()['poseObservedAtMs'])
+        for gate in ('localization', 'tf'):
+            self.backend.checks[gate] = False
+            self.assertIsNone(self.bridge.state()['poseObservedAtMs'])
+            self.backend.checks[gate] = True
+
     def start_running(self, number=10):
         state = self.recover_initial_stop()
         self.bridge.request(self.command(number, "start", expected_epoch=state["ticket"]))
@@ -232,6 +257,7 @@ class BridgeTests(unittest.TestCase):
         self.assertIsNone(result)
         self.assertTrue(self.bridge.requires_stop)
         self.assertFalse(any(self.bridge.last_checks.values()))
+        self.assertIsNone(self.bridge.state(poll=False)['poseObservedAtMs'])
         self.assertEqual('stopping', self.bridge.phase)
         self.bridge.tick()
         result = self.bridge.state(poll=False)
@@ -248,6 +274,7 @@ class BridgeTests(unittest.TestCase):
         state = self.bridge.state()
         self.assertFalse(state["navigationReady"])
         self.assertFalse(any(state["checks"].values()))
+        self.assertIsNone(state['poseObservedAtMs'])
         with self.assertRaisesRegex(BridgeError, "navigation_bridge_closed"):
             self.bridge.request({"id": request_id(70), "action": "state"})
 

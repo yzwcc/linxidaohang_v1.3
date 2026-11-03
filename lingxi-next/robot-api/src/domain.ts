@@ -111,6 +111,7 @@ export type RobotSnapshot = Pick<
   | "actionBusy"
   | "actionStatus"
   | "pose"
+  | "poseEvidence"
   | "navigation"
   | "navigationExecution"
   | "mapGrid"

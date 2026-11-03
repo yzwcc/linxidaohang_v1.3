@@ -49,6 +49,7 @@ export const physicalNavigationStateSchema = z.object({
   requiresStop: z.boolean(),
   outputQuiescent: z.boolean(),
   pose: poseSchema,
+  poseObservedAtMs: z.number().int().positive().max(Number.MAX_SAFE_INTEGER).nullable().optional(),
   checks: physicalNavigationChecksSchema,
   navigationReady: z.boolean(),
   physicalMotionSent: z.boolean(),

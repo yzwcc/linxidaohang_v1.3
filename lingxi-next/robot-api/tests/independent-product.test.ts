@@ -231,7 +231,7 @@ describe("physical navigation server composition", () => {
         footprintSha256: "e".repeat(64),
       },
       phase: "idle", detail: "", ticket: null, pointId: null, requiresStop: false,
-      outputQuiescent: true, pose: { x: 0, y: 0, yaw: 0 },
+      outputQuiescent: true, pose: { x: 0, y: 0, yaw: 0 }, poseObservedAtMs: Date.now(),
       checks: { nav2Lifecycle: true, localization: true, tf: true, costmap: true,
         terrain: true, footprint: true, velocityOutput: true },
       navigationReady: true, physicalMotionSent: false,
@@ -281,8 +281,10 @@ describe("physical navigation server composition", () => {
       payload: {} });
     expect(activate.statusCode).toBe(200);
     expect(physical.activateMap).toHaveBeenCalledOnce();
-    expect((await app.inject({ url: "/api/v1/state", headers })).json().maps)
+    const publicState = (await app.inject({ url: "/api/v1/state", headers })).json();
+    expect(publicState.maps)
       .toEqual(expect.arrayContaining([expect.objectContaining({ id: fixture.id, active: true })]));
+    expect(publicState.poseEvidence).toMatchObject({ source: "independent-localization", coordinateUnits: "declared-metres" });
 
     const point = await app.inject({ method: "POST", url: "/api/v1/points", headers,
       payload: { mapId: fixture.id, name: "入口", x: 0, y: 0, yaw: 0 } });

@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AimdkAdapter } from "../src/adapters/aimdk";
 import { ActionAuthorizationRevoked } from "../src/action-authorization";
+import { Answerer } from "../src/voice/answerer";
+import { MemoryStore } from "./fixtures";
 
 const response = (status: number, body: unknown) => new Response(JSON.stringify(body), {
   status,
@@ -9,6 +11,24 @@ const response = (status: number, body: unknown) => new Response(JSON.stringify(
 
 describe("AIMDK HTTP adapter action semantics", () => {
   afterEach(() => vi.unstubAllGlobals());
+
+  it.each([0, 5000, -60_000, null])("preserves observation age through native HTTP state and voice: %s", async (ageMs) => {
+    const observedAtMs = ageMs === null ? null : Date.now() - ageMs;
+    const fetchMock = vi.fn(async (_url: unknown) => response(200, {
+      connected: true, mapping: false, checks: [{ id: "odom", label: "odom", ready: true }],
+      pose: { x: 1.5, y: 2.5, yaw: 0 }, navigation: { status: "idle" },
+      poseEvidence: observedAtMs === null ? null
+        : { source: "aimdk-map-odometry", coordinateUnits: "metres", observedAtMs },
+      updatedAt: new Date().toISOString(),
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+    const result = await new Answerer(new MemoryStore(), new AimdkAdapter()).answer("你现在的位置在哪里");
+    expect(result.source).toBe(ageMs === 0 ? "robot-state" : "refusal");
+    if (ageMs === 0) expect(result.text).toContain("1.50 米");
+    else expect(result.text).not.toContain("米");
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(fetchMock.mock.calls[0][0]).toBe("http://127.0.0.1:18082/v1/state");
+  });
 
   it("does not write a stale tour expression through the native adapter", async () => {
     const fetchMock = vi.fn();

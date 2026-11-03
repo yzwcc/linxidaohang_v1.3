@@ -165,9 +165,15 @@ export class Answerer {
     const state = await this.robot.getSnapshot().catch(() => null);
     if (!state?.connected) return null;
     const position = state.pose;
-    const referencesLocation = /(位置|坐标|在哪里|朝向|定位)/.test(question);
+    const referencesLocation = /(位置|坐标|在哪|朝向|定位)/.test(question);
     if (referencesLocation) {
-      if (!position) return null;
+      const evidence = state.poseEvidence;
+      const ageMs = Date.now() - (evidence?.observedAtMs ?? 0);
+      if (this.robot.demoMode || state.navigationExecution?.syntheticInputs || !position || !evidence ||
+          ![position.x, position.y, position.yaw, evidence.observedAtMs].every(Number.isFinite) ||
+          !["aimdk-map-odometry", "independent-localization"].includes(evidence.source) ||
+          evidence.coordinateUnits !== "metres" || ageMs < 0 || ageMs > 2000 ||
+          !state.checks.some((check) => check.id === "odom" && check.ready)) return null;
       return {
         text: `机器人当前定位坐标为 X ${position.x.toFixed(2)} 米、Y ${position.y.toFixed(2)} 米，朝向 ${position.yaw.toFixed(2)} 弧度。`,
         source: "robot-state",
@@ -283,9 +289,10 @@ export class Answerer {
 }
 
 function requiresRobotState(question: string): boolean {
-  const asksForState = /(位置|坐标|朝向|定位|电量|电池|导航|任务|运行|在线|状态)/.test(question);
+  const asksForState = /(位置|坐标|在哪|朝向|定位|电量|电池|导航|任务|运行|在线|状态)/.test(question);
   const refersToLiveRobot = /(机器人|它|当前|现在|此刻|实时|正在|电量|电池|坐标)/.test(question);
-  return asksForState && refersToLiveRobot;
+  const asksYourLocation = /你(?:现在|当前|此刻)?的?(?:位置|坐标|朝向|在哪|定位(?:状态|情况|结果))/.test(question);
+  return asksForState && (refersToLiveRobot || asksYourLocation);
 }
 
 function requiresKnowledge(question: string): boolean {

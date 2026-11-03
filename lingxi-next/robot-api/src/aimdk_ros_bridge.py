@@ -605,8 +605,9 @@ class X2Node(Node):
 
     def on_odom(self, message: Odometry) -> None:
         stamp_ns = int(message.header.stamp.sec) * 1_000_000_000 + int(message.header.stamp.nanosec)
+        age_seconds = (self.get_clock().now().nanoseconds - stamp_ns) / 1_000_000_000
         if (message.header.frame_id != "map" or stamp_ns <= 0
-                or abs(self.get_clock().now().nanoseconds - stamp_ns) > 2_000_000_000):
+                or not 0 <= age_seconds <= 2.0):
             return
         pose = message.pose.pose
         orientation = pose.orientation
@@ -621,7 +622,7 @@ class X2Node(Node):
             if stamp_ns <= self.last_odom_stamp_ns:
                 return
             self.last_odom = {"x": float(pose.position.x), "y": float(pose.position.y), "yaw": yaw}
-            self.last_odom_at = time.time()
+            self.last_odom_at = time.time() - age_seconds
             self.last_odom_stamp_ns = stamp_ns
 
     def on_task_state(self, message: TaskMasterState) -> None:
@@ -662,7 +663,9 @@ class X2Node(Node):
             grid = self.last_map
             odom = self.last_odom
             scan_fresh = bool(self.last_scan_at and now - self.last_scan_at <= 2.0)
-            odom_fresh = bool(self.last_odom_at and now - self.last_odom_at <= 2.0)
+            odom_fresh = bool(self.mode == "full" and odom and self.last_odom_at
+                              and 0 <= now - self.last_odom_at <= 2.0 and not self.relocalization_pending)
+            odom_observed_at_ms = int(self.last_odom_at * 1000) if odom_fresh else None
             task_state = self.last_task_state
             task_state_fresh = bool(self.last_task_state_at and now - self.last_task_state_at <= 3.0)
             nav = dict(self.last_navigation)
@@ -750,6 +753,10 @@ class X2Node(Node):
             "mapping": mapping_status != "idle",
             "mappingStatus": mapping_status,
             "pose": pose,
+            "poseEvidence": {
+                "source": "aimdk-map-odometry", "observedAtMs": odom_observed_at_ms,
+                "coordinateUnits": "metres",
+            } if pose else None,
             "navigation": nav,
             "actionBusy": action_busy,
             "actionStatus": "uncertain" if action_uncertain else

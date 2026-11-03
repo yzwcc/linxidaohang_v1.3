@@ -114,18 +114,25 @@ export class PhysicalNavigationAdapter implements RobotAdapter {
     catch {
       return {
         ...original,
+        pose: undefined,
+        poseEvidence: undefined,
         navigation: { status: "failed", requiresStop: true, detail: this.lastError },
         navigationExecution: { backend: "nav2-ros2", syntheticInputs: false,
           physicalMotionSent: this.previous?.physicalMotionSent ?? false, navigationReady: false },
-        checks: original.checks.map((check) => check.id === "navigation"
+        checks: original.checks.map((check) => ["navigation", "odom"].includes(check.id)
           ? { ...check, ready: false, detail: this.lastError } : check),
       };
     }
     const admission = this.uncertain ? { ok: false as const, reason: "physical_navigation_state_uncertain" } : navigationAdmission(state);
     const ready = admission.ok;
+    const poseAgeMs = Date.now() - (state.poseObservedAtMs ?? 0);
+    const poseReady = !this.uncertain && state.checks.localization && state.checks.tf &&
+      state.poseObservedAtMs != null && poseAgeMs >= 0 && poseAgeMs <= 2000;
     return {
       ...original,
-      pose: state.pose,
+      pose: poseReady ? state.pose : undefined,
+      poseEvidence: poseReady ? { source: "independent-localization",
+        observedAtMs: state.poseObservedAtMs!, coordinateUnits: "declared-metres" } : undefined,
       navigation: this.uncertain
         ? { status: "failed", requiresStop: true, detail: this.lastError }
         : navigationState(state),
@@ -135,8 +142,8 @@ export class PhysicalNavigationAdapter implements RobotAdapter {
       },
       checks: original.checks.map((check) => check.id === "navigation"
         ? { ...check, ready, detail: ready ? "ROS 2 Nav2 admission verified" : admission.reason }
-        : check.id === "odom" ? { ...check, ready: state.checks.localization && state.checks.tf,
-          detail: state.checks.localization && state.checks.tf ? "Localization and TF fresh" : "Localization/TF freshness gate failed" }
+        : check.id === "odom" ? { ...check, ready: poseReady,
+          detail: poseReady ? "Localization and TF fresh; scale declared, not surveyed" : "Localization/TF freshness gate failed" }
         : check),
     };
   }

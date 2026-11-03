@@ -4,6 +4,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import type { MapPoint, RobotMap } from "../../shared/contracts";
+import type { RobotSnapshot } from "../src/domain";
 import { physicalNavigationStateSchema, type PhysicalNavigationCommand, type PhysicalNavigationState } from "../../shared/physical-navigation";
 import { PhysicalNavigationAdapter } from "../src/adapters/physical-navigation";
 import { UnixRosNavigationBackend, type PhysicalNavigationBackend } from "../src/physical-navigation-backend";
@@ -20,20 +21,20 @@ function state(patch: Partial<PhysicalNavigationState> = {}): PhysicalNavigation
   return {
     protocol: 1, source: "ros2-nav2", session, sequence: 0, identity,
     phase: "idle", detail: "", ticket: null, pointId: null, requiresStop: false,
-    outputQuiescent: true, pose: { x: 0, y: 0, yaw: 0 },
+    outputQuiescent: true, pose: { x: 0, y: 0, yaw: 0 }, poseObservedAtMs: Date.now(),
     checks: { nav2Lifecycle: true, localization: true, tf: true, costmap: true,
       terrain: true, footprint: true, velocityOutput: true },
     navigationReady: true, physicalMotionSent: false, ...patch,
   };
 }
 
-function baseAdapter() {
+function baseAdapter(patch: Partial<RobotSnapshot> = {}) {
   return {
     demoMode: false,
     getSnapshot: async () => ({ connected: true, checks: [
       { id: "navigation", label: "navigation", ready: false, detail: "" },
     ], mapping: false, actionBusy: false, navigation: { status: "idle" as const },
-      motionPresets: [], expressions: [], linkcraftResources: [], updatedAt: new Date().toISOString() }),
+      motionPresets: [], expressions: [], linkcraftResources: [], updatedAt: new Date().toISOString(), ...patch }),
     getLidarFrame: async () => ({ frameId: "lidar", stampMs: 1, receivedAtMs: Date.now(), points: [] }),
     listMaps: async () => [map],
     startMapping: async () => undefined,
@@ -66,6 +67,55 @@ function fakeBackend(states: PhysicalNavigationState[], commandResult?: Physical
 }
 
 describe("physical navigation admission", () => {
+  it("labels fresh independent position with declared, not surveyed, metres", async () => {
+    const current = state();
+    const snapshot = await new PhysicalNavigationAdapter(baseAdapter(), fakeBackend([current])).getSnapshot();
+    expect(snapshot.pose).toEqual(current.pose);
+    expect(snapshot.poseEvidence).toEqual({ source: "independent-localization",
+      coordinateUnits: "declared-metres", observedAtMs: current.poseObservedAtMs });
+  });
+
+  it.each(["localization", "tf"] as const)("withholds position without %s evidence", async (gate) => {
+    const current = state({ checks: { ...state().checks, [gate]: false }, navigationReady: false });
+    const snapshot = await new PhysicalNavigationAdapter(baseAdapter(), fakeBackend([current])).getSnapshot();
+    expect(snapshot.pose).toBeUndefined();
+    expect(snapshot.poseEvidence).toBeUndefined();
+  });
+
+  it.each([undefined, null, Date.now() - 5000, Date.now() + 60_000])("withholds position with an unavailable/invalid observation time %s", async (poseObservedAtMs) => {
+    const adapter = new PhysicalNavigationAdapter(baseAdapter({ checks: [{ id: "odom", label: "odom", ready: true }] }),
+      fakeBackend([state({ poseObservedAtMs })]));
+    const snapshot = await adapter.getSnapshot();
+    expect(snapshot.pose).toBeUndefined();
+    expect(snapshot.poseEvidence).toBeUndefined();
+    expect(snapshot.checks.find((check) => check.id === "odom")?.ready).toBe(false);
+  });
+
+  it("does not borrow delegate coordinates after bridge loss or an uncertain state", async () => {
+    const backend = fakeBackend([state(), state()]);
+    const adapter = new PhysicalNavigationAdapter(baseAdapter({ pose: { x: 99, y: 99, yaw: 0 },
+      poseEvidence: { source: "aimdk-map-odometry", observedAtMs: Date.now(), coordinateUnits: "metres" },
+      checks: [{ id: "odom", label: "odom", ready: true }] }), backend);
+    expect((await adapter.getSnapshot()).pose).toBeDefined();
+    const uncertain = await adapter.getSnapshot();
+    expect(uncertain.pose).toBeUndefined();
+    expect(uncertain.poseEvidence).toBeUndefined();
+    backend.state = async () => state({ sequence: 2 });
+    expect((await adapter.getSnapshot()).pose).toBeUndefined();
+    backend.state = async () => { throw new Error("bridge_unavailable"); };
+    const lost = await adapter.getSnapshot();
+    expect(lost.pose).toBeUndefined();
+    expect(lost.poseEvidence).toBeUndefined();
+    expect(lost.checks.find((check) => check.id === "odom")?.ready).toBe(false);
+  });
+
+  it("does not require unrelated navigation gates to display a current localization", async () => {
+    const current = state({ checks: { ...state().checks, terrain: false }, navigationReady: false });
+    const snapshot = await new PhysicalNavigationAdapter(baseAdapter(), fakeBackend([current])).getSnapshot();
+    expect(snapshot.pose).toEqual(current.pose);
+    expect(snapshot.navigationExecution?.navigationReady).toBe(false);
+  });
+
   it.each(Object.keys(state().checks) as (keyof PhysicalNavigationState["checks"])[])(
     "rejects a missing %s gate before sending a command", async (gate) => {
     const notReady = state({ checks: { ...state().checks, [gate]: false }, navigationReady: false });

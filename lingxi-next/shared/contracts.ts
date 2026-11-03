@@ -15,6 +15,12 @@ export type RobotPose = {
   yaw: number;
 };
 
+export type RobotPoseEvidence = {
+  source: "aimdk-map-odometry" | "independent-localization";
+  observedAtMs: number;
+  coordinateUnits: "metres" | "declared-metres";
+};
+
 export type OccupancyGrid = {
   width: number;
   height: number;
@@ -156,6 +162,7 @@ export type RobotState = {
   actionStatus?: "dispatching" | "preset-motion" | "linkcraft-awaiting-operator" | "uncertain";
   activeMapId?: string;
   pose?: RobotPose;
+  poseEvidence?: RobotPoseEvidence;
   navigation: NavigationState;
   navigationExecution?:
     | { backend: "nav2-offline"; syntheticInputs: true; physicalMotionSent: false; navigationReady: false }

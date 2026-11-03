@@ -202,6 +202,13 @@ class BridgeCallbacks(unittest.TestCase):
         self.node.on_odom(invalid)
         self.assertEqual(10_000_000_000, self.node.last_odom_stamp_ns)
 
+    def test_odom_preserves_sensor_age_and_rejects_future_observations(self):
+        self.node.on_odom(self.odom(11))
+        self.assertIsNone(self.node.last_odom)
+        with patch.object(bridge.time, 'time', return_value=1000.):
+            self.node.on_odom(self.odom(9))
+        self.assertEqual(999., self.node.last_odom_at)
+
     def setup_map(self, directory):
         map_id = 1_773_113_429_735
         root = directory / str(map_id)
@@ -879,8 +886,25 @@ class ActionsOnlyMode(unittest.TestCase):
         self.assertEqual(["actions"], [item["id"] for item in state["checks"]])
         self.assertFalse(state["mapping"])
         self.assertIsNone(state["pose"])
+        self.assertIsNone(state["poseEvidence"])
         self.assertIsNone(state["mapGrid"])
         self.assertIsNone(state["taskMasterState"])
+
+    def test_native_snapshot_position_requires_current_nonfuture_odom_and_no_pending_map_switch(self):
+        node = self.node("full")
+        node.last_odom = {'x': 1., 'y': 2., 'yaw': 0.}
+        for observed_at, pending, current in ((999., False, True), (997., False, False),
+                                               (1001., False, False), (999., True, False)):
+            node.last_odom_at, node.relocalization_pending = observed_at, pending
+            with patch.object(bridge.time, 'time', return_value=1000.):
+                state = node.snapshot()
+            self.assertEqual(current, state['pose'] is not None)
+            self.assertEqual(current, next(item['ready'] for item in state['checks'] if item['id'] == 'odom'))
+            if current:
+                self.assertEqual({'source': 'aimdk-map-odometry', 'observedAtMs': 999000,
+                                  'coordinateUnits': 'metres'}, state['poseEvidence'])
+            else:
+                self.assertIsNone(state['poseEvidence'])
 
     def test_missing_action_services_are_reported_unavailable(self):
         with patch.object(bridge, "ACTION_SERVICES_AVAILABLE", False):

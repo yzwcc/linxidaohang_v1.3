@@ -118,6 +118,7 @@ class PhysicalNavigationBridge:
         self.retiring = self.retirement_nonce = None
         self.deadline = self.requested_at = None
         self.last_pose, self.last_checks = dict(x=0., y=0., yaw=0.), dict.fromkeys(CHECKS, False)
+        self.last_pose_observed_at = None
         self.closed = False
         self.seen_requests = set()
         self.request_order = []
@@ -135,12 +136,14 @@ class PhysicalNavigationBridge:
             valid, value = False, None
         if valid:
             self.last_pose, self.last_checks = dict(value.pose), dict(value.checks)
+            self.last_pose_observed_at = value.observed_at
             if set(self.last_checks) != set(CHECKS) or any(type(item) is not bool for item in self.last_checks.values()):
                 self.last_checks = dict.fromkeys(CHECKS, False)
                 return False
             self.physical_motion_sent = self.physical_motion_sent or value.physical_motion_sent
         else:
             self.last_checks = dict.fromkeys(CHECKS, False)
+            self.last_pose_observed_at = None
         return valid and all(self.last_checks.values())
 
     def _retire(self, final_phase, reason):
@@ -232,11 +235,16 @@ class PhysicalNavigationBridge:
         if self.sequence >= 2**53 - 1:
             raise BridgeError('navigation_sequence_exhausted', 503)
         self.sequence += 1
+        pose_age = self.clock() - self.last_pose_observed_at if self.last_pose_observed_at is not None else None
+        pose_current = (not self.closed and pose_age is not None and 0 <= pose_age <= self.input_timeout
+                        and self.last_checks['localization'] and self.last_checks['tf'])
         return dict(protocol=1, source='ros2-nav2', session=self.session, sequence=self.sequence,
             identity=asdict(self.identity), phase=self.phase, detail=self.detail,
             ticket=asdict(self.ticket) if self.ticket else None, pointId=self.point_id,
             requiresStop=self.requires_stop, outputQuiescent=self.output_quiescent,
-            pose=dict(self.last_pose), checks=dict(self.last_checks),
+            pose=dict(self.last_pose),
+            poseObservedAtMs=int((time.time() - pose_age) * 1000) if pose_current else None,
+            checks=dict(self.last_checks),
             navigationReady=not self.closed and all(self.last_checks.values()) and not self.requires_stop,
             physicalMotionSent=self.physical_motion_sent)
 
@@ -289,6 +297,7 @@ class PhysicalNavigationBridge:
             self.ticket = self.point_id = self.goal = None
             if changed or type(selection) is MapHandoff:
                 self.last_pose, self.last_checks = dict(x=0., y=0., yaw=0.), dict.fromkeys(CHECKS, False)
+                self.last_pose_observed_at = None
                 self.requires_stop = True
                 self._retire('idle', 'navigation_map_activation_pending')
                 return None
