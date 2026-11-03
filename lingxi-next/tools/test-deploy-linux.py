@@ -194,6 +194,7 @@ class DeploymentLifecycle(unittest.TestCase):
             recovery_log = Path("/test-state/systemctl.log").read_text()[log_offset:]
             self.assertIn("start lingxi-next-api.service", recovery_log)
             self.assertNotIn("start lingxi-next-aimdk.service", recovery_log)
+            self.assertNotIn("start lingxi-next-actions.service", recovery_log)
             self.assertNotIn("start lingxi-next-agent.service", recovery_log)
             Path("/test-state/health-fail-release").unlink()
         with self.subTest("enable failure and termination recover without activating autonomous services"):
@@ -324,6 +325,22 @@ print(json.dumps(result))
             unit = Path('/etc/systemd/system/lingxi-next-independent-' + profile + '.service').read_text()
             self.assertIn('RestartPreventExitStatus=78', unit)
             self.assertIn('Conflicts=lingxi-next-independent-' + other + '.service', unit)
+
+        bridge = current / 'bridge/aimdk_ros_bridge.py'
+        bridge.parent.mkdir(exist_ok=True)
+        bridge.write_text('import json, sys; print(json.dumps(sys.argv[1:]))\n')
+        for mode, expected in (('actions', 'actions-only'), ('aimdk', 'full')):
+            result = execute(mode)
+            self.assertEqual(0, result.returncode, result.stderr)
+            self.assertEqual(['--mode', expected], json.loads(result.stdout))
+        self.assertEqual(78, execute('actions', LINGXI_INDEPENDENT_PRODUCT='0').returncode)
+        self.assertEqual(78, execute('actions', LINGXI_ROS_SETUP='').returncode)
+        for name, other in (('actions', 'aimdk'), ('aimdk', 'actions')):
+            unit = Path('/etc/systemd/system/lingxi-next-' + name + '.service').read_text()
+            self.assertIn('Conflicts=lingxi-next-' + other + '.service', unit)
+        log = Path('/test-state/systemctl.log').read_text()
+        self.assertNotIn('enable --now lingxi-next-actions.service', log)
+        self.assertFalse(Path('/test-state/enabled-lingxi-next-actions.service').exists())
 
         # This fixture checks the installed shell selection only. Java configuration
         # and actual HTTPS callbacks have separate tests using the real JVM.

@@ -1,6 +1,7 @@
 [Unit]
 Description=Lingxi Next AIMDK Native Interface Adapter
 After=network.target
+Conflicts=lingxi-next-actions.service
 
 [Service]
 User=lingxi-next

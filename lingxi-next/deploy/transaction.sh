@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Shared by install and rollback; only this product's services are touched.
 SERVICES=(lingxi-next-agent.service lingxi-next-api.service lingxi-next-aimdk.service
+  lingxi-next-actions.service
   lingxi-next-independent-mapping.service lingxi-next-independent-slam.service
   lingxi-next-navigation.service)
 

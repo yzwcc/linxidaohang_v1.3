@@ -139,7 +139,12 @@ case "${1:-}" in
     source "$LINGXI_ROS_SETUP"
     if [[ -n "${LINGXI_AIMDK_SETUP:-}" ]]; then source "$LINGXI_AIMDK_SETUP"; fi
     set -u
-    exec /usr/bin/python3 /opt/lingxi-next/current/bridge/aimdk_ros_bridge.py
+    exec /usr/bin/python3 "$CURRENT/bridge/aimdk_ros_bridge.py" --mode full
+    ;;
+  actions)
+    require_independent_product
+    source_ros_runtime
+    exec /usr/bin/python3 "$CURRENT/bridge/aimdk_ros_bridge.py" --mode actions-only
     ;;
   navigation)
     [[ -f "${LINGXI_ROS_SETUP:-}" ]] || { echo "ROS setup is not configured" >&2; exit 1; }
@@ -170,5 +175,5 @@ case "${1:-}" in
       -Dlogback.configurationFile=/opt/lingxi-next/current/agent/logback.xml \
       -cp '/opt/lingxi-next/current/agent/lingxi-agent.jar:/opt/lingxi-next/current/agent/lib/*' local.lingxi.AgentMain
     ;;
-  *) echo "Usage: run.sh api|aimdk|navigation|independent-mapping|independent-slam|agent" >&2; exit 2 ;;
+  *) echo "Usage: run.sh api|aimdk|actions|navigation|independent-mapping|independent-slam|agent" >&2; exit 2 ;;
 esac

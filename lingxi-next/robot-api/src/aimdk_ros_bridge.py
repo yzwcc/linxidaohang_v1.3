@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import argparse
 import json
 import hashlib
 import hmac
@@ -14,39 +15,43 @@ import struct
 import threading
 import time
 from contextlib import closing
+from importlib import import_module
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
 from urllib.parse import unquote, urlparse
 
 import rclpy
-from nav_msgs.msg import OccupancyGrid, Odometry
-from geometry_msgs.msg import Pose
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
 from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
-from sensor_msgs.msg import LaserScan, PointCloud2
-from std_msgs.msg import Header, String
-from aimdk_msgs.srv import GetStoredMapByName
 try:
-    from aimdk_msgs.srv import (
-        ExecuteActionResource,
-        GetMcPresetMotionState,
-        GetRobotResources,
-        PlayEmoji,
-        SetMcInputSource,
-        SetMcPresetMotion,
-    )
-
-    ACTION_SERVICES_AVAILABLE = True
+    from nav_msgs.msg import OccupancyGrid, Odometry
+    from geometry_msgs.msg import Pose
+    from sensor_msgs.msg import LaserScan, PointCloud2
+    from std_msgs.msg import Header, String
 except ImportError:
-    ExecuteActionResource = None
-    GetMcPresetMotionState = None
-    GetRobotResources = None
-    PlayEmoji = None
-    SetMcInputSource = None
-    SetMcPresetMotion = None
-    ACTION_SERVICES_AVAILABLE = False
+    OccupancyGrid = Odometry = Pose = LaserScan = PointCloud2 = Header = String = None
+
+
+def optional_service(name: str):
+    try:
+        return getattr(import_module("aimdk_msgs.srv"), name)
+    except (ImportError, AttributeError):
+        return None
+
+
+GetStoredMapByName = optional_service("GetStoredMapByName")
+ExecuteActionResource = optional_service("ExecuteActionResource")
+GetMcPresetMotionState = optional_service("GetMcPresetMotionState")
+GetRobotResources = optional_service("GetRobotResources")
+PlayEmoji = optional_service("PlayEmoji")
+SetMcInputSource = optional_service("SetMcInputSource")
+SetMcPresetMotion = optional_service("SetMcPresetMotion")
+ACTION_SERVICES_AVAILABLE = any(service is not None for service in (
+    ExecuteActionResource, GetMcPresetMotionState, GetRobotResources, PlayEmoji,
+    SetMcInputSource, SetMcPresetMotion,
+))
 try:
     from rclpy.duration import Duration
     from rclpy.time import Time
@@ -65,6 +70,7 @@ except ImportError:
 
 
 PORT = int(os.getenv("LINGXI_AIMDK_BRIDGE_PORT", "18082"))
+BRIDGE_MODES = ("full", "actions-only")
 TOKEN = os.getenv("LINGXI_AIMDK_BRIDGE_TOKEN", "")
 MAP_DIR = Path(os.getenv("AIMDK_MAP_DIR", "/agibot/data/var/MapManagerModule"))
 MAP_TOPIC = os.getenv("AIMDK_MAP_TOPIC", "").strip()
@@ -258,8 +264,15 @@ def transform_xyz(points, transform):
 
 
 class X2Node(Node):
-    def __init__(self) -> None:
+    def __init__(self, mode: str = "full") -> None:
+        if mode not in BRIDGE_MODES:
+            raise ValueError("Unsupported AIMDK bridge mode")
+        if mode == "full" and any(value is None for value in (
+            OccupancyGrid, Odometry, Pose, LaserScan, PointCloud2, Header, String,
+        )):
+            raise ValueError("Full AIMDK bridge requires the ROS mapping message packages")
         super().__init__("lingxi_next_adapter")
+        self.mode = mode
         reliable_transient = QoSProfile(
             depth=10,
             reliability=ReliabilityPolicy.RELIABLE,
@@ -283,7 +296,7 @@ class X2Node(Node):
         self.last_lidar = None
         self.lidar_sequence = 0
         self.lidar_epoch = str(time.time_ns())
-        self.tf_buffer = Buffer(cache_time=Duration(seconds=10)) if Buffer else None
+        self.tf_buffer = Buffer(cache_time=Duration(seconds=10)) if mode == "full" and Buffer else None
         self.tf_listener = TransformListener(self.tf_buffer, self) if self.tf_buffer else None
         self.last_odom: dict[str, float] | None = None
         self.last_odom_at = 0.0
@@ -304,9 +317,16 @@ class X2Node(Node):
         self.linkcraft_resource_cache_at = 0.0
         self.linkcraft_resource_refresh_at = 0.0
         self.linkcraft_resource_refresh_pending = False
-        self.publisher = self.create_publisher(String, INTEGRATED_COMMAND_TOPIC, reliable_transient)
-        self.relocalization_publisher = self.create_publisher(Pose, "/relocalization_pose", best_effort_volatile)
-        self.map_client = self.create_client(GetStoredMapByName, MAP_SERVICE)
+        self.publisher = None
+        self.relocalization_publisher = None
+        self.map_client = None
+        self.grid_subscription = None
+        self.scan_subscription = None
+        self.cloud_subscription = None
+        self.odom_subscription = None
+        self.nav_publisher = None
+        self.nav_response_subscription = None
+        self.task_state_subscription = None
         self.motion_input_source_client = None
         self.preset_motion_client = None
         self.preset_motion_state_client = None
@@ -334,6 +354,12 @@ class X2Node(Node):
             )
         else:
             self.get_logger().warning("Optional AIMDK action services are unavailable")
+        self.navigation_ready = False
+        if mode == "actions-only":
+            return
+        self.publisher = self.create_publisher(String, INTEGRATED_COMMAND_TOPIC, reliable_transient)
+        self.relocalization_publisher = self.create_publisher(Pose, "/relocalization_pose", best_effort_volatile)
+        self.map_client = self._optional_client(GetStoredMapByName, MAP_SERVICE)
         self.grid_subscription = (
             self.create_subscription(OccupancyGrid, MAP_TOPIC, self.on_grid, best_effort_volatile)
             if MAP_TOPIC
@@ -349,7 +375,6 @@ class X2Node(Node):
             if POINTCLOUD_TOPIC else None
         )
         self.odom_subscription = self.create_subscription(Odometry, ODOM_TOPIC, self.on_odom, best_effort_volatile)
-        self.navigation_ready = False
         if NAV_TYPES_AVAILABLE:
             try:
                 self.nav_publisher = self.create_publisher(PncTaskRequest, NAV_REQUEST_TOPIC, best_effort_volatile)
@@ -368,11 +393,21 @@ class X2Node(Node):
             self.get_logger().warning("Optional AIMDK navigation messages are unavailable; map services remain available")
 
     def _optional_client(self, service_type, service_name: str):
+        if service_type is None:
+            return None
         try:
             return self.create_client(service_type, service_name)
         except Exception as error:
             self.get_logger().warning(f"Optional AIMDK service unavailable ({service_name}): {error}")
             return None
+
+    def require_vendor_navigation(self) -> None:
+        if self.mode != "full":
+            raise AdapterError("仅动作模式不提供厂商建图、定位或导航接口", 409)
+
+    def require_physical_actions(self) -> None:
+        if self.mode != "full":
+            raise AdapterError("独立模式实体动作尚未接入运行态互锁，未发送动作请求", 409)
 
     def _load_action_interlock(self) -> None:
         try:
@@ -558,6 +593,7 @@ class X2Node(Node):
             return
 
     def lidar_frame(self):
+        self.require_vendor_navigation()
         with self.lock:
             if not self.last_lidar or time.time() - self.last_scan_at > 2:
                 raise AdapterError("雷达无新数据，请检查 LaserScan/PointCloud2 话题", 503)
@@ -639,14 +675,17 @@ class X2Node(Node):
                 {"id": item["id"], "name": item["name"]}
                 for item in self.linkcraft_resource_records.values()
             ] if resources_fresh else []
-        integrated_ready = self.publisher.get_subscription_count() > 0
-        map_service_ready = self.map_client.service_is_ready()
-        preset_ready = not action_uncertain and all(self._client_ready(client) for client in (
+        integrated_ready = bool(self.publisher and self.publisher.get_subscription_count() > 0)
+        map_service_ready = self._client_ready(self.map_client)
+        preset_available = all(self._client_ready(client) for client in (
             self.motion_input_source_client, self.preset_motion_client, self.preset_motion_state_client
         ))
+        physical_actions_enabled = self.mode == "full"
+        preset_ready = not action_uncertain and preset_available and physical_actions_enabled
         expression_ready = not action_uncertain and self._client_ready(self.expression_client)
         resource_ready = not action_uncertain and self._client_ready(self.linkcraft_resource_client) and resources_fresh
         execute_resource_ready = not action_uncertain and self._client_ready(self.linkcraft_execute_client)
+        linkcraft_ready = resource_ready and execute_resource_ready and physical_actions_enabled
         checks = [
             {"id": "aimdk", "label": "AIMDK", "ready": map_service_ready, "detail": "地图服务在线" if map_service_ready else "GetStoredMapByName 不可用"},
             {
@@ -666,20 +705,35 @@ class X2Node(Node):
             {
                 "id": "actions",
                 "label": "动作服务",
-                "ready": preset_ready or expression_ready or (resource_ready and execute_resource_ready),
+                "ready": preset_ready or expression_ready or linkcraft_ready,
                 "detail": "可用：" + "、".join(
                     label for ready, label in (
                         (preset_ready, "预设动作"),
                         (expression_ready, "表情"),
-                        (resource_ready and execute_resource_ready, "灵创资源"),
+                        (linkcraft_ready, "灵创资源"),
                     ) if ready
-                ) if preset_ready or expression_ready or (resource_ready and execute_resource_ready)
+                ) if preset_ready or expression_ready or linkcraft_ready
                 else "等待 AIMDK 动作服务或灵创资源清单",
             },
             {"id": "linksoul", "label": "灵心", "ready": False, "detail": "AgentSDK v1.5 适配器未安装"},
         ]
+        if self.mode == "actions-only":
+            checks = [item for item in checks if item["id"] == "actions"]
+            checks[0]["detail"] = (
+                "表情服务可用；实体动作等待独立运行态互锁"
+                if expression_ready else "表情服务不可用；实体动作未准入"
+            )
         pose = odom if odom_fresh else None
         return {
+            "bridgeMode": self.mode,
+            "physicalActionsEnabled": physical_actions_enabled,
+            "actionServices": {
+                "presetMotion": preset_available,
+                "expression": self._client_ready(self.expression_client),
+                "linkcraftCatalog": self._client_ready(self.linkcraft_resource_client),
+                "linkcraftExecution": self._client_ready(self.linkcraft_execute_client),
+                "linkcraftCatalogFresh": resources_fresh,
+            },
             "connected": True,
             "checks": checks,
             "mapping": mapping_status != "idle",
@@ -694,7 +748,7 @@ class X2Node(Node):
             "mapGrid": grid if map_fresh else None,
             "motionPresets": list(PRESET_MOTIONS) if preset_ready else [],
             "expressions": list(EXPRESSIONS) if expression_ready else [],
-            "linkcraftResources": resources if resource_ready and execute_resource_ready else [],
+            "linkcraftResources": resources if linkcraft_ready else [],
             "updatedAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(now)),
             "taskMasterState": task_state if task_state_fresh else None,
         }
@@ -707,6 +761,7 @@ class X2Node(Node):
             return False
 
     def start_mapping(self) -> None:
+        self.require_vendor_navigation()
         if not self.motion_action_lock.acquire(blocking=False):
             raise AdapterError("已有动作服务请求正在处理", 409)
         try:
@@ -873,6 +928,7 @@ class X2Node(Node):
             raise AdapterError("预设动作结束状态无法确认，已阻止后续机器人动作", 409, uncertain=True)
 
     def _ensure_motion_input_source(self) -> None:
+        self.require_physical_actions()
         with self.lock:
             if self.motion_source_ready:
                 return
@@ -899,6 +955,7 @@ class X2Node(Node):
         raise AdapterError("AIMDK 未确认预设动作输入源", 409)
 
     def start_preset_motion(self, name: Any, *, monitor_completion: bool = True) -> dict[str, Any]:
+        self.require_physical_actions()
         if not isinstance(name, str) or name not in PRESET_MOTIONS:
             raise AdapterError("预设动作不在 X2 白名单中", 400)
         if not self.motion_action_lock.acquire(blocking=False):
@@ -1036,6 +1093,7 @@ class X2Node(Node):
             self.motion_action_lock.release()
 
     def execute_linkcraft_resource(self, identifier: Any) -> dict[str, Any]:
+        self.require_physical_actions()
         if not isinstance(identifier, str) or re.fullmatch(r"[0-9a-f]{32}", identifier) is None:
             raise AdapterError("灵创资源 ID 无效", 400)
         if not self.motion_action_lock.acquire(blocking=False):
@@ -1109,6 +1167,7 @@ class X2Node(Node):
             self.motion_action_lock.release()
 
     def publish_command(self, value: str) -> None:
+        self.require_vendor_navigation()
         if self.publisher.get_subscription_count() < 1:
             raise AdapterError("AIMDK 未订阅 /integrated_command，未发送命令")
         message = String()
@@ -1116,7 +1175,8 @@ class X2Node(Node):
         self.publisher.publish(message)
 
     def query_map(self, name: str, timeout: float = 4.0, include_grid: bool = False) -> dict[str, Any]:
-        if not self.map_client.wait_for_service(timeout_sec=timeout):
+        self.require_vendor_navigation()
+        if self.map_client is None or not self.map_client.wait_for_service(timeout_sec=timeout):
             raise AdapterError("AIMDK 地图查询服务不可用")
         request = GetStoredMapByName.Request()
         request.header = Header()
@@ -1168,6 +1228,7 @@ class X2Node(Node):
         return metadata
 
     def stored_grid(self, name: str) -> dict[str, Any]:
+        self.require_vendor_navigation()
         result = self.query_map(name, include_grid=True)
         origin = result["origin"]
         return {
@@ -1182,6 +1243,7 @@ class X2Node(Node):
         }
 
     def send_navigation(self, *, task_id: int, map_id: int, target: dict[str, float], action: int) -> None:
+        self.require_vendor_navigation()
         if action != 1:
             return self._send_navigation(task_id=task_id, map_id=map_id, target=target, action=action)
         if not self.motion_action_lock.acquire(blocking=False):
@@ -1192,6 +1254,7 @@ class X2Node(Node):
             self.motion_action_lock.release()
 
     def _send_navigation(self, *, task_id: int, map_id: int, target: dict[str, float], action: int) -> None:
+        self.require_vendor_navigation()
         if not self.navigation_ready or self.nav_publisher is None:
             raise AdapterError("X2 原生导航组件未启用")
         if self.nav_publisher.get_subscription_count() < 1:
@@ -1249,6 +1312,7 @@ class X2Node(Node):
         self.nav_publisher.publish(request)
 
     def list_maps(self) -> list[dict[str, Any]]:
+        self.require_vendor_navigation()
         if not MAP_DIR.is_dir():
             return []
         state = self.snapshot().get("taskMasterState") or {}
@@ -1263,6 +1327,7 @@ class X2Node(Node):
         return result
 
     def activate_map(self, name: str, initial: Any = None) -> dict[str, Any]:
+        self.require_vendor_navigation()
         if not self.motion_action_lock.acquire(blocking=False):
             raise AdapterError("已有动作服务请求正在处理", 409)
         try:
@@ -1273,6 +1338,7 @@ class X2Node(Node):
             self.motion_action_lock.release()
 
     def _activate_map(self, name: str, initial: Any = None) -> dict[str, Any]:
+        self.require_vendor_navigation()
         if not valid_map_name(name):
             raise AdapterError("无效地图名称", 400)
         info = self.query_map(name)
@@ -1332,9 +1398,13 @@ class BridgeHandler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:
         path = urlparse(self.path).path
         if path == "/health":
-            return self.send_json(200, {"ok": rclpy.ok()})
+            return self.send_json(200, {
+                "ok": rclpy.ok(), "bridgeMode": self.node.mode,
+                "physicalActionsEnabled": self.node.mode == "full",
+            })
         try:
             self.authorize()
+            self.require_route(path, "GET")
             if path == "/v1/state":
                 return self.send_json(200, self.node.snapshot())
             if path == "/v1/lidar":
@@ -1359,8 +1429,9 @@ class BridgeHandler(BaseHTTPRequestHandler):
     def do_POST(self) -> None:
         try:
             self.authorize()
-            body = self.read_json()
             path = urlparse(self.path).path
+            self.require_route(path, "POST")
+            body = self.read_json()
             if path == "/v1/mapping/start":
                 self.node.start_mapping()
                 return self.send_json(202, {"accepted": True, "status": "requested"})
@@ -1448,6 +1519,18 @@ class BridgeHandler(BaseHTTPRequestHandler):
         except Exception:
             return self.send_json(500, {"message": "AIMDK 桥接内部错误"})
 
+    def require_route(self, path: str, method: str) -> None:
+        if self.node.mode == "full":
+            return
+        if method == "GET":
+            allowed = path == "/v1/state" or re.fullmatch(r"/v1/motions/preset/\d+", path)
+        else:
+            allowed = path in (
+                "/v1/motions/preset", "/v1/expression", "/v1/linkcraft/resource", "/v1/actions/confirm-idle",
+            )
+        if not allowed:
+            raise AdapterError("仅动作模式不提供此接口", 404)
+
     def authorize(self) -> None:
         if not TOKEN:
             raise AdapterError("AIMDK 桥接服务未配置内部令牌", 503)
@@ -1487,11 +1570,14 @@ class BridgeHandler(BaseHTTPRequestHandler):
         self.wfile.write(payload)
 
 
-def main() -> None:
+def main(argv: list[str] | None = None) -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--mode", choices=BRIDGE_MODES, default="full")
+    arguments = parser.parse_args(argv)
     if not TOKEN:
         raise SystemExit("LINGXI_AIMDK_BRIDGE_TOKEN is required")
-    rclpy.init()
-    node = X2Node()
+    rclpy.init(args=[])
+    node = X2Node(arguments.mode)
     executor = MultiThreadedExecutor()
     executor.add_node(node)
     thread = threading.Thread(target=executor.spin, daemon=True)

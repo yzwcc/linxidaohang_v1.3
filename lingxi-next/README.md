@@ -1,5 +1,10 @@
 # Lingxi Next
 
+An explicit, offline-verified AIMDK action compatibility mode now initializes
+without vendor SLAM/navigation interfaces. Physical actions remain unadmitted
+until the independent lifecycle interlock is integrated. See
+[Isolated AIMDK Action Compatibility Mode](docs/AIMDK_ACTIONS_ONLY.md).
+
 Saved raw point clouds now support an offline, map-bound measured survey
 calibration candidate and review audit. This workflow requires independently
 measured 3D landmarks, keeps fit and holdout points separate, and never applies

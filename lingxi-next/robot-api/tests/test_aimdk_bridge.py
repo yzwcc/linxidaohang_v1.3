@@ -1,5 +1,6 @@
 """Exercise actual bridge callbacks with minimal ROS type stubs, without a robot."""
 import importlib.util
+import io
 import math
 import sqlite3
 import struct
@@ -10,8 +11,8 @@ import threading
 import time
 import types
 import unittest
-from contextlib import closing
-from unittest.mock import patch
+from contextlib import closing, ExitStack, redirect_stderr
+from unittest.mock import Mock, patch
 
 
 def module(name, **members):
@@ -84,6 +85,7 @@ class SubscriptionQos(unittest.TestCase):
 class BridgeCallbacks(unittest.TestCase):
     def setUp(self):
         self.node = bridge.X2Node.__new__(bridge.X2Node)
+        self.node.mode = "full"
         self.node.lock = threading.RLock()
         self.node.last_map = None
         self.node.last_navigation = {"taskId": "101", "mapId": 9, "status": "requested"}
@@ -494,6 +496,7 @@ class ActionServices(unittest.TestCase):
 
     def node(self):
         node = bridge.X2Node.__new__(bridge.X2Node)
+        node.mode = "full"
         node.lock = threading.RLock()
         node.motion_action_lock = threading.Lock()
         node.motion_source_ready = False
@@ -759,6 +762,264 @@ class ActionServices(unittest.TestCase):
         self.assertEqual("uncertain", __import__("json").loads(
             bridge.ACTION_INTERLOCK_FILE.read_text(encoding="utf-8")
         )["status"])
+
+
+class ActionsOnlyMode(unittest.TestCase):
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.stack = ExitStack()
+        self.addCleanup(self.stack.close)
+        self.stack.enter_context(patch.object(
+            bridge, "ACTION_INTERLOCK_FILE", Path(temporary.name) / "actions.json"
+        ))
+        self.clients = {}
+        self.publications = {}
+        self.subscriptions = {}
+
+    def node(self, mode="actions-only", target=bridge):
+        def client(_node, _type, name):
+            result = FakeServiceClient([])
+            self.clients[name] = result
+            return result
+
+        def publish(_node, _type, name, _qos):
+            result = obj(get_subscription_count=lambda: 1, publish=Mock())
+            self.publications[name] = result
+            return result
+
+        def subscribe(_node, _type, name, _callback, _qos):
+            self.subscriptions[name] = obj()
+            return self.subscriptions[name]
+
+        patches = [
+            patch.object(target.Node, "__init__", lambda *_args: None),
+            patch.object(target.X2Node, "create_client", client, create=True),
+            patch.object(target.X2Node, "create_publisher", publish, create=True),
+            patch.object(target.X2Node, "create_subscription", subscribe, create=True),
+            patch.object(target.X2Node, "get_logger", lambda _node: obj(warning=Mock(), error=Mock()), create=True),
+            patch.object(target.X2Node, "refresh_linkcraft_resources", lambda *_args: None),
+            patch.object(target, "ReliabilityPolicy", obj(RELIABLE="reliable", BEST_EFFORT="best-effort")),
+            patch.object(target, "DurabilityPolicy", obj(TRANSIENT_LOCAL="transient-local", VOLATILE="volatile")),
+            patch.object(target, "QoSProfile", lambda **kwargs: obj(**kwargs)),
+        ]
+        for item in patches:
+            self.stack.enter_context(item)
+        if mode == "full":
+            self.stack.enter_context(patch.object(target, "Buffer", None))
+        return target.X2Node(mode)
+
+    def test_initialization_creates_only_action_clients_even_with_all_topics_configured(self):
+        tf = Mock(side_effect=AssertionError("No TF listener in actions-only mode"))
+        with patch.object(bridge, "Buffer", tf), patch.object(bridge, "TransformListener", tf), \
+                patch.object(bridge, "MAP_TOPIC", "/map"), \
+                patch.object(bridge, "SCAN_TOPIC", "/scan"), \
+                patch.object(bridge, "POINTCLOUD_TOPIC", "/cloud"):
+            node = self.node()
+        self.assertEqual({}, self.publications)
+        self.assertEqual({}, self.subscriptions)
+        self.assertEqual({"SetMcInputSource", "SetMcPresetMotion", "GetMcPresetMotionState",
+                          "PlayEmoji", "GetRobotResources", "ExecuteActionResource"},
+                         {name.rsplit("/", 1)[-1] for name in self.clients})
+        self.assertIsNone(node.map_client)
+        self.assertIsNone(node.tf_buffer)
+        self.assertIsNone(node.tf_listener)
+        self.assertFalse(node.navigation_ready)
+        tf.assert_not_called()
+        self.assertTrue(all(not client.requests for client in self.clients.values()))
+
+    def test_missing_mapping_packages_and_individual_services_do_not_disable_expression(self):
+        services = types.ModuleType("aimdk_msgs.srv")
+        services.PlayEmoji = bridge.PlayEmoji
+        isolated = importlib.util.module_from_spec(spec)
+        with patch.dict(sys.modules, {
+            "aimdk_msgs.srv": services, "aimdk_msgs.msg": None, "nav_msgs.msg": None,
+            "geometry_msgs.msg": None, "sensor_msgs.msg": None, "std_msgs.msg": None,
+        }):
+            spec.loader.exec_module(isolated)
+        node = self.node(target=isolated)
+        self.assertIsNone(isolated.GetStoredMapByName)
+        self.assertIsNone(isolated.SetMcPresetMotion)
+        self.assertEqual(["/aimdk_5Fmsgs/srv/PlayEmoji"], list(self.clients))
+        state = node.snapshot()
+        self.assertTrue(state["actionServices"]["expression"])
+        self.assertFalse(state["actionServices"]["presetMotion"])
+        with self.assertRaisesRegex(ValueError, "mapping message packages"):
+            isolated.X2Node("full")
+
+    def test_full_mode_reports_missing_map_service_without_crashing_or_claiming_ready(self):
+        with patch.object(bridge, "GetStoredMapByName", None):
+            node = self.node("full")
+        state = node.snapshot()
+        self.assertFalse(next(item["ready"] for item in state["checks"] if item["id"] == "aimdk"))
+        self.assertIsNone(node.map_client)
+        with self.assertRaisesRegex(bridge.AdapterError, "地图查询服务不可用"):
+            node.query_map("test")
+
+    def test_snapshot_distinguishes_service_presence_from_physical_admission(self):
+        node = self.node()
+        state = node.snapshot()
+        self.assertEqual("actions-only", state["bridgeMode"])
+        self.assertFalse(state["physicalActionsEnabled"])
+        self.assertTrue(state["actionServices"]["presetMotion"])
+        self.assertTrue(state["actionServices"]["linkcraftExecution"])
+        self.assertEqual([], state["motionPresets"])
+        self.assertEqual([], state["linkcraftResources"])
+        self.assertEqual(list(bridge.EXPRESSIONS), state["expressions"])
+        self.assertEqual(["actions"], [item["id"] for item in state["checks"]])
+        self.assertFalse(state["mapping"])
+        self.assertIsNone(state["pose"])
+        self.assertIsNone(state["mapGrid"])
+        self.assertIsNone(state["taskMasterState"])
+
+    def test_missing_action_services_are_reported_unavailable(self):
+        with patch.object(bridge, "ACTION_SERVICES_AVAILABLE", False):
+            node = self.node()
+        state = node.snapshot()
+        self.assertEqual({}, self.clients)
+        self.assertFalse(state["checks"][0]["ready"])
+        self.assertEqual([], state["expressions"])
+        self.assertFalse(any(state["actionServices"].values()))
+
+    def test_physical_actions_and_input_source_are_refused_without_service_dispatch(self):
+        node = self.node()
+        for dispatch in (
+            lambda: node.start_preset_motion("挥手"),
+            lambda: node.execute_linkcraft_resource("f" * 32),
+            node._ensure_motion_input_source,
+        ):
+            with self.subTest(dispatch=dispatch):
+                with self.assertRaisesRegex(bridge.AdapterError, "运行态互锁") as error:
+                    dispatch()
+                self.assertEqual(409, error.exception.status)
+        self.assertTrue(all(not client.requests for client in self.clients.values()))
+        self.assertFalse(bridge.ACTION_INTERLOCK_FILE.exists())
+
+    def test_physical_action_routes_remain_unadmitted_and_restarting_preserves_busy_interlock(self):
+        node = self.node()
+        for path, body in (("/v1/motions/preset", {"name": "挥手"}),
+                           ("/v1/linkcraft/resource", {"id": "f" * 32})):
+            handler = self.handler(node, path, body)
+            handler.do_POST()
+            self.assertEqual(409, handler.send_json.call_args.args[0])
+        self.assertTrue(all(not client.requests for client in self.clients.values()))
+        node._set_action_interlock("linkcraft-awaiting-operator")
+        restarted = self.node()
+        state = restarted.snapshot()
+        self.assertTrue(state["actionBusy"])
+        self.assertEqual("linkcraft-awaiting-operator", state["actionStatus"])
+        with self.assertRaisesRegex(bridge.AdapterError, "结束状态不可见"):
+            restarted.play_expression("开心")
+
+    def test_main_selects_mode_explicitly_and_binds_only_loopback(self):
+        node, executor, server = Mock(), Mock(), Mock()
+        with patch.object(bridge, "TOKEN", "synthetic-internal-token"), \
+                patch.object(bridge, "X2Node", return_value=node) as construct, \
+                patch.object(bridge, "MultiThreadedExecutor", return_value=executor), \
+                patch.object(bridge, "ThreadingHTTPServer", return_value=server) as http, \
+                patch.object(bridge.threading, "Thread") as thread, \
+                patch.object(bridge.rclpy, "init", create=True) as initialize, \
+                patch.object(bridge.rclpy, "shutdown", create=True) as shutdown, \
+                patch.object(bridge.BridgeHandler, "node", None, create=True):
+            for arguments, mode in (([], "full"), (["--mode", "actions-only"], "actions-only")):
+                bridge.main(arguments)
+                construct.assert_called_with(mode)
+                initialize.assert_called_with(args=[])
+                http.assert_called_with(("127.0.0.1", bridge.PORT), bridge.BridgeHandler)
+        self.assertEqual(2, thread.return_value.start.call_count)
+        self.assertEqual(2, node.resume_action_interlock.call_count)
+        self.assertEqual(2, node.destroy_node.call_count)
+        self.assertEqual(2, executor.shutdown.call_count)
+        self.assertEqual(2, server.shutdown.call_count)
+        self.assertEqual(2, shutdown.call_count)
+
+    def test_map_lidar_and_navigation_methods_refuse_before_catalog_or_motion_work(self):
+        node = self.node()
+        with patch.object(bridge, "read_map_catalog", Mock(side_effect=AssertionError("No map catalog access"))):
+            for dispatch in (
+                node.lidar_frame, node.list_maps, node.start_mapping,
+                lambda: node.query_map("test"), lambda: node.stored_grid("test"),
+                lambda: node.publish_command("start_mapping"),
+                lambda: node.activate_map("test"), lambda: node._activate_map("test"),
+                lambda: node.send_navigation(task_id=1, map_id=1, target={}, action=1),
+                lambda: node._send_navigation(task_id=1, map_id=1, target={}, action=1),
+            ):
+                with self.subTest(dispatch=dispatch):
+                    with self.assertRaisesRegex(bridge.AdapterError, "仅动作模式"):
+                        dispatch()
+        self.assertFalse(node.motion_action_lock.locked())
+        self.assertEqual("idle", node.mapping_status)
+        self.assertEqual({}, self.publications)
+        self.assertTrue(all(not client.requests for client in self.clients.values()))
+
+    def handler(self, node, path, body=None):
+        handler = bridge.BridgeHandler.__new__(bridge.BridgeHandler)
+        handler.node = node
+        handler.path = path
+        handler.authorize = Mock()
+        handler.read_json = Mock(return_value=body if body is not None else {})
+        handler.send_json = Mock()
+        return handler
+
+    def test_route_boundary_refuses_vendor_requests_before_reading_body_or_mutating_state(self):
+        node = self.node()
+        for method, paths in (
+            ("GET", ("/v1/maps", "/v1/maps/test/grid", "/v1/lidar")),
+            ("POST", ("/v1/mapping/start", "/v1/mapping/stop-save", "/v1/maps/test/activate",
+                      "/v1/navigation/start", "/v1/navigation/control")),
+        ):
+            for path in paths:
+                with self.subTest(method=method, path=path):
+                    handler = self.handler(node, path)
+                    getattr(handler, "do_" + method)()
+                    self.assertEqual(404, handler.send_json.call_args.args[0])
+                    handler.authorize.assert_called_once()
+                    handler.read_json.assert_not_called()
+        self.assertEqual("idle", node.mapping_status)
+
+    def test_expression_route_uses_only_emoji_service_and_preserves_uncertainty_interlock(self):
+        node = self.node()
+        node.get_clock = lambda: obj(now=lambda: obj(to_msg=lambda: "stamp"))
+        client = node.expression_client
+        client.responses = [obj(success=True)]
+        factory = lambda: obj(header=obj(header=obj(stamp=None)), emotion_id=0, mode=0, priority=0)
+        with patch.object(bridge, "PlayEmoji", request_type(factory)):
+            handler = self.handler(node, "/v1/expression", {"name": "开心"})
+            handler.do_POST()
+            self.assertEqual(202, handler.send_json.call_args.args[0])
+            self.assertEqual(bridge.EXPRESSIONS["开心"], client.requests[0].emotion_id)
+            node._set_action_interlock("uncertain")
+            handler = self.handler(node, "/v1/expression", {"name": "开心"})
+            handler.do_POST()
+            self.assertEqual(409, handler.send_json.call_args.args[0])
+        self.assertEqual(1, len(client.requests))
+        self.assertTrue(all(not value.requests for name, value in self.clients.items() if not name.endswith("PlayEmoji")))
+
+    def test_state_health_and_read_only_preset_status_routes_remain_available(self):
+        node = self.node()
+        handler = self.handler(node, "/v1/state")
+        handler.do_GET()
+        self.assertEqual(200, handler.send_json.call_args.args[0])
+        self.assertEqual("actions-only", handler.send_json.call_args.args[1]["bridgeMode"])
+        node.preset_motion_status = Mock(return_value={"taskId": "9", "status": "finished"})
+        handler = self.handler(node, "/v1/motions/preset/9")
+        handler.do_GET()
+        node.preset_motion_status.assert_called_once_with(9)
+        self.assertEqual(200, handler.send_json.call_args.args[0])
+        handler = self.handler(node, "/health")
+        with patch.object(bridge.rclpy, "ok", lambda: True, create=True):
+            handler.do_GET()
+        self.assertEqual({"ok": True, "bridgeMode": "actions-only", "physicalActionsEnabled": False},
+                         handler.send_json.call_args.args[1])
+
+    def test_explicit_mode_parser_rejects_unknown_modes_before_ros_initialization(self):
+        with patch.object(bridge.rclpy, "init", create=True) as initialize, redirect_stderr(io.StringIO()):
+            with self.assertRaises(SystemExit) as error:
+                bridge.main(["--mode", "unknown"])
+            self.assertEqual(2, error.exception.code)
+            initialize.assert_not_called()
+        with self.assertRaises(ValueError):
+            bridge.X2Node("unknown")
 
 
 if __name__ == "__main__":
