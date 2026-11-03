@@ -5,6 +5,21 @@ route. Earlier vendor-only acceptance records in ACCEPTANCE.md are historical;
 vendor SLAM licensing is not a prerequisite for this route. No robot connection
 or deployment is authorized by completing an offline check.
 
+The [official-component startup milestone](NAV2_COMPONENT_STARTUP_20261104.md)
+uses upstream Humble composition without replacing vendor DDS/AIMDK or relaxing
+admission deadlines. An earlier service diagnostic passed twelve starts and all
+104 replies. Final-source production-path tests pass all three cases with
+synthetic sensors/in-memory output, including eight fresh prewarms. The separate
+full API suite still fails repeated startup: per-call timing captured 333-ms
+publishing and, in a later experiment, 331-ms callback dispatch. ClockQoS, async
+publishing and system-time experiments did not fix it and were withdrawn.
+Blocking ROS IO still needs separation from the watchdog owner; this is not yet
+implemented or accepted. Final regressions pass 104 focused Python tests,
+15 bundle tests, one Linux wrapper test and 750 TypeScript tests (25 explicit
+skips); Web/API/runtime checks and Web/API builds pass. Those passes do not
+supersede the failing actual-Nav2 API stress test. This is not physical or
+complete-product acceptance.
+
 The [lifecycle reply freshness correction](LIFECYCLE_REPLY_FRESHNESS_20261104.md)
 rejects delayed GetState replies using query issue time instead of renewing them
 at processing time. Managed and passive clients pass a deterministic actual-ROS

@@ -7,7 +7,7 @@ import tempfile
 import threading
 import unittest
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import offline_nav2_service as product
@@ -202,6 +202,119 @@ class Generation:
 
     def close(self):
         self.closed = self.retiring = self.drained = True
+
+
+class CallbackBudgetTests(unittest.TestCase):
+    def test_timing_instrumentation_preserves_all_publisher_qos(self):
+        node = SimpleNamespace(create_publisher=Mock(), create_client=Mock())
+        modules = {
+            'rclpy': SimpleNamespace(create_node=Mock(return_value=node)),
+            'rclpy.action': SimpleNamespace(ActionClient=Mock()),
+            'rclpy.qos': SimpleNamespace(QoSProfile=SimpleNamespace,
+                DurabilityPolicy=SimpleNamespace(TRANSIENT_LOCAL='latched', VOLATILE='volatile'),
+                ReliabilityPolicy=SimpleNamespace(RELIABLE='reliable', BEST_EFFORT='best_effort')),
+            'nav_msgs.msg': SimpleNamespace(OccupancyGrid=object(), Odometry=object()),
+            'nav2_msgs.action': SimpleNamespace(NavigateToPose=object()),
+            'sensor_msgs.msg': SimpleNamespace(PointCloud2=object()),
+            'tf2_msgs.msg': SimpleNamespace(TFMessage=object()),
+            'rosgraph_msgs.msg': SimpleNamespace(Clock=object()),
+            'lifecycle_msgs.srv': SimpleNamespace(GetState=SimpleNamespace(Request=object)),
+            'nav2_msgs.srv': SimpleNamespace(ManageLifecycleNodes=SimpleNamespace(Request=object)),
+        }
+        with tempfile.TemporaryDirectory() as raw, patch.dict(sys.modules, modules), \
+                patch.dict(product.os.environ, ROS_DOMAIN_ID='174'), \
+                patch.object(product, 'prepare', return_value={'namespace': 'synthetic'}), \
+                patch.object(product, 'HumbleTwistSource'), patch.object(product, 'LifecycleStartup'), \
+                patch.object(product.subprocess, 'Popen'):
+            output = Path(raw)
+            (output / ('a' * 32)).mkdir()
+            owner = SimpleNamespace(output=output, runtime=SimpleNamespace(command_timeout=.15))
+            generation = product.Generation(owner, SimpleNamespace(epoch='a' * 32), None)
+            try:
+                profiles = {call.args[1]: call.args[2] for call in node.create_publisher.call_args_list}
+                self.assertEqual({'traversable_map', 'odom', 'tf', 'registered_obstacles', '/clock'}, set(profiles))
+                self.assertEqual(SimpleNamespace(depth=1, reliability='reliable', durability='latched'),
+                    profiles['traversable_map'])
+                self.assertEqual({'odom': 10, 'tf': 20, 'registered_obstacles': 10, '/clock': 10},
+                    {name: profiles[name] for name in ('odom', 'tf', 'registered_obstacles', '/clock')})
+            finally:
+                generation.log.close()
+
+    def test_construction_phases_preserve_their_actual_steady_time_intervals(self):
+        generation = product.Generation.__new__(product.Generation)
+        generation.construction_phases, generation.construction_previous = [], 2.
+        with patch.object(product.time, 'monotonic', side_effect=(2.4, 2.7)):
+            generation.constructed('node')
+            generation.constructed('publishers')
+        first, second = generation.construction_phases
+        self.assertEqual(('node', 2.), (first['stage'], first['startedAt']))
+        self.assertEqual(('publishers', 2.4), (second['stage'], second['startedAt']))
+        self.assertAlmostEqual(.4, first['elapsedSeconds'])
+        self.assertAlmostEqual(.3, second['elapsedSeconds'])
+
+    def generation(self):
+        generation = product.Generation.__new__(product.Generation)
+        generation.retiring, generation.sent, generation.next_sensor = False, True, 0.
+        generation.tick_phase_maximum_seconds = {}
+        generation.node, generation.publish = object(), Mock()
+        generation.velocity_source = SimpleNamespace(take=lambda: None)
+        generation.lifecycle = SimpleNamespace(failure=None)
+        generation.process = SimpleNamespace(poll=lambda: None)
+        return generation
+
+    def test_each_publisher_is_measured_without_altering_message_or_return(self):
+        generation = self.generation()
+        clock = [0.]
+        for name, duration in (('clock', .001), ('tf', .002), ('odom', .003),
+                               ('map', .335), ('cloud', .004)):
+            with self.subTest(name=name):
+                message, result = object(), object()
+                def publish(value):
+                    self.assertIs(message, value)
+                    clock[0] += duration
+                    return result
+                publisher = Mock(publish=Mock(side_effect=publish))
+                generation.publishers = {name: publisher}
+                with patch.object(product.time, 'monotonic', side_effect=lambda: clock[0]):
+                    self.assertIs(result, generation.publish_one(name, message))
+                publisher.publish.assert_called_once_with(message)
+                self.assertAlmostEqual(duration, generation.tick_phase_maximum_seconds['publish_' + name])
+
+    def test_failed_publish_is_timed_and_not_hidden_or_retried(self):
+        generation = self.generation()
+        generation.publishers = {'map': Mock(publish=Mock(side_effect=RuntimeError('synthetic')))}
+        with patch.object(product.time, 'monotonic', side_effect=(0., .4)), \
+                self.assertRaisesRegex(RuntimeError, 'synthetic'):
+            generation.publish_one('map', object())
+        self.assertAlmostEqual(.4, generation.tick_phase_maximum_seconds['publish_map'])
+        self.assertEqual(1, generation.publishers['map'].publish.call_count)
+
+    def test_callback_batch_yields_at_five_milliseconds(self):
+        generation = self.generation()
+        clock = [0.]
+        def spin(*args, **kwargs):
+            clock[0] += .003
+        ros = SimpleNamespace(spin_once=Mock(side_effect=spin))
+        with patch.dict(sys.modules, {'rclpy': ros}), \
+                patch.object(product.time, 'monotonic', side_effect=lambda: clock[0]):
+            generation.tick()
+        self.assertEqual(2, ros.spin_once.call_count)
+        self.assertAlmostEqual(.006, generation.tick_phase_maximum_seconds['callbacks'])
+        ros.spin_once.assert_called_with(generation.node, timeout_sec=0.)
+
+    def test_instant_callbacks_still_have_a_count_bound(self):
+        generation = self.generation()
+        ros = SimpleNamespace(spin_once=Mock())
+        with patch.dict(sys.modules, {'rclpy': ros}), patch.object(product.time, 'monotonic', return_value=0.):
+            generation.tick()
+        self.assertEqual(40, ros.spin_once.call_count)
+
+    def test_retirement_inside_callback_stops_dispatch_immediately(self):
+        generation = self.generation()
+        ros = SimpleNamespace(spin_once=Mock(side_effect=lambda *args, **kwargs: setattr(generation, 'retiring', True)))
+        with patch.dict(sys.modules, {'rclpy': ros}), patch.object(product.time, 'monotonic', return_value=0.):
+            generation.tick()
+        self.assertEqual(1, ros.spin_once.call_count)
 
 
 class ServiceTests(unittest.TestCase):

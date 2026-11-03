@@ -41,29 +41,34 @@ def verify_preparation(root, environment):
 
 def generate_launch_description():
     from launch import LaunchDescription
-    from launch.actions import DeclareLaunchArgument, GroupAction
+    from launch.actions import DeclareLaunchArgument
     from launch.substitutions import LaunchConfiguration
-    from launch_ros.actions import Node, PushRosNamespace
+    from launch_ros.actions import ComposableNodeContainer
+    from launch_ros.descriptions import ComposableNode
     from launch_ros.parameter_descriptions import ParameterValue
     root = Path(__file__).resolve().parent
     manifest = verify_preparation(root, os.environ)
     namespace = manifest['namespace']
     nodes = []
-    for name, package in (('planner_server', 'nav2_planner'),
-                          ('controller_server', 'nav2_controller'),
-                          ('bt_navigator', 'nav2_bt_navigator')):
-        nodes.append(Node(package=package, executable=name, name=name, output='log',
+    for name, package, plugin in (('planner_server', 'nav2_planner', 'nav2_planner::PlannerServer'),
+                          ('controller_server', 'nav2_controller', 'nav2_controller::ControllerServer'),
+                          ('bt_navigator', 'nav2_bt_navigator', 'nav2_bt_navigator::BtNavigator')):
+        nodes.append(ComposableNode(package=package, plugin=plugin, name=name, namespace='/' + namespace,
                           parameters=[str(root / 'nav2-parameters.yaml')],
                           remappings=[('/tf', 'tf'), ('/tf_static', 'tf_static'),
                                       ('cmd_vel', 'raw_cmd_vel')]))
-    nodes.append(Node(package='nav2_velocity_smoother', executable='velocity_smoother',
-                      name='velocity_smoother', output='log',
+    nodes.append(ComposableNode(package='nav2_velocity_smoother', plugin='nav2_velocity_smoother::VelocitySmoother',
+                      name='velocity_smoother', namespace='/' + namespace,
                       parameters=[str(root / 'nav2-parameters.yaml')],
                       remappings=[('cmd_vel', 'raw_cmd_vel'), ('cmd_vel_smoothed', 'observed_cmd_vel')]))
-    nodes.append(Node(package='nav2_lifecycle_manager', executable='lifecycle_manager',
-                      name='lifecycle_manager', output='log', parameters=[dict(
+    nodes.append(ComposableNode(package='nav2_lifecycle_manager', plugin='nav2_lifecycle_manager::LifecycleManager',
+                      name='lifecycle_manager', namespace='/' + namespace, parameters=[dict(
                           use_sim_time=True, autostart=ParameterValue(LaunchConfiguration('autostart'), value_type=bool),
                           node_names=['planner_server', 'controller_server', 'bt_navigator', 'velocity_smoother'],
                           bond_timeout=2.)]))
-    return LaunchDescription([DeclareLaunchArgument('autostart', default_value='true'),
-                              GroupAction([PushRosNamespace(namespace), *nodes])])
+    # Official Humble composition: one participant, separate executor per component.
+    container = ComposableNodeContainer(package='rclcpp_components', executable='component_container_isolated',
+        name='nav2_container', namespace='/' + namespace, output='log', composable_node_descriptions=nodes,
+        sigterm_timeout='0.2', sigkill_timeout='0.2',
+        parameters=[str(root / 'nav2-parameters.yaml')], remappings=[('/tf', 'tf'), ('/tf_static', 'tf_static')])
+    return LaunchDescription([DeclareLaunchArgument('autostart', default_value='true'), container])

@@ -41,12 +41,16 @@ class Generation:
         from lifecycle_msgs.srv import GetState
         from nav2_msgs.srv import ManageLifecycleNodes
         self.owner, self.ticket, self.goal = owner, ticket, goal
+        self.construction_phases, self.construction_previous = [], time.monotonic()
+        self.tick_phase_maximum_seconds = {}
         self.retiring, self.sent, self.handle = False, False, None
         self.sequence = 0
         output = owner.output / ticket.epoch
         manifest = prepare(synthetic_platform(), output, domain_id=int(os.environ['ROS_DOMAIN_ID']))
+        self.constructed('preparation')
         self.namespace = manifest['namespace']
         self.node = rclpy.create_node('product_fixture', namespace=self.namespace)
+        self.constructed('node')
         reliable = QoSProfile(depth=1, reliability=ReliabilityPolicy.RELIABLE,
                               durability=DurabilityPolicy.TRANSIENT_LOCAL)
         self.publishers = {
@@ -56,13 +60,17 @@ class Generation:
             'cloud': self.node.create_publisher(PointCloud2, 'registered_obstacles', 10),
             'clock': self.node.create_publisher(Clock, '/clock', 10),
         }
+        self.constructed('publishers')
         self.velocity_source = HumbleTwistSource(self.namespace,
             maximum_age_ns=int(owner.runtime.command_timeout * 1e9))
+        self.constructed('velocity_source')
         self.action = ActionClient(self.node, NavigateToPose, 'navigate_to_pose')
+        self.constructed('action_client')
         clients = [self.node.create_client(GetState, name + '/get_state') for name in LifecycleStartup.names]
         manager = self.node.create_client(ManageLifecycleNodes, 'lifecycle_manager/manage_nodes')
         self.lifecycle = LifecycleStartup(clients, manager, GetState.Request,
             lambda: ManageLifecycleNodes.Request(command=ManageLifecycleNodes.Request.STARTUP))
+        self.constructed('lifecycle_clients')
         self.next_sensor = 0.
         self.started_at = time.monotonic()
         self.diagnostic = output / 'startup.json'
@@ -71,16 +79,34 @@ class Generation:
             self.process = subprocess.Popen(['ros2', 'launch', str(output / 'nav2_offline.launch.py'),
                 'autostart:=false'],
                 stdin=subprocess.DEVNULL, stdout=self.log, stderr=subprocess.STDOUT, start_new_session=True)
+            self.constructed('launch')
         except BaseException:
             self.velocity_source.close()
             self.node.destroy_node()
             self.log.close()
             raise
 
+    def constructed(self, stage):
+        now = time.monotonic()
+        self.construction_phases.append(dict(stage=stage, startedAt=self.construction_previous,
+            elapsedSeconds=now - self.construction_previous))
+        self.construction_previous = now
+
+    def measured(self, stage, operation):
+        started = time.monotonic()
+        try:
+            return operation()
+        finally:
+            self.tick_phase_maximum_seconds[stage] = max(
+                self.tick_phase_maximum_seconds.get(stage, 0.), time.monotonic() - started)
+
     def stamp(self):
         from builtin_interfaces.msg import Time
         seconds = time.monotonic() - self.owner.origin
         return Time(sec=int(seconds), nanosec=int((seconds % 1) * 1e9))
+
+    def publish_one(self, name, message):
+        return self.measured('publish_' + name, lambda: self.publishers[name].publish(message))
 
     def velocity(self, message, generated):
         self.sequence += 1
@@ -137,7 +163,7 @@ class Generation:
         from tf2_msgs.msg import TFMessage
         from rosgraph_msgs.msg import Clock
         pose, source, now = self.owner.pose, self.owner.source, self.stamp()
-        self.publishers['clock'].publish(Clock(clock=now))
+        self.publish_one('clock', Clock(clock=now))
         transforms = []
         for parent, child, values in ((self.namespace + '_map', self.namespace + '_odom', (0., 0., 0.)),
                                      (self.namespace + '_odom', self.namespace + '_base', pose)):
@@ -147,13 +173,13 @@ class Generation:
             transform.transform.rotation.z = math.sin(values[2] / 2)
             transform.transform.rotation.w = math.cos(values[2] / 2)
             transforms.append(transform)
-        self.publishers['tf'].publish(TFMessage(transforms=transforms))
+        self.publish_one('tf', TFMessage(transforms=transforms))
         odom = Odometry()
         odom.header.stamp, odom.header.frame_id, odom.child_frame_id = now, self.namespace + '_odom', self.namespace + '_base'
         odom.pose.pose.position.x, odom.pose.pose.position.y = pose[0], pose[1]
         odom.pose.pose.orientation = transforms[-1].transform.rotation
         odom.twist.twist.linear.x, odom.twist.twist.linear.y, odom.twist.twist.angular.z = self.owner.observer.latest
-        self.publishers['odom'].publish(odom)
+        self.publish_one('odom', odom)
         if not sensors:
             return
         grid = OccupancyGrid()
@@ -161,7 +187,7 @@ class Generation:
         grid.info.width, grid.info.height, grid.info.resolution = source['width'], source['height'], source['resolution']
         grid.info.origin.position.x, grid.info.origin.position.y = source['origin']
         grid.info.origin.orientation.w, grid.data = 1., source['cells']
-        self.publishers['map'].publish(grid)
+        self.publish_one('map', grid)
         cloud = PointCloud2()
         cloud.header.stamp, cloud.header.frame_id = now, self.namespace + '_map'
         visible = self.owner.visible_points()
@@ -170,18 +196,18 @@ class Generation:
                         for i, name in enumerate(('x', 'y', 'z'))]
         cloud.point_step, cloud.row_step, cloud.is_dense = 12, 12 * cloud.width, True
         cloud.data = b''.join(struct.pack('<fff', *point) for point in visible)
-        self.publishers['cloud'].publish(cloud)
+        self.publish_one('cloud', cloud)
 
     def tick(self):
         import rclpy
         if self.retiring:
             return
         now = time.monotonic()
-        self.publish(now >= self.next_sensor)
+        self.measured('publish', lambda: self.publish(now >= self.next_sensor))
         if now >= self.next_sensor:
             self.next_sensor = now + .05
         try:
-            sample = self.velocity_source.take()
+            sample = self.measured('velocity_take', self.velocity_source.take)
         except SourceTimeError:
             self.owner.runtime.reject_velocity_source(self.ticket)
             return
@@ -189,16 +215,23 @@ class Generation:
             self.velocity(*sample)
             if self.retiring:
                 return
+        callback_started = time.monotonic()
+        callback_deadline = callback_started + .005
         for _ in range(40):
             rclpy.spin_once(self.node, timeout_sec=0.)
-            if self.retiring:
-                return
+            if self.retiring or time.monotonic() >= callback_deadline:
+                break
+        if self.retiring:
+            return
+        self.tick_phase_maximum_seconds['callbacks'] = max(
+            self.tick_phase_maximum_seconds.get('callbacks', 0.), time.monotonic() - callback_started)
         if not self.sent:
-            self.lifecycle.poll(now)
+            self.measured('lifecycle', lambda: self.lifecycle.poll(now))
         if self.lifecycle.failure is not None:
             self.owner.runtime.terminal(self.ticket, 'failed')
             return
-        if not self.sent and self.lifecycle.ready(now) and self.action.server_is_ready():
+        if not self.sent and self.measured('readiness',
+                lambda: self.lifecycle.ready(now) and self.action.server_is_ready()):
             self.send()
         if self.process.poll() is not None and not self.retiring:
             self.owner.runtime.terminal(self.ticket, 'failed')
@@ -218,6 +251,10 @@ class Generation:
                 states=self.lifecycle.states, observationRounds=self.lifecycle.rounds,
                 failure=self.lifecycle.failure, goalSent=self.sent,
                 runtimeDetail=self.owner.runtime.detail, startupTimeoutSeconds=self.owner.runtime.startup_timeout,
+                constructionPhases=self.construction_phases,
+                fixturePublicationMode=os.environ.get('RMW_FASTRTPS_PUBLICATION_MODE', 'SYNCHRONOUS'),
+                tickPhaseMaximumSeconds=self.tick_phase_maximum_seconds,
+                maximumLoopGapSeconds=self.owner.maximum_loop_gap,
                 acceptanceSeconds=(None if self.owner.runtime.accepted_at is None else
                     self.owner.runtime.accepted_at - self.owner.runtime.requested_at),
                 physicalMotionSent=False, navigationReady=False), stream, allow_nan=False)
@@ -248,6 +285,7 @@ class Service:
         sha = hashlib.sha256(json.dumps(self.source, sort_keys=True).encode()).hexdigest()
         self.identity = MapIdentity('slam-' + sha[:32], sha, sha, sha)
         self.origin, self.last = time.monotonic(), time.monotonic()
+        self.maximum_loop_gap = 0.
         self.observer, self.generation = Observer(), None
         self.observer.values = deque(maxlen=512)
         self.factory = ThreadPoolExecutor(max_workers=1, thread_name_prefix='nav2-generation')
@@ -287,6 +325,7 @@ class Service:
         return self.source['points'] if self.obstacle_activated else []
 
     def tick(self):
+        self.maximum_loop_gap = max(self.maximum_loop_gap, time.monotonic() - self.last)
         # Expire controller/input watchdogs before integrating or delivering callbacks.
         self.runtime.poll()
         now, (vx, vy, wz) = time.monotonic(), self.observer.latest
@@ -434,6 +473,9 @@ if __name__ == '__main__':
     args.output.mkdir(mode=0o700)
     import rclpy
     rclpy.init()
+    # Keep the Python participant alive across goal generations. Node construction
+    # can hold the GIL even in the factory thread when recreating a participant.
+    coordinator = rclpy.create_node('offline_workspace_owner', use_global_arguments=False)
     owner = Service(args.case, args.output)
     def terminate(_signal, _frame):
         raise SystemExit(1)
@@ -442,5 +484,10 @@ if __name__ == '__main__':
     try:
         serve(owner)
     finally:
-        owner.close()
-        rclpy.shutdown()
+        try:
+            owner.close()
+        finally:
+            try:
+                coordinator.destroy_node()
+            finally:
+                rclpy.shutdown()

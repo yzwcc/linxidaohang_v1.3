@@ -56,6 +56,7 @@ exec unshare --mount --net --ipc --pid --fork --kill-child=KILL /bin/bash -c '
     export ROS_LOCALHOST_ONLY=1 ROS_DOMAIN_ID=174 RMW_IMPLEMENTATION=rmw_fastrtps_cpp
     export PYTHONDONTWRITEBYTECODE=1 RCUTILS_LOGGING_USE_STDOUT=0
     if [[ $3 == check ]]; then
+      test -x /opt/ros/humble/lib/rclcpp_components/component_container_isolated
       python3 -c "import rclpy, launch_ros; from ament_index_python.packages import get_package_share_directory as share; [share(p) for p in (\"nav2_planner\", \"nav2_controller\", \"nav2_bt_navigator\", \"nav2_velocity_smoother\", \"nav2_lifecycle_manager\", \"nav2_navfn_planner\", \"nav2_regulated_pure_pursuit_controller\")]" >&2
       echo lingxi_offline_nav2_preflight_ok_v1
       exit 0

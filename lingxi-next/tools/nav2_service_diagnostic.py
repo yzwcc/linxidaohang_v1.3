@@ -135,8 +135,9 @@ def run(output):
     import rclpy
     import offline_nav2_service as product
     rclpy.init(args=[])
+    coordinator = rclpy.create_node('offline_diagnostic_owner', use_global_arguments=False)
     service = product.Service('open', trial)
-    observations, error = [], None
+    observations, retirements, error, final_state = [], [], None, None
     try:
         for index in range(12):
             current = service.state()
@@ -149,16 +150,26 @@ def run(output):
             service.request(dict(id=f'{index * 2 + 2:032x}', action='stop', session=service.session,
                 identity=asdict(service.identity), expectedEpoch=state['ticket']['epoch'],
                 taskId=state['ticket']['task_id']))
-            wait(service, lambda value: value['outputQuiescent'], time.monotonic() + 3.)
+            retired = wait(service, lambda value: value['outputQuiescent'], time.monotonic() + 3.)
+            retirements.append(dict(generation=index, state=retired))
+            if retired['phase'] != 'idle' or retired['requiresStop']:
+                raise RuntimeError('diagnostic_generation_retirement_failed')
             if failed:
+                error = 'RuntimeError:diagnostic_start_failed:' + state['detail']
                 break
     except Exception as caught:
         error = type(caught).__name__ + ':' + str(caught)
     finally:
         try:
-            service.close()
+            try:
+                final_state = service.state()
+            finally:
+                service.close()
         finally:
-            rclpy.shutdown()
+            try:
+                coordinator.destroy_node()
+            finally:
+                rclpy.shutdown()
     logs = sorted(trial.glob('*/nav2.log'))
     records = []
     try:
@@ -169,9 +180,11 @@ def run(output):
         error = error or type(caught).__name__ + ':' + str(caught)
     sources = ('tools/nav2_service_diagnostic.py', 'tools/native-service-diagnostic/service_diagnostic.cpp',
                'tools/nav2-offline-service-isolated.sh',
-               'tools/offline_nav2_service.py', 'robot-navigation/lingxi_navigation/lifecycle_startup.py')
+               'tools/offline_nav2_service.py', 'robot-navigation/lingxi_navigation/lifecycle_startup.py',
+               'robot-navigation/nav2_offline.launch.py', 'robot-navigation/lingxi_navigation/nav2_profile.py')
     report = dict(schema=1, purpose='isolated_lifecycle_service_diagnosis_not_robot_acceptance',
-        versions=versions, generations=observations, diagnostic=summary, records=records, error=error,
+        versions=versions, generations=observations, retirements=retirements, finalState=final_state,
+        diagnostic=summary, records=records, error=error,
         startupTimeoutSeconds=service.runtime.startup_timeout,
         librarySha256=hashlib.sha256(library.read_bytes()).hexdigest(),
         sources={name: hashlib.sha256((ROOT / name).read_bytes()).hexdigest() for name in sources},

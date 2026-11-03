@@ -7,6 +7,7 @@ import sys
 import tempfile
 import unittest
 from unittest.mock import patch
+from types import SimpleNamespace as NS
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import nav2_service_diagnostic as diagnostic
@@ -129,6 +130,41 @@ class ServiceDiagnosticTests(unittest.TestCase):
                 diagnostic.build(Path(raw))
             self.assertFalse((Path(raw) / 'report.json').exists())
             self.assertFalse((Path(raw) / 'native-build/liblingxi_service_diagnostic.so').exists())
+
+    def failed_run(self, *, retirement_failed=False):
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw).resolve()
+            library = root / 'native-build/liblingxi_service_diagnostic.so'
+            library.parent.mkdir()
+            library.write_bytes(b'synthetic-not-a-loadable-library')
+            idle = dict(ticket=None, phase='idle', requiresStop=False, outputQuiescent=True)
+            failed = dict(ticket=dict(epoch='a' * 32, task_id='diagnostic-0'), phase='failed',
+                detail='navigation_inputs_expired', requiresStop=True, outputQuiescent=True)
+            retired = failed if retirement_failed else idle
+            service = NS(session='synthetic', identity=None, runtime=NS(startup_timeout=5.),
+                request=lambda value: None, state=lambda: retired, close=lambda: None)
+            ros = NS(init=lambda **kwargs: None, shutdown=lambda: None,
+                create_node=lambda *args, **kwargs: NS(destroy_node=lambda: None))
+            modules = {'rclpy': ros, 'offline_nav2_service': NS(Service=lambda *args: service)}
+            with patch.object(diagnostic, 'environment', return_value={}), \
+                    patch.object(diagnostic, 'asdict', return_value={}), \
+                    patch.object(diagnostic, 'wait', side_effect=[failed, retired]), \
+                    patch.dict(sys.modules, modules), patch.dict(os.environ, {
+                        'LD_PRELOAD': str(library),
+                        'LINGXI_NAV2_SERVICE_DIAGNOSTIC': 'isolated_humble_fastdds_2_6_12'}):
+                return diagnostic.run(root)
+
+    def test_failed_generation_and_final_retirement_remain_explicit_in_report(self):
+        report = self.failed_run()
+        self.assertEqual('RuntimeError:diagnostic_start_failed:navigation_inputs_expired', report['error'])
+        self.assertEqual('failed', report['generations'][0]['state']['phase'])
+        self.assertEqual('idle', report['retirements'][0]['state']['phase'])
+        self.assertEqual('idle', report['finalState']['phase'])
+
+    def test_failed_retirement_is_not_hidden_by_a_quiescent_flag(self):
+        report = self.failed_run(retirement_failed=True)
+        self.assertEqual('RuntimeError:diagnostic_generation_retirement_failed', report['error'])
+        self.assertEqual('failed', report['retirements'][0]['state']['phase'])
 
 
 if __name__ == '__main__':
