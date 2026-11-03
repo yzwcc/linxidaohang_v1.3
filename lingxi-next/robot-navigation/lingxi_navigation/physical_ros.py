@@ -649,6 +649,10 @@ class AimdkVelocityOutput:
         self.physical_motion_sent = False
         self.feedback = None
         self.closed = False
+        self.controller_fault = False
+        self.armed_at = self.last_command_at = self.last_command_generated = None
+        self.command_sequence = 0
+        self.last_velocity = (0., 0., 0.)
 
     def _owned(self):
         if threading.get_ident() != self.owner:
@@ -661,6 +665,7 @@ class AimdkVelocityOutput:
         name = getattr(input_source, "name", None)
         current = getattr(fsm_state, "current_state", None)
         if name != self.source or type(current) is not int:
+            self.state = None
             return False
         received = self.clock()
         if not finite(received):
@@ -757,7 +762,8 @@ class AimdkVelocityOutput:
 
     def ready(self, identity: MapEvidence) -> bool:
         self._owned()
-        if self.closed or identity != self.identity or not self.input_source_ready or self.retiring is not None:
+        if (self.closed or identity != self.identity or not self.input_source_ready
+                or self.retiring is not None or self.controller_fault):
             return False
         if self.state is None:
             return False
@@ -772,8 +778,58 @@ class AimdkVelocityOutput:
         self.ticket = ticket
         self.armed = True
         self.completed_retirement = None
-        self.physical_motion_sent = False
+        self.armed_at = self.clock()
+        self.last_command_at = self.last_command_generated = None
+        self.command_sequence = 0
+        self.last_velocity = (0., 0., 0.)
         return True
+
+    def fence_controller(self):
+        """Invalidate before zero publication; an explicit stop must recover it."""
+        self._owned()
+        if not self.closed and not self.controller_fault:
+            self.armed, self.controller_fault = False, True
+            self.publisher.publish(self._message())
+
+    def command(self, command, limits, observation):
+        from .physical_bridge import Observation
+        from .physical_velocity import ControllerCommand, VelocityLimits
+        self._owned()
+        # Stale generations are inert, including after a different task is armed.
+        if type(command) is ControllerCommand and command.ticket != self.ticket:
+            return False
+        if type(command) is ControllerCommand and (self.closed or not self.armed or self.retiring is not None):
+            return False
+        try:
+            now = self.clock()
+            watchdog_origin = self.armed_at if self.last_command_generated is None else self.last_command_generated
+            watchdog_timeout = limits.first_command_timeout if self.last_command_generated is None else limits.command_age
+            if (type(command) is not ControllerCommand or type(limits) is not VelocityLimits
+                    or not self.armed or not self.ready(command.identity)
+                    or limits.identity != self.identity or command.identity != self.identity
+                    or type(observation) is not Observation or observation.identity != self.identity
+                    or not all(observation.checks.values())
+                    or not 0 <= now - observation.observed_at <= .3
+                    or not self.armed_at <= command.generated_at <= now
+                    or not 0 <= now - watchdog_origin <= watchdog_timeout
+                    or not 0 <= now - command.generated_at <= limits.command_age
+                    or command.sequence <= self.command_sequence
+                    or (self.last_command_generated is not None
+                        and command.generated_at <= self.last_command_generated)):
+                raise ValueError('current_generation_controller_evidence_required')
+            origin = self.armed_at if self.last_command_at is None else self.last_command_at
+            generated_origin = self.armed_at if self.last_command_generated is None else self.last_command_generated
+            values = limits.bounded((command.forward, command.lateral, command.angular), self.last_velocity,
+                                    min(now - origin, command.generated_at - generated_origin))
+            self.command_sequence, self.last_command_at = command.sequence, now
+            self.last_command_generated, self.last_velocity = command.generated_at, values
+            # This records an attempted nonzero dispatch, not measured robot motion.
+            self.physical_motion_sent = self.physical_motion_sent or any(value != 0. for value in values)
+            self.publisher.publish(self._message(*values))
+            return True
+        except Exception:
+            self.fence_controller()
+            raise
 
     def retire(self, ticket: Ticket | None, nonce: str):
         self._owned()
@@ -818,6 +874,7 @@ class AimdkVelocityOutput:
         if proof is not None:
             self.completed_retirement = proof
             self.retiring = self.zero_published_at = None
+            self.controller_fault = False
         return proof
 
     def close(self):

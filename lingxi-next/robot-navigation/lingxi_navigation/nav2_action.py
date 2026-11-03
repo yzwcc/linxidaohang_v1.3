@@ -16,6 +16,7 @@ from .navfn import finite
 @dataclass
 class _Generation:
     ticket: Ticket
+    accepted_at: float | None = None
     retiring: bool = False
     terminal: bool = False
     uncertain: bool = False
@@ -102,6 +103,7 @@ class Nav2ActionDriver:
             if generation.retiring:
                 self._cancel_handle(generation)
             else:
+                generation.accepted_at = self.clock()
                 self._event(generation, 'accepted')
         except Exception:
             generation.uncertain = True
@@ -220,17 +222,23 @@ class RosNavigationBackend:
     activate selects a verified map and updates the sensor/output owners together.
     The caller's existing single-threaded ROS executor owns tick/spinning.
     """
-    def __init__(self, driver, sensors, output, activate, spin):
+    def __init__(self, driver, sensors, output, activate, spin, *, controller=None):
+        from .physical_velocity import ControllerVelocityChannel
         if type(driver) is not Nav2ActionDriver or not callable(activate) or not callable(spin):
             raise ValueError('owned_ros_action_evidence_and_output_sources_required')
+        if controller is not None and (type(controller) is not ControllerVelocityChannel or controller.output is not output):
+            raise ValueError('owned_controller_velocity_channel_required')
         self.driver, self.sensors, self.output = driver, sensors, output
         self.activate, self.spin = activate, spin
+        self.controller = controller
         self.retiring_ticket = None
 
     def tick(self):
         self.spin()
         self.output.poll()
         self.driver.poll()
+        if self.controller is not None and self.driver.generation is not None:
+            self.controller.poll(self.driver.generation, self.observe())
 
     def observe(self):
         from .physical_bridge import Observation
@@ -242,6 +250,10 @@ class RosNavigationBackend:
         # Sensor evidence cannot vouch for the independent AIMDK output owner.
         # Readiness is granted only by its current, nonce-fenced feedback.
         checks['velocityOutput'] = self.output.ready(value.identity)
+        from .physical_ros import AimdkVelocityOutput
+        if isinstance(self.output, AimdkVelocityOutput):
+            checks['velocityOutput'] = (checks['velocityOutput'] and self.controller is not None
+                                        and self.controller.ready(value.identity))
         sent = self.output.physical_motion_sent
         if type(sent) is not bool:
             raise ValueError('typed_output_motion_receipt_required')
@@ -255,19 +267,28 @@ class RosNavigationBackend:
         if current is not None and not self.driver.action_retired(current.ticket):
             raise RuntimeError('previous_nav2_action_retirement_required')
         value = self.observe()
-        if not all(value.checks.values()) or self.output.arm(ticket, value.identity) is not True:
+        if not all(value.checks.values()):
+            raise RuntimeError('exclusive_output_generation_not_confirmed')
+        if self.controller is not None:
+            self.controller.arm(ticket, value.identity, self.driver.node.get_namespace())
+        elif self.output.arm(ticket, value.identity) is not True:
             raise RuntimeError('exclusive_output_generation_not_confirmed')
         self.driver.start(ticket, goal)
 
     def retire(self, ticket, nonce):
         self.retiring_ticket = self.driver.generation.ticket if self.driver.generation is not None else None
         try:
-            self.output.retire(ticket, nonce)
+            try:
+                if self.controller is not None:
+                    self.controller.retire()
+            finally:
+                self.output.retire(ticket, nonce)
         finally:
             self.driver.cancel(self.retiring_ticket)
 
     def retirement(self, nonce):
-        if not self.driver.action_retired(self.retiring_ticket):
+        if (not self.driver.action_retired(self.retiring_ticket)
+                or (self.controller is not None and not self.controller.quiescent())):
             return None
         return self.output.complete_retirement(nonce)
 

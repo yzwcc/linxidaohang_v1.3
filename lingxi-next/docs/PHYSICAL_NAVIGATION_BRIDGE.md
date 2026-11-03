@@ -16,10 +16,14 @@ Unix Socket 客户端与 AIMDK 输出适配器；真实机器人 topic/frame、N
 本次源代码更新晚于 0.1.22，未改写原安装包或 APK。详细结果及限制见
 [ROS 证据验证记录](PHYSICAL_ROS_EVIDENCE_20261103.md)。
 
-当前 `AimdkVelocityOutput` 只有注册、arm 和零速清退，尚未转发 Nav2 非零速度；
-`FileMapActivator.activate_map` 只有地图证据核验，尚未加载 Nav2 地图或设置定位初值。
+当前 `AimdkVelocityOutput.command` 已提供按任务、地图证据、时效和速度限制校验的非零速度转发；
+`ControllerVelocityChannel` 已接入 `RosNavigationBackend` 的可选组合路径，清退先关闭速度订阅源。
+但部署入口尚未提供每任务独占的 Nav2 进程/Action 客户端管理，也没有装配该速度通道，
+因此真实 AIMDK 输出缺少该通道时明确报告 `velocityOutput=false`，不能启动物理导航。
+`FileMapActivator.activate_map` 仍只有地图证据核验，尚未加载 Nav2 地图或设置定位初值。
 地形 `OccupancyGrid` 的新鲜度也不等于地面支撑、标定或几何精度验收通过。
 物理桥不会随此次更新自动启用；ARM64 目标运行验证及实机导航仍未完成。
+新增速度通道的验证与限制见 [速度链路记录](PHYSICAL_VELOCITY_VALIDATION_20261103.md)。
 
 ## AIMDK v1.1.0 输出确认
 
