@@ -68,6 +68,18 @@ class ReleaseScopeTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, 'declared_independent_commissioning_components_missing'):
                     verify_independent_scope(status, json.dumps(scope), INDEPENDENT_FILES - {filename})
 
+    def test_installed_mapping_provisioning_helpers_are_mandatory(self):
+        scope = json.loads((Path(__file__).resolve().parents[2] / 'deploy/independent-scope.json').read_bytes())
+        status = {'classification': 'commissioning', 'productionAccepted': False,
+                  'independentStackIncluded': True, 'independent': scope}
+        for module in ('arm64_python_runtime', 'check_installed_slam_python',
+                       'prepare_installed_mapping_inputs'):
+            filename = 'independent/source/tools/' + module + '.py'
+            with self.subTest(module=module):
+                self.assertIn(filename, INDEPENDENT_FILES)
+                with self.assertRaisesRegex(ValueError, 'declared_independent_commissioning_components_missing'):
+                    verify_independent_scope(status, json.dumps(scope), INDEPENDENT_FILES - {filename})
+
     def test_native_source_reference_closure_checks_actual_verifiers_without_importing(self):
         root = Path(__file__).resolve().parents[2]
         captured = {'independent/source/' + name: (root / name).read_bytes() for name in BOUND_SOURCE_MODULES}
