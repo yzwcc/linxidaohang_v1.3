@@ -267,6 +267,67 @@ class ActualOwnedNav2Tests(unittest.TestCase):
             allGenerationsQuiescent=True, startupTimeoutSeconds=self.backend.startup_timeout,
             physicalMotionSent=False, navigationReady=False)), encoding='utf-8')
 
+    def test_delayed_real_get_state_replies_do_not_refresh_managed_or_passive_readiness(self):
+        from lingxi_navigation.nav2_action import Nav2ActionDriver
+        self.command('stop')
+        self.until(lambda: self.bridge.phase == 'idle' and not self.bridge.requires_stop)
+        self.command('activate_map')
+        self.until(lambda: self.bridge.state(poll=False)['navigationReady'])
+        generation = self.backend.generation
+        startup = generation.driver.startup
+        self.until(lambda: all(future is not None for future in startup.futures))
+        passive = Nav2ActionDriver(generation.node, self.profile.map_frame)
+        self.addCleanup(passive.close)
+        passive.poll()
+        delayed = []
+        for label, driver in (('managed', generation.driver), ('passive', passive)):
+            with self.subTest(mode=label):
+                if label == 'managed':
+                    pending = tuple(startup.futures)
+                    issued = tuple(startup.issued)
+                    rounds = list(startup.rounds)
+                else:
+                    pending, issued = zip(*driver.pending_states.values())
+                self.assertEqual(4, len(pending))
+                self.assertTrue(all(future is not None for future in pending))
+                # Keep real ROS callbacks/sensors alive without consuming lifecycle replies.
+                until = max(issued) + driver.lifecycle_max_age + .15
+                while time.monotonic() < until:
+                    self.spin()
+                    time.sleep(.002)
+                self.assertTrue(all(future.done() and future.result().current_state.id == 3
+                                    for future in pending))
+                self.assertFalse(driver.ready())
+                driver.poll()
+                self.assertFalse(driver.ready(), 'consuming delayed responses cannot renew readiness')
+                if label == 'managed':
+                    self.assertEqual([None] * 4, startup.observed)
+                    self.assertEqual(rounds, startup.rounds)
+                else:
+                    self.assertEqual({}, driver.lifecycle)
+                delayed.append(dict(mode=label, rejectedReplies=4,
+                    oldestRequestAgeSeconds=time.monotonic() - min(issued)))
+                deadline = time.monotonic() + 5.
+                while not driver.ready():
+                    self.bridge.tick()
+                    if driver is passive:
+                        driver.poll()
+                    self.assertLess(time.monotonic(), deadline)
+                    time.sleep(.002)
+                self.assertTrue(startup.sent and startup.confirmed)
+                self.assertIsNone(generation.driver.generation)
+                self.assertFalse(self.output.armed)
+                self.assertEqual(0, self.nonzero_count())
+        passive.close()
+        self.backend.close()
+        self.assertTrue(generation.quiescent())
+        (self.root / 'result.json').write_text(json.dumps(dict(schema=1,
+            purpose='delayed_ros_lifecycle_replies_not_robot_acceptance', results=delayed,
+            lifecycleMaximumAgeSeconds=passive.lifecycle_max_age,
+            startupTimeoutSeconds=self.backend.startup_timeout,
+            freshQueriesRecovered=True, prewarmNonzeroOutputCount=0,
+            allGenerationsQuiescent=True, physicalMotionSent=False, navigationReady=False)), encoding='utf-8')
+
     def test_real_launch_guard_activation_pause_resume_localization_and_sensor_loss(self):
         self.command('stop')
         self.until(lambda: self.bridge.phase == 'idle' and not self.bridge.requires_stop)

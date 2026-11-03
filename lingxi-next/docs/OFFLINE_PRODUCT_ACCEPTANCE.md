@@ -5,6 +5,17 @@ route. Earlier vendor-only acceptance records in ACCEPTANCE.md are historical;
 vendor SLAM licensing is not a prerequisite for this route. No robot connection
 or deployment is authorized by completing an offline check.
 
+The [lifecycle reply freshness correction](LIFECYCLE_REPLY_FRESHNESS_20261104.md)
+rejects delayed GetState replies using query issue time instead of renewing them
+at processing time. Managed and passive clients pass a deterministic actual-ROS
+delayed-reply test, fresh recovery and the existing production-path lifecycle
+tests. Startup deadlines and motion admission remain unchanged. The separate
+four-test API/voice Nav2 rerun passes three cases but fails repeated startup at
+generation zero with another controller change_state response-send timeout;
+that failure is preserved, not superseded by passing prewarm tests. The
+FastDDS discovery cause, repeated startup reliability and field acceptance
+remain open.
+
 The [tour timing correction](TOUR_DWELL_AND_RETURN_20261104.md) preserves point
 dwell across interruption and prevents idle return during active answers. It
 also halts task-ID-less executor faults and verifies multi-round independent

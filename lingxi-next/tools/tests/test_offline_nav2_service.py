@@ -128,6 +128,64 @@ class LifecycleStartupTests(unittest.TestCase):
         self.startup.poll(1.2)
         self.assertEqual([], self.manager.requests)
 
+    def test_delayed_unconfigured_reply_cannot_be_refreshed_into_startup(self):
+        self.manager.ready = False
+        self.discover()
+        self.states()
+        self.manager.ready = True
+        self.startup.poll(1.2)
+        self.assertEqual([], self.manager.requests)
+        self.assertEqual([None] * 4, self.startup.observed)
+        self.states()
+        self.startup.poll(1.4)
+        self.assertEqual(1, len(self.manager.requests))
+
+    def test_delayed_active_reply_never_grants_readiness_but_fresh_queries_recover(self):
+        self.discover()
+        self.manager.requests[0].set_result(SimpleNamespace(success=True))
+        self.states(3)
+        self.startup.poll(1.2)
+        self.assertFalse(self.startup.ready(1.2))
+        self.assertIsNone(self.startup.failure)
+        self.states(3)
+        self.startup.poll(1.4)
+        self.assertTrue(self.startup.ready(1.4))
+        self.assertEqual(1, len(self.manager.requests), 'state queries must never replay STARTUP')
+
+    def test_active_reply_expires_from_request_not_processing_time(self):
+        self.discover()
+        self.manager.requests[0].set_result(SimpleNamespace(success=True))
+        self.states(3)
+        self.startup.poll(.95)
+        self.assertTrue(self.startup.ready(.95))
+        self.assertFalse(self.startup.ready(1.05))
+
+    def test_one_delayed_node_cannot_join_three_fresh_nodes_into_readiness(self):
+        self.discover()
+        self.manager.requests[0].set_result(SimpleNamespace(success=True))
+        for client in self.clients[:-1]:
+            client.requests[-1].set_result(SimpleNamespace(current_state=SimpleNamespace(id=3)))
+        self.startup.poll(.8)
+        self.states(3)
+        self.startup.poll(1.1)
+        self.assertFalse(self.startup.ready(1.1))
+        self.assertEqual([.8, .8, .8, None], self.startup.observed)
+        self.states(3)
+        self.startup.poll(1.3)
+        self.assertTrue(self.startup.ready(1.3))
+
+    def test_regressed_or_invalid_poll_cannot_refresh_old_replies(self):
+        for now in (.3, float('nan'), float('inf'), True):
+            with self.subTest(now=now):
+                self.setUp()
+                self.discover()
+                self.manager.requests[0].set_result(SimpleNamespace(success=True))
+                self.states(3)
+                self.startup.poll(now)
+                self.assertEqual('lifecycle_clock_invalid', self.startup.failure)
+                self.assertFalse(self.startup.ready(.7))
+                self.assertEqual(1, len(self.manager.requests))
+
 
 class Generation:
     def __init__(self, owner, ticket, goal):

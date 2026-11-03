@@ -45,6 +45,7 @@ class Nav2ActionDriver:
         self.lifecycle = {}
         self.clients = {}
         self.pending_states = {}
+        self.last_lifecycle_poll, self.lifecycle_failure = None, None
         self.startup = self.manager = None
         self.action_type, self.state_type = NavigateToPose, GetState
         self.client = ActionClient(node, NavigateToPose, 'navigate_to_pose')
@@ -186,26 +187,38 @@ class Nav2ActionDriver:
             if self.startup.failure is not None:
                 raise RuntimeError('nav2_lifecycle_startup_failed:' + self.startup.failure)
             return
-        for name, future in tuple(self.pending_states.items()):
+        if not finite(now) or (self.last_lifecycle_poll is not None and now < self.last_lifecycle_poll):
+            self.lifecycle_failure = 'nav2_lifecycle_clock_invalid'
+        if self.lifecycle_failure is not None:
+            raise RuntimeError(self.lifecycle_failure)
+        self.last_lifecycle_poll = now
+        for name, (future, issued) in tuple(self.pending_states.items()):
             if future.done():
                 try:
-                    self.lifecycle[name] = (future.result().current_state.id == 3, now)
+                    state = future.result().current_state.id
+                    if type(state) is not int or not 0 <= now - issued <= self.lifecycle_max_age:
+                        raise ValueError('current_lifecycle_reply_required')
+                    self.lifecycle[name] = (state == 3, issued)
                 except Exception:
                     self.lifecycle.pop(name, None)
                 del self.pending_states[name]
         if now >= self.next_lifecycle:
             for name, client in self.clients.items():
                 if name not in self.pending_states and client.service_is_ready():
-                    self.pending_states[name] = client.call_async(self.state_type.Request())
+                    self.pending_states[name] = (client.call_async(self.state_type.Request()), now)
             self.next_lifecycle = now + .2
 
     def ready(self):
         self._owned()
         if self.startup is not None:
             return not self.closed and self.client.server_is_ready() and self.startup.ready(self.clock())
-        return (not self.closed and self.client.server_is_ready() and len(self.lifecycle) == 4
-                and all(active and 0 <= self.clock() - observed <= self.lifecycle_max_age
-                        for active, observed in self.lifecycle.values()))
+        now = self.clock()
+        return (not self.closed and self.lifecycle_failure is None and finite(now)
+                and self.last_lifecycle_poll is not None and now >= self.last_lifecycle_poll
+                and self.client.server_is_ready() and len(self.lifecycle) == 4
+                and all(active and 0 <= now - observed <= self.lifecycle_max_age
+                        and self.clients[name].service_is_ready()
+                        for name, (active, observed) in self.lifecycle.items()))
 
     def events(self):
         self._owned()
@@ -223,7 +236,7 @@ class Nav2ActionDriver:
         self.pending_events.clear()
         if self.startup is not None:
             self.startup.close()
-        for future in self.pending_states.values():
+        for future, _ in self.pending_states.values():
             future.cancel()
         self.pending_states.clear()
         for client in self.clients.values():

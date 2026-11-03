@@ -148,6 +148,80 @@ class ManagedStartupTests(unittest.TestCase):
             with self.subTest(count=count, age=age), self.assertRaises(ValueError):
                 LifecycleStartup([Client() for _ in range(count)], Client(), object, object, maximum_age=age)
 
+    def passive(self):
+        driver = Nav2ActionDriver(Node(), 'map', clock=lambda: self.clock)
+        self.addCleanup(driver.close)
+        driver.poll()
+        return driver
+
+    def passive_reply(self, driver):
+        for client in driver.clients.values():
+            client.calls[-1][1].set_result(NS(current_state=NS(id=3)))
+
+    def test_passive_client_discards_delayed_active_replies_then_recovers(self):
+        driver = self.passive()
+        self.passive_reply(driver)
+        self.clock = .8
+        driver.poll()
+        self.assertFalse(driver.ready())
+        self.passive_reply(driver)
+        self.clock = 1.
+        driver.poll()
+        self.assertTrue(driver.ready())
+        self.assertEqual(4, len(driver.node.clients), 'passive mode must not create a manager client')
+
+    def test_passive_client_bounds_age_from_request_not_poll(self):
+        driver = self.passive()
+        self.passive_reply(driver)
+        self.clock = .5
+        driver.poll()
+        self.assertTrue(driver.ready())
+        self.clock = .7
+        self.assertFalse(driver.ready())
+
+    def test_passive_client_clock_regression_cannot_refresh_readiness(self):
+        driver = self.passive()
+        self.clock = .2
+        self.passive_reply(driver)
+        driver.poll()
+        self.clock = .1
+        self.assertFalse(driver.ready())
+        with self.assertRaisesRegex(RuntimeError, 'nav2_lifecycle_clock_invalid'):
+            driver.poll()
+        self.clock = .3
+        self.assertFalse(driver.ready(), 'clock faults stay latched until explicit replacement')
+
+    def test_passive_client_rejects_invalid_clock_or_noninteger_state(self):
+        for now in (float('nan'), float('inf'), True):
+            with self.subTest(now=now):
+                self.clock = 0.
+                driver = self.passive()
+                self.clock = now
+                self.assertFalse(driver.ready())
+                with self.assertRaisesRegex(RuntimeError, 'nav2_lifecycle_clock_invalid'):
+                    driver.poll()
+        for state in (True, 3., '3'):
+            with self.subTest(state=state):
+                self.clock = 0.
+                driver = self.passive()
+                for client in driver.clients.values():
+                    client.calls[-1][1].set_result(NS(current_state=NS(id=state)))
+                driver.poll()
+                self.assertFalse(driver.ready())
+
+    def test_passive_service_loss_revokes_readiness_and_close_cancels_queries(self):
+        driver = self.passive()
+        self.passive_reply(driver)
+        self.clock = .2
+        driver.poll()
+        self.assertTrue(driver.ready())
+        next(iter(driver.clients.values())).available = False
+        self.assertFalse(driver.ready())
+        pending = [client.calls[-1][1] for client in driver.clients.values()]
+        driver.close()
+        self.assertTrue(all(future.cancelled() for future in pending))
+        self.assertFalse(driver.ready())
+
 
 if __name__ == '__main__':
     unittest.main()
