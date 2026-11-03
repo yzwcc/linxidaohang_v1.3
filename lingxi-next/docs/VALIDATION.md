@@ -2,7 +2,8 @@
 
 2026-11-03 机器人操作跨进程租约：Linux 普通用户文件锁、SLAM/operation 双 FD
 继承、Nav2 进程组守护与父进程退出回收、建图/定位管理器共存/互斥测试通过；
-Nav2 Windows 离线单测 25 项、AIMDK 表情入口 54 项（跳过 1 项）、产品 API
+Linux 最终四套定向回归 91 项全通过；Nav2 Windows 离线单测 25 项、AIMDK
+表情入口 54 项（53 通过、跳过 1 项）、产品 API
 Vitest 76 项（跳过 7 项）、隔离 Linux 部署 2 项和发布范围 7 项通过。编译
 SLAM API 入口和 runtime 类型检查通过，未接触机器人或传感器。
 

@@ -124,14 +124,15 @@ This lease change was validated offline without connecting to the robot:
   cross-process shared/exclusive contention, inherited SLAM + operation FDs,
   Nav2 guard parent death and TERM-ignoring descendant cleanup.
 - Linux ordinary-user focused process/runtime batch before the final shutdown
-  proof case: 185 tests passed, 10 skipped. This snapshot included lease,
+  proof case: 185 tests total, 175 passed and 10 skipped. This snapshot included lease,
   supervisor, mapping/localization managers, Nav2, workspace, release scope and
   live-acquisition tests. The Nav2 producer suite subsequently passed again on
-  Windows with 25 tests after adding shutdown-retirement coverage.
-- Python AIMDK bridge on Windows: 54 passed, 1 Linux-only case skipped. This
+  Windows with 25 tests after adding shutdown-retirement coverage. The final
+  Linux lease/supervisor/mapping/localization subset passed all 91 tests.
+- Python AIMDK bridge on Windows: 54 total, 53 passed and 1 Linux-only case skipped. This
   includes expression lock contention with zero service dispatch and confirmed
   lease release after the service callback.
-- Vitest API/product/navigation/config subset: 76 passed, 7 skipped. API/runtime
+- Vitest API/product/navigation/config subset: 76 passed, 7 skipped. Runtime
   TypeScript checks and the compiled SLAM API entrypoint build passed.
 - Linux isolated deployment install/upgrade/rollback: 2 passed. Release scope:
   7 passed. Shell/Python diff whitespace checks passed.
