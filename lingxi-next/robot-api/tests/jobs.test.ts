@@ -61,6 +61,41 @@ describe("navigation and tour lifecycle", () => {
     expect(jobs.state().status).toBe("failed");
     await expect(jobs.startTour(tour)).rejects.toThrow();
   });
+  it("does not continue after a skipped visit when its failure record cannot be saved", async () => {
+    const next = store.state.points.find((candidate) => candidate.isStart)!;
+    vi.mocked(adapter.startNavigation).mockImplementation(async (_point, _map, taskId) => { nav = { status: "failed", taskId }; });
+    vi.spyOn(store, "update").mockRejectedValueOnce(new Error("synthetic storage unavailable"));
+    await jobs.startTour({ ...tour, steps: [tour.steps[0], { ...tour.steps[0], id: "next-step", pointId: next.id }] });
+    await vi.advanceTimersByTimeAsync(100);
+    expect(adapter.startNavigation).toHaveBeenCalledTimes(2);
+    expect(jobs.state()).toMatchObject({ status: "failed", requiresStop: true });
+    expect(jobs.state().detail).toContain("记录保存异常");
+    expect(jobs.history()).toEqual([]);
+    expect(speak).not.toHaveBeenCalled();
+  });
+  it("waits for the skipped-visit record to commit before navigating onward", async () => {
+    const next = store.state.points.find((candidate) => candidate.isStart)!;
+    let save!: () => void;
+    const saved = new Promise<void>((resolve) => { save = resolve; });
+    const update = store.update.bind(store);
+    vi.spyOn(store, "update").mockImplementationOnce(async (mutator) => {
+      await saved;
+      return update(mutator);
+    });
+    vi.mocked(adapter.startNavigation).mockImplementation(async (target, _map, taskId) => {
+      nav = { status: target.id === point.id ? "failed" : "finished", taskId };
+    });
+    await jobs.startTour({ ...tour, steps: [tour.steps[0], { ...tour.steps[0], id: "next-step", pointId: next.id }] });
+    await vi.advanceTimersByTimeAsync(100);
+    expect(adapter.startNavigation).toHaveBeenCalledTimes(2);
+    expect(jobs.history()).toEqual([]);
+    expect(speak).not.toHaveBeenCalled();
+    save();
+    await vi.advanceTimersByTimeAsync(100);
+    expect(adapter.startNavigation).toHaveBeenCalledTimes(3);
+    expect(store.state.jobRecords).toHaveLength(1);
+    expect(jobs.state().status).toBe("finished");
+  });
   it("retains completed tour state only for its own terminal navigation callback", async () => {
     await jobs.startTour(tour);
     await vi.advanceTimersByTimeAsync(20);
@@ -185,6 +220,47 @@ describe("navigation and tour lifecycle", () => {
     await vi.advanceTimersByTimeAsync(60_000);
     expect(adapter.startNavigation).toHaveBeenCalledTimes(1);
   });
+  it.each([2, 20])("preserves the remaining %s-second point dwell across dialogue and one quiet-resume interval", async (waitSeconds) => {
+    const next = store.state.points.find((candidate) => candidate.isStart)!;
+    await jobs.startTour({ ...tour, steps: [
+      { ...tour.steps[0], waitSeconds },
+      { ...tour.steps[0], id: "next-step", pointId: next.id },
+    ] });
+    await vi.advanceTimersByTimeAsync(20);
+    nav = { status: "finished", taskId: nav.taskId };
+    await vi.advanceTimersByTimeAsync(20);
+    expect(speak).toHaveBeenCalledOnce();
+    await vi.advanceTimersByTimeAsync(1000);
+    jobs.beginDialogue();
+    await jobs.interruptTour();
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(adapter.startNavigation).toHaveBeenCalledOnce();
+    jobs.endDialogue();
+    await vi.advanceTimersByTimeAsync(5000 + (waitSeconds - 1) * 1000 - 200);
+    expect(adapter.startNavigation).toHaveBeenCalledOnce();
+    await vi.advanceTimersByTimeAsync(400);
+    expect(adapter.startNavigation).toHaveBeenCalledTimes(2);
+    expect(speak).toHaveBeenCalledOnce();
+  });
+  it("freezes a configured point dwell during manual pause and does not auto-resume it", async () => {
+    const next = store.state.points.find((candidate) => candidate.isStart)!;
+    await jobs.startTour({ ...tour, steps: [
+      { ...tour.steps[0], waitSeconds: 20 },
+      { ...tour.steps[0], id: "next-step", pointId: next.id },
+    ] });
+    await vi.advanceTimersByTimeAsync(20);
+    nav = { status: "finished", taskId: nav.taskId };
+    await vi.advanceTimersByTimeAsync(3020);
+    await jobs.control("pause");
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(jobs.state().status).toBe("paused");
+    expect(adapter.startNavigation).toHaveBeenCalledOnce();
+    await jobs.control("resume");
+    await vi.advanceTimersByTimeAsync(16_800);
+    expect(adapter.startNavigation).toHaveBeenCalledOnce();
+    await vi.advanceTimersByTimeAsync(400);
+    expect(adapter.startNavigation).toHaveBeenCalledTimes(2);
+  });
   it("does not replay narration before an in-flight wake stop is confirmed", async () => {
     let finishSpeech!: () => void, finishStop!: () => void;
     speak.mockImplementationOnce(() => new Promise((resolve) => { finishSpeech = () => resolve({ firstAudioMs: 20 }); }));
@@ -308,6 +384,42 @@ describe("navigation and tour lifecycle", () => {
     await vi.advanceTimersByTimeAsync(200);
     expect(adapter.startNavigation).toHaveBeenCalledTimes(2);
     expect(vi.mocked(adapter.startNavigation).mock.calls[1][0].isStart).toBe(true);
+  });
+  it("never returns home during a long answer and starts the full idle window after dialogue ends", async () => {
+    store.state.idleReturnSeconds = 30;
+    await jobs.startPoint(point);
+    nav = { status: "finished", taskId: nav.taskId };
+    await vi.advanceTimersByTimeAsync(1000);
+    jobs.beginDialogue();
+    await jobs.interruptTour();
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(adapter.startNavigation).toHaveBeenCalledOnce();
+    expect(adapter.controlNavigation).not.toHaveBeenCalled();
+    jobs.endDialogue();
+    await vi.advanceTimersByTimeAsync(29_900);
+    expect(adapter.startNavigation).toHaveBeenCalledOnce();
+    await vi.advanceTimersByTimeAsync(200);
+    expect(adapter.startNavigation).toHaveBeenCalledTimes(2);
+  });
+  it.each(["point", "tour"] as const)("promptly halts a %s when an executor fault has lost its task ID", async (kind) => {
+    if (kind === "point") await jobs.startPoint(point);
+    else await jobs.startTour(tour);
+    await vi.advanceTimersByTimeAsync(20);
+    nav = { status: "failed", requiresStop: true, detail: "bridge_session_replaced" };
+    await vi.advanceTimersByTimeAsync(50);
+    expect(jobs.state()).toMatchObject({ status: "failed", requiresStop: true });
+    expect(adapter.startNavigation).toHaveBeenCalledOnce();
+    expect(speak).not.toHaveBeenCalled();
+    expect(jobs.history()).toEqual([]);
+  });
+  it("does not narrate a terminal navigation result from a disconnected adapter", async () => {
+    await jobs.startTour(tour);
+    await vi.advanceTimersByTimeAsync(20);
+    snapshot.connected = false;
+    nav = { status: "finished", taskId: nav.taskId };
+    await vi.advanceTimersByTimeAsync(50);
+    expect(jobs.state()).toMatchObject({ status: "failed", requiresStop: true });
+    expect(speak).not.toHaveBeenCalled();
   });
   it("refuses wrong-map or unavailable native navigation", async () => {
     store.state.activeMapId = "other";

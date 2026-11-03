@@ -139,7 +139,7 @@ export class JobManager {
     void this.runTour(job, tour, map!, db.points, authorize)
       .catch(() => {
         if (!job.taskId && !authorize()) this.end(job, "语音会话已失效，任务未下发", "idle");
-        else this.halt(job, "任务接口异常，请检查状态并停止后重试");
+        else this.halt(job, "任务接口或记录保存异常，请检查状态并停止后重试");
       });
   }
 
@@ -289,7 +289,7 @@ export class JobManager {
     job.phase = "idle-return";
     job.status = "running";
     job.detail = `已到达 ${point.name}，等待 ${idleReturnSeconds} 秒无交互返航`;
-    await this.waitQuiet(job, idleReturnSeconds * 1000, idleReturnSeconds * 1000);
+    await this.waitQuiet(job, idleReturnSeconds * 1000);
     if (!this.isCurrent(job)) return;
     job.phase = "navigating";
     job.taskId = createTaskId();
@@ -333,7 +333,7 @@ export class JobManager {
         }
         if (!arrived) {
           hadErrors = true;
-          this.record(tour.id, point.id, "导航重试一次后失败，已跳过");
+          await this.record(tour.id, point.id, "导航重试一次后失败，已跳过");
           continue;
         }
         job.taskId = undefined;
@@ -352,8 +352,8 @@ export class JobManager {
         } catch {
           if (!this.isCurrent(job)) return;
           hadErrors = true;
-          this.record(tour.id, point.id, "动作请求或结束状态未确认，已停止后续任务");
           this.halt(job, "动作请求或结束状态未确认，请检查机器人后手动停止任务");
+          await this.record(tour.id, point.id, "动作请求或结束状态未确认，已停止后续任务");
           return;
         }
         if (step.narration.trim()) {
@@ -387,9 +387,11 @@ export class JobManager {
           } catch {
             if (!this.isCurrent(job)) return;
             hadErrors = true;
-            this.record(tour.id, point.id, "点位语音未完成，已停止后续任务");
             this.halt(job, "点位语音状态未确认，请检查语音服务并停止任务后重试");
-            await this.stopSpeech(job).catch(() => undefined);
+            await Promise.all([
+              this.record(tour.id, point.id, "点位语音未完成，已停止后续任务"),
+              this.stopSpeech(job).catch(() => undefined),
+            ]);
             return;
           }
         }
@@ -400,17 +402,17 @@ export class JobManager {
             await this.adapter.executeLinkcraftResource(step.linkcraftResourceId);
           } catch {
             if (!this.isCurrent(job)) return;
-            this.record(tour.id, point.id, "灵创资源请求未获服务确认，已停止后续任务");
             this.halt(job, "灵创资源请求未获确认，请检查机器人后手动停止任务");
+            await this.record(tour.id, point.id, "灵创资源请求未获服务确认，已停止后续任务");
             return;
           }
-          this.record(tour.id, point.id, "灵创服务已接受资源请求；SDK 未提供播放完成状态");
+          await this.record(tour.id, point.id, "灵创服务已接受资源请求；SDK 未提供播放完成状态");
           this.end(job, "讲解结束；灵创资源请求已接受，但播放完成状态不可见");
           return;
         }
         if (!this.isCurrent(job)) return;
         job.phase = "waiting";
-        await this.waitQuiet(job, step.waitSeconds * 1000, this.timing.quietResumeMs);
+        await this.waitQuiet(job, step.waitSeconds * 1000);
         if (!this.isCurrent(job)) return;
       }
     }
@@ -445,8 +447,8 @@ export class JobManager {
       const snapshot = await this.adapter.getSnapshot();
       if (!this.isCurrent(job)) return false;
       const nav = snapshot.navigation;
+      if (!snapshot.connected || nav.requiresStop) throw new Error("导航执行器状态未确认，禁止重试或推进任务");
       if (nav.taskId === taskId) {
-        if (nav.requiresStop) throw new Error("导航执行器状态未确认，禁止重试或推进任务");
         if (nav.status === "finished") return true;
         if (nav.status === "failed") return false;
         job.status = nav.status === "paused" ? "paused" : nav.status === "running" ? "running" : "requested";
@@ -458,8 +460,8 @@ export class JobManager {
     return false;
   }
 
-  private async waitQuiet(job: ActiveJob, firstMs: number, afterInteractionMs: number) {
-    let deadline = Date.now() + firstMs;
+  private async waitQuiet(job: ActiveJob, durationMs: number) {
+    let deadline = Date.now() + durationMs;
     let observed = this.lastInteractionAt;
     while (this.isCurrent(job)) {
       const began = Date.now();
@@ -468,7 +470,9 @@ export class JobManager {
       if (!this.isCurrent(job)) return;
       if (observed !== this.lastInteractionAt) {
         observed = this.lastInteractionAt;
-        deadline = Date.now() + afterInteractionMs;
+        // Tour dwell keeps its remainder after the quiet-resume gate. Point
+        // return instead requires a whole new idle window after dialogue.
+        if (job.kind === "point") deadline = Date.now() + durationMs;
       }
       if (Date.now() >= deadline) return;
       await delay(Math.min(this.timing.pollMs, deadline - Date.now()));
@@ -478,16 +482,16 @@ export class JobManager {
   private async waitReady(job: ActiveJob, waitForDialogue = true) {
     while (this.isCurrent(job) && (
       job.manualPaused ||
-      (waitForDialogue && job.kind === "tour" &&
-        (this.dialogueCount > 0 || (job.interruption > 0 && Date.now() - this.lastInteractionAt < this.timing.quietResumeMs)))
+      (waitForDialogue && (this.dialogueCount > 0 || (job.kind === "tour" &&
+        job.interruption > 0 && Date.now() - this.lastInteractionAt < this.timing.quietResumeMs)))
     )) await delay(this.timing.pollMs);
   }
 
-  private record(task: string, point: string, reason: string) {
+  private async record(task: string, point: string, reason: string) {
     const record = { task, point, reason, at: new Date().toISOString() };
+    await this.store.update((db) => ({ ...db, jobRecords: [...db.jobRecords.slice(-499), record] }));
     this.records.push(record);
     if (this.records.length > 500) this.records.shift();
-    void this.store.update((db) => ({ ...db, jobRecords: [...db.jobRecords.slice(-499), record] })).catch(() => undefined);
   }
 
   private halt(job: ActiveJob, detail: string) {

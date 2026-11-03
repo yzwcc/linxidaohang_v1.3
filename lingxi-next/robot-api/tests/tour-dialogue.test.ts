@@ -144,4 +144,25 @@ describe("paired tour and passive voice integration (no robot or cloud)", () => 
     expect((await request("/api/v1/tours/tour-1/start")).statusCode).toBe(202);
     expect(adapter.startNavigation).toHaveBeenCalledTimes(2);
   });
+
+  it("keeps point navigation idle-return suspended through actual passive-event answer playback", async () => {
+    expect((await request("/api/v1/navigation/point", { pointId: "point-2" })).statusCode).toBe(202);
+    nav = { status: "finished", taskId: nav.taskId };
+    await vi.advanceTimersByTimeAsync(300);
+    const playing = deferred<{ firstAudioMs: number }>(), entered = deferred<void>();
+    speak.mockImplementationOnce(() => { entered.resolve(); return playing.promise; });
+    await event("wake", "point-wake");
+    const answering = question("point-long-answer").then((reply) => reply);
+    await entered.promise;
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(adapter.startNavigation).toHaveBeenCalledOnce();
+    expect(adapter.controlNavigation).not.toHaveBeenCalled();
+    playing.resolve({ firstAudioMs: 10 });
+    expect((await answering).json()).toMatchObject({ speechDelivered: true });
+    await vi.advanceTimersByTimeAsync(900);
+    expect(adapter.startNavigation).toHaveBeenCalledOnce();
+    await vi.advanceTimersByTimeAsync(400);
+    expect(adapter.startNavigation).toHaveBeenCalledTimes(2);
+    expect(vi.mocked(adapter.startNavigation).mock.calls[1][0].id).toBe("point-1");
+  });
 });

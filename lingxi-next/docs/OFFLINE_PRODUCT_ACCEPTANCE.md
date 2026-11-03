@@ -1,9 +1,16 @@
 # Full Product Offline Workstream
 
-Updated 2026-11-03. This is the active scope for the independent open-source
+Updated 2026-11-04. This is the active scope for the independent open-source
 route. Earlier vendor-only acceptance records in ACCEPTANCE.md are historical;
 vendor SLAM licensing is not a prerequisite for this route. No robot connection
 or deployment is authorized by completing an offline check.
+
+The [tour timing correction](TOUR_DWELL_AND_RETURN_20261104.md) preserves point
+dwell across interruption and prevents idle return during active answers. It
+also halts task-ID-less executor faults and verifies multi-round independent
+adapter sequencing with a persistent store. Component/HTTP checks pass; the
+actual Nav2 rerun exposed a preserved lifecycle-response/startup failure and
+does not establish stable full-stack acceptance.
 
 Production navigation now supports explicit stopped-map handoff without a
 service restart. The target must already be localized; old prewarm processes,
