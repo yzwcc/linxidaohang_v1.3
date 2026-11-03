@@ -4,6 +4,10 @@ Date: 2026-11-03. Offline Linux x86_64 only. No robot connection, sensor
 subscription, deployment or physical motion. APK/package remain 0.1.22.
 Point-cloud display and default Z **0.1--1.4 m** are unchanged.
 
+This report preserves the Python/transport milestone's original measurements.
+The subsequent [native scan-accumulation follow-up](TERRAIN_NATIVE_THROUGHPUT_20261103.md)
+has separate exact-output measurements and fresh actual ROS/recording reruns.
+
 ## Implementation
 
 The immutable scan/batch digests are cached without changing their bytes or

@@ -1,0 +1,1348 @@
+{
+  "schemaVersion": 1,
+  "classification": "synthetic_actual_native_host_throughput_only",
+  "robotContacted": false,
+  "navigationReady": false,
+  "targetThroughputValidated": false,
+  "pythonVersion": "3.12.3 (main, Aug 31 2026, 10:18:26) [GCC 13.3.0]",
+  "groundLibrarySha256": "0f0f3b74dee2acccb520e6f7a95a668c268fe22a53f165821a5b8427dd4955a6",
+  "octomapLibrarySha256": "65e14f57af1c47d486b8cf8ada0740f7581fd43856c152d1c1bb775fb7cbf132",
+  "trials": 5,
+  "encoding": "f64le",
+  "dependenciesSha256": {
+    "liboctomap.so.1.9.7": "27e22029990f69e951b5c4b1acc33e44fe3663af9e13620271a35ab1ed1309f7",
+    "liboctomath.so.1.9.7": "da54007d468946667bf76fc9f81ce64ad8d28ae2b3d551f501adaf2f0631731f"
+  },
+  "fixtureSha256": "df5c0dcc7c5b76d5f860c232a30d7f46087a63c554d8afd796bc4b24d9ecedec",
+  "benchmarkSha256": "da2784ef35d7855f90a07b4aa7351267b314deff19e73509a008521ac455def6",
+  "sourcesSha256": {
+    "occupancy.py": "3e0f425075466c5d82199586bbb5ff5ee8c42ef004944f9c8cc63736ca790a67",
+    "ground.py": "a47b949bc326f6b40d9613c23c5daf447658b003285b77a455429fabc34d2e4b",
+    "terrain.py": "96c0bc5f7add0f24c9832fe674b5addca9902a78c0ee8769c837c79d2e776897",
+    "terrain_protocol.py": "6154e402e8b433d05cdb6b15bf23de55c114d061241ee57219d4d9681bd4f4f7"
+  },
+  "cases": [
+    {
+      "case": "open",
+      "scans": 2,
+      "rays": 8208,
+      "wireBytes": 525996,
+      "identity": {
+        "observationsSha256": "e0d679e20606b39c699c5db9cf70b6ff00ba5647dd5acad825511c3333f2184a",
+        "clearanceSha256": "11b184eac8c4df74e4336df9ef8bce85d781f20bd64471284408158d24967dda",
+        "supportSha256": "a07c1c08d042f58bae83e4dec898d361b249bf77272e3e9f393caef82b3a246c",
+        "traversabilitySha256": "84ace11bc01caee44ccd70c6f750b4143f70e91a6f413272505583afc780700a",
+        "costsSha256": "877efe413fb39caaf868c25879411ca55649261dafde6ce5301bfe6ce713180b",
+        "statistics": [
+          8208,
+          2,
+          6012,
+          0,
+          0,
+          3840,
+          487055
+        ],
+        "cells": [
+          0,
+          0,
+          3840
+        ]
+      },
+      "medianSeconds": {
+        "encoding": 0.002010121999987291,
+        "serialization": 0.0010047710000122834,
+        "parsing": 0.0004533280000060813,
+        "reconstruction": 0.014137301000005209,
+        "pipeline": 0.03301029099999653,
+        "nativeGround": 0.0009104989999855206,
+        "nativeOctomap": 0.007020386999997186,
+        "pythonPipeline": 0.02518906400000276,
+        "total": 0.051214369999996734
+      },
+      "maximumSeconds": {
+        "encoding": 0.0023685290000088344,
+        "serialization": 0.001410253000003081,
+        "parsing": 0.0006375399999996034,
+        "reconstruction": 0.021231978999992407,
+        "pipeline": 0.03826272999999958,
+        "nativeGround": 0.002160519999989674,
+        "nativeOctomap": 0.0072133870000072875,
+        "pythonPipeline": 0.030049743999981615,
+        "total": 0.05836417400000471
+      },
+      "timings": [
+        {
+          "encoding": 0.002195689999993533,
+          "serialization": 0.001410253000003081,
+          "parsing": 0.0006375399999996034,
+          "reconstruction": 0.014137301000005209,
+          "pipeline": 0.03283358599999531,
+          "nativeGround": 0.002160519999989674,
+          "nativeOctomap": 0.007020386999997186,
+          "pythonPipeline": 0.023652679000008447,
+          "total": 0.051214369999996734
+        },
+        {
+          "encoding": 0.0023685290000088344,
+          "serialization": 0.0011056040000028133,
+          "parsing": 0.0003992249999953401,
+          "reconstruction": 0.021231978999992407,
+          "pipeline": 0.033258837000005315,
+          "nativeGround": 0.0008480240000068306,
+          "nativeOctomap": 0.007180060999999682,
+          "pythonPipeline": 0.0252307519999988,
+          "total": 0.05836417400000471
+        },
+        {
+          "encoding": 0.0019000860000062403,
+          "serialization": 0.0008067449999913379,
+          "parsing": 0.0004533280000060813,
+          "reconstruction": 0.013740292999997905,
+          "pipeline": 0.03151712000000373,
+          "nativeGround": 0.0009104989999855206,
+          "nativeOctomap": 0.006815781000000243,
+          "pythonPipeline": 0.023790840000017965,
+          "total": 0.04841757200000529
+        },
+        {
+          "encoding": 0.0018837049999973488,
+          "serialization": 0.0006364160000060792,
+          "parsing": 0.0003356800000062776,
+          "reconstruction": 0.013847860999987915,
+          "pipeline": 0.03826272999999958,
+          "nativeGround": 0.0009995990000106758,
+          "nativeOctomap": 0.0072133870000072875,
+          "pythonPipeline": 0.030049743999981615,
+          "total": 0.0549663919999972
+        },
+        {
+          "encoding": 0.002010121999987291,
+          "serialization": 0.0010047710000122834,
+          "parsing": 0.0005240859999986469,
+          "reconstruction": 0.014603422999996951,
+          "pipeline": 0.03301029099999653,
+          "nativeGround": 0.0008240689999894357,
+          "nativeOctomap": 0.006997158000004333,
+          "pythonPipeline": 0.02518906400000276,
+          "total": 0.0511526929999917
+        }
+      ]
+    },
+    {
+      "case": "open",
+      "scans": 4,
+      "rays": 24416,
+      "wireBytes": 1563564,
+      "identity": {
+        "observationsSha256": "7cec14f89e6eeeaaf992b17ced96796bae3286690b3ee930f9eb129f1ad669a4",
+        "clearanceSha256": "cce1bde097d2def94b55e030be01838837e443b5d7b96166623ade19fdb0e9fd",
+        "supportSha256": "4b510f4ba70f35407cf1e8ab63de667b2b562bc96eb220f19bed3633f0837445",
+        "traversabilitySha256": "58297a8383f47b8c140466f8521c01a757c3c815b7f2b1dabdbaa735bed2b243",
+        "costsSha256": "f66fb1f6e591f37612e07fd844fb9dfaf3f6dfd18dd804a2585a805c5fc76e18",
+        "statistics": [
+          24416,
+          4,
+          65820,
+          1315,
+          0,
+          2525,
+          2281827
+        ],
+        "cells": [
+          599,
+          0,
+          3241
+        ]
+      },
+      "medianSeconds": {
+        "encoding": 0.006315670000006435,
+        "serialization": 0.002717893000010463,
+        "parsing": 0.0013089159999992717,
+        "reconstruction": 0.052015014999994946,
+        "pipeline": 0.11191605400000526,
+        "nativeGround": 0.002382452999995621,
+        "nativeOctomap": 0.0363808419999998,
+        "pythonPipeline": 0.07170979300001079,
+        "total": 0.17122174500001108
+      },
+      "maximumSeconds": {
+        "encoding": 0.007456719999993311,
+        "serialization": 0.004059518000005369,
+        "parsing": 0.0021545750000058206,
+        "reconstruction": 0.05482408199999611,
+        "pipeline": 0.11794366699999159,
+        "nativeGround": 0.0025350279999969416,
+        "nativeOctomap": 0.037704845999996905,
+        "pythonPipeline": 0.08004119399998899,
+        "total": 0.17975382300001286
+      },
+      "timings": [
+        {
+          "encoding": 0.0067995940000002975,
+          "serialization": 0.004059518000005369,
+          "parsing": 0.0021545750000058206,
+          "reconstruction": 0.05482408199999611,
+          "pipeline": 0.11191605400000526,
+          "nativeGround": 0.0025014149999975643,
+          "nativeOctomap": 0.037704845999996905,
+          "pythonPipeline": 0.07170979300001079,
+          "total": 0.17975382300001286
+        },
+        {
+          "encoding": 0.007456719999993311,
+          "serialization": 0.003419565000001512,
+          "parsing": 0.001139114000011432,
+          "reconstruction": 0.05202075699999398,
+          "pipeline": 0.11298663499999861,
+          "nativeGround": 0.002253221000003691,
+          "nativeOctomap": 0.0363808419999998,
+          "pythonPipeline": 0.07435257199999512,
+          "total": 0.17702279099999885
+        },
+        {
+          "encoding": 0.0059301490000081,
+          "serialization": 0.0021407320000008667,
+          "parsing": 0.0010367649999949435,
+          "reconstruction": 0.050651342999998406,
+          "pipeline": 0.10843770600000369,
+          "nativeGround": 0.0025350279999969416,
+          "nativeOctomap": 0.03600539100000333,
+          "pythonPipeline": 0.06989728700000342,
+          "total": 0.168196695000006
+        },
+        {
+          "encoding": 0.006066058000001817,
+          "serialization": 0.002717893000010463,
+          "parsing": 0.0013089159999992717,
+          "reconstruction": 0.052015014999994946,
+          "pipeline": 0.10911386300000459,
+          "nativeGround": 0.002382452999995621,
+          "nativeOctomap": 0.036431742000004874,
+          "pythonPipeline": 0.07029966800000409,
+          "total": 0.17122174500001108
+        },
+        {
+          "encoding": 0.006315670000006435,
+          "serialization": 0.002472767000000431,
+          "parsing": 0.0014670089999953007,
+          "reconstruction": 0.04100078000000451,
+          "pipeline": 0.11794366699999159,
+          "nativeGround": 0.002372763000010991,
+          "nativeOctomap": 0.03552970999999161,
+          "pythonPipeline": 0.08004119399998899,
+          "total": 0.16919989299999827
+        }
+      ]
+    },
+    {
+      "case": "open",
+      "scans": 12,
+      "rays": 84816,
+      "wireBytes": 5430205,
+      "identity": {
+        "observationsSha256": "759f0d9ff60e2d1a4ad1e90bf9bf2f14a8c9fba479a6f451613aaedd61b63738",
+        "clearanceSha256": "16f73bd2f640ac07970fde68df53ab8acf793170bbb4fcc5238c407261280fa3",
+        "supportSha256": "a89509ab5d440e7bb56bdcee135dbbe1cdfdee134e00c3a046a439b82347fdba",
+        "traversabilitySha256": "f5c8a7ca3da2d3a5a89aca40ea7dcc2d96e923a529d08a0d6fbca4d2038886f6",
+        "costsSha256": "b1adfc30024b45c407dcb1b44dfa4cdfc99b31801ce0cec5746441364b960b53",
+        "statistics": [
+          84816,
+          12,
+          225263,
+          3756,
+          0,
+          84,
+          8736310
+        ],
+        "cells": [
+          1354,
+          0,
+          2486
+        ]
+      },
+      "medianSeconds": {
+        "encoding": 0.021245307000000935,
+        "serialization": 0.009244135000002984,
+        "parsing": 0.004232259000005456,
+        "reconstruction": 0.1817196309999929,
+        "pipeline": 0.3927911820000105,
+        "nativeGround": 0.008055255000002148,
+        "nativeOctomap": 0.14335156500000323,
+        "pythonPipeline": 0.240548521000008,
+        "total": 0.6133906620000005
+      },
+      "maximumSeconds": {
+        "encoding": 0.022496132000000557,
+        "serialization": 0.015053713000000357,
+        "parsing": 0.008333781000004592,
+        "reconstruction": 0.18702423499999554,
+        "pipeline": 0.3990749780000016,
+        "nativeGround": 0.008221309000020938,
+        "nativeOctomap": 0.14920843199999467,
+        "pythonPipeline": 0.24184655400000565,
+        "total": 0.6144897670000091
+      },
+      "timings": [
+        {
+          "encoding": 0.021659917999997447,
+          "serialization": 0.015053713000000357,
+          "parsing": 0.008333781000004592,
+          "reconstruction": 0.18114601300000288,
+          "pipeline": 0.38512113199999476,
+          "nativeGround": 0.00798675299995466,
+          "nativeOctomap": 0.14248718300000007,
+          "pythonPipeline": 0.23464719600004003,
+          "total": 0.611314557
+        },
+        {
+          "encoding": 0.021245307000000935,
+          "serialization": 0.009655481000010013,
+          "parsing": 0.0037735619999921255,
+          "reconstruction": 0.18702423499999554,
+          "pipeline": 0.3927911820000105,
+          "nativeGround": 0.008088592999996536,
+          "nativeOctomap": 0.14335156500000323,
+          "pythonPipeline": 0.24135102400001074,
+          "total": 0.6144897670000091
+        },
+        {
+          "encoding": 0.022496132000000557,
+          "serialization": 0.007846998999994526,
+          "parsing": 0.004232259000005456,
+          "reconstruction": 0.18066481900000042,
+          "pipeline": 0.3990749780000016,
+          "nativeGround": 0.008019992000001253,
+          "nativeOctomap": 0.14920843199999467,
+          "pythonPipeline": 0.24184655400000565,
+          "total": 0.6143151870000025
+        },
+        {
+          "encoding": 0.020417621999996527,
+          "serialization": 0.009244135000002984,
+          "parsing": 0.003948923999999465,
+          "reconstruction": 0.18401800799999535,
+          "pipeline": 0.3892217790000103,
+          "nativeGround": 0.008221309000020938,
+          "nativeOctomap": 0.14275972100000445,
+          "pythonPipeline": 0.23824074899998493,
+          "total": 0.6068504680000046
+        },
+        {
+          "encoding": 0.021003987999989704,
+          "serialization": 0.007990117000005625,
+          "parsing": 0.00774232199999858,
+          "reconstruction": 0.1817196309999929,
+          "pipeline": 0.3949346040000137,
+          "nativeGround": 0.008055255000002148,
+          "nativeOctomap": 0.14633082800000352,
+          "pythonPipeline": 0.240548521000008,
+          "total": 0.6133906620000005
+        }
+      ]
+    },
+    {
+      "case": "blocked",
+      "scans": 2,
+      "rays": 8208,
+      "wireBytes": 525996,
+      "identity": {
+        "observationsSha256": "4c0200e0b3b5131e6cab85bec26c28708aff762fc494537d934bdb3edd826b6f",
+        "clearanceSha256": "78c594286188896a5b98663868ff5c9286b5ff16374ceb617574c6ceb535b050",
+        "supportSha256": "317ca8ac5ffa6007de6874c6ef2b08d72b5761691ed1e1ba856f3d50e7f22236",
+        "traversabilitySha256": "7b2a618092a9f0809a8cb3803b2109f7cc32ae5e1b20a689e806300e4392980d",
+        "costsSha256": "f37e01cbdb821eca586ca9be1a4fce06db770f4ea55b84fca29c934084e80e0c",
+        "statistics": [
+          8208,
+          2,
+          5712,
+          0,
+          60,
+          3780,
+          395760
+        ],
+        "cells": [
+          0,
+          94,
+          3746
+        ]
+      },
+      "medianSeconds": {
+        "encoding": 0.0020662409999943065,
+        "serialization": 0.0007165600000007544,
+        "parsing": 0.00035030400000835016,
+        "reconstruction": 0.0137053969999954,
+        "pipeline": 0.03193639299999518,
+        "nativeGround": 0.0008512739999986252,
+        "nativeOctomap": 0.005761883000005241,
+        "pythonPipeline": 0.025426534999994033,
+        "total": 0.049916408999990836
+      },
+      "maximumSeconds": {
+        "encoding": 0.0024734729999948968,
+        "serialization": 0.0007273860000083232,
+        "parsing": 0.00037622699998962617,
+        "reconstruction": 0.02123661900000684,
+        "pipeline": 0.037393725000001155,
+        "nativeGround": 0.0009514000000052647,
+        "nativeOctomap": 0.006008938999997326,
+        "pythonPipeline": 0.03075672499998916,
+        "total": 0.05602469499999074
+      },
+      "timings": [
+        {
+          "encoding": 0.0024734729999948968,
+          "serialization": 0.00072064100000091,
+          "parsing": 0.0003171910000077105,
+          "reconstruction": 0.013686324999994781,
+          "pipeline": 0.037393725000001155,
+          "nativeGround": 0.0008751170000067532,
+          "nativeOctomap": 0.005761883000005241,
+          "pythonPipeline": 0.03075672499998916,
+          "total": 0.05459135499999945
+        },
+        {
+          "encoding": 0.0020662409999943065,
+          "serialization": 0.0006753120000126955,
+          "parsing": 0.00037622699998962617,
+          "reconstruction": 0.014165134000009516,
+          "pipeline": 0.03189452499999845,
+          "nativeGround": 0.0007994609999997238,
+          "nativeOctomap": 0.005845189999988065,
+          "pythonPipeline": 0.025249874000010664,
+          "total": 0.0491774390000046
+        },
+        {
+          "encoding": 0.002067479999993793,
+          "serialization": 0.0007273860000083232,
+          "parsing": 0.0003443969999921137,
+          "reconstruction": 0.013701328999999873,
+          "pipeline": 0.03307581699999673,
+          "nativeGround": 0.0008512739999986252,
+          "nativeOctomap": 0.005663410000011027,
+          "pythonPipeline": 0.02656113299998708,
+          "total": 0.049916408999990836
+        },
+        {
+          "encoding": 0.001928699999993455,
+          "serialization": 0.0006153620000048932,
+          "parsing": 0.00035030400000835016,
+          "reconstruction": 0.0137053969999954,
+          "pipeline": 0.03193639299999518,
+          "nativeGround": 0.0009514000000052647,
+          "nativeOctomap": 0.006008938999997326,
+          "pythonPipeline": 0.024976053999992587,
+          "total": 0.04853615599999728
+        },
+        {
+          "encoding": 0.0019843669999914937,
+          "serialization": 0.0007165600000007544,
+          "parsing": 0.0003579509999980246,
+          "reconstruction": 0.02123661900000684,
+          "pipeline": 0.03172919799999363,
+          "nativeGround": 0.000837398000001599,
+          "nativeOctomap": 0.0054652649999979985,
+          "pythonPipeline": 0.025426534999994033,
+          "total": 0.05602469499999074
+        }
+      ]
+    },
+    {
+      "case": "blocked",
+      "scans": 4,
+      "rays": 24416,
+      "wireBytes": 1563564,
+      "identity": {
+        "observationsSha256": "2c473dda928ee342d20e6b6bfa3e943913ba46505d020ac63109724984a1c37a",
+        "clearanceSha256": "4498f857c2af1b3b7c298e63868697fb89f2bf0355aa4cb98a4cc12c9925590b",
+        "supportSha256": "54b9aec75551b02a1b182a555ee48c2415301d1d167bc59d595a0420e037c07b",
+        "traversabilitySha256": "bd6592ea3a2a413389847b00fe5bd453677d764a896a0c3df036f756bfa3fd32",
+        "costsSha256": "491b3ae208e672fa5f9bd5207dcca6e165b4391115a26ef2bd10deee754931b0",
+        "statistics": [
+          24416,
+          4,
+          24343,
+          360,
+          75,
+          3405,
+          1550198
+        ],
+        "cells": [
+          236,
+          123,
+          3481
+        ]
+      },
+      "medianSeconds": {
+        "encoding": 0.0068365270000043665,
+        "serialization": 0.002168796000006523,
+        "parsing": 0.0010642910000058237,
+        "reconstruction": 0.04873560500000451,
+        "pipeline": 0.09641620799999373,
+        "nativeGround": 0.00247771599998714,
+        "nativeOctomap": 0.02165045599998905,
+        "pythonPipeline": 0.07185672300001045,
+        "total": 0.15408047200000397
+      },
+      "maximumSeconds": {
+        "encoding": 0.007064901999996209,
+        "serialization": 0.002834078000006457,
+        "parsing": 0.0011612029999952256,
+        "reconstruction": 0.05138433000000475,
+        "pipeline": 0.10356044099999906,
+        "nativeGround": 0.0024887660000274536,
+        "nativeOctomap": 0.022987586999988707,
+        "pythonPipeline": 0.08107812500001899,
+        "total": 0.1584301489999973
+      },
+      "timings": [
+        {
+          "encoding": 0.0068365270000043665,
+          "serialization": 0.002093811999998252,
+          "parsing": 0.0009576530000003913,
+          "reconstruction": 0.0506616710000003,
+          "pipeline": 0.09641620799999373,
+          "nativeGround": 0.00247771599998714,
+          "nativeOctomap": 0.022511871000006067,
+          "pythonPipeline": 0.07142662100000052,
+          "total": 0.15696587099999704
+        },
+        {
+          "encoding": 0.007064901999996209,
+          "serialization": 0.002834078000006457,
+          "parsing": 0.0011612029999952256,
+          "reconstruction": 0.05138433000000475,
+          "pipeline": 0.09598563599999466,
+          "nativeGround": 0.00247845699999516,
+          "nativeOctomap": 0.02165045599998905,
+          "pythonPipeline": 0.07185672300001045,
+          "total": 0.1584301489999973
+        },
+        {
+          "encoding": 0.006866113000000951,
+          "serialization": 0.0025268140000065387,
+          "parsing": 0.0009937129999997296,
+          "reconstruction": 0.04013339099999769,
+          "pipeline": 0.10356044099999906,
+          "nativeGround": 0.0024209249999813665,
+          "nativeOctomap": 0.020061390999998707,
+          "pythonPipeline": 0.08107812500001899,
+          "total": 0.15408047200000397
+        },
+        {
+          "encoding": 0.006286045999999601,
+          "serialization": 0.002168796000006523,
+          "parsing": 0.0011185899999901494,
+          "reconstruction": 0.04332730400000173,
+          "pipeline": 0.09701391600000875,
+          "nativeGround": 0.0023583459999940715,
+          "nativeOctomap": 0.022987586999988707,
+          "pythonPipeline": 0.07166798300002597,
+          "total": 0.14991465200000675
+        },
+        {
+          "encoding": 0.0059043440000010605,
+          "serialization": 0.002167575999990845,
+          "parsing": 0.0010642910000058237,
+          "reconstruction": 0.04873560500000451,
+          "pipeline": 0.09419625499999995,
+          "nativeGround": 0.0024887660000274536,
+          "nativeOctomap": 0.01965765099998862,
+          "pythonPipeline": 0.07204983799998388,
+          "total": 0.1520680710000022
+        }
+      ]
+    },
+    {
+      "case": "blocked",
+      "scans": 12,
+      "rays": 84816,
+      "wireBytes": 5430205,
+      "identity": {
+        "observationsSha256": "41380c6c9e54efaa79019644d81ffc6bb06daea81f0bc522a6d2971c4658597c",
+        "clearanceSha256": "d79d0dbfa7f64f821b15d832fd02cd02341d0edcbbe2d58c8b5c784c5477f8c4",
+        "supportSha256": "24b960c8cfe53f37b78aa478f95fef237b6697cdc2d2a77dd78b99248c0a79eb",
+        "traversabilitySha256": "399430aff6bcb6add22a6adc3fb4d654da97a3e201b5109e37578bde8d9c29b7",
+        "costsSha256": "d947c182cc498b827eb729236012c72aacd5c7e3b5911062356a2ef072782efe",
+        "statistics": [
+          84816,
+          12,
+          88999,
+          1554,
+          120,
+          2166,
+          5757184
+        ],
+        "cells": [
+          1032,
+          211,
+          2597
+        ]
+      },
+      "medianSeconds": {
+        "encoding": 0.02180403399999875,
+        "serialization": 0.011330473000001007,
+        "parsing": 0.004173558000005073,
+        "reconstruction": 0.17657702200000358,
+        "pipeline": 0.3359640299999995,
+        "nativeGround": 0.008604305999995177,
+        "nativeOctomap": 0.07267483300000777,
+        "pythonPipeline": 0.2551952579999863,
+        "total": 0.5505598749999905
+      },
+      "maximumSeconds": {
+        "encoding": 0.0230346899999887,
+        "serialization": 0.012087324999995985,
+        "parsing": 0.006907484999999269,
+        "reconstruction": 0.1891299119999985,
+        "pipeline": 0.33959428,
+        "nativeGround": 0.008832535999999891,
+        "nativeOctomap": 0.0739906550000029,
+        "pythonPipeline": 0.25692542299999843,
+        "total": 0.5621201899999875
+      },
+      "timings": [
+        {
+          "encoding": 0.02180403399999875,
+          "serialization": 0.007406365999997888,
+          "parsing": 0.004173558000005073,
+          "reconstruction": 0.17657702200000358,
+          "pipeline": 0.32547820199999933,
+          "nativeGround": 0.0083506980000152,
+          "nativeOctomap": 0.07267483300000777,
+          "pythonPipeline": 0.24445267099997636,
+          "total": 0.5354391820000046
+        },
+        {
+          "encoding": 0.02099831599998936,
+          "serialization": 0.011330473000001007,
+          "parsing": 0.003862689000001751,
+          "reconstruction": 0.1891299119999985,
+          "pipeline": 0.33679879999999685,
+          "nativeGround": 0.008832535999999891,
+          "nativeOctomap": 0.07277100600001063,
+          "pythonPipeline": 0.2551952579999863,
+          "total": 0.5621201899999875
+        },
+        {
+          "encoding": 0.022552483000012558,
+          "serialization": 0.011730967999994846,
+          "parsing": 0.006907484999999269,
+          "reconstruction": 0.17768817699999317,
+          "pipeline": 0.33959428,
+          "nativeGround": 0.008678201999998691,
+          "nativeOctomap": 0.0739906550000029,
+          "pythonPipeline": 0.25692542299999843,
+          "total": 0.5584733929999999
+        },
+        {
+          "encoding": 0.021442691000004288,
+          "serialization": 0.012087324999995985,
+          "parsing": 0.0036888140000002068,
+          "reconstruction": 0.17117751099999623,
+          "pipeline": 0.3300083369999953,
+          "nativeGround": 0.008538138999952594,
+          "nativeOctomap": 0.07186795500000187,
+          "pythonPipeline": 0.24960224300004086,
+          "total": 0.538404677999992
+        },
+        {
+          "encoding": 0.0230346899999887,
+          "serialization": 0.009088919000006968,
+          "parsing": 0.00659503100000336,
+          "reconstruction": 0.17587720499999193,
+          "pipeline": 0.3359640299999995,
+          "nativeGround": 0.008604305999995177,
+          "nativeOctomap": 0.07171295500000952,
+          "pythonPipeline": 0.25564676899999483,
+          "total": 0.5505598749999905
+        }
+      ]
+    },
+    {
+      "case": "detour",
+      "scans": 2,
+      "rays": 8208,
+      "wireBytes": 525996,
+      "identity": {
+        "observationsSha256": "d3fe20f7e070998aa575a8f8bddbec6bc2ad6b8781b324ea67eae1d7665ff20c",
+        "clearanceSha256": "b9e791423ecc37f446815742a0695fc0cd4c3581a6b4baec86f847f9986c6ff6",
+        "supportSha256": "46b820416d43b402984c7b752d706a5cccb83806274dc5d0ede48ef9a401eac0",
+        "traversabilitySha256": "2a128bd5c449ab5691a9438dde2752cacd82fc9859ead24be1af4fab1d903e14",
+        "costsSha256": "c431f8c57af01de93233bb2acf1a476c427ca86a9587c66fe946d73e7fc36422",
+        "statistics": [
+          8208,
+          2,
+          5954,
+          0,
+          16,
+          3824,
+          458956
+        ],
+        "cells": [
+          0,
+          24,
+          3816
+        ]
+      },
+      "medianSeconds": {
+        "encoding": 0.0021836370000016814,
+        "serialization": 0.0007285800000005338,
+        "parsing": 0.0003463890000006131,
+        "reconstruction": 0.014699094999997442,
+        "pipeline": 0.033533591999997725,
+        "nativeGround": 0.000845256000005179,
+        "nativeOctomap": 0.006799260000008189,
+        "pythonPipeline": 0.025810611999986577,
+        "total": 0.0560955320000005
+      },
+      "maximumSeconds": {
+        "encoding": 0.002406273000005399,
+        "serialization": 0.0007617039999985309,
+        "parsing": 0.000396500999997329,
+        "reconstruction": 0.02138636499999791,
+        "pipeline": 0.039112736000006976,
+        "nativeGround": 0.0010955739999900516,
+        "nativeOctomap": 0.007139510000001792,
+        "pythonPipeline": 0.03146821999999361,
+        "total": 0.05789786200000435
+      },
+      "timings": [
+        {
+          "encoding": 0.002045006999992438,
+          "serialization": 0.0007385920000047008,
+          "parsing": 0.0003463890000006131,
+          "reconstruction": 0.013852807999995775,
+          "pipeline": 0.039112736000006976,
+          "nativeGround": 0.000845256000005179,
+          "nativeOctomap": 0.006799260000008189,
+          "pythonPipeline": 0.03146821999999361,
+          "total": 0.0560955320000005
+        },
+        {
+          "encoding": 0.0021598450000084313,
+          "serialization": 0.0006981989999985672,
+          "parsing": 0.0003117889999941781,
+          "reconstruction": 0.02138636499999791,
+          "pipeline": 0.03334166400000527,
+          "nativeGround": 0.0008260830000068609,
+          "nativeOctomap": 0.0071117250000014565,
+          "pythonPipeline": 0.02540385599999695,
+          "total": 0.05789786200000435
+        },
+        {
+          "encoding": 0.0023467599999946742,
+          "serialization": 0.0006757300000117539,
+          "parsing": 0.00033268299999633655,
+          "reconstruction": 0.013752070999998978,
+          "pipeline": 0.032408157999995524,
+          "nativeGround": 0.0008469080000139684,
+          "nativeOctomap": 0.006585317000002533,
+          "pythonPipeline": 0.024975932999979022,
+          "total": 0.049515401999997266
+        },
+        {
+          "encoding": 0.002406273000005399,
+          "serialization": 0.0007617039999985309,
+          "parsing": 0.000396500999997329,
+          "reconstruction": 0.014699094999997442,
+          "pipeline": 0.033533591999997725,
+          "nativeGround": 0.0010955739999900516,
+          "nativeOctomap": 0.006464281000006622,
+          "pythonPipeline": 0.02597373700000105,
+          "total": 0.051797164999996426
+        },
+        {
+          "encoding": 0.0021836370000016814,
+          "serialization": 0.0007285800000005338,
+          "parsing": 0.00036161299999548646,
+          "reconstruction": 0.020677476000003026,
+          "pipeline": 0.033790838999991024,
+          "nativeGround": 0.0008407170000026554,
+          "nativeOctomap": 0.007139510000001792,
+          "pythonPipeline": 0.025810611999986577,
+          "total": 0.05774214499999175
+        }
+      ]
+    },
+    {
+      "case": "detour",
+      "scans": 4,
+      "rays": 24416,
+      "wireBytes": 1563564,
+      "identity": {
+        "observationsSha256": "5a4ff485ad4c0db3eef0362b74bed94485a5e46489c64765bda0c6f3026d490b",
+        "clearanceSha256": "e48d5ca4e46fd0f7b55f7a5788694b59a6b3fee4282e9f7b0e45515d77f73bcf",
+        "supportSha256": "ff579ab602a200d19bc34fd5492b1e8e6ffbcaa72a2da5352f6f911a346454c5",
+        "traversabilitySha256": "0b4c128fbb0779e1650774c496ade537323d83ae9a8a57bf896090acc5a1a342",
+        "costsSha256": "52083d38b073acb0317ad167df7dceaf504a88ffb9bb4a3862040db06a3e332e",
+        "statistics": [
+          24416,
+          4,
+          63135,
+          1221,
+          16,
+          2603,
+          2164482
+        ],
+        "cells": [
+          536,
+          24,
+          3280
+        ]
+      },
+      "medianSeconds": {
+        "encoding": 0.006180329000002871,
+        "serialization": 0.002141391999998632,
+        "parsing": 0.0010861960000028148,
+        "reconstruction": 0.04167446900000016,
+        "pipeline": 0.10720006300000762,
+        "nativeGround": 0.002378339999992818,
+        "nativeOctomap": 0.03440033500000084,
+        "pythonPipeline": 0.07044025900000861,
+        "total": 0.16662364300000831
+      },
+      "maximumSeconds": {
+        "encoding": 0.006458811999991099,
+        "serialization": 0.0024871820000100797,
+        "parsing": 0.0012039270000059332,
+        "reconstruction": 0.05120088599998951,
+        "pipeline": 0.11993774600000506,
+        "nativeGround": 0.0027712779999973236,
+        "nativeOctomap": 0.03687563500000124,
+        "pythonPipeline": 0.080683771000011,
+        "total": 0.17022747800000104
+      },
+      "timings": [
+        {
+          "encoding": 0.006233480999995322,
+          "serialization": 0.002089023999999995,
+          "parsing": 0.0010861960000028148,
+          "reconstruction": 0.05120088599998951,
+          "pipeline": 0.10545715300000325,
+          "nativeGround": 0.0027712779999973236,
+          "nativeOctomap": 0.03444239499999924,
+          "pythonPipeline": 0.06824348000000668,
+          "total": 0.1660667399999909
+        },
+        {
+          "encoding": 0.006180329000002871,
+          "serialization": 0.002005565999994019,
+          "parsing": 0.0011074790000122903,
+          "reconstruction": 0.05013020599999152,
+          "pipeline": 0.10720006300000762,
+          "nativeGround": 0.002359468999998171,
+          "nativeOctomap": 0.03440033500000084,
+          "pythonPipeline": 0.07044025900000861,
+          "total": 0.16662364300000831
+        },
+        {
+          "encoding": 0.006458811999991099,
+          "serialization": 0.002141391999998632,
+          "parsing": 0.0009989240000010113,
+          "reconstruction": 0.04095772300000533,
+          "pipeline": 0.11645642300000247,
+          "nativeGround": 0.002423258999996847,
+          "nativeOctomap": 0.03419230299999754,
+          "pythonPipeline": 0.07984086100000809,
+          "total": 0.16701327399999855
+        },
+        {
+          "encoding": 0.0059884920000001785,
+          "serialization": 0.002325861999992185,
+          "parsing": 0.0012039270000059332,
+          "reconstruction": 0.04077145099999768,
+          "pipeline": 0.11993774600000506,
+          "nativeGround": 0.002378339999992818,
+          "nativeOctomap": 0.03687563500000124,
+          "pythonPipeline": 0.080683771000011,
+          "total": 0.17022747800000104
+        },
+        {
+          "encoding": 0.00602097699999149,
+          "serialization": 0.0024871820000100797,
+          "parsing": 0.0010043349999904194,
+          "reconstruction": 0.04167446900000016,
+          "pipeline": 0.10608211800000333,
+          "nativeGround": 0.0022885600000108752,
+          "nativeOctomap": 0.03384930999999369,
+          "pythonPipeline": 0.06994424799999877,
+          "total": 0.15726908099999548
+        }
+      ]
+    },
+    {
+      "case": "detour",
+      "scans": 12,
+      "rays": 84816,
+      "wireBytes": 5430205,
+      "identity": {
+        "observationsSha256": "88f13a642189d1dfd18af1f1aba69cde863b4f2004f22fd0986153bfccf82594",
+        "clearanceSha256": "1017d665034ee01fd4027980d7560732bbd63a30a156626685a77ef84e3c5b04",
+        "supportSha256": "de50f616ec7f0479d69af128942f3bf6b31984a4af5a9adcc5f2cfd4004765c6",
+        "traversabilitySha256": "c539d29d589c2c5aa39377462a8aa65ab60a6fdc5b3fc23edd2b2101787b9654",
+        "costsSha256": "044ff75f589f0236956dbaec953bab4b8ce82febfc506e738beb5e68677a8f3a",
+        "statistics": [
+          84816,
+          12,
+          214214,
+          3456,
+          16,
+          368,
+          8093445
+        ],
+        "cells": [
+          1280,
+          32,
+          2528
+        ]
+      },
+      "medianSeconds": {
+        "encoding": 0.021830434000008836,
+        "serialization": 0.008100517999992007,
+        "parsing": 0.004415938000008168,
+        "reconstruction": 0.17604236599999012,
+        "pipeline": 0.39047922999999685,
+        "nativeGround": 0.008486194000013825,
+        "nativeOctomap": 0.1401693760000029,
+        "pythonPipeline": 0.2416121710000283,
+        "total": 0.6058233159999986
+      },
+      "maximumSeconds": {
+        "encoding": 0.02245472999999265,
+        "serialization": 0.012895381999996403,
+        "parsing": 0.007212946000009879,
+        "reconstruction": 0.186262401999997,
+        "pipeline": 0.3957969020000007,
+        "nativeGround": 0.008703310999976566,
+        "nativeOctomap": 0.14102771900000732,
+        "pythonPipeline": 0.24761002400003918,
+        "total": 0.6141125400000078
+      },
+      "timings": [
+        {
+          "encoding": 0.02117436000000339,
+          "serialization": 0.00705441200000223,
+          "parsing": 0.004697577000001729,
+          "reconstruction": 0.17508613299999354,
+          "pipeline": 0.37801903000000436,
+          "nativeGround": 0.008479599000011717,
+          "nativeOctomap": 0.13501592300001164,
+          "pythonPipeline": 0.234523507999981,
+          "total": 0.5860315120000053
+        },
+        {
+          "encoding": 0.021830434000008836,
+          "serialization": 0.012660760000002824,
+          "parsing": 0.003907702999995877,
+          "reconstruction": 0.186262401999997,
+          "pipeline": 0.3894512410000033,
+          "nativeGround": 0.008416656999969518,
+          "nativeOctomap": 0.13342455999999459,
+          "pythonPipeline": 0.24761002400003918,
+          "total": 0.6141125400000078
+        },
+        {
+          "encoding": 0.02245472999999265,
+          "serialization": 0.012895381999996403,
+          "parsing": 0.003945980000011673,
+          "reconstruction": 0.17604236599999012,
+          "pipeline": 0.39048485800000776,
+          "nativeGround": 0.008703310999976566,
+          "nativeOctomap": 0.1401693760000029,
+          "pythonPipeline": 0.2416121710000283,
+          "total": 0.6058233159999986
+        },
+        {
+          "encoding": 0.021173910999991108,
+          "serialization": 0.007363605999998413,
+          "parsing": 0.004415938000008168,
+          "reconstruction": 0.16477079499999547,
+          "pipeline": 0.3957969020000007,
+          "nativeGround": 0.008486681000007934,
+          "nativeOctomap": 0.14031140100000528,
+          "pythonPipeline": 0.24699881999998752,
+          "total": 0.5935211519999939
+        },
+        {
+          "encoding": 0.021832584000009092,
+          "serialization": 0.008100517999992007,
+          "parsing": 0.007212946000009879,
+          "reconstruction": 0.1803369779999997,
+          "pipeline": 0.39047922999999685,
+          "nativeGround": 0.008486194000013825,
+          "nativeOctomap": 0.14102771900000732,
+          "pythonPipeline": 0.2409653169999757,
+          "total": 0.6079622560000075
+        }
+      ]
+    },
+    {
+      "case": "unsupported-shortcut",
+      "scans": 2,
+      "rays": 7824,
+      "wireBytes": 501420,
+      "identity": {
+        "observationsSha256": "c31deaf1b9e245f93a03ac24efc3682f7f153569bca14a8464d36b31a19ff14f",
+        "clearanceSha256": "796e74fd40369e110c6e05196b9eee103f77c03dd13cb72455c881153178f995",
+        "supportSha256": "20c84502303380aa93c1423529fe1ba1f4a9886ba5835c83337c056dac09577a",
+        "traversabilitySha256": "19652dbc8b6a202552343a702a16d6650ede877dfd838f8ca1d9c2493f59db0f",
+        "costsSha256": "877efe413fb39caaf868c25879411ca55649261dafde6ce5301bfe6ce713180b",
+        "statistics": [
+          7824,
+          2,
+          6012,
+          0,
+          0,
+          3840,
+          468151
+        ],
+        "cells": [
+          0,
+          0,
+          3840
+        ]
+      },
+      "medianSeconds": {
+        "encoding": 0.00201255899999353,
+        "serialization": 0.0006355189999993627,
+        "parsing": 0.00032067099999721904,
+        "reconstruction": 0.01309641699999986,
+        "pipeline": 0.03225912700000322,
+        "nativeGround": 0.0007818189999966307,
+        "nativeOctomap": 0.006729066000005446,
+        "pythonPipeline": 0.024754526999998916,
+        "total": 0.05026090199999089
+      },
+      "maximumSeconds": {
+        "encoding": 0.0020971289999920373,
+        "serialization": 0.0007982600000104867,
+        "parsing": 0.000399457000000325,
+        "reconstruction": 0.015700905000002763,
+        "pipeline": 0.03896636199999648,
+        "nativeGround": 0.0008729539999876579,
+        "nativeOctomap": 0.006792954000005125,
+        "pythonPipeline": 0.03165367700000843,
+        "total": 0.055012840000003393
+      },
+      "timings": [
+        {
+          "encoding": 0.0020971289999920373,
+          "serialization": 0.0007982600000104867,
+          "parsing": 0.000399457000000325,
+          "reconstruction": 0.012933472999989704,
+          "pipeline": 0.038310414000008564,
+          "nativeGround": 0.0008729539999876579,
+          "nativeOctomap": 0.00674554699999419,
+          "pythonPipeline": 0.030691913000026716,
+          "total": 0.054538733000001116
+        },
+        {
+          "encoding": 0.00201255899999353,
+          "serialization": 0.0006355189999993627,
+          "parsing": 0.00032067099999721904,
+          "reconstruction": 0.015700905000002763,
+          "pipeline": 0.03159124799999802,
+          "nativeGround": 0.0007818189999966307,
+          "nativeOctomap": 0.006792954000005125,
+          "pythonPipeline": 0.024016474999996262,
+          "total": 0.05026090199999089
+        },
+        {
+          "encoding": 0.002024426999994944,
+          "serialization": 0.0006005299999998215,
+          "parsing": 0.0003083860000003824,
+          "reconstruction": 0.01309641699999986,
+          "pipeline": 0.03225912700000322,
+          "nativeGround": 0.0007755339999988564,
+          "nativeOctomap": 0.006729066000005446,
+          "pythonPipeline": 0.024754526999998916,
+          "total": 0.048288886999998226
+        },
+        {
+          "encoding": 0.001988358000005519,
+          "serialization": 0.0007026440000004186,
+          "parsing": 0.0003173669999938511,
+          "reconstruction": 0.013038109000007125,
+          "pipeline": 0.03896636199999648,
+          "nativeGround": 0.0007704739999923049,
+          "nativeOctomap": 0.006542210999995746,
+          "pythonPipeline": 0.03165367700000843,
+          "total": 0.055012840000003393
+        },
+        {
+          "encoding": 0.0018199489999943808,
+          "serialization": 0.0006109579999957759,
+          "parsing": 0.0003259760000133838,
+          "reconstruction": 0.01425160999998809,
+          "pipeline": 0.03153461800000912,
+          "nativeGround": 0.0007846179999972946,
+          "nativeOctomap": 0.0066267480000021806,
+          "pythonPipeline": 0.024123252000009643,
+          "total": 0.04854311100000075
+        }
+      ]
+    },
+    {
+      "case": "unsupported-shortcut",
+      "scans": 4,
+      "rays": 23648,
+      "wireBytes": 1514412,
+      "identity": {
+        "observationsSha256": "d1e0d27cfd8f54fe20d14d02963f95351b8624d3e0163226bf636cd3b97fcd7f",
+        "clearanceSha256": "afef1c3c20b276942f771f55a9755f342548a59a2096a2ff16bbd3211536be09",
+        "supportSha256": "cebae2a985c24669f3cec7a678ad5d64fd3ca74bcdede729a2c20c3bfd320b5c",
+        "traversabilitySha256": "1b875deb3984014fc76d5e28ba4b72e6574ec5bf1a284a8978cc720aa8c18e9c",
+        "costsSha256": "6d3592c3283c04c592dc439baa202924ba5925c457eb18ab8faa96ecff611eaf",
+        "statistics": [
+          23648,
+          4,
+          65876,
+          1317,
+          0,
+          2523,
+          2235094
+        ],
+        "cells": [
+          573,
+          0,
+          3267
+        ]
+      },
+      "medianSeconds": {
+        "encoding": 0.006007733000018334,
+        "serialization": 0.0020767919999968854,
+        "parsing": 0.001138190000006034,
+        "reconstruction": 0.04079556299998899,
+        "pipeline": 0.10961027699998738,
+        "nativeGround": 0.002412358999947628,
+        "nativeOctomap": 0.0366785110000194,
+        "pythonPipeline": 0.06932713499995202,
+        "total": 0.1659391160000041
+      },
+      "maximumSeconds": {
+        "encoding": 0.006351253000005386,
+        "serialization": 0.0021852079999860052,
+        "parsing": 0.0012366850000091745,
+        "reconstruction": 0.04978873100000669,
+        "pipeline": 0.12175470400001132,
+        "nativeGround": 0.002641978000013978,
+        "nativeOctomap": 0.03805227499998409,
+        "pythonPipeline": 0.08203593700000056,
+        "total": 0.16983555900000624
+      },
+      "timings": [
+        {
+          "encoding": 0.006351253000005386,
+          "serialization": 0.0020937169999939442,
+          "parsing": 0.001208676000004516,
+          "reconstruction": 0.04978873100000669,
+          "pipeline": 0.10961027699998738,
+          "nativeGround": 0.002641978000013978,
+          "nativeOctomap": 0.03805227499998409,
+          "pythonPipeline": 0.0689160239999893,
+          "total": 0.16905265399999791
+        },
+        {
+          "encoding": 0.005797596000007843,
+          "serialization": 0.0019491019999975379,
+          "parsing": 0.0010922560000210524,
+          "reconstruction": 0.04758163599998966,
+          "pipeline": 0.10852200200000084,
+          "nativeGround": 0.0025163560000294183,
+          "nativeOctomap": 0.0366785110000194,
+          "pythonPipeline": 0.06932713499995202,
+          "total": 0.16494259200001693
+        },
+        {
+          "encoding": 0.006179045000010319,
+          "serialization": 0.0021852079999860052,
+          "parsing": 0.0012366850000091745,
+          "reconstruction": 0.04067493799999511,
+          "pipeline": 0.1156632400000035,
+          "nativeGround": 0.002412358999947628,
+          "nativeOctomap": 0.03575163400000747,
+          "pythonPipeline": 0.0774992470000484,
+          "total": 0.1659391160000041
+        },
+        {
+          "encoding": 0.005966112000010071,
+          "serialization": 0.0020461009999905855,
+          "parsing": 0.0009508550000134619,
+          "reconstruction": 0.03911778699998081,
+          "pipeline": 0.12175470400001132,
+          "nativeGround": 0.002229096999997182,
+          "nativeOctomap": 0.037489670000013575,
+          "pythonPipeline": 0.08203593700000056,
+          "total": 0.16983555900000624
+        },
+        {
+          "encoding": 0.006007733000018334,
+          "serialization": 0.0020767919999968854,
+          "parsing": 0.001138190000006034,
+          "reconstruction": 0.04079556299998899,
+          "pipeline": 0.10740478400001052,
+          "nativeGround": 0.0022740700000269953,
+          "nativeOctomap": 0.035856504000008727,
+          "pythonPipeline": 0.0692742099999748,
+          "total": 0.15742306200002076
+        }
+      ]
+    },
+    {
+      "case": "unsupported-shortcut",
+      "scans": 12,
+      "rays": 82404,
+      "wireBytes": 5275837,
+      "identity": {
+        "observationsSha256": "bdc19d26d984b426bd8399288dbda1daefdd87f82b756e1343d91d02c534cc25",
+        "clearanceSha256": "08aa2e666072374162e80f5102d0a889d77cc41071d2f6087b783a4429a43d28",
+        "supportSha256": "a0fb148a792ec5c2d87a37579351bccac5817a85f2d5dfa79d61b2d686c4cf1c",
+        "traversabilitySha256": "43d0f0597e70a216607d9114fbd940ab143b5f443b0a01c06e176acca9fde140",
+        "costsSha256": "906e0ad5bad11e01f48483f36852da92f682b52072d8b32d2360d0583f335e1e",
+        "statistics": [
+          82404,
+          12,
+          225245,
+          3756,
+          0,
+          84,
+          8565920
+        ],
+        "cells": [
+          1274,
+          0,
+          2566
+        ]
+      },
+      "medianSeconds": {
+        "encoding": 0.021208645000001525,
+        "serialization": 0.008135180000010678,
+        "parsing": 0.003986948000004986,
+        "reconstruction": 0.17003601100000765,
+        "pipeline": 0.3817276149999884,
+        "nativeGround": 0.007777269000001752,
+        "nativeOctomap": 0.14105737400001317,
+        "pythonPipeline": 0.23268678699994894,
+        "total": 0.5862970610000104
+      },
+      "maximumSeconds": {
+        "encoding": 0.021332807000021603,
+        "serialization": 0.008958608000000368,
+        "parsing": 0.007038418000007596,
+        "reconstruction": 0.1923264420000237,
+        "pipeline": 0.38335182599999484,
+        "nativeGround": 0.008148789999921746,
+        "nativeOctomap": 0.14208815500001037,
+        "pythonPipeline": 0.2334904340000037,
+        "total": 0.6069106550000072
+      },
+      "timings": [
+        {
+          "encoding": 0.021208645000001525,
+          "serialization": 0.00815365299999371,
+          "parsing": 0.003986948000004986,
+          "reconstruction": 0.17340756400000146,
+          "pipeline": 0.3772404359999939,
+          "nativeGround": 0.008148789999921746,
+          "nativeOctomap": 0.1395205280000198,
+          "pythonPipeline": 0.22957111800005237,
+          "total": 0.5839972459999956
+        },
+        {
+          "encoding": 0.021332807000021603,
+          "serialization": 0.008958608000000368,
+          "parsing": 0.004242019999992408,
+          "reconstruction": 0.17003601100000765,
+          "pipeline": 0.3817276149999884,
+          "nativeGround": 0.007777269000001752,
+          "nativeOctomap": 0.14105737400001317,
+          "pythonPipeline": 0.2328929719999735,
+          "total": 0.5862970610000104
+        },
+        {
+          "encoding": 0.020727039000007608,
+          "serialization": 0.007233944999995856,
+          "parsing": 0.003920440999991115,
+          "reconstruction": 0.1923264420000237,
+          "pipeline": 0.3827027879999889,
+          "nativeGround": 0.007973199000019804,
+          "nativeOctomap": 0.14204280200002017,
+          "pythonPipeline": 0.23268678699994894,
+          "total": 0.6069106550000072
+        },
+        {
+          "encoding": 0.02077344099998868,
+          "serialization": 0.007450661999996555,
+          "parsing": 0.003596170999998094,
+          "reconstruction": 0.16115090600001736,
+          "pipeline": 0.38335182599999484,
+          "nativeGround": 0.0077732369999807815,
+          "nativeOctomap": 0.14208815500001037,
+          "pythonPipeline": 0.2334904340000037,
+          "total": 0.5763230059999955
+        },
+        {
+          "encoding": 0.02132351800000265,
+          "serialization": 0.008135180000010678,
+          "parsing": 0.007038418000007596,
+          "reconstruction": 0.16924932399999193,
+          "pipeline": 0.3808225150000055,
+          "nativeGround": 0.007625828000044521,
+          "nativeOctomap": 0.14064628100001642,
+          "pythonPipeline": 0.2325504059999446,
+          "total": 0.5865689550000184
+        }
+      ]
+    }
+  ],
+  "octomapBuild": {
+    "schemaVersion": 1,
+    "purpose": "offline_native_build_not_target_acceptance",
+    "sourceSha256": "4a53f10d231f3781c665bd84a973080319cad0063ec45979d558c5e439240dea",
+    "nativeSha256": "65e14f57af1c47d486b8cf8ada0740f7581fd43856c152d1c1bb775fb7cbf132",
+    "headersSha256": {
+      "MCTables.h": "de456107164b7505508983ddaa03b72b18fe343d3f9203397afb38c55397dac9",
+      "ColorOcTree.h": "bafbfd4a291abf6dcab53263eb73d479ac29085f7e873638f237500ea8a5f069",
+      "AbstractOcTree.h": "16198ebc601258868bd2e44bb951f6f286eb22be4ab5680be7ca37299f0bbdac",
+      "octomap_deprecated.h": "106487c8fc1e34e133c6175b84684ce6d577cadb79746533e687864fd805ace5",
+      "OccupancyOcTreeBase.hxx": "23de3e9cdc9e7da81807494f4c4b0804495ff254cff7bd9ddf23f862c4e23462",
+      "MapCollection.h": "c6a2c34516cd882cd92ea02c9ef85df797695e55053d93ef22c8206936451598",
+      "MapNode.h": "32b5ea665e80cddcecf6700fe4790f080a693d1d12a6828dc5c040308a5e660b",
+      "MapNode.hxx": "60bd0981d1ee9f97384afdc4f914d37ae8b6169287c20e3006c5f1ad181d6ff2",
+      "OcTreeBaseImpl.h": "21f2687d88719d7c41f9f765645cfca74af296e9fa86994c4d39e23d974101bb",
+      "OcTreeStamped.h": "e07ae66c92c3ee479216c4b19bda6d61352c296f70af7b2d0d8edc4a933cf773",
+      "OcTreeKey.h": "016ce8d6297e4e7bedd6ff47e7887e8b523cc10dd26e24082da96a46a30c01c9",
+      "OcTreeBase.h": "6d762aaff41268bed53a5a044833fc6ea64789003321f84f43325db551acdb2e",
+      "octomap_timing.h": "5c2084c5cfb0db27fa5e0c3c7f9f58a016c7e5899e95666f0adc2ea521ab51b4",
+      "OcTreeDataNode.hxx": "789aabee299d39d274c3f2cd82e2b57cd05a877835de8db99357adb0ae3c40f2",
+      "OcTreeDataNode.h": "4699ca250ec1fdf646a3e035304a6633ebd974007091173a4818649ce86459ee",
+      "ScanGraph.h": "88e921990dac24a799e5b17715b192399f17b9993b7180e60451109934b403a2",
+      "octomap_utils.h": "6df1c80f37e7160196e7361032cdf82364c73f419fd6eb003f05b05c3aa3db04",
+      "OcTreeBaseImpl.hxx": "8060db0d37c5ae8c14d264aa65be26d394f75e245742315a95e7e613e5c2244e",
+      "MapCollection.hxx": "ea538e9a0b389b439c503592ae83b02bba2a24201a1d5cef8f830e408112d00a",
+      "octomap.h": "fcf765ddef9b1a627449c390fce08933e94edd2f6a94ca20cc9700fa101b49cb",
+      "OccupancyOcTreeBase.h": "0608801e849ae465b6f8d1e721788bf4a6eb014a070f630e7c690f711ae629d8",
+      "OcTree.h": "94caf6bf81e303e22c3ea2dbe8a754ccafa21c32c85e93ffa2b6a4c9330337d8",
+      "Pointcloud.h": "d130225265c63956bb00df060f709029f19c64630ad3229d38a06a7902e76e21",
+      "CountingOcTree.h": "405fd6e0065c2cdb8920471dfe9d4faab60640a34f0a3f6209e9cacd6f80b8a8",
+      "OcTreeIterator.hxx": "8ba33fa6e138d83ab2ae9b2c4bf944922612b85a66b150ba57f6fdc8f22adc22",
+      "OcTreeNode.h": "117750d2cc1e0237acc355f040b43e638aa6d90e68f6c8f0ae6c196e2b9ada4b",
+      "AbstractOccupancyOcTree.h": "6e176d532cde8a7495574e7809e610d5dbba0ef32c0abee4e6ada605923c6563",
+      "octomap_types.h": "74ed07c3f23a72231c0cfbfd02810dc281e4114f4e15e58662a39eadc8ded231",
+      "math/Utils.h": "0932b85c72fe58d5c3f9093d9057e5f84ddb2137df2644963792b685236c0972",
+      "math/Pose6D.h": "aa1954bec389f9477e94e29643b098588699d0a1abe89a5fa444bbe11cafeed4",
+      "math/Vector3.h": "6c2ee59b93402f018dad9f418b1b6691b6af47814de1dee6735280f83e0ede81",
+      "math/Quaternion.h": "c616a7a581eb6f768cbde56de13a1b26cfa4fd1f372803b48e2e127e3ef87336"
+    },
+    "dependencies": {
+      "liboctomap.so.1.9.7": "27e22029990f69e951b5c4b1acc33e44fe3663af9e13620271a35ab1ed1309f7",
+      "liboctomath.so.1.9.7": "da54007d468946667bf76fc9f81ce64ad8d28ae2b3d551f501adaf2f0631731f"
+    },
+    "compiler": "g++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
+    "octomapVersion": "1.9.7",
+    "freshProcessLoadPassed": true,
+    "robotContacted": false,
+    "navigationReady": false
+  },
+  "octomapBuildReportSha256": "392abc236b543a089292711dc700a766ae27370df7d5a081115ca1bd46c78d2d"
+}

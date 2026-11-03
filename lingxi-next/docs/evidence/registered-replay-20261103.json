@@ -22,12 +22,62 @@
     "robot-navigation/lingxi_navigation/recorded_occupancy.py": "af26d7a34ac77b484c976065c5340c7b1ed414eab2b2da5a0541f4f5e678511a"
   },
   "privateEvidenceSha256": {
-    "child-report.json": "09c21c60579d7e90c6b61228cae3495ff554ab7d33204a78e5c8a7f89fc68e6c",
-    "chain-report.json": "8dcd3a14b9441a3851e8b761c0dd66e25d3beff01369d116809dcb491097bb7b",
-    "private-child.log": "2d72ef6e66347a856e12bad99202f70ce4f66b7886643babcdffc96910cc3f1d",
+    "child-report.json": "998d88f1ebcc273470c11d316bc4c0254fa7d323f401e601c7b65d9867eadade",
+    "chain-report.json": "6544d883227ab1ec26c2eb0b01d7f8fd971bcb1ce0ea7fcaa155f702e3d1db1b",
+    "private-child.log": "65534efb3bd6b4550632363d140db4152ff53f01b1eb5acf7ebe7388999401f5",
     "private-terrain.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
   },
-  "privateSupervisorReportSha256": "6ddf48eb5484d6a5b6926a329289d8255aa7da4e7ea45ae8766d6b589a2c3b4d",
+  "privateSupervisorReportSha256": "7b1a7ee2397666a0761c8d4377ce1f272f186746b7d5b06625c869a65bf6b760",
+  "nativeOctomapBuild": {
+    "schemaVersion": 1,
+    "purpose": "offline_native_build_not_target_acceptance",
+    "sourceSha256": "4a53f10d231f3781c665bd84a973080319cad0063ec45979d558c5e439240dea",
+    "nativeSha256": "65e14f57af1c47d486b8cf8ada0740f7581fd43856c152d1c1bb775fb7cbf132",
+    "headersSha256": {
+      "MCTables.h": "de456107164b7505508983ddaa03b72b18fe343d3f9203397afb38c55397dac9",
+      "ColorOcTree.h": "bafbfd4a291abf6dcab53263eb73d479ac29085f7e873638f237500ea8a5f069",
+      "AbstractOcTree.h": "16198ebc601258868bd2e44bb951f6f286eb22be4ab5680be7ca37299f0bbdac",
+      "octomap_deprecated.h": "106487c8fc1e34e133c6175b84684ce6d577cadb79746533e687864fd805ace5",
+      "OccupancyOcTreeBase.hxx": "23de3e9cdc9e7da81807494f4c4b0804495ff254cff7bd9ddf23f862c4e23462",
+      "MapCollection.h": "c6a2c34516cd882cd92ea02c9ef85df797695e55053d93ef22c8206936451598",
+      "MapNode.h": "32b5ea665e80cddcecf6700fe4790f080a693d1d12a6828dc5c040308a5e660b",
+      "MapNode.hxx": "60bd0981d1ee9f97384afdc4f914d37ae8b6169287c20e3006c5f1ad181d6ff2",
+      "OcTreeBaseImpl.h": "21f2687d88719d7c41f9f765645cfca74af296e9fa86994c4d39e23d974101bb",
+      "OcTreeStamped.h": "e07ae66c92c3ee479216c4b19bda6d61352c296f70af7b2d0d8edc4a933cf773",
+      "OcTreeKey.h": "016ce8d6297e4e7bedd6ff47e7887e8b523cc10dd26e24082da96a46a30c01c9",
+      "OcTreeBase.h": "6d762aaff41268bed53a5a044833fc6ea64789003321f84f43325db551acdb2e",
+      "octomap_timing.h": "5c2084c5cfb0db27fa5e0c3c7f9f58a016c7e5899e95666f0adc2ea521ab51b4",
+      "OcTreeDataNode.hxx": "789aabee299d39d274c3f2cd82e2b57cd05a877835de8db99357adb0ae3c40f2",
+      "OcTreeDataNode.h": "4699ca250ec1fdf646a3e035304a6633ebd974007091173a4818649ce86459ee",
+      "ScanGraph.h": "88e921990dac24a799e5b17715b192399f17b9993b7180e60451109934b403a2",
+      "octomap_utils.h": "6df1c80f37e7160196e7361032cdf82364c73f419fd6eb003f05b05c3aa3db04",
+      "OcTreeBaseImpl.hxx": "8060db0d37c5ae8c14d264aa65be26d394f75e245742315a95e7e613e5c2244e",
+      "MapCollection.hxx": "ea538e9a0b389b439c503592ae83b02bba2a24201a1d5cef8f830e408112d00a",
+      "octomap.h": "fcf765ddef9b1a627449c390fce08933e94edd2f6a94ca20cc9700fa101b49cb",
+      "OccupancyOcTreeBase.h": "0608801e849ae465b6f8d1e721788bf4a6eb014a070f630e7c690f711ae629d8",
+      "OcTree.h": "94caf6bf81e303e22c3ea2dbe8a754ccafa21c32c85e93ffa2b6a4c9330337d8",
+      "Pointcloud.h": "d130225265c63956bb00df060f709029f19c64630ad3229d38a06a7902e76e21",
+      "CountingOcTree.h": "405fd6e0065c2cdb8920471dfe9d4faab60640a34f0a3f6209e9cacd6f80b8a8",
+      "OcTreeIterator.hxx": "8ba33fa6e138d83ab2ae9b2c4bf944922612b85a66b150ba57f6fdc8f22adc22",
+      "OcTreeNode.h": "117750d2cc1e0237acc355f040b43e638aa6d90e68f6c8f0ae6c196e2b9ada4b",
+      "AbstractOccupancyOcTree.h": "6e176d532cde8a7495574e7809e610d5dbba0ef32c0abee4e6ada605923c6563",
+      "octomap_types.h": "74ed07c3f23a72231c0cfbfd02810dc281e4114f4e15e58662a39eadc8ded231",
+      "math/Utils.h": "0932b85c72fe58d5c3f9093d9057e5f84ddb2137df2644963792b685236c0972",
+      "math/Pose6D.h": "aa1954bec389f9477e94e29643b098588699d0a1abe89a5fa444bbe11cafeed4",
+      "math/Vector3.h": "6c2ee59b93402f018dad9f418b1b6691b6af47814de1dee6735280f83e0ede81",
+      "math/Quaternion.h": "c616a7a581eb6f768cbde56de13a1b26cfa4fd1f372803b48e2e127e3ef87336"
+    },
+    "dependencies": {
+      "liboctomap.so.1.9.7": "27e22029990f69e951b5c4b1acc33e44fe3663af9e13620271a35ab1ed1309f7",
+      "liboctomath.so.1.9.7": "da54007d468946667bf76fc9f81ce64ad8d28ae2b3d551f501adaf2f0631731f"
+    },
+    "compiler": "g++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
+    "octomapVersion": "1.9.7",
+    "freshProcessLoadPassed": true,
+    "robotContacted": false,
+    "navigationReady": false
+  },
+  "nativeOctomapBuildSha256": "392abc236b543a089292711dc700a766ae27370df7d5a081115ca1bd46c78d2d",
   "boundaries": {
     "recordedPoseUsedForInitialSeed": true,
     "possibleMappingSequenceReuse": true,
@@ -67,7 +117,7 @@
     "retirementVerified": true,
     "defaultBudgetAccepted": true,
     "pendingAtEnd": true,
-    "observedTerrainResults": 23,
+    "observedTerrainResults": 27,
     "supportedFreeCellsObserved": false,
     "navigationReady": false
   },
@@ -84,16 +134,16 @@
     "acquiring": 2,
     "tracking": 161
   },
-  "submissions": 24,
-  "observedResults": 23,
+  "submissions": 28,
+  "observedResults": 27,
   "workUnits": {
     "minimum": 1067431,
-    "maximum": 3656731,
-    "workEvictedScansAtLastSubmission": 156
+    "maximum": 3653896,
+    "workEvictedScansAtLastSubmission": 154
   },
   "originalIngressToObservationSeconds": {
-    "minimum": 0.30051248999999913,
-    "maximum": 1.1011489169999997
+    "minimum": 0.24846219799999858,
+    "maximum": 0.9077478250000013
   },
   "observedSupportedFreeCells": 0,
   "nativeFailureReason": null,

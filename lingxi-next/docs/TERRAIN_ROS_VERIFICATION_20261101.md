@@ -1,8 +1,8 @@
 # Live Native Terrain ROS Verification
 
-Current-source rerun: 2026-11-03, after exact-double/native-buffer optimization. All three
+Current-source rerun: 2026-11-03, after native scan-accumulation optimization. All three
 declared-mode trials were actually rebuilt and rerun sequentially as
-`terrain-ros-MODE-20261103-g`. Each passed all 14 checks; the committed reports
+`terrain-ros-MODE-20261103-h`. Each passed all 14 checks; the committed reports
 and withdrawal table below now describe those runs. The older focused-suite
 counts below remain historical. These larger-budget trials do not validate
 the new saved-map mode's 300 ms acquisition deadline or target throughput.
@@ -40,15 +40,15 @@ process connected to ROS, not live robot sensors or physical navigation.
 
 All three trials passed all **14 checks**. Their actual native input has
 1,354 free cells, zero occupied cells and 2,486 unknown cells, with default
-clearance Z 0.1--1.4 m. Native processing completed in 1.002--1.015 seconds on this
-host while 20--21 map publications continued. This is not an ARM64 throughput
+clearance Z 0.1--1.4 m. Native processing completed in 0.758--0.787 seconds on this
+host while 15--16 map publications continued. This is not an ARM64 throughput
 or end-to-end latency acceptance result.
 
 | Scenario | Observed source withdrawal after expiry/trigger | Raw report |
 | --- | --- | --- |
-| Original TTL expires while ROS `/clock` is paused | 0.050134 s | [expiry](evidence/terrain-ros-expiry-20261101.json) |
-| Actual native child receives SIGKILL, without another input | 0.027124 s | [death](evidence/terrain-ros-death-20261101.json) |
-| Explicit source retirement, equivalent to map revocation | 0.010685 s | [revoke](evidence/terrain-ros-revoke-20261101.json) |
+| Original TTL expires while ROS `/clock` is paused | 0.023062 s | [expiry](evidence/terrain-ros-expiry-20261101.json) |
+| Actual native child receives SIGKILL, without another input | 0.027205 s | [death](evidence/terrain-ros-death-20261101.json) |
+| Explicit source retirement, equivalent to map revocation | 0.010753 s | [revoke](evidence/terrain-ros-revoke-20261101.json) |
 
 Each trial first obtains a real planned path and nonzero synthetic controller
 output. After withdrawal, a newly attached DDS reader receives an unknown map;
@@ -70,11 +70,17 @@ passed **62 tests, zero failures/errors/skips** (16.508 s). Windows ran the same
 failures/errors. Python compilation and shell syntax checks passed. No
 TypeScript/UI source changed; its broader regression was not rerun here.
 
-The current optimization follow-up's expanded actual-native collection completed
+The earlier Python/transport follow-up's expanded actual-native collection completed
 177 tests: 176 passed, one NavFn-library skip, zero failures/errors, 25.238 s.
 All eight current-source generic ROS evidence checks passed in that collection.
-See [the throughput report](TERRAIN_THROUGHPUT_20261103.md); this does not replace
+See [the native throughput report](TERRAIN_NATIVE_THROUGHPUT_20261103.md); this does not replace
 ARM64 or physical navigation acceptance.
+
+The subsequent native-accumulation regression completed 185 tests: 184 passed,
+one actual-NavFn-library skip, zero failures/errors, in 30.237 s, including all
+eight generic ROS evidence checks against the current runs. The separate
+scientific Linux live-acquisition collection passed all 36 tests without skips
+in 38.258 s. These are focused collections, not a new full-suite result.
 
 ## Reproduction
 

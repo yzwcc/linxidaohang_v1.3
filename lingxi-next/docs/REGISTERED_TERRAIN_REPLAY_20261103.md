@@ -1,12 +1,13 @@
 # Actual Recorded Localization And Native Terrain
 
 Current-source rerun: the recorded chain was actually replayed after saved-map
-terrain alignment and exact-double/native-buffer optimization as private run
-`registered-replay-20261103-d`. The committed aggregate is derived from and
-regraded against those new private reports. The earlier `-c` run remains
+terrain alignment, exact-double/native-buffer and native scan-accumulation
+optimization as private run `registered-replay-20261103-e`. The committed aggregate
+is derived from and regraded against those new private reports and preserves
+the actual native build report/hash. The earlier `-c` and `-d` runs remain
 preserved; its temporary source-identity failure was not fixed by replacing
 hashes. See [the alignment milestone](SAVED_MAP_TERRAIN_ALIGNMENT_20261103.md)
-and [throughput measurements](TERRAIN_THROUGHPUT_20261103.md).
+and [native throughput measurements](TERRAIN_NATIVE_THROUGHPUT_20261103.md).
 
 Date: 2026-11-03. Offline Linux x86_64 only. No robot IO, sensor subscription,
 ROS node, deployment, physical command, Web/Android change or new recording.
@@ -56,7 +57,7 @@ unchanged; ground echoes are not removed from terrain input.
 
 ## Current Recorded Result
 
-Final private run: `registered-replay-20261103-d`. The committed
+Final private run: `registered-replay-20261103-e`. The committed
 [aggregate](evidence/registered-replay-20261103.json) contains source identities,
 counts, timing ranges and private artifact hashes, not recorded coordinates,
 map identities, raw grids, private log text or credentials. The public aggregate
@@ -69,19 +70,20 @@ is not a substitute for independently regrading the private input/output files.
 | Paired corrected-point / acquisition packets | 164 / 164 |
 | Point states | 1 unseeded, 2 acquiring, 161 tracking; no lost state |
 | Registered packets / measured returns | 161 / 1,223,474 |
-| Terrain submissions / observed fresh results | 24 / 23 |
-| Retained submission sizes | First: 1 scan; later: up to 4 complete scans and 30,600 rays |
-| Estimated work | 1,067,431--3,656,731; default cap unchanged at 4,000,000 |
-| Original oldest-ingress to observation | 0.300512--1.101149 seconds |
+| Terrain submissions / observed fresh results | 28 / 27 |
+| Retained submission sizes | First: 1 scan; later: up to 4 complete scans and 30,560 rays |
+| Estimated work | 1,067,431--3,653,896; default cap unchanged at 4,000,000 |
+| Original oldest-ingress to observation | 0.248462--0.907748 seconds |
 | Supported free cells | **0 in every observed result** |
 | Stop / cleanup | Source retired, grid absent, native sensor owner closed, terrain owner joined and child cleaned |
 
-The twenty-fourth terrain job was in flight at EOF and was intentionally revoked
+The twenty-eighth terrain job was in flight at EOF and was intentionally revoked
 during stop. It is **not counted as a completed result**. `defaultBudgetAccepted`
 means no observed native failure during this paced recorded diagnostic; it does
 not certify all jobs completed, a sustained-live/P95 benchmark or navigation.
 These timings concern terrain, not audible voice response. Submission/result
-counts depend on asynchronous scheduling; the earlier `-c` run had 19/18.
+counts depend on asynchronous scheduling; the earlier `-c` run had 19/18 and
+`-d` had 24/23. These are not controlled performance comparisons.
 This diagnostic retains its original 2-second processing / 3-second age
 budgets. It does not use or establish the 0.2-second processing / 0.3-second
 ingress bounds of production saved-map terrain.
@@ -97,11 +99,15 @@ includes window/source, acquisition, localization, terrain transport, raw-grid
 grading and current-source evidence checks. Work estimates are also compared
 against actual OctoMap counters for scaled, transformed and range-clipped rays.
 That earlier result was **246 passed, zero skips/failures, 28.591 seconds**.
-The final expanded optimization collection completed 177 tests: 176 passed, one
+The earlier expanded Python/transport collection completed 177 tests: 176 passed, one
 NavFn-library skip, zero failures/errors, 25.238 seconds. All eight current-source
 recorded replay checks passed in that collection. Windows also
 passed all nine current registered ROS evidence tests. No new full-suite,
 frontend, Java or Android build result is claimed.
+The subsequent native-accumulation regression completed 185 tests: 184 passed,
+one actual-NavFn-library skip, zero failures/errors, in 30.237 seconds, including
+all eight current-source recorded replay checks. The separate live-acquisition
+collection passed all 36 tests without skips in 38.258 seconds on scientific Linux.
 See the updated [ROS verification](REGISTERED_TERRAIN_ROS_VERIFICATION_20261103.md)
 for current-source pause/stop/reseed/loss consumer trials.
 

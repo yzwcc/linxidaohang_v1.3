@@ -3,6 +3,7 @@ from dataclasses import replace
 import json
 import os
 from pathlib import Path
+import random
 import sys
 import threading
 import unittest
@@ -113,6 +114,15 @@ class NativeOctomapTests(unittest.TestCase):
             result = self.projector.project(batch(returns), projection())
             self.assertEqual(254, self.cell(result, 6, 5))
             self.assertEqual(254, self.cell(result, 12, 5))
+
+    def test_duplicate_returns_in_one_scan_do_not_accumulate_extra_evidence(self):
+        near = ray(endpoint=(.65, .55, .05))
+        sparse = self.projector.project(batch((near, ray())), projection())
+        repeated = self.projector.project(batch((near, ray()) * 4096), projection())
+        self.assertEqual(sparse.costmap, repeated.costmap)
+        self.assertEqual(sparse.nodes, repeated.nodes)
+        self.assertEqual(8192, repeated.rays)
+        self.assertEqual(1, repeated.scans)
 
     def test_maximum_range_clipping_does_not_create_a_false_hit(self):
         result = self.projector.project(batch(), projection(maximum_range_metres=.6))
@@ -231,6 +241,60 @@ class NativeOctomapTests(unittest.TestCase):
         self.assertEqual(result.costmap.sha256, planned.costmap_sha256)
         self.assertFalse(planned.navigation_ready)
         self.assertEqual("no_path", planner.plan(result.costmap, (.65, 2.05), (5.45, 4.45)).status)
+
+
+@unittest.skipUnless(os.environ.get('LINGXI_TEST_OCTOMAP_LIBRARY') and
+    os.environ.get('LINGXI_TEST_OCTOMAP_BASELINE_LIBRARY'), 'requires both actual native builds')
+class NativeOctomapDifferentialTests(unittest.TestCase):
+    def setUp(self):
+        dependencies = json.loads(os.environ['LINGXI_TEST_OCTOMAP_DEPENDENCIES'])
+        self.before, self.after = [OctomapProjector(Path(os.environ[prefix + '_LIBRARY']),
+            os.environ[prefix + '_SHA256'], dependencies)
+            for prefix in ('LINGXI_TEST_OCTOMAP_BASELINE', 'LINGXI_TEST_OCTOMAP')]
+
+    def test_exact_grids_statistics_and_hashes_for_moving_origins_clipping_and_revisions(self):
+        generator = random.Random(20261103)
+        for case in range(48):
+            scans = []
+            for index in range(1 + case % 5):
+                returns = [ray((generator.uniform(-.7, .7), generator.uniform(-.7, .7),
+                    generator.choice((.05, .15, .25))),
+                    (generator.uniform(-1.5, 1.5), generator.uniform(-1.5, 1.5),
+                     generator.choice((.05, .15, .25)))) for _ in range(48)]
+                near = ray(endpoint=(.65, .55, .05))
+                returns.extend((near, ray(), near, ray()))
+                if index % 2:
+                    returns.reverse()
+                scans.append(tuple(returns))
+            observations = replace(batch(*scans), revision=1 + case)
+            spec = projection(width=32, height=32, origin_x_metres=-1.6,
+                origin_y_metres=-1.6, maximum_z_metres=(.1, .2, .3)[case % 3],
+                maximum_range_metres=(.1, .6, 3.)[case % 3])
+            with self.subTest(case=case):
+                old = self.before.project(observations, spec)
+                new = self.after.project(observations, spec)
+                self.assertEqual(old, new)
+                self.assertEqual(old.sha256, new.sha256)
+                self.assertEqual(old.costmap.sha256, new.costmap.sha256)
+
+    def test_native_failure_results_and_unpublished_output_match(self):
+        def call(projector, *, work=4000000, end=1, coordinate=.05):
+            rays = (ctypes.c_double * 6)(coordinate, .55, .05, 1.25, .55, .05)
+            ends = (ctypes.c_uint32 * 1)(end)
+            output = (ctypes.c_uint8 * 256)(*([123] * 256))
+            stats = (ctypes.c_uint64 * 7)(*([123] * 7))
+            native = projector.native
+            result = native.lingxi_octomap_project(rays, 1, ends, 1, .1, 10.,
+                0., 0., 0., .1, 16, 16, work, output, 256, stats)
+            return result, native.lingxi_octomap_error(), bytes(output), tuple(stats)
+        for changes in ({'work': 1}, {'end': 0}, {'end': 2}, {'coordinate': float('nan')},
+                        {'coordinate': 501.}, {'work': 16000001}):
+            with self.subTest(changes=changes):
+                before, after = call(self.before, **changes), call(self.after, **changes)
+                self.assertEqual(before, after)
+                self.assertEqual(-1, after[0])
+                self.assertEqual(bytes([123] * 256), after[2])
+                self.assertEqual((123,) * 7, after[3])
 
 
 if __name__ == "__main__":

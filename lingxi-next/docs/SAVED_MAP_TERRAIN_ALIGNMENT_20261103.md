@@ -99,6 +99,11 @@ not floor calibration or the new live admission deadlines. Registered ROS
 trials were actually rerun as `registered-ros-MODE-20261103-f` and generic
 trials as `terrain-ros-MODE-20261103-g`; no old failure was relabeled as a pass.
 
+The subsequent [native accumulation follow-up](TERRAIN_NATIVE_THROUGHPUT_20261103.md)
+actually reran recording `-e` (28/27, still no supported free cells), registered
+ROS `-i` and generic ROS `-h`. Current committed aggregates bind those real runs;
+the earlier outputs described above remain historical and preserved.
+
 ## Reproduction
 
 ```sh

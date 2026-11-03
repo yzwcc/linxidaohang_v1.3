@@ -69,17 +69,21 @@ extern "C" int lingxi_octomap_project(
     tree.setClampingThresMax(.971);
     tree.setOccupancyThres(.5);
     size_t start = 0;
+    octomap::KeyRay keyray;
     for (size_t scan = 0; scan < scans; ++scan) {
       octomap::KeySet free_cells, occupied_cells;
       for (size_t i = start; i < scan_ends[scan]; ++i) {
         const double* ray = rays + i * 6;
         octomap::point3d origin(ray[0], ray[1], ray[2]);
-        octomap::Pointcloud point;
-        point.push_back(ray[3], ray[4], ray[5]);
-        octomap::KeySet ray_free, ray_occupied;
-        tree.computeUpdate(point, origin, ray_free, ray_occupied, maximum_range);
-        free_cells.insert(ray_free.begin(), ray_free.end());
-        occupied_cells.insert(ray_occupied.begin(), ray_occupied.end());
+        octomap::point3d endpoint(ray[3], ray[4], ray[5]);
+        const bool hit = (endpoint - origin).norm() <= maximum_range;
+        const auto end = hit ? endpoint :
+          origin + (endpoint - origin).normalized() * float(maximum_range);
+        // Keep upstream traversal/clipping, but accumulate once per scan.
+        if (tree.computeRayKeys(origin, end, keyray))
+          free_cells.insert(keyray.begin(), keyray.end());
+        octomap::OcTreeKey key;
+        if (hit && tree.coordToKeyChecked(endpoint, key)) occupied_cells.insert(key);
         require(free_cells.size() + occupied_cells.size() <= 524288,
           "octomap_scan_cell_budget_exhausted");
       }
