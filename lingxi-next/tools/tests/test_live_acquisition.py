@@ -1,6 +1,6 @@
 """Passive live composition with synthetic ELF/ctypes/sensors, never robot IO."""
 from copy import deepcopy
-from dataclasses import asdict
+from dataclasses import asdict, replace
 import importlib.util
 import json
 from pathlib import Path
@@ -184,6 +184,25 @@ class SettingsTests(SettingsFixture, unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'explicit_private_declared_terrain'):
                 self.settings()
 
+    def test_localization_ros_output_is_opt_in_source_bound_and_does_not_require_terrain(self):
+        self.assertFalse(self.settings().localization_ros_output)
+        self.value['localizationRosOutput'] = {'mode': 'private_saved_map_observations'}
+        self.write()
+        settings = self.settings()
+        self.assertTrue(settings.localization_ros_output)
+        self.assertIsNone(settings.terrain)
+        self.assertFalse(settings.ros_output)
+        self.assertEqual('private_saved_map_observations', settings.frozen['localizationRosOutputMode'])
+        for name in live.LOCALIZATION_ROS_SOURCES:
+            self.assertEqual(live.digest((ROOT / name).read_bytes()), settings.frozen['sourceSha256'][name])
+        self.assertEqual(settings.frozen, settings.verify())
+        for value in (None, True, {}, {'mode': 'live_navigation'},
+                {'mode': 'private_saved_map_observations', 'topic': '/tf'}):
+            self.value['localizationRosOutput'] = value
+            self.write()
+            with self.subTest(value=value), self.assertRaisesRegex(ValueError, 'explicit_private_saved_map'):
+                self.settings()
+
     def test_wrong_terrain_architecture_build_source_or_dependency_is_rejected(self):
         terrain = self.terrain()
         dependency = Path(terrain['octomap']['library']).parent / 'lib' / sorted(live.DEPENDENCIES)[0]
@@ -340,6 +359,25 @@ class CompositionTests(SettingsFixture, unittest.TestCase):
             self.assertIsNone(composition.terrain_snapshot().grid)
             source.snapshot.assert_not_called()
 
+    def test_localization_output_requires_live_scale_and_receives_exact_registered_packet(self):
+        self.value['localizationRosOutput'] = {'mode': 'private_saved_map_observations'}
+        self.write()
+        with self.assertRaisesRegex(ValueError, 'explicit_live_scaled_localization'):
+            self.create()
+        self.binding = replace(self.binding, input_mode='live')
+        self.session = LocalizationSession(self.binding, self.session.factory,
+            clock=lambda: self.now, base_metres_per_map_unit=1.)
+        self.track(terrain=False)
+        owner = self.composition.localization_ros_output
+        self.assertIsNone(self.composition.ros_output)
+        self.assertFalse(owner.started)
+        self.assertEqual(self.binding, owner.pending.binding)
+        self.assertEqual(self.session.state()['lastFrame'], owner.pending.native_frame_id)
+        self.assertEqual(1, self.composition.registered_packets)
+        self.native.close()
+        self.assertTrue(owner.revoked)
+        self.assertIsNone(owner.snapshot())
+
     def test_wrong_owner_close_and_duplicate_factory_do_not_touch_native(self):
         self.open()
         self.assertIsInstance(other_thread(self.native.close)[0], RuntimeError)
@@ -471,6 +509,31 @@ class CompositionTests(SettingsFixture, unittest.TestCase):
                     estimated_poses=self.frames)
         with self.assertRaisesRegex(ValueError, 'explicit_passive_ros_terrain_selection'):
             live.verify_terminal(dict(report, terrainRosOutput=ros), self.composition.settings.frozen,
+                estimated_poses=self.frames)
+
+    def test_localization_ros_terminal_requires_explicit_identity_and_complete_cleanup(self):
+        self.track(terrain=False)
+        self.native.close()
+        report = self.composition.finish()
+        expected = dict(self.composition.settings.frozen,
+            localizationRosOutputMode='private_saved_map_observations')
+        ros = dict(mode='private_saved_map_observations', started=True, closed=True, failed=False,
+            publications=0, namespace='lingxi_offline_' + 'a' * 32,
+            physicalScaleValidated=False, physicalMotionSent=False, navigationReady=False)
+        value = dict(report, inputIntegrity=expected, localizationRosOutput=ros)
+        live.verify_terminal(value, expected, estimated_poses=self.frames)
+        for key, change in (('mode', 'live_navigation'), ('started', False), ('closed', False),
+                ('failed', True), ('publications', -1), ('publications', True),
+                ('namespace', '/tf'), ('namespace', 'lingxi_offline_' + 'z' * 32),
+                ('physicalScaleValidated', True), ('navigationReady', True), ('physicalMotionSent', True)):
+            with self.subTest(key=key), self.assertRaisesRegex(ValueError, 'passive_localization_ros_cleanup'):
+                live.verify_terminal(dict(value, localizationRosOutput=dict(ros, **{key: change})), expected,
+                    estimated_poses=self.frames)
+        for output in (None, {}, []):
+            with self.subTest(output=output), self.assertRaisesRegex(ValueError, 'passive_localization_ros_cleanup'):
+                live.verify_terminal(dict(value, localizationRosOutput=output), expected, estimated_poses=self.frames)
+        with self.assertRaisesRegex(ValueError, 'explicit_passive_localization_ros_selection'):
+            live.verify_terminal(dict(report, localizationRosOutput=ros), self.composition.settings.frozen,
                 estimated_poses=self.frames)
 
 

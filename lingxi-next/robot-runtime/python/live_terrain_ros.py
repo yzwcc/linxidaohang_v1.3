@@ -97,8 +97,8 @@ class LiveTerrainRosOutput:
             physicalMotionSent=False, navigationReady=False)
 
 
-def setup_localization_ros(node, base_owner=None, terrain_owner=None):
-    """Compose the existing base-TF reader and optional terrain output atomically."""
+def setup_localization_ros(node, base_owner=None, terrain_owner=None, observation_owner=None):
+    """Compose the base-TF reader and optional ROS outputs atomically."""
     cleanups = []
 
     def close():
@@ -112,7 +112,7 @@ def setup_localization_ros(node, base_owner=None, terrain_owner=None):
             raise RuntimeError('localization_ros_cleanup_failed')
 
     try:
-        for owner in (base_owner, terrain_owner):
+        for owner in (base_owner, terrain_owner, observation_owner):
             if owner is not None:
                 cleanup = owner.setup(node)
                 if not callable(cleanup):

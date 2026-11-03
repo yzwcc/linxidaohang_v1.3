@@ -138,9 +138,17 @@ class CombinedSetupTests(unittest.TestCase):
         calls = []
         def owner(name):
             return SimpleNamespace(setup=lambda node: (calls.append(name), lambda: calls.append(name + '_closed'))[1])
-        close = setup_localization_ros(object(), owner('base'), owner('terrain'))
+        close = setup_localization_ros(object(), owner('base'), owner('terrain'), owner('observations'))
         close(); close()
-        self.assertEqual(['base', 'terrain', 'terrain_closed', 'base_closed'], calls)
+        self.assertEqual(['base', 'terrain', 'observations', 'observations_closed', 'terrain_closed', 'base_closed'], calls)
+
+    def test_failed_observation_setup_closes_terrain_and_base(self):
+        base, terrain = (Mock(setup=Mock(return_value=Mock())) for _ in range(2))
+        observation = Mock(setup=Mock(side_effect=RuntimeError('observation_setup_failed')))
+        with self.assertRaisesRegex(RuntimeError, 'observation_setup_failed'):
+            setup_localization_ros(object(), base, terrain, observation)
+        terrain.setup.return_value.assert_called_once()
+        base.setup.return_value.assert_called_once()
 
     def test_failed_terrain_setup_still_closes_base_reader(self):
         base = Mock(setup=Mock(return_value=Mock()))

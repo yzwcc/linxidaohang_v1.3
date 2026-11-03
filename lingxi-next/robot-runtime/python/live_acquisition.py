@@ -26,6 +26,9 @@ SOURCES = ('robot-runtime/python/live_acquisition.py', 'robot-runtime/python/acq
     'tools/check_ground_native.py', 'robot-runtime/python/terrain_bundle.py', 'tools/terrain_target_probe.py')
 ROS_SOURCES = ('robot-runtime/python/live_terrain_ros.py',
     'robot-navigation/lingxi_navigation/terrain_ros.py', 'robot-navigation/lingxi_navigation/terrain_feed.py')
+LOCALIZATION_ROS_SOURCES = ('robot-runtime/python/live_localization_ros.py',
+    'robot-runtime/python/live_base_pose.py', 'robot-slam/lingxi_slam/base_pose.py',
+    'robot-slam/lingxi_slam/registered_acquisition.py')
 
 
 def metadata(path, expected, maximum=262144):
@@ -101,7 +104,7 @@ class AcquisitionSettings:
         payload = self.path.read_bytes()
         value = strict_json(payload)
         if (type(value) is not dict or not {'schemaVersion', 'purpose', 'acquisition'} <= set(value)
-                or set(value) - {'schemaVersion', 'purpose', 'acquisition', 'terrain', 'rosOutput'}
+                or set(value) - {'schemaVersion', 'purpose', 'acquisition', 'terrain', 'rosOutput', 'localizationRosOutput'}
                 or type(value['schemaVersion']) is not int or value['schemaVersion'] != 1
                 or value['purpose'] != PURPOSE or type(value['acquisition']) is not dict
                 or set(value['acquisition']) != {'root', 'manifestSha256'}):
@@ -110,6 +113,10 @@ class AcquisitionSettings:
         if self.ros_output and ('terrain' not in value or type(value['rosOutput']) is not dict
                 or value['rosOutput'] != {'mode': 'private_declared_terrain'}):
             raise ValueError('explicit_private_declared_terrain_ros_output_required')
+        self.localization_ros_output = 'localizationRosOutput' in value
+        if self.localization_ros_output and (type(value['localizationRosOutput']) is not dict
+                or value['localizationRosOutput'] != {'mode': 'private_saved_map_observations'}):
+            raise ValueError('explicit_private_saved_map_observations_required')
         selection = value['acquisition']
         root = Path(selection['root'])
         bundle = acquisition_bundle.verify_bundle(root, selection['manifestSha256'],
@@ -138,9 +145,12 @@ class AcquisitionSettings:
         frozen = dict(settingsSha256=digest(payload), acquisitionManifestSha256=selection['manifestSha256'],
             acquisitionLibrarySha256=self.library_sha256, odometryConfigurationSha256=digest(config_bytes),
             sourceSha256={name: digest((ROOT / name).read_bytes()) for name in
-                (*SOURCES, *(ROS_SOURCES if self.ros_output else ()))})
+                (*SOURCES, *(ROS_SOURCES if self.ros_output else ()),
+                 *(LOCALIZATION_ROS_SOURCES if self.localization_ros_output else ()))})
         if self.ros_output:
             frozen['rosOutputMode'] = 'private_declared_terrain'
+        if self.localization_ros_output:
+            frozen['localizationRosOutputMode'] = 'private_saved_map_observations'
         if self.terrain is not None and 'targetTrial' in value['terrain']:
             trial = value['terrain']['targetTrial']
             frozen.update(terrainTrialManifestSha256=trial['manifestSha256'],
@@ -179,6 +189,10 @@ class AcquisitionComposition:
         if settings.ros_output:
             from live_terrain_ros import LiveTerrainRosOutput
             self.ros_output = LiveTerrainRosOutput(settings.terrain[1], self.terrain_snapshot, self.revoke)
+        self.localization_ros_output = None
+        if settings.localization_ros_output:
+            from live_localization_ros import LiveLocalizationRosOutput
+            self.localization_ros_output = LiveLocalizationRosOutput(session)
 
     def terrain_snapshot(self):
         with self.lock:
@@ -250,6 +264,8 @@ class AcquisitionComposition:
     def accept(self, packet):
         self.registered_packets += 1
         self.registered_returns += len(packet.origins)
+        if self.localization_ros_output is not None:
+            self.localization_ros_output.offer(packet)
         if self.source is not None and self.source(packet):
             self.submissions += 1
 
@@ -282,6 +298,8 @@ class AcquisitionComposition:
     def revoke(self):
         self._health()
         self.session.stop_admission()
+        if self.localization_ros_output is not None:
+            self.localization_ros_output.retire()
         with self.lock:
             self.closed = True
             source = self.source
@@ -320,6 +338,8 @@ class AcquisitionComposition:
             failed=self.failed, failureReason=self.failure_reason, retirementReason=self.retirement_reason,
             inputIntegrity=self.settings.frozen,
             **({'terrainRosOutput': self.ros_output.summary()} if self.ros_output is not None else {}),
+            **({'localizationRosOutput': self.localization_ros_output.summary()}
+               if self.localization_ros_output is not None else {}),
             physicalScaleValidated=False, groundSupportValidated=False, navigationReady=False)
 
 
@@ -339,6 +359,23 @@ def verify_terminal(value, expected, *, estimated_poses):
             raise ValueError('complete_passive_ros_terrain_cleanup_required')
     elif ros is not None:
         raise ValueError('explicit_passive_ros_terrain_selection_required')
+    observations = value.get('localizationRosOutput')
+    if 'localizationRosOutputMode' in expected:
+        if (expected['localizationRosOutputMode'] != 'private_saved_map_observations'
+                or type(observations) is not dict or set(observations) != {'mode', 'started', 'closed', 'failed',
+                    'publications', 'namespace', 'physicalScaleValidated', 'physicalMotionSent', 'navigationReady'}
+                or observations.get('mode') != expected['localizationRosOutputMode']
+                or observations.get('started') is not True or observations.get('closed') is not True
+                or observations.get('failed') is not False
+                or type(observations.get('publications')) is not int or observations['publications'] < 0
+                or type(observations.get('namespace')) is not str
+                or len(observations['namespace']) != 47 or not observations['namespace'].startswith('lingxi_offline_')
+                or any(c not in '0123456789abcdef' for c in observations['namespace'][15:])
+                or any(observations.get(key) is not False for key in (
+                    'physicalScaleValidated', 'physicalMotionSent', 'navigationReady'))):
+            raise ValueError('complete_passive_localization_ros_cleanup_required')
+    elif observations is not None:
+        raise ValueError('explicit_passive_localization_ros_selection_required')
     if (value.get('inputIntegrity') != expected
             or value.get('configured') is not True or value.get('nativeCreated') is not True
             or type(value.get('terrainConfigured')) is not bool or value.get('failureReason') is not None

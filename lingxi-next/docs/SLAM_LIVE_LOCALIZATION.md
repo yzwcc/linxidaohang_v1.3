@@ -9,7 +9,9 @@
 `managed_localization.py` 现在可明确选择普通用户 ARM64/Humble 实时输入，
 通过既有冻结 GLIM 原生库、纠正点扩展、SensorWorker 和定位会话组合运行。
 录制入口 `controlled_localization.py run` 仍只接受录制；没有默认打开实时订阅。
-`live_localization.py` 不创建运动、地图或 TF 发布器。
+本记录对应的默认入口不创建运动、地图或 TF 发布器。2026-11-03 后续新增了显式 opt-in
+的私有诊断 odometry/TF/点云输出，默认仍关闭，不创建运动发布器；详见
+[定位 ROS 输出离线验证](LOCALIZATION_ROS_OUTPUT_20261103.md)，不将其视为已完成产品导航链路。
 
 实时与录制共用同一 HTTPS 状态及初值、暂停、停止接口。
 HTTP 适配接受 `live` 和 `recorded`，继续拒绝 `synthetic`。

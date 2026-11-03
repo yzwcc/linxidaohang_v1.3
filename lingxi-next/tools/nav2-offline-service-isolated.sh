@@ -3,12 +3,13 @@ set -euo pipefail
 mode=run
 if [[ ${1:-} == --check ]]; then mode=check; shift; fi
 if [[ ${1:-} == --verify-live-terrain-output ]]; then mode=verify-live-terrain-output; shift; fi
+if [[ ${1:-} == --verify-localization-output ]]; then mode=verify-localization-output; shift; fi
 if [[ ${1:-} == --verify-physical-evidence ]]; then mode=verify-physical-evidence; shift; fi
 if [[ ${1:-} == --verify-physical-action ]]; then mode=verify-physical-action; shift; fi
 if [[ ${1:-} == --verify-physical-velocity ]]; then mode=verify-physical-velocity; shift; fi
 if [[ ${1:-} == --verify-nav2-producer ]]; then mode=verify-nav2-producer; shift; fi
 if [[ ${EUID} != 0 || $# != 3 ]]; then
-  echo 'usage: sudo -n bash tools/nav2-offline-service-isolated.sh [--check|--verify-live-terrain-output|--verify-physical-evidence|--verify-physical-action|--verify-physical-velocity|--verify-nav2-producer] ROOTFS CASE NEW_OUTPUT' >&2
+  echo 'usage: sudo -n bash tools/nav2-offline-service-isolated.sh [--check|--verify-live-terrain-output|--verify-localization-output|--verify-physical-evidence|--verify-physical-action|--verify-physical-velocity|--verify-nav2-producer] ROOTFS CASE NEW_OUTPUT' >&2
   exit 2
 fi
 for tool in realpath unshare mount ip chroot; do command -v "$tool" >/dev/null; done
@@ -52,6 +53,10 @@ exec unshare --mount --net --ipc --pid --fork --kill-child=KILL /bin/bash -c '
     if [[ $3 == verify-live-terrain-output ]]; then
       export LINGXI_VERIFY_LIVE_TERRAIN_ROS=1
       exec python3 -B -m unittest discover -s /work/tools/tests -p test_live_terrain_ros_humble.py
+    fi
+    if [[ $3 == verify-localization-output ]]; then
+      export LINGXI_VERIFY_LOCALIZATION_OUTPUT_ROS=1
+      exec python3 -B -m unittest discover -s /work/tools/tests -p test_localization_output_humble.py -v
     fi
     if [[ $3 == verify-physical-evidence ]]; then
       export LINGXI_VERIFY_PHYSICAL_EVIDENCE_ROS=1

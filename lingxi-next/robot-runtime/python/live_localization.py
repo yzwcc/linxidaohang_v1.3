@@ -159,10 +159,17 @@ def child(args, sink, platform):
         if acquisition is not None:
             acquisition.revoke()
 
+    observation_owner = acquisition.localization_ros_output if acquisition is not None else None
+
+    def frame(header, algorithm, pose, statistics):
+        base_owner.frame(header, algorithm, pose, statistics)
+        if observation_owner is not None:
+            observation_owner.capture(header, algorithm)
+
     worker = SensorWorker(
         factory, SensorProfile("lidar_chest_front", "lidar_imu_chest_front",
                                "frame_relative_nanoseconds_hypothesis"), platform.hypothesis,
-        on_frame=base_owner.frame if base_owner is not None else None)
+        on_frame=frame if base_owner is not None else None)
     report = {"result": "failed", "session": binding.session, "inputMode": "live",
               "robotContacted": True, "motionCommandsSent": False,
               "localizationReady": False, "navigationReady": False,
@@ -176,9 +183,9 @@ def child(args, sink, platform):
             def runner(*args, **kwargs):
                 terrain_owner = acquisition.ros_output if acquisition is not None else None
                 options = {}
-                if terrain_owner is not None:
+                if terrain_owner is not None or observation_owner is not None:
                     from live_terrain_ros import setup_localization_ros
-                    options['setup'] = lambda node: setup_localization_ros(node, base_owner, terrain_owner)
+                    options['setup'] = lambda node: setup_localization_ros(node, base_owner, terrain_owner, observation_owner)
                 elif base_owner is not None:
                     options['setup'] = base_owner.setup
                 if base_owner is not None:
