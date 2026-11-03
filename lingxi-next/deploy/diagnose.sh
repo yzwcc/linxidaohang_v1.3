@@ -2,7 +2,7 @@
 set -euo pipefail
 echo "Lingxi Next diagnostic (no credentials, transcript, map, or business JSON)"
 uname -sm
-for service in api aimdk agent; do
+for service in api aimdk agent independent-mapping independent-slam navigation; do
   systemctl show "lingxi-next-${service}.service" --property=ActiveState,SubState,Result,ExecMainStatus
 done
 if [[ -f /opt/lingxi-next/current/VERSION ]]; then cat /opt/lingxi-next/current/VERSION; fi
@@ -61,4 +61,4 @@ else:
 PY
 curl --silent --show-error --max-time 3 --cacert /etc/lingxi-next/tls/ca.crt "https://127.0.0.1:$PORT/health"
 echo
-echo "For local error review: journalctl -u lingxi-next-api -u lingxi-next-aimdk -u lingxi-next-agent --since '10 minutes ago'"
+echo "For local error review: journalctl -u lingxi-next-api -u lingxi-next-aimdk -u lingxi-next-agent -u lingxi-next-independent-mapping -u lingxi-next-independent-slam -u lingxi-next-navigation --since '10 minutes ago'"

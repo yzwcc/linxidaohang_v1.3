@@ -1,0 +1,24 @@
+[Unit]
+Description=Lingxi Next Independent Shared SLAM and Localization Owner
+After=network.target
+Conflicts=lingxi-next-independent-mapping.service
+ConditionPathExists=/opt/lingxi-next/current/independent/runtime/slam-main.mjs
+
+[Service]
+User=lingxi-next
+Group=lingxi-next
+EnvironmentFile=/etc/lingxi-next/robot.env
+ExecStart=/bin/bash /opt/lingxi-next/current/deploy/run.sh independent-slam
+Restart=on-failure
+RestartPreventExitStatus=78
+RestartSec=5
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=false
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/lingxi-next
+TimeoutStopSec=120
+
+[Install]
+WantedBy=multi-user.target

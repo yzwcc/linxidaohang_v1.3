@@ -49,7 +49,7 @@ class ManagedConfiguration(unittest.TestCase):
         with self.assertRaises(ValueError):
             MappingOwnerLimits(tick_seconds=5.)
 
-    def launcher(self, environment, *, node_digest=None):
+    def launcher(self, environment, *, node_digest=None, extra=None):
         node = Path(sys.executable).resolve()
         api = self.frozen / "api.mjs"
         api.write_text("// Synthetic launcher input, never executed.\n", encoding="utf-8")
@@ -58,7 +58,7 @@ class ManagedConfiguration(unittest.TestCase):
                      "--node-sha256", node_digest or hashlib.sha256(node.read_bytes()).hexdigest(),
                      "--api-bundle", str(api),
                      "--api-sha256", hashlib.sha256(api.read_bytes()).hexdigest(),
-                     "--seconds", "60"]
+                     *(extra if extra is not None else ["--seconds", "60"])]
         with patch("managed_mapping.configuration", return_value=(
                 {"pointAdapter": str(self.frozen)}, {})), patch.dict(os.environ, environment, clear=True), \
                 patch.object(sys, "argv", arguments), patch("managed_mapping.signal.signal"), \
@@ -88,6 +88,23 @@ class ManagedConfiguration(unittest.TestCase):
                          options["service_environment"])
         self.assertEqual(60, owner.return_value.run.call_args.kwargs["seconds"])
         self.assertFalse((self.root / "run").exists())
+
+    def test_persistent_owner_uses_separate_catalog_without_duration(self):
+        maps = self.root / 'maps'
+        maps.mkdir(mode=0o700)
+        (maps / 'preserved.json').write_text('{}')
+        environment = {"LINGXI_TLS_KEY": "/synthetic/key", "LINGXI_TLS_CERT": "/synthetic/cert",
+                       "LINGXI_PAIRING_CODE_SHA256": "a" * 64}
+        result, owner = self.launcher(environment, extra=['--persistent', '--maps', str(maps)])
+        self.assertEqual(0, result)
+        self.assertEqual(maps, owner.call_args.kwargs['maps'])
+        self.assertTrue(owner.return_value.continuous)
+        self.assertIsNone(owner.return_value.run.call_args.kwargs['seconds'])
+        self.assertEqual('{}', (maps / 'preserved.json').read_text())
+        with self.assertRaisesRegex(ValueError, 'persistent_mapping_must_not_have_duration'):
+            self.launcher(environment, extra=['--persistent', '--seconds', '60'])
+        _, bounded = self.launcher(environment, extra=[])
+        self.assertEqual(300, bounded.return_value.run.call_args.kwargs['seconds'])
 
     def test_production_launcher_rejects_missing_tls_pairing_or_changed_node(self):
         required = {"LINGXI_TLS_KEY": "/synthetic/key", "LINGXI_TLS_CERT": "/synthetic/cert",

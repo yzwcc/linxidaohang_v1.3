@@ -1,7 +1,7 @@
 {
   "name": "lingxi-next",
-  "version": "0.1.20",
-  "androidVersionCode": 21,
+  "version": "0.1.21",
+  "androidVersionCode": 22,
   "private": true,
   "type": "module",
   "scripts": {
@@ -19,6 +19,7 @@
     "build:slam-runtime": "esbuild robot-runtime/src/slam-main.ts --bundle --platform=node --target=node22 --format=esm --packages=external --outfile=robot-runtime/dist/slam-main.mjs",
     "build:agent": "node tools/build-agent.mjs",
     "release:commissioning": "node tools/build-release.mjs --commissioning",
+    "release:independent-commissioning": "node tools/build-release.mjs --independent-commissioning",
     "test": "vitest run",
     "test:point-runtime": "node --test tools/check-point-runtime.mjs",
     "test:mapping-runtime": "node --test tools/check-managed-mapping-owner.mjs",

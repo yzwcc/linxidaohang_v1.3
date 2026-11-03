@@ -1,0 +1,112 @@
+# Independent Commissioning Installation
+
+This package combines the paired management API, ARM64 Node/Java runtimes,
+LinkSoul bridge, independent mapping/shared-SLAM assets and source-bound
+GLIM/localization/terrain/Nav2 adapters. It is commissioning software, not a
+field-accepted complete product. Native GLIM/terrain libraries, ROS Humble,
+Nav2, robot-specific calibration and cloud credentials remain external.
+The vendor AIMDK installation and vendor maps must not be replaced.
+
+## Build And Install
+
+```sh
+npm ci
+npm run build:agent
+npm run release:independent-commissioning
+python tools/verify-release.py artifacts/ARCHIVE.tar.gz
+sudo bash deploy/install.sh --commissioning --robot-ip 192.168.0.128
+```
+
+Use the actual archive filename. The adjacent SHA256 and verification report
+must match it. Existing stage/archive names are rejected; use a new version.
+Installation starts only the core management API on HTTPS port 3000.
+It does not start SLAM, navigation, AgentSDK or any robot motion.
+
+## Configure The Independent Owner
+
+Edit the root-only `/etc/lingxi-next/robot.env` after target verification:
+
+```ini
+LINGXI_INDEPENDENT_PRODUCT=1
+LINGXI_ROS_SETUP=/opt/ros/humble/setup.bash
+LINGXI_AIMDK_SETUP=/absolute/existing/vendor/setup.bash
+LINGXI_MAPPING_CONFIG=/etc/lingxi-next/independent/mapping.json
+LINGXI_SLAM_CONFIG=/etc/lingxi-next/independent/slam.json
+LINGXI_RUNTIME_DIR=/var/lib/lingxi-next/runtime
+LINGXI_MAP_ROOT=/var/lib/lingxi-next/maps
+```
+
+These are paths, not ready-made calibration. Prepare verified native bundles
+and configuration for the target ARM64/Python 3.10/ROS environment before
+starting an owner. Do not invent sensor topics, scale, TF or ground extrinsics.
+The `lingxi-next` service UID needs direct access to these existing inputs;
+keep writable runtime/catalog paths separate from configuration and binaries.
+Systemd protects home directories, so do not place deployed native inputs
+under `/home` or `/root`. Do not change ownership of vendor directories.
+
+Choose one owner, never both:
+
+```sh
+sudo systemctl start lingxi-next-independent-mapping.service
+# OR: shared mapping and seeded localization, with optional product workspace
+sudo systemctl start lingxi-next-independent-slam.service
+```
+
+Default HTTPS ports are 3443 for mapping-only and 3444 for shared SLAM.
+Import the installed robot CA into the client, then pair at that port.
+Port 3000 is a separate core console, not an alias of the independent owner.
+Mapping remains externally remote-controlled; no Web/APK walking control is
+added. Point-cloud Z defaults remain 0.1 to 1.4 metres.
+
+The two owner units conflict. Configuration errors detected by the installed
+Bash entrypoint exit 78 without endless service retries. Native validation
+errors still appear in the journal/owner report and need operator correction.
+Per-start diagnostic directories are retained under `runtime`; map data stays
+in the separate catalog. Review retention during maintenance, with owners
+stopped. Never remove a live owner's output or the map catalog as log cleanup.
+
+## Optional Product And Terrain Selection
+
+The shared SLAM owner stays commissioning-only unless a product selection is
+provided. See `INDEPENDENT_PRODUCT_WORKSPACE_20261103.md` for the private
+configuration/token contract and the current navigation/action restrictions.
+Both optional selections require a direct absolute file and an explicit
+SHA256 in `robot.env`:
+
+```ini
+LINGXI_PRODUCT_CONFIG=/etc/lingxi-next/independent/product.json
+LINGXI_PRODUCT_CONFIG_SHA256=REVIEWED_SHA256
+LINGXI_ACQUISITION_SETTINGS=/etc/lingxi-next/independent/acquisition.json
+LINGXI_ACQUISITION_SETTINGS_SHA256=REVIEWED_SHA256
+```
+
+Leave both fields of an unused selection empty. Changed bytes, incomplete
+pairs or malformed digests block launch. Product state must be owned by the
+service UID with mode 0700; configuration and Agent token files use mode 0600.
+Model and Retriever credentials stay external and are submitted using paired
+HTTPS settings, never bundled or stored in browser/APK configuration.
+AgentSDK must separately target the selected owner's callback origin and
+matching token/state, not the default core API's unrelated credential path.
+No real Agent instance or microphone is automatically reconfigured.
+
+## Upgrade, Rollback And Acceptance
+
+The transaction stops all six product units before replacing code. It retains
+configuration and persistent data, backs up units/state, and only starts the
+core API after an upgrade or rollback. Independently commissioned services
+must be started explicitly after verification. Rollback does not restore
+business state automatically or restart movement. Vendor services are outside
+the transaction.
+
+```sh
+sudo bash /opt/lingxi-next/current/deploy/diagnose.sh
+sudo bash /opt/lingxi-next/current/deploy/rollback.sh
+sudo journalctl -u lingxi-next-independent-slam --since '10 minutes ago'
+```
+
+Offline installation tests use actual Bash/filesystem/certificate operations
+inside a disposable Linux chroot, with synthetic systemd/health/native owners.
+They do not execute ARM64 runtimes or prove sensor quality, calibration, map
+scale, physical stopping, navigation, voice acoustics/P95 or Android device
+acceptance. A running API, existing socket or saved map is not proof that
+physical navigation is ready; live evidence gates remain mandatory.

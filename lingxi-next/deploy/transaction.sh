@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Shared by install and rollback; only this product's services are touched.
-SERVICES=(lingxi-next-agent.service lingxi-next-api.service lingxi-next-aimdk.service)
+SERVICES=(lingxi-next-agent.service lingxi-next-api.service lingxi-next-aimdk.service
+  lingxi-next-independent-mapping.service lingxi-next-independent-slam.service
+  lingxi-next-navigation.service)
 
 deployment_lock() {
   [[ ! -L "$ROOT" && ! -L "$ROOT/releases" && ! -L "$ROOT/backups" ]] || {

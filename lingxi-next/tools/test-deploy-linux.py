@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import fcntl
+import json
 import os
 from pathlib import Path
 import shutil
@@ -251,6 +252,78 @@ class DeploymentLifecycle(unittest.TestCase):
             health_requests = Path("/test-state/health.log").read_text()
             self.assertIn("https://127.0.0.1:3443/health", health_requests)
             self.assertNotIn(Path("/etc/lingxi-next/pairing-code.txt").read_text().strip(), diagnostic)
+
+    def test_z_independent_installed_entrypoints(self):
+        """Execute installed Bash/Python with synthetic owners, never ROS/hardware."""
+        current = Path("/opt/lingxi-next/current")
+        independent = current / "independent"
+        owners = independent / "source/robot-runtime/python"
+        owners.mkdir(parents=True)
+        (independent / "source/robot-slam").mkdir()
+        stub = """import json, os, pathlib, sys
+args = sys.argv[1:]
+output = pathlib.Path(args[args.index('--output') + 1])
+output.mkdir(mode=0o700)
+result = {'args': args, 'web': os.environ['LINGXI_WEB_ROOT'], 'port': os.environ['LINGXI_PORT']}
+(output / 'fixture-evidence.json').write_text(json.dumps(result))
+print(json.dumps(result))
+"""
+        for profile in ("mapping", "slam"):
+            (owners / ("managed_" + profile + ".py")).write_text(stub)
+            assets = independent / "assets" / profile
+            (assets / "api").mkdir(parents=True)
+            (assets / "web").mkdir()
+            (assets / "api/main.mjs").write_text("// synthetic API, not executed\n")
+        config = Path("/etc/lingxi-next/independent")
+        for name in ("mapping.json", "slam.json", "product selection.json", "acquisition.json"):
+            (config / name).write_text('{"fixture":true}\n')
+        setup = config / "setup.bash"
+        setup.write_text('export FIXTURE_ROS_ONLY=1\n')
+        env = {**os.environ, "LINGXI_INDEPENDENT_PRODUCT": "1", "LINGXI_ROS_SETUP": str(setup),
+               "LINGXI_MAPPING_CONFIG": str(config / "mapping.json"),
+               "LINGXI_SLAM_CONFIG": str(config / "slam.json"),
+               "LINGXI_MAP_ROOT": "/var/lib/lingxi-next/maps"}
+
+        def execute(mode, **selection):
+            return subprocess.run(["bash", str(current / "deploy/run.sh"), mode],
+                                  env={**env, **selection}, text=True, capture_output=True)
+
+        for mode, port in (("independent-mapping", "3443"), ("independent-slam", "3444")):
+            with self.subTest(mode=mode):
+                result = execute(mode)
+                self.assertEqual(0, result.returncode, result.stderr)
+                value = json.loads(result.stdout)
+                self.assertEqual(port, value['port'])
+                self.assertIn('/independent/assets/', value['web'])
+                args = value['args']
+                self.assertEqual(env['LINGXI_MAP_ROOT'], args[args.index('--maps') + 1])
+                self.assertEqual(mode == 'independent-mapping', '--persistent' in args)
+                self.assertNotIn('--seconds', args)
+                self.assertTrue((Path(args[args.index('--output') + 1]) / 'fixture-evidence.json').is_file())
+
+        product = config / 'product selection.json'
+        acquisition = config / 'acquisition.json'
+        selections = {'LINGXI_PRODUCT_CONFIG': str(product),
+                      'LINGXI_PRODUCT_CONFIG_SHA256': hashlib.sha256(product.read_bytes()).hexdigest(),
+                      'LINGXI_ACQUISITION_SETTINGS': str(acquisition),
+                      'LINGXI_ACQUISITION_SETTINGS_SHA256': hashlib.sha256(acquisition.read_bytes()).hexdigest()}
+        selected = execute('independent-slam', **selections)
+        self.assertEqual(0, selected.returncode, selected.stderr)
+        args = json.loads(selected.stdout)['args']
+        self.assertEqual(str(product), args[args.index('--product-config') + 1])
+        self.assertEqual(str(acquisition), args[args.index('--acquisition-settings') + 1])
+        for label in ('LINGXI_PRODUCT_CONFIG', 'LINGXI_ACQUISITION_SETTINGS'):
+            for change in ({label + '_SHA256': ''}, {label + '_SHA256': '0' * 64}, {label: ''}):
+                with self.subTest(label=label, change=change):
+                    rejected = execute('independent-slam', **{**selections, **change})
+                    self.assertEqual(78, rejected.returncode, rejected.stderr)
+                    self.assertEqual('', rejected.stdout)
+        for mode in ('independent-mapping', 'independent-slam'):
+            self.assertEqual(78, execute(mode, LINGXI_INDEPENDENT_PRODUCT='0').returncode)
+        for profile, other in (('mapping', 'slam'), ('slam', 'mapping')):
+            unit = Path('/etc/systemd/system/lingxi-next-independent-' + profile + '.service').read_text()
+            self.assertIn('RestartPreventExitStatus=78', unit)
+            self.assertIn('Conflicts=lingxi-next-independent-' + other + '.service', unit)
 
 
 def main():

@@ -2,10 +2,13 @@ import copy
 import json
 from pathlib import Path
 import sys
+import tempfile
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from release_scope import CORE_FILES, verify_scope
+from release_scope import (BOUND_SOURCE_MODULES, CORE_FILES, INDEPENDENT_FILES,
+                           verify_bound_source_references, verify_independent_scope, verify_scope,
+                           verify_staged_source_references)
 
 
 class ReleaseScopeTests(unittest.TestCase):
@@ -39,6 +42,47 @@ class ReleaseScopeTests(unittest.TestCase):
             scope = {**self.scope, field: value}
             with self.subTest(field=field), self.assertRaises(ValueError):
                 verify_scope({**self.status, 'scope': scope}, json.dumps(scope), CORE_FILES)
+
+    def test_independent_commissioning_scope_requires_runtime_contract(self):
+        scope = json.loads((Path(__file__).resolve().parents[2] / 'deploy/independent-scope.json').read_bytes())
+        status = {'classification': 'commissioning', 'productionAccepted': False,
+                  'independentStackIncluded': True, 'independent': scope}
+        files = set(INDEPENDENT_FILES)
+        self.assertEqual(scope, verify_independent_scope(status, json.dumps(scope), files))
+        for filename in files:
+            with self.subTest(filename=filename), self.assertRaises(ValueError):
+                verify_independent_scope(status, json.dumps(scope), files - {filename})
+        with self.assertRaises(ValueError):
+            verify_independent_scope({**status, 'independent': {}}, json.dumps(scope), files)
+        with self.assertRaises(ValueError):
+            verify_independent_scope({**status, 'productionAccepted': True}, json.dumps(scope), files)
+
+    def test_native_source_reference_closure_checks_actual_verifiers_without_importing(self):
+        root = Path(__file__).resolve().parents[2]
+        captured = {'independent/source/' + name: (root / name).read_bytes() for name in BOUND_SOURCE_MODULES}
+        files = {'independent/source/' + path.relative_to(root).as_posix()
+                 for directory in ('tools', 'robot-runtime', 'robot-slam', 'robot-navigation', 'docs')
+                 for path in (root / directory).rglob('*') if path.is_file()}
+        self.assertGreater(verify_bound_source_references(captured, files), 50)
+        required = 'independent/source/tools/glim-full-mapping/full_mapping.cpp'
+        with self.assertRaisesRegex(ValueError, 'native_source_reference_missing'):
+            verify_bound_source_references(captured, files - {required})
+        with self.assertRaisesRegex(ValueError, 'native_source_verifier_missing'):
+            verify_bound_source_references({}, files)
+
+    def test_staged_source_check_rejects_filtered_runtime_verifier_before_compression(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for name in BOUND_SOURCE_MODULES:
+                path = root / 'independent/source' / name
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text("SOURCE = 'tools/check_ground_native.py'\n", encoding='utf-8')
+            with self.assertRaisesRegex(ValueError, 'native_source_reference_missing:.*check_ground_native'):
+                verify_staged_source_references(root)
+            verifier = root / 'independent/source/tools/check_ground_native.py'
+            verifier.parent.mkdir(parents=True, exist_ok=True)
+            verifier.write_text('# verifier fixture\n', encoding='utf-8')
+            self.assertEqual(1, verify_staged_source_references(root))
 
 
 if __name__ == '__main__':

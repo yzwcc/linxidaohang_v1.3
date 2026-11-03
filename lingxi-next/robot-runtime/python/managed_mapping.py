@@ -48,8 +48,14 @@ def run(args):
         if not path.is_absolute():
             raise ValueError("absolute_verified_mapping_runtime_required")
         digest_file(path, digest)
-    validate_output(args.output, config, (args.config, args.node, args.api_bundle))
-    if not 5 <= args.seconds <= 3600:
+    validate_output(args.output, config, (args.config, args.node, args.api_bundle), existing=False)
+    maps = args.maps
+    if maps is not None:
+        validate_output(maps, config, (args.config, args.node, args.api_bundle), existing=True)
+    if args.persistent:
+        if args.seconds is not None:
+            raise ValueError("persistent_mapping_must_not_have_duration")
+    elif args.seconds is not None and not 5 <= args.seconds <= 3600:
         raise ValueError("bounded_mapping_commissioning_duration_required")
     environment = {"PATH": "/usr/bin:/bin", "LANG": "C.UTF-8",
                    "PYTHONDONTWRITEBYTECODE": "1", "PYTHONNOUSERSITE": "1"}
@@ -61,8 +67,9 @@ def run(args):
         [sys.executable, "-B", str(ROOT / "robot-runtime/python/mapping_service.py"),
          "--config", str(args.config)],
         [str(args.node), str(args.api_bundle)],
-        service_environment=environment, api_environment=api, output=args.output)
-    result = owner.run(stop=stop, seconds=args.seconds,
+        service_environment=environment, api_environment=api, output=args.output, maps=maps)
+    owner.continuous = args.persistent
+    result = owner.run(stop=stop, seconds=None if args.persistent else args.seconds if args.seconds is not None else 300,
                        on_listening=lambda status: print(json.dumps(status), flush=True))
     return 0 if result["result"] == "stopped" else 1
 
@@ -73,7 +80,11 @@ def main():
         parser.add_argument("--" + name, type=Path, required=True)
     for name in ("node-sha256", "api-sha256"):
         parser.add_argument("--" + name, required=True)
-    parser.add_argument("--seconds", type=int, default=300)
+    parser.add_argument("--seconds", type=int)
+    parser.add_argument("--maps", type=Path,
+                        help="existing independent map catalog; kept outside the owner runtime")
+    parser.add_argument("--persistent", action="store_true",
+                        help="run until SIGTERM; only for the installed independent owner")
     return run(parser.parse_args())
 
 

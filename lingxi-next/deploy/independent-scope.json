@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "profile": "independent-navigation-commissioning",
+  "completeProduct": false,
+  "independentStackIncluded": true,
+  "included": [
+    "independent-glim-mapping",
+    "seeded-localization",
+    "octomap-clearance",
+    "nav2-runtime",
+    "guarded-motion-handoff"
+  ],
+  "notIncluded": [
+    "arm64-native-execution",
+    "sensor-topic-and-tf-calibration",
+    "map-save-reload-field-acceptance",
+    "physical-navigation-and-estop-acceptance",
+    "cloud-voice-and-android-device-acceptance"
+  ],
+  "requiresExternal": [
+    "ros-humble",
+    "vendor-aimdk",
+    "verified-glim-native-dependencies",
+    "robot-lidar-topics-and-tf",
+    "robot-footprint-and-calibration"
+  ]
+}

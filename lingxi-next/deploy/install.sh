@@ -36,8 +36,9 @@ if ! getent group lingxi-next >/dev/null; then groupadd --system lingxi-next; fi
 if ! id lingxi-next >/dev/null 2>&1; then useradd --system --gid lingxi-next --home-dir "$DATA" --shell /usr/sbin/nologin lingxi-next; fi
 install -d -m 0755 "$ROOT" "$ROOT/releases"
 install -d -m 0750 -o root -g lingxi-next "$CONFIG"
+install -d -m 0750 -o root -g lingxi-next "$CONFIG/independent"
 install -d -m 0700 "$ROOT/backups"
-install -d -m 0700 -o lingxi-next -g lingxi-next "$DATA"
+install -d -m 0700 -o lingxi-next -g lingxi-next "$DATA" "$DATA/runtime" "$DATA/maps" "$DATA/run"
 if [[ ! -e "$CONFIG/robot.env" ]]; then
   install -m 0600 deploy/robot.env.example "$CONFIG/robot.env"
   python3 - "$CONFIG" <<'PY'
@@ -97,4 +98,5 @@ printf 'Installed commissioning build %s. Console: https://%s:%s\n' "$VERSION" "
 echo "Pairing code: /etc/lingxi-next/pairing-code.txt (root only). Import tls/ca.crt on each client."
 echo "Configure the existing ROS/AIMDK setup and actual topics in robot.env, then enable lingxi-next-aimdk."
 echo "Configure LinkSoul credentials in the console and LINKSOUL_AGENT_ID in robot.env, then enable lingxi-next-agent."
+echo "For independent mapping/SLAM, read docs/INDEPENDENT_INSTALL_20261103.md; owners remain disabled until configured."
 echo "No legacy service, vendor AIMDK installation, or map asset has been changed."
