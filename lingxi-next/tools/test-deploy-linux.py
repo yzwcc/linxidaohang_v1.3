@@ -137,6 +137,9 @@ class DeploymentLifecycle(unittest.TestCase):
             self.assertEqual(0o600, Path("/etc/lingxi-next/pairing-code.txt").stat().st_mode & 0o777)
             self.assertEqual(0o640, Path("/etc/lingxi-next/tls/robot.key").stat().st_mode & 0o777)
             self.assertEqual(0o700, Path("/var/lib/lingxi-next").stat().st_mode & 0o777)
+            native_parent = Path('/var/lib/lingxi-next/native-inputs')
+            self.assertEqual(0o700, native_parent.stat().st_mode & 0o777)
+            self.assertEqual(Path('/var/lib/lingxi-next').stat().st_uid, native_parent.stat().st_uid)
             certificate = run("openssl", "x509", "-in", "/etc/lingxi-next/tls/robot.crt",
                               "-noout", "-ext", "subjectAltName").stdout
             self.assertIn("IP Address:192.0.2.10", certificate)
@@ -351,6 +354,42 @@ assert not pathlib.Path('/test-state/python-preflight-fail').exists()
             rejected = execute(mode)
             self.assertEqual(78, rejected.returncode, rejected.stderr)
             Path('/test-state/python-preflight-fail').unlink()
+            self.assertEqual(before, set(Path('/var/lib/lingxi-next/runtime').iterdir()))
+
+        native = Path('/var/lib/lingxi-next/native-inputs/fixture-v1')
+        native.mkdir(mode=0o700)
+        for name in ('mapping.json', 'native-inputs-manifest.json'):
+            (native / name).write_text('{"synthetic":true}\n')
+            (native / name).chmod(0o600)
+        for path in (native, native / 'mapping.json', native / 'native-inputs-manifest.json'):
+            run('chown', 'lingxi-next:lingxi-next', str(path))
+        (tools / 'prepare_installed_mapping_inputs.py').write_text("""import hashlib, os, pathlib, sys
+assert os.geteuid() != 0 and sys.argv[1] == 'verify'
+args = dict(zip(sys.argv[2::2], sys.argv[3::2]))
+root = pathlib.Path(args['--root'])
+assert hashlib.sha256((root / 'native-inputs-manifest.json').read_bytes()).hexdigest() == args['--manifest-sha256']
+assert not pathlib.Path('/test-state/native-preflight-fail').exists()
+""")
+        native_env = {'LINGXI_NATIVE_INPUTS_ROOT': str(native),
+                      'LINGXI_NATIVE_INPUTS_SHA256': hashlib.sha256((native / 'native-inputs-manifest.json').read_bytes()).hexdigest(),
+                      'LINGXI_MAPPING_CONFIG': str(native / 'mapping.json'),
+                      'LINGXI_SLAM_CONFIG': str(native / 'mapping.json')}
+        for mode in ('independent-mapping', 'independent-slam'):
+            selected = execute(mode, **native_env)
+            self.assertEqual(0, selected.returncode, selected.stderr)
+            args = json.loads(selected.stdout)['args']
+            self.assertEqual(str(native / 'mapping.json'), args[args.index('--config') + 1])
+            before = set(Path('/var/lib/lingxi-next/runtime').iterdir())
+            for change in ({'LINGXI_NATIVE_INPUTS_SHA256': ''}, {'LINGXI_NATIVE_INPUTS_ROOT': ''},
+                           {'LINGXI_NATIVE_INPUTS_SHA256': '0' * 64},
+                           {'LINGXI_MAPPING_CONFIG': env['LINGXI_MAPPING_CONFIG'],
+                            'LINGXI_SLAM_CONFIG': env['LINGXI_SLAM_CONFIG']}):
+                rejected = execute(mode, **{**native_env, **change})
+                self.assertEqual(78, rejected.returncode, rejected.stderr)
+                self.assertEqual('', rejected.stdout)
+            Path('/test-state/native-preflight-fail').touch()
+            self.assertEqual(78, execute(mode, **native_env).returncode)
+            Path('/test-state/native-preflight-fail').unlink()
             self.assertEqual(before, set(Path('/var/lib/lingxi-next/runtime').iterdir()))
 
         product = config / 'product selection.json'

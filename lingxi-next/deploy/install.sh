@@ -38,7 +38,7 @@ install -d -m 0755 "$ROOT" "$ROOT/releases"
 install -d -m 0750 -o root -g lingxi-next "$CONFIG"
 install -d -m 0750 -o root -g lingxi-next "$CONFIG/independent"
 install -d -m 0700 "$ROOT/backups"
-install -d -m 0700 -o lingxi-next -g lingxi-next "$DATA" "$DATA/runtime" "$DATA/maps" "$DATA/run"
+install -d -m 0700 -o lingxi-next -g lingxi-next "$DATA" "$DATA/runtime" "$DATA/maps" "$DATA/run" "$DATA/native-inputs"
 if [[ ! -e "$CONFIG/robot.env" ]]; then
   install -m 0600 deploy/robot.env.example "$CONFIG/robot.env"
   python3 - "$CONFIG" <<'PY'

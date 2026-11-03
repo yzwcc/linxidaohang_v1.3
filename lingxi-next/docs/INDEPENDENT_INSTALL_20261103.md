@@ -52,6 +52,13 @@ require `LINGXI_SLAM_PYTHON`; an empty selection, system interpreter, mismatched
 dependencies or failed ROS imports must stop before any owner is launched.
 No automatic fallback or system-package installation is performed.
 
+For versioned native inputs outside protected home directories, follow
+[Installed Native Mapping Inputs](INSTALLED_NATIVE_MAPPING_INPUTS.md). This
+preserves original receipts and only generates a new wrapper with explicit
+paths. Optional `LINGXI_NATIVE_INPUTS_ROOT`/`LINGXI_NATIVE_INPUTS_SHA256` bind
+installed startup to that verified closure; preparation grants no navigation
+or physical calibration acceptance.
+
 Choose one owner, never both:
 
 ```sh

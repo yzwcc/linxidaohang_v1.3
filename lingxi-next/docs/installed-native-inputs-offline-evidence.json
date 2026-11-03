@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "result": "real_arm64_input_files_materialized_and_reverified_not_target_execution",
+  "date": "2026-11-04",
+  "preparedFileCount": 142,
+  "preparedManifestSha256": "31f42ae31c43cb2d6508a6420359884197a41b7ce3c510ed6b225af34f12ca16",
+  "observedMapperManifestSha256": "34442a3c8a125abf59a3734e2594bc9d75821633d7c6071d9ec7a93e9366a252",
+  "originalComponentReceiptBytesPreserved": true,
+  "freshProcessReverificationPassed": true,
+  "mappingLibraryLoadsForbiddenDuringReverification": true,
+  "childCreationForbiddenDuringReverification": true,
+  "sourceSha256": {
+    "tools/prepare_installed_mapping_inputs.py": "99abd4944ae6bf56d75f07695d8bbe5b689faf05d320049f552baf1add2d7311",
+    "deploy/run.sh": "605e0771f3dd5bbabe3d32c61d3fa22eb601f90d0c5e6a85012e67e297e77add"
+  },
+  "boundaries": {
+    "mappingLibrariesLoaded": false,
+    "ddsProfileValidated": false,
+    "rosNodesCreated": false,
+    "sensorsSubscribed": false,
+    "motionCommandsSent": false,
+    "vendorFilesChanged": false,
+    "physicalCalibrationAccepted": false,
+    "navigationReady": false,
+    "productAccepted": false
+  }
+}

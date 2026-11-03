@@ -91,6 +91,23 @@ independent_python() {
   printf '%s' "$python"
 }
 
+verified_native_inputs() {
+  local python="$1" config="$2" root="${LINGXI_NATIVE_INPUTS_ROOT:-}"
+  [[ -n "$root${LINGXI_NATIVE_INPUTS_SHA256:-}" ]] || return 0
+  required_directory "$root" LINGXI_NATIVE_INPUTS_ROOT
+  required_pinned_configuration "$root/native-inputs-manifest.json" "${LINGXI_NATIVE_INPUTS_SHA256:-}" LINGXI_NATIVE_INPUTS
+  [[ "$config" == "$root/mapping.json" ]] || {
+    echo "Mapping/SLAM configuration must belong to the selected native inputs" >&2
+    exit 78
+  }
+  if ! /usr/bin/timeout --signal=TERM --kill-after=5s 90s "$python" -s -B \
+      "$INDEPENDENT/source/tools/prepare_installed_mapping_inputs.py" verify \
+      --root "$root" --manifest-sha256 "$LINGXI_NATIVE_INPUTS_SHA256" >/dev/null; then
+    echo "Native mapping inputs failed verification; no owner was started" >&2
+    exit 78
+  fi
+}
+
 run_independent_mapping() {
   require_independent_product
   source_ros_runtime
@@ -99,6 +116,7 @@ run_independent_mapping() {
   local node api output parent python
   export PYTHONNOUSERSITE=1 PYTHONDONTWRITEBYTECODE=1
   python="$(independent_python)"
+  verified_native_inputs "$python" "$LINGXI_MAPPING_CONFIG"
   node="$(independent_node)"
   api="$(independent_api mapping)"
   parent="${LINGXI_RUNTIME_DIR:-/var/lib/lingxi-next/runtime}"
@@ -122,6 +140,7 @@ run_independent_slam() {
   local node api output parent python
   export PYTHONNOUSERSITE=1 PYTHONDONTWRITEBYTECODE=1
   python="$(independent_python)"
+  verified_native_inputs "$python" "$LINGXI_SLAM_CONFIG"
   local -a selection=()
   if [[ -n "${LINGXI_PRODUCT_CONFIG:-}${LINGXI_PRODUCT_CONFIG_SHA256:-}" ]]; then
     required_pinned_configuration "${LINGXI_PRODUCT_CONFIG:-}" "${LINGXI_PRODUCT_CONFIG_SHA256:-}" LINGXI_PRODUCT_CONFIG
