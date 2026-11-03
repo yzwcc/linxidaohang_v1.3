@@ -2,6 +2,12 @@
   "schemaVersion": 1,
   "purpose": "immutable_historical_evidence_not_current_target_acceptance",
   "entries": {
+    "docs/evidence/acquisition-ground-inspection-20261103.json": {
+      "revision": "f7287a8c1e2a972f05570258d09e91c0ac268006",
+      "reportCanonicalSha256": "cf4145a3fd58e2ba1dd44f9e409f290df96000245e2e9617ca6cb690054c6fde",
+      "sourceByteTransforms": {},
+      "sourceSection": "inputIntegrity.sourcesSha256"
+    },
     "docs/slam-stream-input-evidence.json": {
       "revision": "4bef1e95b58d3a2fbddd7d85ea19504d85843c16",
       "reportCanonicalSha256": "29c337770dc58aa935aae6c7a93dc2d4edb26153733fe5abc599a06f2221c16c",

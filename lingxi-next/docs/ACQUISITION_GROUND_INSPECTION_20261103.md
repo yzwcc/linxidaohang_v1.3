@@ -30,6 +30,15 @@ native work. Two independent children run with 10-second CPU, 2-GiB address
 space, 1-MiB per-file output and 30-second wall limits. Their complete reports must match.
 Root, ARM64 and nonisolated/non-Linux CLI execution are rejected before input/native IO.
 
+## Historical Source Status
+
+As checked on 2026-11-04, this report remains immutable evidence from commit
+`f7287a8c1e2a972f05570258d09e91c0ac268006`. Its seven recorded source hashes
+match that revision. Current `ground.py` and `occupancy.py` have since changed,
+so this is not a current-source replay or new calibration/ground acceptance.
+The historical-source catalog preserves that distinction without rewriting
+the report or rerunning the completed two-sample inspection.
+
 ## Actual Preserved Samples
 
 Final output: private `acquisition-ground-inspection-20261103-b`. Two independent

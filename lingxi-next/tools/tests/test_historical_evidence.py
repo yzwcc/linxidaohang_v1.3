@@ -76,10 +76,34 @@ class HistoricalEvidenceTests(unittest.TestCase):
         self.assertFalse(self.verify()["currentSourceBindingsMatch"])
 
     def test_unknown_or_absent_source_sections_cannot_bypass_verification(self):
-        for section in ("result", "unknown", "actualRuntimeSourceSha256"):
+        for section in ("result", "unknown", "actualRuntimeSourceSha256", "inputIntegrity.sourcesSha256"):
             self.value["entries"][self.name]["sourceSection"] = section
             self.write_binding()
             with self.subTest(section=section), self.assertRaises(ValueError):
+                self.verify()
+
+    def test_explicit_nested_integrity_sources_remain_git_bound_and_expose_drift(self):
+        self.report['inputIntegrity'] = {'sourcesSha256': self.report.pop('sourceSha256')}
+        self.freeze()
+        self.value['entries'][self.name]['sourceSection'] = 'inputIntegrity.sourcesSha256'
+        self.write_binding()
+        self.assertTrue(self.verify()['historicalSourcesVerified'])
+        self.source.write_bytes(b'new source, not a replay\n')
+        self.assertFalse(self.verify()['currentSourceBindingsMatch'])
+        self.report['inputIntegrity']['sourcesSha256']['src/worker.py'] = '0' * 64
+        self.freeze()
+        self.value['entries'][self.name]['sourceSection'] = 'inputIntegrity.sourcesSha256'
+        self.write_binding()
+        with self.assertRaisesRegex(ValueError, 'historical_source_mismatch'):
+            self.verify()
+
+    def test_malformed_nested_integrity_is_not_a_source_binding(self):
+        for integrity in (None, [], 'not-an-object', {'sourcesSha256': {}}):
+            self.report = {'inputIntegrity': integrity}
+            self.freeze()
+            self.value['entries'][self.name]['sourceSection'] = 'inputIntegrity.sourcesSha256'
+            self.write_binding()
+            with self.subTest(integrity=integrity), self.assertRaisesRegex(ValueError, 'historical_sources_required'):
                 self.verify()
 
     def test_mutation_and_deletion_are_current_drift_not_rewritten_history(self):

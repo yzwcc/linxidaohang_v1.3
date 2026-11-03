@@ -1,0 +1,269 @@
+{
+  "schemaVersion": 1,
+  "result": "qemu_arm64_acquisition_contracts_passed_not_robot_execution",
+  "executionMode": "qemu-user",
+  "inputClassification": "synthetic_fixture",
+  "qemuSha256": "e4f8d99e9ff69c3cefffab71cee358ce2af1ecba1282d04c3eeb44ef76f5a71e",
+  "loaderSha256": "1f4fe51e11324b5bcc01ef1fd3859b5dd344ec16a8674d74ce618ef65016fbaf",
+  "trialManifestSha256": "6b8130a93f318574b365d355e6d12716db9b8cbac2ccf1ba9896d86206619be4",
+  "componentManifestSha256": "f901d001f51ffcb1a74d3c00ef9241f012fae4075ece591c49982d901ed98c3d",
+  "sourceSha256": {
+    "tools/check_acquisition_arm64_emulation.py": "3f98c567f479b69f374ebe15779540cc89dd9bed5b725d52c66d339acbf3ad68",
+    "tools/acquisition_target_probe.py": "28381422b22e954f20e75e286dd08a6dfc7da3217b809e2ab199d49e423e94eb"
+  },
+  "trialSourceSha256": {
+    "robot-slam/native-acquisition-output/acquisition.h": "fd3aa5aefeb0b1e78fb830836fe712cd43c0c07317c556d815fa48d4bf58ffe2",
+    "robot-slam/native-acquisition-output/acquisition.cpp": "f7c0276d77ce1892e13f6e089790391dd579eb68a22c6f88d6aaa3fd73bea85a",
+    "robot-slam/native-acquisition-output/acquisition_contract.cpp": "be51e62943f1d45348796d27a8751aac10fb21e9dd7b77d71f398df7645996f6",
+    "robot-slam/native-acquisition-output/CMakeLists.txt": "7068da7d6afe889eaacbdbc6b44e0fe5ba8b4479a569099b9cfa9c408d6cf426",
+    "robot-slam/native-acquisition-output/exports.map": "d5f3fdb32eccd8e114d0e8b00086f74a9b940c0276a1e151035654e58e21eaa3",
+    "robot-slam/lingxi_slam/acquisition_output.py": "d10e5c95a3013b78c49a78d861888ac902cc9b71c38331ae984d1867ff88f40d",
+    "robot-slam/lingxi_slam/observation_archive.py": "9b6ea73238d2cc4cd8d96ad66da00d55a2380e9cfb3629ce966eb9f26d418e20",
+    "robot-slam/lingxi_slam/point_output.py": "4b501e2411fd6e54f6b22f954fe13ac222de8d43ad221d61aba5de102512ba81",
+    "tools/run_glim_acquisition_trial.py": "465674e20b4f4e95e214042e89818c3d289f698bb7cc722099362e425ff6a6f8",
+    "tools/glim_matched_session.py": "20245c70053635ccf804a67122f31d1af33edc6a99b8b221a2009a7e9409aa02",
+    "tools/build_glim_acquisition_arm64.py": "92f2e11bfaf875bbae84568ace69458db1b8d4954d2456759b079a35d33a470f",
+    "robot-runtime/python/acquisition_bundle.py": "f0f88ce2f3a7c3d33bff5b318b94e430206f1c7ea2c87e33c24d22cb2bb0430d",
+    "tools/acquisition_target_probe.py": "28381422b22e954f20e75e286dd08a6dfc7da3217b809e2ab199d49e423e94eb",
+    "tools/run_acquisition_target_trial.py": "b89a1d9660add0e366d3f5cd677aa441ca6fef23390535b0f2bfe96d316736d9"
+  },
+  "resolvedDependencies": {
+    "liblingxi_glim_acquisition_output.so": {
+      "origin": "trial",
+      "relative": "lib/liblingxi_glim_acquisition_output.so",
+      "sha256": "5eb4f079d9f753642eac64aef83b5454022ee9878cd57357567e15c5b75e6f0d"
+    },
+    "libglim.so": {
+      "origin": "trial",
+      "relative": "lib/libglim.so",
+      "sha256": "3c70a22f4151c0c600f394bc65c1dff5c6d133566cb110866b869caeb9ae7f81"
+    },
+    "libgtsam.so.4": {
+      "origin": "trial",
+      "relative": "lib/libgtsam.so.4",
+      "sha256": "fee5315024f5eaf4b7b432bc8ff2c9715c098fe6a3693d8177a39bc9a538620f"
+    },
+    "libstdc++.so.6": {
+      "origin": "sysroot",
+      "relative": "usr/lib/aarch64-linux-gnu/libstdc++.so.6.0.30",
+      "sha256": "03efc8de2eb1f016fa59a937b8858c48ad893558737ef61fe16bbb622283c759"
+    },
+    "libgcc_s.so.1": {
+      "origin": "sysroot",
+      "relative": "lib/aarch64-linux-gnu/libgcc_s.so.1",
+      "sha256": "d4bbb45d5d80f4b15d4bf50bfc8ded0a26a44c638859df97be40a6339adb3485"
+    },
+    "libc.so.6": {
+      "origin": "sysroot",
+      "relative": "lib/aarch64-linux-gnu/libc.so.6",
+      "sha256": "79fd4ecae5fb5fab4e17ec4f145d2b79026559dce52f01a478b0a04fef3dff06"
+    },
+    "ld-linux-aarch64.so.1": {
+      "origin": "sysroot",
+      "relative": "lib/aarch64-linux-gnu/ld-linux-aarch64.so.1",
+      "sha256": "1f4fe51e11324b5bcc01ef1fd3859b5dd344ec16a8674d74ce618ef65016fbaf"
+    },
+    "libmetis-gtsam.so": {
+      "origin": "trial",
+      "relative": "lib/libmetis-gtsam.so",
+      "sha256": "844a86b408f2ed51445162f6aeb7979212e8aaae064ad59e0d3862ec6b96e400"
+    },
+    "libgtsam_points.so.1": {
+      "origin": "trial",
+      "relative": "lib/libgtsam_points.so.1",
+      "sha256": "1b279b1d3ad4e252499167a6f9d16f17eec8e7ca634d7157fbd594692e2a54fb"
+    },
+    "libspdlog.so.1": {
+      "origin": "sysroot",
+      "relative": "usr/lib/aarch64-linux-gnu/libspdlog.so.1.9.2",
+      "sha256": "13ac298280ddd759288fcf92a4b7da0a4af2325a866992600c052e50c036eae6"
+    },
+    "libgomp.so.1": {
+      "origin": "sysroot",
+      "relative": "usr/lib/aarch64-linux-gnu/libgomp.so.1.0.0",
+      "sha256": "53d7318d8e1addc4d2990c028daba609f8dc1af16a501255eb5c4d59b7e2b601"
+    },
+    "libboost_serialization.so.1.74.0": {
+      "origin": "sysroot",
+      "relative": "usr/lib/aarch64-linux-gnu/libboost_serialization.so.1.74.0",
+      "sha256": "f8e57577123a652b261682dc1a3f32aa0c8928ce20fc4a8af625b1dccce45260"
+    },
+    "libboost_filesystem.so.1.74.0": {
+      "origin": "sysroot",
+      "relative": "usr/lib/aarch64-linux-gnu/libboost_filesystem.so.1.74.0",
+      "sha256": "063e51184e38623c0835acf3d30c88a7fd51b3c7ec5a53c9f60f9912914a7dc0"
+    },
+    "libfmt.so.8": {
+      "origin": "sysroot",
+      "relative": "usr/lib/aarch64-linux-gnu/libfmt.so.8.1.1",
+      "sha256": "4c3a584064dea1b0b56c902235d5a9f16a601f960cee0b5c38ba8357dcd05d37"
+    },
+    "libboost_timer.so.1.74.0": {
+      "origin": "sysroot",
+      "relative": "usr/lib/aarch64-linux-gnu/libboost_timer.so.1.74.0",
+      "sha256": "b69d12a1d438ef607ef193e95490fb03035fd17e1be4f43befe9540422a49869"
+    },
+    "libcephes-gtsam.so.1": {
+      "origin": "trial",
+      "relative": "lib/libcephes-gtsam.so.1",
+      "sha256": "7e18a24d0795a956df312b33c0f2f437c7130e0cdeb5b596a50ed30b4d356e24"
+    },
+    "libm.so.6": {
+      "origin": "sysroot",
+      "relative": "lib/aarch64-linux-gnu/libm.so.6",
+      "sha256": "4272b01b52991e751427228625655626ff4e0c51f8724fe14bb95b88b72a76ae"
+    },
+    "libboost_chrono.so.1.74.0": {
+      "origin": "sysroot",
+      "relative": "usr/lib/aarch64-linux-gnu/libboost_chrono.so.1.74.0",
+      "sha256": "3c804e33f7a3a567575580c1be98ef8cfd044eda7f2567640c8b6750cd06543f"
+    },
+    "libodometry_estimation_cpu.so": {
+      "origin": "trial",
+      "relative": "lib/libodometry_estimation_cpu.so",
+      "sha256": "5f9507bf8c075b89f5c072d0d9d3e0f535de259c884d955f5ad9230bbd632c0d"
+    }
+  },
+  "executedContracts": [
+    {
+      "name": "acquisition_copy",
+      "exitCode": 0
+    },
+    {
+      "name": "acquisition_pending_close",
+      "exitCode": 0
+    },
+    {
+      "name": "acquisition_overflow",
+      "exitCode": 0
+    },
+    {
+      "name": "acquisition_missing_raw",
+      "exitCode": 0
+    },
+    {
+      "name": "acquisition_missing_trajectory",
+      "exitCode": 0
+    },
+    {
+      "name": "acquisition_incomplete_trajectory",
+      "exitCode": 0
+    },
+    {
+      "name": "acquisition_unordered_trajectory",
+      "exitCode": 0
+    },
+    {
+      "name": "acquisition_quaternion",
+      "exitCode": 0
+    },
+    {
+      "name": "acquisition_points",
+      "exitCode": 0
+    },
+    {
+      "name": "acquisition_times",
+      "exitCode": 0
+    },
+    {
+      "name": "acquisition_pose",
+      "exitCode": 0
+    },
+    {
+      "name": "acquisition_lidar_pose",
+      "exitCode": 0
+    },
+    {
+      "name": "acquisition_skipped_id",
+      "exitCode": 0
+    },
+    {
+      "name": "acquisition_wrong_thread",
+      "exitCode": 0
+    },
+    {
+      "name": "acquisition_wrong_api_thread",
+      "exitCode": 0
+    },
+    {
+      "name": "acquisition_capacity",
+      "exitCode": 0
+    },
+    {
+      "name": "acquisition_invalid_stamp",
+      "exitCode": 0
+    },
+    {
+      "name": "acquisition_invalid_frame",
+      "exitCode": 0
+    },
+    {
+      "name": "acquisition_duplicate_id",
+      "exitCode": 0
+    },
+    {
+      "name": "acquisition_return_overflow",
+      "exitCode": 0
+    },
+    {
+      "name": "acquisition_trajectory_overflow",
+      "exitCode": 0
+    },
+    {
+      "name": "acquisition_negative_time",
+      "exitCode": 0
+    },
+    {
+      "name": "acquisition_unordered_time",
+      "exitCode": 0
+    },
+    {
+      "name": "acquisition_nonfinite_point",
+      "exitCode": 0
+    },
+    {
+      "name": "acquisition_nonhomogeneous_point",
+      "exitCode": 0
+    },
+    {
+      "name": "acquisition_extrinsic",
+      "exitCode": 0
+    },
+    {
+      "name": "acquisition_raw_stamp",
+      "exitCode": 0
+    },
+    {
+      "name": "acquisition_null_frame",
+      "exitCode": 0
+    },
+    {
+      "name": "acquisition_null_metadata",
+      "exitCode": 0
+    }
+  ],
+  "syntheticExport": {
+    "bytes": 840,
+    "sha256": "7fbd486080b3d054af6e3eed817bad3c67642e71b2cd527039e885e065133108",
+    "frameId": 1,
+    "stamp": 1002.0,
+    "returnCount": 3,
+    "trajectorySamples": 2
+  },
+  "seconds": 3.996164141999998,
+  "boundaries": {
+    "sensorSubscriptionsStarted": false,
+    "motionCommandsSent": false,
+    "servicesSwitched": false,
+    "systemPackagesInstalled": false,
+    "realDataProcessed": false,
+    "liveThroughputValidated": false,
+    "physicalScaleValidated": false,
+    "groundSupportValidated": false,
+    "navigationReady": false,
+    "deploymentApproved": false,
+    "robotContacted": false,
+    "targetExecutionValidated": false,
+    "liveTerrainIntegrated": false
+  }
+}

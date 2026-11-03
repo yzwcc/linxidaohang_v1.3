@@ -10,6 +10,7 @@ from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(ROOT / 'tools'), str(ROOT / 'robot-navigation'), str(ROOT / 'robot-slam')]
+import audit_historical_evidence as historical
 AVAILABLE = (all(importlib.util.find_spec(name) is not None for name in ('numpy', 'scipy', 'ruamel'))
              and importlib.util.find_spec('ruamel.yaml') is not None)
 if AVAILABLE:
@@ -70,15 +71,19 @@ class Samples(unittest.TestCase):
             with self.subTest(change=list(change)), self.assertRaises(ValueError):
                 tool.sample(*self.write(change))
 
-    def test_committed_actual_repeat_stays_read_only_and_current_source_bound(self):
+    def test_committed_actual_repeat_is_frozen_history_not_current_source_acceptance(self):
         report = json.loads((ROOT / 'docs/evidence/acquisition-ground-inspection-20261103.json').read_bytes())
         self.assertEqual(tool.RESULT, report['result'])
         self.assertEqual(tool.PURPOSE, report['purpose'])
         self.assertEqual(tool.BOUNDARIES, report['boundaries'])
         self.assertTrue(report['identicalRepeat'])
         self.assertEqual([0, 0], report['workerExitCodes'])
-        self.assertEqual({name: hashlib.sha256((ROOT / name).read_bytes()).hexdigest() for name in tool.SOURCES},
-                         report['inputIntegrity']['sourcesSha256'])
+        verified = historical.verify('docs/evidence/acquisition-ground-inspection-20261103.json')
+        self.assertTrue(verified['historicalSourcesVerified'])
+        self.assertEqual(len(tool.SOURCES), verified['recordedSourceCount'])
+        self.assertFalse(verified['currentSourceBindingsMatch'])
+        self.assertIn('robot-navigation/lingxi_navigation/ground.py', verified['currentSourceDrift'])
+        self.assertIn('robot-navigation/lingxi_navigation/occupancy.py', verified['currentSourceDrift'])
         self.assertEqual(['first', 'latest'], [row['sample'] for row in report['samples']])
         for row in report['samples']:
             self.assertEqual(0, row['nativeGroundInDeclaredFloorBand'])

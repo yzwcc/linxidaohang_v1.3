@@ -76,7 +76,7 @@ def catalog(path=CATALOG):
                 or set(entry) not in ({"revision", "reportCanonicalSha256", "sourceByteTransforms"},
                                      {"revision", "reportCanonicalSha256", "sourceByteTransforms", "sourceSection"})
                 or entry.get("sourceSection", "sourceSha256") not in (
-                    "sourceSha256", "actualRuntimeSourceSha256")
+                    "sourceSha256", "actualRuntimeSourceSha256", "inputIntegrity.sourcesSha256")
                 or not isinstance(entry["revision"], str) or not REVISION.fullmatch(entry["revision"])
                 or not isinstance(entry["reportCanonicalSha256"], str)
                 or not DIGEST.fullmatch(entry["reportCanonicalSha256"])
@@ -103,7 +103,12 @@ def verify(name, *, root=ROOT, catalog_path=CATALOG):
     original = _load(_git(root, "cat-file", "blob", revision + ":" + prefix + name))
     if canonical_sha256(original) != entry["reportCanonicalSha256"]:
         raise ValueError("historical_report_revision_mismatch:" + name)
-    sources = report.get(entry.get("sourceSection", "sourceSha256"))
+    section = entry.get("sourceSection", "sourceSha256")
+    if section == "inputIntegrity.sourcesSha256":
+        integrity = report.get("inputIntegrity")
+        sources = integrity.get("sourcesSha256") if isinstance(integrity, dict) else None
+    else:
+        sources = report.get(section)
     if (not isinstance(sources, dict) or not sources
             or not set(entry["sourceByteTransforms"]).issubset(sources)):
         raise ValueError("historical_sources_required")
