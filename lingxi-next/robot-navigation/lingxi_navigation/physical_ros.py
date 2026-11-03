@@ -10,6 +10,7 @@ normal development machine.
 
 from __future__ import annotations
 
+from array import array
 from dataclasses import dataclass
 import hashlib
 import json
@@ -76,6 +77,11 @@ def stamp_seconds(value: Any) -> float:
     if not finite(result):
         raise ValueError("finite_ros_timestamp_required")
     return result
+
+
+def stamp_nanoseconds(value: Any) -> int:
+    sec, nano = _stamp_parts(value)
+    return sec * 1_000_000_000 + nano
 
 
 def message_stamp(message: Any) -> float:
@@ -173,7 +179,9 @@ def parse_point_cloud_xyz(message: Any, *, minimum_z: float = DEFAULT_MINIMUM_Z_
     if (type(width) is not int or type(height) is not int or width < 1 or height < 1
             or width * height > maximum_points or type(step) is not int or not 12 <= step <= 256
             or type(row_step) is not int or row_step < width * step or row_step > 64 * 1024 * 1024
-            or not isinstance(data, (bytes, bytearray, memoryview)) or len(data) < height * row_step):
+            or not (isinstance(data, (bytes, bytearray)) or isinstance(data, array) and data.typecode == "B"
+                    or isinstance(data, memoryview) and data.ndim == 1 and data.itemsize == 1 and data.c_contiguous)
+            or len(data) < height * row_step):
         raise ValueError("bounded_point_cloud_layout_required")
     fields = _field_info(message)
     endian = ">" if bool(getattr(message, "is_bigendian", False)) else "<"
@@ -220,7 +228,8 @@ def parse_occupancy_grid(message: Any, *, expected_frame: str | None = None) -> 
     data = getattr(message, "data", None)
     if (type(width) is not int or type(height) is not int or not 1 <= width <= 2048 or not 1 <= height <= 2048
             or width * height > MAX_COSTMAP_CELLS or not finite(resolution) or not .005 <= resolution <= 1
-            or not isinstance(data, (bytes, bytearray, tuple, list)) or len(data) != width * height):
+            or not (isinstance(data, (bytes, bytearray, tuple, list)) or isinstance(data, array) and data.typecode == "b")
+            or len(data) != width * height):
         raise ValueError("bounded_occupancy_grid_required")
     frame = _frame(getattr(getattr(message, "header", None), "frame_id", None))
     if expected_frame is not None and frame != expected_frame:
@@ -249,24 +258,29 @@ def parse_odometry(message: Any, *, map_frame: str, base_frame: str) -> tuple[fl
     return message_stamp(message), result
 
 
-def validate_tf_message(message: Any, *, map_frame: str, base_frame: str, sensor_frame: str | None = None) -> float:
+def _validated_transforms(message: Any) -> tuple:
     transforms = getattr(message, "transforms", None)
-    if not isinstance(transforms, (list, tuple)) or not transforms:
-        raise ValueError("tf_transforms_required")
-    newest = 0.0
-    edges = set()
+    if not isinstance(transforms, (list, tuple)) or not 1 <= len(transforms) <= 128:
+        raise ValueError("bounded_tf_transforms_required")
     for item in transforms:
         header, child = getattr(item, "header", None), getattr(item, "child_frame_id", None)
         parent = _frame(getattr(header, "frame_id", None))
         child = _frame(child)
-        stamp = message_stamp(type("Stamped", (), {"header": header})())
-        newest = max(newest, stamp)
+        if parent == child:
+            raise ValueError("distinct_tf_parent_and_child_required")
+        stamp_nanoseconds(getattr(header, "stamp", None))
         transform = getattr(item, "transform", None)
         validate_quaternion(getattr(transform, "rotation", None))
         translation = getattr(transform, "translation", None)
         for name in ("x", "y", "z"):
             _bounded_float(getattr(translation, name, None), 1000)
-        edges.add((parent, child))
+    return tuple(transforms)
+
+
+def validate_tf_message(message: Any, *, map_frame: str, base_frame: str, sensor_frame: str | None = None) -> float:
+    transforms = _validated_transforms(message)
+    newest = max(message_stamp(item) for item in transforms)
+    edges = {(item.header.frame_id, item.child_frame_id) for item in transforms}
 
     def connected(source: str, target: str) -> bool:
         pending, seen = [source], {source}
@@ -358,29 +372,54 @@ class FileMapActivator:
 
 
 class RosSensorEvidence:
-    """Own subscriptions and expose one fresh, map-bound ``Observation``."""
+    """Single-executor evidence with acquisition age and exact-time tf2 queries.
+
+    Receive time cannot renew an old sample. A ROS/steady clock discontinuity or
+    changed TF topology/calibration latches this owner closed to admission.
+    """
 
     def __init__(self, node: Any, identity: MapEvidence, topics: RosTopics, *, map_frame="lingxi_saved_map",
                  base_frame="base_link", sensor_frame="lidar_chest_front", footprint: Any,
-                 clock=time.monotonic, maximum_age=.5, qos=10):
+                 clock=time.monotonic, maximum_age=.5):
         if type(identity) is not MapEvidence or type(topics) is not RosTopics or not callable(clock) or not finite(maximum_age) or not .05 <= maximum_age <= 2:
             raise ValueError("typed_ros_sensor_evidence_configuration_required")
         self.owner, self.node, self.identity, self.topics = threading.get_ident(), node, identity, topics
-        self.map_frame, self.base_frame, self.sensor_frame = map_frame, base_frame, sensor_frame
+        self.map_frame, self.base_frame, self.sensor_frame = map(_frame, (map_frame, base_frame, sensor_frame))
+        if len({self.map_frame, self.base_frame, self.sensor_frame}) != 3:
+            raise ValueError("distinct_map_base_and_sensor_frames_required")
         self.clock, self.maximum_age, self.footprint_sha256 = clock, maximum_age, digest_footprint(footprint)
-        self.latest_cloud = self.latest_odom = self.latest_tf = None
+        self.latest_cloud = self.latest_odom = None
         self.latest_global = self.latest_local = self.latest_terrain = None
-        self._received = {name: None for name in ("cloud", "odom", "tf", "global", "local", "terrain")}
-        self.closed = False
+        self.receipts, self.previous_stamps, self.tf_parents = {}, {}, {}
+        self.closed = self.clock_failed = self.tf_failed = False
+        self.anchor = None
+        self.last_clock = None
+        self.subscriptions = []
         try:
+            from rclpy.duration import Duration
+            from rclpy.qos import QoSProfile, DurabilityPolicy, ReliabilityPolicy
+            from rclpy.time import Time
             from nav_msgs.msg import OccupancyGrid, Odometry
             from sensor_msgs.msg import PointCloud2
             from tf2_msgs.msg import TFMessage
-            bindings = ((PointCloud2, topics.cloud, self._cloud), (Odometry, topics.odometry, self._odom),
-                        (TFMessage, topics.tf, self._tf), (TFMessage, topics.tf_static, self._tf),
-                        (OccupancyGrid, topics.global_costmap, self._global), (OccupancyGrid, topics.local_costmap, self._local),
-                        (OccupancyGrid, topics.terrain, self._terrain))
-            self.subscriptions = [node.create_subscription(kind, name, callback, qos) for kind, name, callback in bindings]
+            from tf2_ros import Buffer
+            self.ros_time_type = Time
+            self.tf_buffer = Buffer(cache_time=Duration(seconds=2.))
+            sensor_qos = QoSProfile(depth=1, reliability=ReliabilityPolicy.BEST_EFFORT)
+            grid_qos = QoSProfile(depth=1, reliability=ReliabilityPolicy.RELIABLE)
+            tf_qos = QoSProfile(depth=100, reliability=ReliabilityPolicy.BEST_EFFORT)
+            static_qos = QoSProfile(depth=100, reliability=ReliabilityPolicy.RELIABLE,
+                                    durability=DurabilityPolicy.TRANSIENT_LOCAL)
+            self._sample_clock()
+            bindings = ((PointCloud2, topics.cloud, self._cloud, sensor_qos),
+                        (Odometry, topics.odometry, self._odom, sensor_qos),
+                        (TFMessage, topics.tf, self._tf, tf_qos),
+                        (TFMessage, topics.tf_static, self._tf_static, static_qos),
+                        (OccupancyGrid, topics.global_costmap, self._global, grid_qos),
+                        (OccupancyGrid, topics.local_costmap, self._local, grid_qos),
+                        (OccupancyGrid, topics.terrain, self._terrain, grid_qos))
+            for kind, name, callback, qos in bindings:
+                self.subscriptions.append(node.create_subscription(kind, name, callback, qos))
         except BaseException:
             self.close()
             raise
@@ -389,43 +428,143 @@ class RosSensorEvidence:
         if threading.get_ident() != self.owner:
             raise RuntimeError("single_ros_sensor_owner_required")
 
+    def _sample_clock(self):
+        self._owned()
+        if self.closed or self.clock_failed:
+            raise RuntimeError("ros_sensor_clock_unavailable")
+        now = self.clock()
+        ros = self.node.get_clock().now().nanoseconds
+        if not finite(now) or now < 0 or type(ros) is not int or ros <= 0:
+            self.clock_failed = True
+            raise RuntimeError("initialised_ros_and_steady_clock_required")
+        if self.anchor is None:
+            self.anchor = (now, ros)
+        previous, source = self.anchor
+        if ((self.last_clock is not None and (now < self.last_clock[0] or ros < self.last_clock[1]))
+                or abs((ros - source) / 1e9 - (now - previous)) > .05):
+            self.clock_failed = True
+            raise RuntimeError("ros_sensor_clock_discontinuity")
+        self.last_clock = now, ros
+        return now, ros
+
+    def _receipt(self, stamp, now, ros):
+        age = (ros - stamp) / 1e9
+        if stamp <= 0 or not 0 <= age <= self.maximum_age:
+            raise ValueError("current_sensor_acquisition_stamp_required")
+        return (stamp, min(now - age, self.anchor[0] + (stamp - self.anchor[1]) / 1e9))
+
+    def _accept(self, name, message, parser):
+        self._owned()
+        if self.closed:
+            return False
+        try:
+            value = parser(message)
+            stamp = stamp_nanoseconds(message.header.stamp)
+            now, ros = self._sample_clock()
+            receipt = self._receipt(stamp, now, ros)
+            if stamp <= self.previous_stamps.get(name, -1):
+                return False
+            self.previous_stamps[name] = stamp
+            self.receipts[name] = receipt
+            setattr(self, "latest_" + name, value)
+            return True
+        except (ValueError, RuntimeError, AttributeError, TypeError, OverflowError):
+            self.receipts.pop(name, None)
+            setattr(self, "latest_" + name, None)
+            return False
+
     def _cloud(self, message):
-        self.latest_cloud = parse_point_cloud_xyz(message)
-        self._received["cloud"] = self.clock()
+        def parse(value):
+            cloud = parse_point_cloud_xyz(value)
+            if cloud.frame != self.sensor_frame:
+                raise ValueError("point_cloud_sensor_frame_mismatch")
+            return cloud
+        return self._accept("cloud", message, parse)
 
     def _odom(self, message):
-        self.latest_odom = parse_odometry(message, map_frame=self.map_frame, base_frame=self.base_frame)
-        self._received["odom"] = self.clock()
+        return self._accept("odom", message, lambda value: parse_odometry(
+            value, map_frame=self.map_frame, base_frame=self.base_frame))
 
     def _tf(self, message):
-        self.latest_tf = validate_tf_message(message, map_frame=self.map_frame, base_frame=self.base_frame, sensor_frame=self.sensor_frame)
-        self._received["tf"] = self.clock()
+        return self._transforms(message, static=False)
+
+    def _tf_static(self, message):
+        return self._transforms(message, static=True)
+
+    def _transforms(self, message, *, static):
+        self._owned()
+        if self.closed or self.tf_failed or self.clock_failed:
+            return False
+        try:
+            now, ros = self._sample_clock()
+            transforms = _validated_transforms(message)
+            parents = dict(self.tf_parents)
+            for item in transforms:
+                child, parent = item.child_frame_id, item.header.frame_id
+                transform = item.transform
+                geometry = None
+                if static:
+                    geometry = tuple(getattr(transform.translation, key) for key in ("x", "y", "z")) + tuple(
+                        getattr(transform.rotation, key) for key in ("x", "y", "z", "w"))
+                declaration = (parent, static, geometry)
+                if child in parents and parents[child] != declaration:
+                    raise ValueError("unchanged_tf_topology_and_static_calibration_required")
+                parents[child] = declaration
+                if len(parents) > 256:
+                    raise ValueError("bounded_tf_frame_inventory_required")
+                ancestor, seen = parent, {child}
+                while ancestor in parents:
+                    if ancestor in seen:
+                        raise ValueError("acyclic_tf_tree_required")
+                    seen.add(ancestor)
+                    ancestor = parents[ancestor][0]
+                if not static:
+                    self._receipt(stamp_nanoseconds(item.header.stamp), now, ros)
+            for item in transforms:
+                setter = self.tf_buffer.set_transform_static if static else self.tf_buffer.set_transform
+                setter(item, "lingxi_next_validated_tf")
+            self.tf_parents = parents
+            return True
+        except Exception:
+            self.tf_failed = True
+            self.tf_buffer.clear()
+            return False
 
     def _global(self, message):
-        self.latest_global = parse_occupancy_grid(message, expected_frame=self.map_frame)
-        self._received["global"] = self.clock()
+        return self._accept("global", message, lambda value: parse_occupancy_grid(value, expected_frame=self.map_frame))
 
     def _local(self, message):
-        self.latest_local = parse_occupancy_grid(message, expected_frame=self.map_frame)
-        self._received["local"] = self.clock()
+        return self._accept("local", message, lambda value: parse_occupancy_grid(value, expected_frame=self.map_frame))
 
     def _terrain(self, message):
-        self.latest_terrain = parse_occupancy_grid(message, expected_frame=self.map_frame)
-        self._received["terrain"] = self.clock()
+        return self._accept("terrain", message, lambda value: parse_occupancy_grid(value, expected_frame=self.map_frame))
+
+    def _tf_ready(self):
+        if self.tf_failed:
+            return False
+        for name in ("cloud", "odom"):
+            receipt = self.receipts.get(name)
+            if receipt is None:
+                return False
+            when = self.ros_time_type(nanoseconds=receipt[0])
+            for target, source in ((self.map_frame, self.base_frame), (self.base_frame, self.sensor_frame)):
+                if not self.tf_buffer.can_transform(target, source, when):
+                    return False
+        return True
 
     def observe(self) -> Observation:
         self._owned()
-        now = self.clock()
-        if self.closed or not finite(now):
-            raise RuntimeError("ros_sensor_evidence_closed")
-        def fresh(value, received):
-            return value is not None and received is not None and 0 <= now - received <= self.maximum_age
-        cloud_ok = fresh(self.latest_cloud, self._received["cloud"])
-        localization_ok = fresh(self.latest_odom, self._received["odom"])
-        tf_ok = fresh(self.latest_tf, self._received["tf"])
-        global_ok = fresh(self.latest_global, self._received["global"])
-        local_ok = fresh(self.latest_local, self._received["local"])
-        terrain_ok = fresh(self.latest_terrain, self._received["terrain"])
+        now, ros = self._sample_clock()
+        def fresh(name):
+            receipt = self.receipts.get(name)
+            return (receipt is not None and 0 <= now - receipt[1] <= self.maximum_age
+                    and 0 <= (ros - receipt[0]) / 1e9 <= self.maximum_age)
+        cloud_ok = fresh("cloud")
+        localization_ok = fresh("odom")
+        tf_ok = self._tf_ready()
+        global_ok = fresh("global")
+        local_ok = fresh("local")
+        terrain_ok = fresh("terrain")
         costmap_ok = global_ok and local_ok
         checks = {"nav2Lifecycle": False, "localization": localization_ok and cloud_ok,
                   "tf": tf_ok, "costmap": costmap_ok, "terrain": terrain_ok,
@@ -433,7 +572,8 @@ class RosSensorEvidence:
                   "velocityOutput": False}
         if not all(checks[key] for key in ("localization", "tf", "costmap", "terrain", "footprint")):
             raise RuntimeError("current_ros_sensor_evidence_unavailable")
-        return Observation(self.identity, now, self.latest_odom[1], checks, True)
+        acquired_at = min(receipt[1] for receipt in self.receipts.values())
+        return Observation(self.identity, acquired_at, self.latest_odom[1], checks, False)
 
     def close(self):
         self.closed = True
@@ -443,6 +583,9 @@ class RosSensorEvidence:
             except Exception:
                 pass
         self.subscriptions = []
+        self.receipts.clear()
+        if hasattr(self, "tf_buffer"):
+            self.tf_buffer.clear()
 
 
 class AimdkVelocityOutput:

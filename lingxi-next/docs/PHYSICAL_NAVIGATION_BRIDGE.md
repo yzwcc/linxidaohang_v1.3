@@ -4,6 +4,23 @@
 Unix Socket 客户端与 AIMDK 输出适配器；真实机器人 topic/frame、Nav2 controller
 输出、地图格式和现场安全验收仍需在目标机上完成。离线测试不代表机器人能够导航。
 
+### ROS 传感器证据更新
+
+`RosSensorEvidence` 已支持真实 Humble 消息的字节数组，并用官方 `tf2_ros.Buffer`
+累计独立到达的 `/tf`、`/tf_static`。静态变换使用 reliable/transient-local QoS，
+动态 TF 使用 best-effort/depth 100；在点云和里程计各自的采集时刻查询完整变换。
+证据时间取最旧的必需采集时间，不以轮询时间或 DDS 到达时间刷新旧数据。
+过期、未来、重复和倒序数据不能续期；时钟异常、TF 环路或静态标定变化会锁住准入。
+
+这部分在隔离的真实 Humble/FastDDS/tf2 环境通过了 4 项测试，没有连接机器人。
+本次源代码更新晚于 0.1.22，未改写原安装包或 APK。详细结果及限制见
+[ROS 证据验证记录](PHYSICAL_ROS_EVIDENCE_20261103.md)。
+
+当前 `AimdkVelocityOutput` 只有注册、arm 和零速清退，尚未转发 Nav2 非零速度；
+`FileMapActivator.activate_map` 只有地图证据核验，尚未加载 Nav2 地图或设置定位初值。
+地形 `OccupancyGrid` 的新鲜度也不等于地面支撑、标定或几何精度验收通过。
+物理桥不会随此次更新自动启用；ARM64 目标运行验证及实机导航仍未完成。
+
 ## AIMDK v1.1.0 输出确认
 
 压缩包中的 `McLocomotionVelocity` 只有 `header`、`source` 和三项速度字段，

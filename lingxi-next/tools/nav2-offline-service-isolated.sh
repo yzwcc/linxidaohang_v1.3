@@ -3,8 +3,9 @@ set -euo pipefail
 mode=run
 if [[ ${1:-} == --check ]]; then mode=check; shift; fi
 if [[ ${1:-} == --verify-live-terrain-output ]]; then mode=verify-live-terrain-output; shift; fi
+if [[ ${1:-} == --verify-physical-evidence ]]; then mode=verify-physical-evidence; shift; fi
 if [[ ${EUID} != 0 || $# != 3 ]]; then
-  echo 'usage: sudo -n bash tools/nav2-offline-service-isolated.sh [--check|--verify-live-terrain-output] ROOTFS CASE NEW_OUTPUT' >&2
+  echo 'usage: sudo -n bash tools/nav2-offline-service-isolated.sh [--check|--verify-live-terrain-output|--verify-physical-evidence] ROOTFS CASE NEW_OUTPUT' >&2
   exit 2
 fi
 for tool in realpath unshare mount ip chroot; do command -v "$tool" >/dev/null; done
@@ -44,6 +45,10 @@ exec unshare --mount --net --ipc --pid --fork --kill-child=KILL /bin/bash -c '
     if [[ $3 == verify-live-terrain-output ]]; then
       export LINGXI_VERIFY_LIVE_TERRAIN_ROS=1
       exec python3 -B -m unittest discover -s /work/tools/tests -p test_live_terrain_ros_humble.py
+    fi
+    if [[ $3 == verify-physical-evidence ]]; then
+      export LINGXI_VERIFY_PHYSICAL_EVIDENCE_ROS=1
+      exec python3 -B -m unittest discover -s /work/tools/tests -p test_physical_evidence_humble.py -v
     fi
     if [[ $3 == check ]]; then
       python3 -c "import rclpy, launch_ros; from ament_index_python.packages import get_package_share_directory as share; [share(p) for p in (\"nav2_planner\", \"nav2_controller\", \"nav2_bt_navigator\", \"nav2_velocity_smoother\", \"nav2_lifecycle_manager\", \"nav2_navfn_planner\", \"nav2_regulated_pure_pursuit_controller\")]" >&2

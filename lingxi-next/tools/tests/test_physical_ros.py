@@ -1,5 +1,6 @@
 """Offline contracts for the ROS point-cloud and AIMDK boundary adapters."""
 
+from array import array
 from dataclasses import dataclass
 import hashlib
 import json
@@ -19,8 +20,6 @@ from lingxi_navigation.physical_ros import (
     DEFAULT_MAXIMUM_Z_METRES,
     DEFAULT_MINIMUM_Z_METRES,
     FileMapActivator,
-    RosSensorEvidence,
-    RosTopics,
     digest_footprint,
     parse_odometry,
     parse_occupancy_grid,
@@ -94,6 +93,21 @@ class PhysicalRosTests(unittest.TestCase):
         self.assertEqual(DEFAULT_MINIMUM_Z_METRES, 0.1)
         self.assertEqual(DEFAULT_MAXIMUM_Z_METRES, 1.4)
 
+    def test_ros_generated_byte_arrays_and_nonbyte_layout_rejection(self):
+        message = point_cloud()
+        message.data = array("B", message.data)
+        self.assertEqual(4, len(parse_point_cloud_xyz(message).points))
+        message.data = array("I", [0] * 48)
+        with self.assertRaisesRegex(ValueError, "point_cloud_layout"):
+            parse_point_cloud_xyz(message)
+        info = types.SimpleNamespace(width=2, height=2, resolution=.05,
+            origin=types.SimpleNamespace(position=types.SimpleNamespace(x=0., y=0.), orientation=quaternion()))
+        grid = types.SimpleNamespace(header=header("map"), info=info, data=array("b", [0, 100, -1, 50]))
+        self.assertEqual(bytes((0, 100, 255, 50)), parse_occupancy_grid(grid).data)
+        grid.data = array("i", [0, 100, -1, 50])
+        with self.assertRaisesRegex(ValueError, "occupancy_grid"):
+            parse_occupancy_grid(grid)
+
     def test_occupancy_and_odometry_validation(self):
         origin = types.SimpleNamespace(position=types.SimpleNamespace(x=1.0, y=-2.0), orientation=quaternion())
         info = types.SimpleNamespace(width=2, height=2, resolution=0.05, origin=origin)
@@ -140,59 +154,6 @@ class PhysicalRosTests(unittest.TestCase):
             self.assertEqual(value.receiptSha256, hashlib.sha256((directory / "map-ready.json").read_bytes()).hexdigest())
             with self.assertRaisesRegex(ValueError, "saved_map_directory_missing"):
                 FileMapActivator(root).evidence("slam-" + "b" * 32)
-
-    def test_sensor_freshness_uses_local_receive_clock(self):
-        identity = MapEvidence("slam-" + "a" * 32, "a" * 64, "b" * 64, digest_footprint({"radius": 0.3}))
-        clock = Clock()
-        modules = {name: types.ModuleType(name) for name in ("nav_msgs", "nav_msgs.msg", "sensor_msgs", "sensor_msgs.msg", "tf2_msgs", "tf2_msgs.msg")}
-        modules["nav_msgs.msg"].OccupancyGrid = type("OccupancyGrid", (), {})
-        modules["nav_msgs.msg"].Odometry = type("Odometry", (), {})
-        modules["sensor_msgs.msg"].PointCloud2 = type("PointCloud2", (), {})
-        modules["tf2_msgs.msg"].TFMessage = type("TFMessage", (), {})
-        old = {key: sys.modules.get(key) for key in modules}
-        sys.modules.update(modules)
-        try:
-            class Node:
-                def __init__(self):
-                    self.callbacks = {}
-                    self.subscriptions = []
-
-                def create_subscription(self, kind, topic, callback, qos):
-                    self.callbacks[topic] = callback
-                    subscription = object()
-                    self.subscriptions.append(subscription)
-                    return subscription
-
-                def destroy_subscription(self, subscription):
-                    return None
-
-            node = Node()
-            sensor = RosSensorEvidence(node, identity, RosTopics(), clock=clock, footprint={"radius": 0.3})
-            sensor._cloud(point_cloud())
-            origin = types.SimpleNamespace(position=types.SimpleNamespace(x=0.0, y=0.0), orientation=quaternion())
-            info = types.SimpleNamespace(width=1, height=1, resolution=0.05, origin=origin)
-            sensor._global(types.SimpleNamespace(header=header("lingxi_saved_map"), info=info, data=[0]))
-            sensor._local(types.SimpleNamespace(header=header("lingxi_saved_map"), info=info, data=[0]))
-            sensor._terrain(types.SimpleNamespace(header=header("lingxi_saved_map"), info=info, data=[0]))
-            sensor._odom(types.SimpleNamespace(header=header("lingxi_saved_map"), child_frame_id="base_link",
-                                               pose=types.SimpleNamespace(pose=types.SimpleNamespace(
-                                                   position=types.SimpleNamespace(x=0.0, y=0.0), orientation=quaternion()))))
-            def tf(parent, child):
-                return types.SimpleNamespace(header=header(parent), child_frame_id=child,
-                                             transform=types.SimpleNamespace(rotation=quaternion(),
-                                                                             translation=types.SimpleNamespace(x=0., y=0., z=0.)))
-            sensor._tf(types.SimpleNamespace(transforms=[tf("lingxi_saved_map", "odom"), tf("odom", "base_link"),
-                                                         tf("base_link", "lidar_chest_front")]))
-            self.assertTrue(sensor.observe().checks["localization"])
-            clock.value += 0.6
-            with self.assertRaisesRegex(RuntimeError, "evidence_unavailable"):
-                sensor.observe()
-        finally:
-            for key, value in old.items():
-                if value is None:
-                    sys.modules.pop(key, None)
-                else:
-                    sys.modules[key] = value
 
     def _aimdk_fake_modules(self, add_state=2, enable_state=1):
         module = types.ModuleType("aimdk_msgs")
