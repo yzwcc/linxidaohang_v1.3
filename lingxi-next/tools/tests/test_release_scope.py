@@ -57,6 +57,17 @@ class ReleaseScopeTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             verify_independent_scope({**status, 'productionAccepted': True}, json.dumps(scope), files)
 
+    def test_production_nav2_startup_sources_are_mandatory(self):
+        scope = json.loads((Path(__file__).resolve().parents[2] / 'deploy/independent-scope.json').read_bytes())
+        status = {'classification': 'commissioning', 'productionAccepted': False,
+                  'independentStackIncluded': True, 'independent': scope}
+        for module in ('nav2_producer', 'nav2_action', 'lifecycle_startup'):
+            filename = 'independent/source/robot-navigation/lingxi_navigation/' + module + '.py'
+            with self.subTest(module=module):
+                self.assertIn(filename, INDEPENDENT_FILES)
+                with self.assertRaisesRegex(ValueError, 'declared_independent_commissioning_components_missing'):
+                    verify_independent_scope(status, json.dumps(scope), INDEPENDENT_FILES - {filename})
+
     def test_native_source_reference_closure_checks_actual_verifiers_without_importing(self):
         root = Path(__file__).resolve().parents[2]
         captured = {'independent/source/' + name: (root / name).read_bytes() for name in BOUND_SOURCE_MODULES}

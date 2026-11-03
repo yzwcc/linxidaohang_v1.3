@@ -31,6 +31,8 @@ INDEPENDENT_FILES = frozenset((
     'independent/source/robot-navigation/bridge/nav2_lease_guard.py',
     'independent/source/robot-slam/lingxi_slam/activity_lease.py',
     'independent/source/robot-navigation/lingxi_navigation/nav2_producer.py',
+    'independent/source/robot-navigation/lingxi_navigation/nav2_action.py',
+    'independent/source/robot-navigation/lingxi_navigation/lifecycle_startup.py',
     'independent/source/robot-navigation/lingxi_navigation/physical_maps.py',
     'independent/source/robot-navigation/lingxi_navigation/localization_guard.py',
     'independent/source/robot-navigation/lingxi_navigation/owned_inputs.py',
