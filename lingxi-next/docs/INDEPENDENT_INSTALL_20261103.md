@@ -30,6 +30,7 @@ Edit the root-only `/etc/lingxi-next/robot.env` after target verification:
 LINGXI_INDEPENDENT_PRODUCT=1
 LINGXI_ROS_SETUP=/opt/ros/humble/setup.bash
 LINGXI_AIMDK_SETUP=/absolute/existing/vendor/setup.bash
+LINGXI_SLAM_PYTHON=/var/lib/lingxi-next/python-runtimes/cp310-v1/env/bin/python
 LINGXI_MAPPING_CONFIG=/etc/lingxi-next/independent/mapping.json
 LINGXI_SLAM_CONFIG=/etc/lingxi-next/independent/slam.json
 LINGXI_RUNTIME_DIR=/var/lib/lingxi-next/runtime
@@ -43,6 +44,13 @@ The `lingxi-next` service UID needs direct access to these existing inputs;
 keep writable runtime/catalog paths separate from configuration and binaries.
 Systemd protects home directories, so do not place deployed native inputs
 under `/home` or `/root`. Do not change ownership of vendor directories.
+
+The Python path above is an example, not a bundled environment. Follow
+[Installed SLAM Python](INSTALLED_SLAM_PYTHON.md) to provision a new offline
+venv under the service account and verify its locked imports. Both owners
+require `LINGXI_SLAM_PYTHON`; an empty selection, system interpreter, mismatched
+dependencies or failed ROS imports must stop before any owner is launched.
+No automatic fallback or system-package installation is performed.
 
 Choose one owner, never both:
 

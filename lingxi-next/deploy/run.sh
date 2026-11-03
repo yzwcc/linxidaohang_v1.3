@@ -77,12 +77,28 @@ required_pinned_configuration() {
   }
 }
 
+independent_python() {
+  local python="${LINGXI_SLAM_PYTHON:-}"
+  local checker="$INDEPENDENT/source/tools/check_installed_slam_python.py"
+  [[ "$python" == /* && -f "$python" && -x "$python" && -f "$checker" && ! -L "$checker" ]] || {
+    echo "Configure LINGXI_SLAM_PYTHON as the verified isolated runtime interpreter" >&2
+    exit 78
+  }
+  if ! /usr/bin/timeout --signal=TERM --kill-after=5s 30s "$python" -s -B "$checker" --python "$python" >/dev/null; then
+    echo "Independent Python preflight failed; no owner was started" >&2
+    exit 78
+  fi
+  printf '%s' "$python"
+}
+
 run_independent_mapping() {
   require_independent_product
   source_ros_runtime
   required_file "${LINGXI_MAPPING_CONFIG:-}" LINGXI_MAPPING_CONFIG
   required_directory "${LINGXI_MAP_ROOT:-}" LINGXI_MAP_ROOT
-  local node api output parent
+  local node api output parent python
+  export PYTHONNOUSERSITE=1 PYTHONDONTWRITEBYTECODE=1
+  python="$(independent_python)"
   node="$(independent_node)"
   api="$(independent_api mapping)"
   parent="${LINGXI_RUNTIME_DIR:-/var/lib/lingxi-next/runtime}"
@@ -91,7 +107,7 @@ run_independent_mapping() {
   # Retain owner diagnostics; maps live in the separate persistent catalog.
   export LINGXI_WEB_ROOT="$INDEPENDENT/assets/mapping/web"
   export LINGXI_PORT="${LINGXI_MAPPING_PORT:-3443}"
-  /usr/bin/python3 "$INDEPENDENT/source/robot-runtime/python/managed_mapping.py" \
+  "$python" -s -B "$INDEPENDENT/source/robot-runtime/python/managed_mapping.py" \
     --config "$LINGXI_MAPPING_CONFIG" --maps "$LINGXI_MAP_ROOT" --output "$output" \
     --node "$node" --api-bundle "$api" \
     --node-sha256 "$(file_sha256 "$node")" \
@@ -103,7 +119,9 @@ run_independent_slam() {
   source_ros_runtime
   required_file "${LINGXI_SLAM_CONFIG:-}" LINGXI_SLAM_CONFIG
   required_directory "${LINGXI_MAP_ROOT:-}" LINGXI_MAP_ROOT
-  local node api output parent
+  local node api output parent python
+  export PYTHONNOUSERSITE=1 PYTHONDONTWRITEBYTECODE=1
+  python="$(independent_python)"
   local -a selection=()
   if [[ -n "${LINGXI_PRODUCT_CONFIG:-}${LINGXI_PRODUCT_CONFIG_SHA256:-}" ]]; then
     required_pinned_configuration "${LINGXI_PRODUCT_CONFIG:-}" "${LINGXI_PRODUCT_CONFIG_SHA256:-}" LINGXI_PRODUCT_CONFIG
@@ -121,7 +139,7 @@ run_independent_slam() {
   # The supervised owner controls child shutdown and preserves its run evidence.
   export LINGXI_WEB_ROOT="$INDEPENDENT/assets/slam/web"
   export LINGXI_PORT="${LINGXI_SLAM_PORT:-3444}"
-  /usr/bin/python3 "$INDEPENDENT/source/robot-runtime/python/managed_slam.py" \
+  "$python" -s -B "$INDEPENDENT/source/robot-runtime/python/managed_slam.py" \
     --config "$LINGXI_SLAM_CONFIG" --maps "$LINGXI_MAP_ROOT" --output "$output" \
     --node "$node" --api-bundle "$api" \
     --node-sha256 "$(file_sha256 "$node")" \

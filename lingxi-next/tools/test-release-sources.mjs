@@ -9,6 +9,7 @@ test("release source filter retains native verification inputs and excludes gene
   for (const name of ["glim-full-mapping/full_mapping.cpp", "glim-full-mapping/submapping-eof.patch",
     "glim-observations/CMakeLists.txt", "native-point-output/exports.map", "runtime-arm64-cp310.lock.json",
     "python/managed_slam.py", "python/product_configuration.py", "check_ground_native.py",
+    "check_installed_slam_python.py", "arm64_python_runtime.py",
     "check-runtime.mjs"]) {
     assert.equal(sourceMemberAllowed(name, false), true, name);
   }

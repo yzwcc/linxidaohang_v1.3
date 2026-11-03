@@ -29,6 +29,8 @@ def script(path: Path, body: str):
 
 
 def prepare(root: Path, deploy: Path):
+    # TemporaryDirectory starts at 0700; chroot / must be traversable by the service UID.
+    root.chmod(0o755)
     for name in ("etc/systemd/system", "etc/ssl", "opt", "var/lib", "var/log", "var/mail",
                  "tmp", "proc", "dev", "test-bin", "test-state", "agibot"):
         (root / name).mkdir(parents=True, exist_ok=True)
@@ -143,7 +145,15 @@ class DeploymentLifecycle(unittest.TestCase):
             health = Path("/test-state/health.log").read_text()
             self.assertIn("--cacert /etc/lingxi-next/tls/ca.crt", health)
             self.assertNotIn("--insecure", health)
-        config = Path("/etc/lingxi-next/robot.env").read_bytes()
+        selected_python = Path('/var/lib/lingxi-next/python-runtimes/version-1')
+        selected_python.mkdir(parents=True)
+        run('/usr/bin/python3', '-m', 'venv', '--without-pip', str(selected_python / 'env'))
+        system_python_owner = Path('/usr/bin/python3').stat().st_uid
+        (selected_python / 'preserve-runtime').write_text('selected runtime unchanged\n')
+        env_file = Path('/etc/lingxi-next/robot.env')
+        env_file.write_text(env_file.read_text().replace('LINGXI_SLAM_PYTHON=\n',
+                            'LINGXI_SLAM_PYTHON=' + str(selected_python / 'env/bin/python') + '\n'))
+        config = env_file.read_bytes()
         ca = Path("/etc/lingxi-next/tls/ca.crt").read_bytes()
         Path("/var/lib/lingxi-next/state.json").write_text('{"preserved":true}\n')
         with self.subTest("upgrade preserves data, credentials and previous release"):
@@ -161,6 +171,9 @@ class DeploymentLifecycle(unittest.TestCase):
             self.assertEqual("/opt/lingxi-next/releases/test-1", os.readlink("/opt/lingxi-next/current"))
             self.assertEqual(config, Path("/etc/lingxi-next/robot.env").read_bytes())
             self.assertIn("preserved", Path("/var/lib/lingxi-next/state.json").read_text())
+            self.assertEqual('selected runtime unchanged\n', (selected_python / 'preserve-runtime').read_text())
+            self.assertEqual(system_python_owner, Path('/usr/bin/python3').stat().st_uid)
+            self.assertTrue((selected_python / 'env/bin/python').is_symlink())
         with self.subTest("duplicate version cannot overwrite a release"):
             self.command("test-2", success=False)
             self.assertEqual("/opt/lingxi-next/releases/test-1", os.readlink("/opt/lingxi-next/current"))
@@ -189,6 +202,7 @@ class DeploymentLifecycle(unittest.TestCase):
             self.assertEqual("/opt/lingxi-next/releases/test-2", os.readlink("/opt/lingxi-next/previous"))
             self.assertEqual('{"preserved":true}\n', Path("/var/lib/lingxi-next/state.json").read_text())
             self.assertEqual(config, Path("/etc/lingxi-next/robot.env").read_bytes())
+            self.assertEqual('selected runtime unchanged\n', (selected_python / 'preserve-runtime').read_text())
             self.assertEqual(units, {file.name: file.read_bytes() for file in Path("/etc/systemd/system").glob("lingxi-next-*.service")})
             self.assertTrue(Path("/test-state/active-lingxi-next-api.service").exists())
             recovery_log = Path("/test-state/systemctl.log").read_text()[log_offset:]
@@ -261,11 +275,15 @@ class DeploymentLifecycle(unittest.TestCase):
         owners = independent / "source/robot-runtime/python"
         owners.mkdir(parents=True)
         (independent / "source/robot-slam").mkdir()
-        stub = """import json, os, pathlib, sys
+        stub = """import json, os, pathlib, subprocess, sys
 args = sys.argv[1:]
 output = pathlib.Path(args[args.index('--output') + 1])
 output.mkdir(mode=0o700)
-result = {'args': args, 'web': os.environ['LINGXI_WEB_ROOT'], 'port': os.environ['LINGXI_PORT']}
+child = json.loads(subprocess.check_output([sys.executable, '-B', '-c',
+    'import json, sys; print(json.dumps([sys.executable, sys.prefix, sys.flags.no_user_site]))'], text=True))
+result = {'args': args, 'web': os.environ['LINGXI_WEB_ROOT'], 'port': os.environ['LINGXI_PORT'],
+          'python': sys.executable, 'prefix': sys.prefix, 'child': child,
+          'uid': os.geteuid(), 'noUserSite': sys.flags.no_user_site}
 (output / 'fixture-evidence.json').write_text(json.dumps(result))
 print(json.dumps(result))
 """
@@ -280,13 +298,28 @@ print(json.dumps(result))
             (config / name).write_text('{"fixture":true}\n')
         setup = config / "setup.bash"
         setup.write_text('export FIXTURE_ROS_ONLY=1\n')
+        venv = Path('/var/lib/lingxi-next/python-runtimes/service-fixture')
+        run('/usr/bin/python3', '-m', 'venv', '--without-pip', str(venv))
+        tools = independent / 'source/tools'
+        tools.mkdir()
+        checker = tools / 'check_installed_slam_python.py'
+        checker.write_text("""import os, pathlib, sys
+assert os.geteuid() != 0
+assert sys.argv[1:] == ['--python', sys.executable]
+assert sys.prefix != sys.base_prefix and pathlib.Path(sys.prefix) == pathlib.Path(sys.executable).parent.parent
+assert sys.flags.no_user_site and os.environ['PYTHONNOUSERSITE'] == '1'
+assert os.environ['FIXTURE_ROS_ONLY'] == '1'
+assert not pathlib.Path('/test-state/python-preflight-fail').exists()
+""")
         env = {**os.environ, "LINGXI_INDEPENDENT_PRODUCT": "1", "LINGXI_ROS_SETUP": str(setup),
+               "LINGXI_SLAM_PYTHON": str(venv / 'bin/python'),
                "LINGXI_MAPPING_CONFIG": str(config / "mapping.json"),
                "LINGXI_SLAM_CONFIG": str(config / "slam.json"),
                "LINGXI_MAP_ROOT": "/var/lib/lingxi-next/maps"}
 
         def execute(mode, **selection):
             return subprocess.run(["bash", str(current / "deploy/run.sh"), mode],
+                                  user="lingxi-next", group="lingxi-next", extra_groups=[],
                                   env={**env, **selection}, text=True, capture_output=True)
 
         for mode, port in (("independent-mapping", "3443"), ("independent-slam", "3444")):
@@ -296,11 +329,29 @@ print(json.dumps(result))
                 value = json.loads(result.stdout)
                 self.assertEqual(port, value['port'])
                 self.assertIn('/independent/assets/', value['web'])
+                self.assertEqual(str(venv / 'bin/python'), value['python'])
+                self.assertEqual(str(venv), value['prefix'])
+                self.assertEqual([value['python'], value['prefix'], 1], value['child'])
+                self.assertEqual(1, value['noUserSite'])
+                self.assertNotEqual(0, value['uid'])
                 args = value['args']
                 self.assertEqual(env['LINGXI_MAP_ROOT'], args[args.index('--maps') + 1])
                 self.assertEqual(mode == 'independent-mapping', '--persistent' in args)
                 self.assertNotIn('--seconds', args)
                 self.assertTrue((Path(args[args.index('--output') + 1]) / 'fixture-evidence.json').is_file())
+
+        for mode in ('independent-mapping', 'independent-slam'):
+            before = set(Path('/var/lib/lingxi-next/runtime').iterdir())
+            for python in ('', 'python3', '/missing/python', '/usr/bin/python3'):
+                with self.subTest(mode=mode, python=python):
+                    rejected = execute(mode, LINGXI_SLAM_PYTHON=python)
+                    self.assertEqual(78, rejected.returncode, rejected.stderr)
+                    self.assertEqual('', rejected.stdout)
+            Path('/test-state/python-preflight-fail').touch()
+            rejected = execute(mode)
+            self.assertEqual(78, rejected.returncode, rejected.stderr)
+            Path('/test-state/python-preflight-fail').unlink()
+            self.assertEqual(before, set(Path('/var/lib/lingxi-next/runtime').iterdir()))
 
         product = config / 'product selection.json'
         acquisition = config / 'acquisition.json'
