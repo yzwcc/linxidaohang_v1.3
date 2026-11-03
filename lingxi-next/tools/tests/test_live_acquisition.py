@@ -203,7 +203,7 @@ class SettingsTests(SettingsFixture, unittest.TestCase):
             with self.subTest(value=value), self.assertRaisesRegex(ValueError, 'explicit_private_saved_map'):
                 self.settings()
 
-    def test_saved_map_terrain_requires_paired_observations_identity_geometry_and_same_explicit_scale(self):
+    def test_saved_map_terrain_requires_paired_observations_and_same_explicit_scale_and_frame(self):
         terrain = self.terrain()
         self.value['rosOutput'] = {'mode': 'private_saved_map_terrain'}
         self.write()
@@ -222,8 +222,12 @@ class SettingsTests(SettingsFixture, unittest.TestCase):
             self.settings()
         terrain['geometry']['declared_from_raw'][3] = .1
         self.write()
-        with self.assertRaisesRegex(ValueError, 'identity_saved_map'):
+        with self.assertRaisesRegex(ValueError, 'same_explicit_saved_map'):
             self.settings()
+        self.platform.value['basePose']['metresPerMapUnit'] = 1.
+        self.platform.value['basePose']['navigationFromRaw'] = [terrain['geometry']['declared_from_raw'][i:i+4]
+                                                                for i in range(0, 16, 4)]
+        self.assertTrue(self.settings().saved_map_terrain)
 
     def test_wrong_terrain_architecture_build_source_or_dependency_is_rejected(self):
         terrain = self.terrain()

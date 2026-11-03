@@ -22,12 +22,13 @@
   "sourcesSha256": {
     "tools/probe_registered_terrain_ros.py": "99b4b5741c445404e7c45719ab489c887b187cdf2322d7c4bb71a1449175c42c",
     "tools/registered-terrain-ros-isolated.sh": "fe8403b09386968cc0d362f64c74d4e4ff5a14eeba13d8bed27f56eb94577b4f",
-    "tools/verify_registered_terrain_ros.py": "47443ee31be05123859662288d0676c2c208aa2d5d87ec26e3f43e9b43af557f",
+    "tools/verify_registered_terrain_ros.py": "80a5836727dbe5ee4c2e5008bef86cd2897efd6ccfb90d875a152acd84e6940b",
     "tools/verify_terrain_ros_evidence.py": "bba0bc18bdcc223b24d8139efdc79998ec9eb3297faccbe0dd39f27eca2848fc",
-    "robot-runtime/python/registered_terrain.py": "e566fbc78827b3297ddd8d9cbcbdf7f86515b751bb751ed9cc781e1c5a93fbe6",
+    "robot-runtime/python/registered_terrain.py": "386a73008edab535805095024cef6707002e707ae3b0739628590884c56aaf4b",
     "robot-slam/lingxi_slam/registered_acquisition.py": "333ee2c408048ffbe81462e6f281bbc47c8a2db2e0403fb075168fe3ddfdb4eb",
-    "robot-slam/lingxi_slam/localization_session.py": "3ea70114263892321ea17143c171c6fcbf5bf7dbe6d6b351f63c2bbd43df8fc1",
+    "robot-slam/lingxi_slam/localization_session.py": "298033a1f894096ced22be5003325b7c64d3a2a5646422c3874a8dfad99ec9d7",
     "robot-slam/lingxi_slam/localization_tracking.py": "c4b99640f0c9380bcc44f0daa0b1f2c37b760ba2559cf5f636483ec253444611",
+    "robot-slam/lingxi_slam/base_pose.py": "4ddd5c7f35d8e1779fb3fcd8ef349754bbb6ce0478bc3d97e62076dedf8426be",
     "robot-slam/lingxi_slam/seeded_localization.py": "19b46738ef21e60c043b9c3785efcfb1da4572c4f03217cc8ea48873d86000f7",
     "robot-slam/lingxi_slam/point_data.py": "14444f89b917eb98b7edf4804acb45948babe20cd28214fa20734c08cddefc36",
     "robot-slam/lingxi_slam/point_output.py": "4b501e2411fd6e54f6b22f954fe13ac222de8d43ad221d61aba5de102512ba81",
@@ -73,20 +74,20 @@
   "octomapLibrarySha256": "33a91227ecf305bd6f03124a5be73efc51bbf482989b094966e3839e7b4be5e2",
   "registeredInput": {
     "originalReceipts": [
-      157.856845619,
-      157.86027314,
-      157.863503384,
-      157.869247761,
-      157.87565846,
-      157.881174588,
-      157.886707036,
-      157.890995588,
-      157.896180534,
-      157.901471134,
-      157.906806924,
-      158.070022699
+      29.409309571,
+      29.412699024,
+      29.41567559,
+      29.421656869,
+      29.427470654,
+      29.433686657,
+      29.439746226,
+      29.44411883,
+      29.450187997,
+      29.459333971,
+      29.465537029,
+      29.648923931
     ],
-    "acceptedReceipt": 157.856845619,
+    "acceptedReceipt": 29.409309571,
     "generation": 1,
     "finalGeneration": 2,
     "finalState": "lost",
@@ -96,7 +97,7 @@
     "selectedScans": 12,
     "sourceReturns": 84816,
     "selectedReturns": 84816,
-    "observationsSha256": "866d2403f70e616c7800984f15b3d9f0b38c1ea96a04b67f48a6792658ec41c5",
+    "observationsSha256": "59543773aced01efd60c3ccedca31ec07298119091db776c88f2b6197b59fd8c",
     "bindingSha256": "ee3c31dc9d36fd9aa5004a082b1ea6c137dc3caef0c81dbc008ec049f7552db5",
     "epochSha256": "69f4776c6a3f96b6e944fb66ceb97c752f0c2aa21af06b9a8a3ded65f7281ce4",
     "sequence": 19,
@@ -110,7 +111,7 @@
       "254": 0,
       "255": 2486
     },
-    "observationsSha256": "866d2403f70e616c7800984f15b3d9f0b38c1ea96a04b67f48a6792658ec41c5",
+    "observationsSha256": "59543773aced01efd60c3ccedca31ec07298119091db776c88f2b6197b59fd8c",
     "costsSha256": "b1adfc30024b45c407dcb1b44dfa4cdfc99b31801ce0cec5746441364b960b53",
     "projection": {
       "width": 64,
@@ -123,7 +124,7 @@
       "maximum_range_metres": 10.0
     },
     "costsBase64": "//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////8A/wAAAP//AAD//wAA/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////wD///////8A//////////8A/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////wAA////AP8AAAD//wAA//8AAP///wD///////////////////////////////////////////////////////////////////////////////////8A/////////////////////////////////////////////wAAAAAAAAAAAP8AAP//AAAAAAAAAP8AAP//AP8AAP8AAAAA//////////////////////////////////////8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA////////////////////////////////////AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP//////////////////////////////////AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP///////////////////////////////////wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD///////////////////////////////////8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP//////////////////////////////////AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD//////////////////////////////////wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD///////////////////////////////////8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA////////////////////////////////////AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP///////////////////////////////////wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD///////////////////////////////////8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/////////////////////////////////////AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP////////////////////////////////////8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD//////////////////////////////////////wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP//////////////////////////////////AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD//////////////////////////////////wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA//////////////////////////////////8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP//////////////////////////////////AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD//////////////////////////////////wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA//////////////////////////////////8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP///////////////////////////////////wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD///////////////////////////////////8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/////////////////////////////////////AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA////////////////////////////////////AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP///////////////////////////////////wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD///////////////////////////////////8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/////////////////////////////////////wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP///////////////////////////////////wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD///////////////////////////////////8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP//////////////////////////////////AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP///////////////////////////////////wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD///////////////////////////////////8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP///////////////////////////////////wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD///////////////////////////////////8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA////////////////////////////////////AAAA/wAA/wD//wAA/wAAAAAAAAD//wAA/wAAAAAAAAAAAP///////////////////////////////////////////////////wD//////wD//////wD//wD//////////////////////////////////////////////////////////////wAA////////AAD//wAA//8AAP///wD///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////8A//8A/////wD/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////",
-    "ingressToResultSeconds": 1.365049493999976,
+    "ingressToResultSeconds": 1.4017802129999986,
     "ttlSeconds": 15.0
   },
   "initialMaps": {
@@ -201,10 +202,10 @@
     }
   },
   "nativePendingPublications": 16,
-  "withdrawalSeconds": 0.019461674000012863,
+  "withdrawalSeconds": 0.0019272619999952667,
   "controllerStatus": 6,
   "expiredPlannerStatus": 6,
-  "publications": 114,
+  "publications": 96,
   "rosDistro": "humble",
   "lifecycleStates": [
     3,

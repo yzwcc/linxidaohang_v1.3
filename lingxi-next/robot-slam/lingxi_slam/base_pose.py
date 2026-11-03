@@ -71,6 +71,21 @@ class BasePoseUnavailable(ValueError):
     """A missing exact-time transform never produces a latest/identity fallback."""
 
 
+def navigation_transform(value=None):
+    """Explicit metric-frame declaration, not a measured ground calibration."""
+    matrix = rigid_pose(np.eye(4) if value is None else np.asarray(value))
+    if np.max(np.abs(matrix[:3, 3])) > 500:
+        raise ValueError("bounded_navigation_from_raw_translation_required")
+    matrix.flags.writeable = False
+    return matrix
+
+
+def metric_map_pose(raw_pose, scale, navigation_from_raw):
+    pose = rigid_pose(raw_pose)
+    pose[:3, 3] *= scale
+    return rigid_pose(navigation_from_raw @ pose)
+
+
 class BasePoseProjector:
     """Worker-side composition with an injected, exact-time transform provider.
 
@@ -79,28 +94,26 @@ class BasePoseProjector:
     This stateless component neither caches poses nor certifies that binding.
     """
 
-    def __init__(self, lookup, *, metres_per_map_unit):
+    def __init__(self, lookup, *, metres_per_map_unit, navigation_from_raw=None):
         if (not callable(lookup) or type(metres_per_map_unit) not in (int, float)
                 or not math.isfinite(metres_per_map_unit) or metres_per_map_unit <= 0):
             raise ValueError("exact_time_lookup_and_explicit_positive_unit_scale_required")
         self.lookup, self.scale = lookup, metres_per_map_unit
+        self.navigation_from_raw = navigation_transform(navigation_from_raw)
 
     def project(self, world_from_lidar, timing, *, algorithm_stamp):
         if (not isinstance(timing, ScanTime) or type(algorithm_stamp) not in (int, float)
                 or not math.isfinite(algorithm_stamp) or algorithm_stamp <= 0
                 or algorithm_stamp != timing.algorithm_stamp):
             raise ValueError("same_original_scan_and_native_algorithm_time_required")
-        pose = rigid_pose(world_from_lidar)
-        pose[:3, 3] *= self.scale
-        if not np.isfinite(pose).all():
-            raise ValueError("finite_scaled_lidar_pose_required")
+        pose = metric_map_pose(world_from_lidar, self.scale, self.navigation_from_raw)
         transform = self.lookup(timing.effective_ns)
         if transform is None:
             raise BasePoseUnavailable("timestamped_base_lidar_tf_unavailable")
         if (not isinstance(transform, BaseLidarTransform)
                 or transform.stamp_ns != timing.effective_ns):
             raise BasePoseUnavailable("matching_timestamped_base_lidar_tf_required")
-        # TF carries metres. Scale the map translation once, not the TF lever arm.
+        # Scale raw translation once before the metric frame/TF lever arms.
         base_from_lidar = transform.base_from_lidar
         lidar_from_base = np.eye(4)
         lidar_from_base[:3, :3] = base_from_lidar[:3, :3].T

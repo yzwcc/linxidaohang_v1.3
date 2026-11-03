@@ -100,6 +100,7 @@ def run(args):
                 strict_json((owner.native_output / "localization-final.json").read_bytes()),
                 frozen=platform.frozen, binding=binding, sources=sources, config_hash=config_hash,
                 base_scale=config.get("basePose", {}).get("metresPerMapUnit"),
+                base_navigation_from_raw=config.get("basePose", {}).get("navigationFromRaw"),
                 acquisition_integrity=acquisition.frozen if acquisition is not None else None)
         verify_completion(
             strict_json((owner.native_output / "child-report.json").read_bytes()),

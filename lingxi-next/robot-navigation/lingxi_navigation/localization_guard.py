@@ -92,8 +92,13 @@ def parse_snapshot(value, identity, binding, started_at):
                    for key in ('scanHeaderNs', 'effectiveScanNs'))):
         raise ValueError('timestamped_diagnostic_base_pose_required')
     matrix = _matrix(base.get('mapFromBase'))
+    frame = _matrix(base.get('navigationFromRaw', [[1., 0., 0., 0.], [0., 1., 0., 0.],
+                                                  [0., 0., 1., 0.], [0., 0., 0., 1.]]))
+    if max(abs(frame[i][3]) for i in range(3)) > 500:
+        raise ValueError('bounded_navigation_from_raw_translation_required')
     token = (runtime['serviceId'], runtime['generation'], runtime['runId'],
-             tuple(sorted(actual.items())), state['generation'], base['metresPerMapUnit'])
+             tuple(sorted(actual.items())), state['generation'], base['metresPerMapUnit'],
+             tuple(cell for row in frame for cell in row))
     return LocalizationSnapshot(token, state['lastFrame'], int(base['effectiveScanNs']),
         (matrix[0][3], matrix[1][3], math.atan2(matrix[1][0], matrix[0][0])), started_at, started_at)
 

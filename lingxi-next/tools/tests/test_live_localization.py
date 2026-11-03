@@ -125,9 +125,10 @@ class LiveCompletion(unittest.TestCase):
             "closed": True, "pendingScanTimes": 0, "retainedDynamicTransforms": 0,
             "metresPerMapUnit": 1., "physicalScaleValidated": False, "navigationReady": False,
         }
-        def check():
+        def check(frame=None):
             verify_completion(self.report, self.final, frozen=self.frozen, binding=self.binding,
-                              sources=self.sources, config_hash=self.config_hash, base_scale=1.)
+                              sources=self.sources, config_hash=self.config_hash, base_scale=1.,
+                              base_navigation_from_raw=frame)
         check()
         with self.assertRaises(ValueError):
             self.verify()
@@ -140,6 +141,17 @@ class LiveCompletion(unittest.TestCase):
             with self.assertRaises(ValueError):
                 check()
             container[key] = before
+        frame = [[0., -1., 0., 2.], [1., 0., 0., -1.], [0., 0., 1., .8], [0., 0., 0., 1.]]
+        for container in (self.final["state"]["basePose"], self.report["basePoseInput"]):
+            with self.assertRaises(ValueError):
+                check(frame)
+            container["navigationFromRaw"] = deepcopy(frame)
+        check(frame)
+        with self.assertRaises(ValueError):
+            check()
+        self.report["basePoseInput"]["navigationFromRaw"][0][3] += .001
+        with self.assertRaises(ValueError):
+            check(frame)
 
 
 if __name__ == "__main__":

@@ -13,6 +13,8 @@ from test_saved_map_terrain import SavedMapTerrainFixture
 
 @unittest.skipUnless(os.environ.get('LINGXI_VERIFY_LOCALIZATION_OUTPUT_ROS') == '1', 'explicit isolated Humble required')
 class HumbleOutputTests(SavedMapTerrainFixture, SyntheticLiveFixture, unittest.TestCase):
+    NAVIGATION_FROM_RAW = None
+
     def setUp(self):
         if set(os.listdir('/sys/class/net')) != {'lo'} or os.environ.get('ROS_LOCALHOST_ONLY') != '1':
             raise RuntimeError('isolated_loopback_humble_required')
@@ -22,7 +24,7 @@ class HumbleOutputTests(SavedMapTerrainFixture, SyntheticLiveFixture, unittest.T
         from nav_msgs.msg import Odometry
         from sensor_msgs.msg import PointCloud2
         from tf2_msgs.msg import TFMessage
-        self.prepare(now=time.monotonic())
+        self.prepare(now=time.monotonic(), navigation_from_raw=self.NAVIGATION_FROM_RAW)
         self.context = Context()
         rclpy.init(args=[], context=self.context)
         self.addCleanup(self.context.try_shutdown)
@@ -80,6 +82,7 @@ class HumbleOutputTests(SavedMapTerrainFixture, SyntheticLiveFixture, unittest.T
         np.testing.assert_allclose(sample.map_from_base @ sample.base_from_sensor, sensor, atol=1e-12)
         registered = np.asarray(self.session.state()['mapFromSensor'])
         registered[:3, 3] *= self.session.base_scale
+        registered = self.session.base_navigation_from_raw @ registered
         np.testing.assert_allclose(registered, sensor, atol=1e-12)
         self.assertAlmostEqual(.5 * np.cos(.1), odom.twist.twist.linear.x)
         self.assertAlmostEqual(1., odom.twist.twist.angular.z)
@@ -243,6 +246,10 @@ class HumbleOutputTests(SavedMapTerrainFixture, SyntheticLiveFixture, unittest.T
         with patch.object(owner, 'read_snapshot', return_value=LaneSnapshot(1, 'ready', old.session, old)):
             self.spin(.07)
         self.assertTrue(all(set(message.data) == {-1} for message in grids))
+
+
+class HumbleTransformedOutputTests(HumbleOutputTests):
+    NAVIGATION_FROM_RAW = [[0., 0., 1., 2.], [1., 0., 0., -1.], [0., 1., 0., .8], [0., 0., 0., 1.]]
 
 
 if __name__ == '__main__':

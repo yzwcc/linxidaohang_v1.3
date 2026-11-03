@@ -37,10 +37,10 @@ ray packet is submitted after the accepted window.
 
 | Trigger | Final Localization State | Source Withdrawal After Trigger/Expiry | Evidence |
 | --- | --- | --- | --- |
-| Pause | paused | 0.003403 s | [pause](evidence/registered-terrain-ros-pause-20261103.json) |
-| Stop | stopped | 0.044550 s | [stop](evidence/registered-terrain-ros-stop-20261103.json) |
-| Reseed | tracking in a newer generation | 0.039026 s | [reseed](evidence/registered-terrain-ros-reseed-20261103.json) |
-| Corrected-point input expires | lost | 0.019462 s after the original localization deadline | [loss](evidence/registered-terrain-ros-loss-20261103.json) |
+| Pause | paused | 0.049221 s | [pause](evidence/registered-terrain-ros-pause-20261103.json) |
+| Stop | stopped | 0.011673 s | [stop](evidence/registered-terrain-ros-stop-20261103.json) |
+| Reseed | tracking in a newer generation | 0.002412 s | [reseed](evidence/registered-terrain-ros-reseed-20261103.json) |
+| Corrected-point input expires | lost | 0.001927 s after the original localization deadline | [loss](evidence/registered-terrain-ros-loss-20261103.json) |
 
 Before the trigger, the actual planner returns a path and the actual controller
 produces nonzero synthetic output. Afterwards the source publishes full
@@ -67,9 +67,11 @@ alignment update, all four were actually rerun sequentially as
 `registered-ros-MODE-20261103-e`. Following the exact-double packing and native
 buffer optimization, all four modes were actually rerun sequentially as
 `registered-ros-MODE-20261103-f`. After the native scan-accumulation optimization,
-all four were actually rerun as `registered-ros-MODE-20261103-i`; the committed
-reports and table now bind these current-source runs. All prior outputs remain under the existing
-private Humble rootfs. Passing the standalone reruns does not
+all four were actually rerun as `registered-ros-MODE-20261103-i`; they were
+rerun again as `registered-ros-MODE-20261103-j` after the shared explicit-frame
+implementation. The committed reports and table bind these latest current-source
+runs. All prior outputs remain under the existing private Humble rootfs. Passing
+the standalone reruns does not
 establish the cause or prove reliable startup under concurrency. No timeout was
 relaxed and no failed attempt was relabeled as passing evidence.
 

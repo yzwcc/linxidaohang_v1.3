@@ -66,8 +66,20 @@ def configuration(file):
             if "basePose" in value:
                 options = value["basePose"]
                 scale = options.get("metresPerMapUnit") if type(options) is dict else None
-                valid = (valid and type(options) is dict and set(options) == {"metresPerMapUnit"}
+                valid = (valid and type(options) is dict and set(options) in (
+                             {"metresPerMapUnit"}, {"metresPerMapUnit", "navigationFromRaw"})
                          and type(scale) in (int, float) and math.isfinite(scale) and scale > 0)
+                if type(options) is dict and "navigationFromRaw" in options:
+                    from lingxi_slam.base_pose import navigation_transform
+                    matrix = options["navigationFromRaw"]
+                    try:
+                        if (type(matrix) is not list or len(matrix) != 4
+                                or any(type(row) is not list or len(row) != 4
+                                       or any(type(cell) not in (int, float) for cell in row) for row in matrix)):
+                            raise ValueError("explicit_numeric_navigation_frame_required")
+                        navigation_transform(matrix)
+                    except (ValueError, TypeError):
+                        valid = False
     else:
         fields = {"inputMode", "work", "adapter", "mappingAdapter", "bundle", "reference", "hypothesis", "rate"}
         paths = ("work", "adapter", "mappingAdapter", "bundle", "reference")

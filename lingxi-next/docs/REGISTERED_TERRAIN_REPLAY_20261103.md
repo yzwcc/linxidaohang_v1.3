@@ -9,6 +9,9 @@ preserved; its temporary source-identity failure was not fixed by replacing
 hashes. See [the alignment milestone](SAVED_MAP_TERRAIN_ALIGNMENT_20261103.md)
 and [native throughput measurements](TERRAIN_NATIVE_THROUGHPUT_20261103.md).
 
+A later shared explicit-frame current-source replay is `registered-replay-20261103-f`;
+the aggregate below binds that run. See [the explicit-frame follow-up](EXPLICIT_NAVIGATION_FRAME_20261103.md).
+
 Date: 2026-11-03. Offline Linux x86_64 only. No robot IO, sensor subscription,
 ROS node, deployment, physical command, Web/Android change or new recording.
 The retained user recording is replayed at 1x; no synthetic geometry replaces
@@ -57,7 +60,7 @@ unchanged; ground echoes are not removed from terrain input.
 
 ## Current Recorded Result
 
-Final private run: `registered-replay-20261103-e`. The committed
+Final private run: `registered-replay-20261103-f`. The committed
 [aggregate](evidence/registered-replay-20261103.json) contains source identities,
 counts, timing ranges and private artifact hashes, not recorded coordinates,
 map identities, raw grids, private log text or credentials. The public aggregate
@@ -71,9 +74,9 @@ is not a substitute for independently regrading the private input/output files.
 | Point states | 1 unseeded, 2 acquiring, 161 tracking; no lost state |
 | Registered packets / measured returns | 161 / 1,223,474 |
 | Terrain submissions / observed fresh results | 28 / 27 |
-| Retained submission sizes | First: 1 scan; later: up to 4 complete scans and 30,560 rays |
+| Retained submission sizes | First: 1 scan; later: up to 4 complete scans and 30,567 rays |
 | Estimated work | 1,067,431--3,653,896; default cap unchanged at 4,000,000 |
-| Original oldest-ingress to observation | 0.248462--0.907748 seconds |
+| Original oldest-ingress to observation | 0.259970--1.001571 seconds |
 | Supported free cells | **0 in every observed result** |
 | Stop / cleanup | Source retired, grid absent, native sensor owner closed, terrain owner joined and child cleaned |
 
@@ -106,10 +109,11 @@ passed all nine current registered ROS evidence tests. No new full-suite,
 frontend, Java or Android build result is claimed.
 The subsequent native-accumulation regression completed 185 tests: 184 passed,
 one actual-NavFn-library skip, zero failures/errors, in 30.237 seconds, including
-all eight current-source recorded replay checks. The separate live-acquisition
-collection passed all 36 tests without skips in 38.258 seconds on scientific Linux.
-See the updated [ROS verification](REGISTERED_TERRAIN_ROS_VERIFICATION_20261103.md)
-for current-source pause/stop/reseed/loss consumer trials.
+all eight then-current-source recorded replay checks. After the explicit-frame
+change, the replay was repeated and current-source report tests rerun. See the
+[shared explicit-frame follow-up](EXPLICIT_NAVIGATION_FRAME_20261103.md) and
+updated [ROS verification](REGISTERED_TERRAIN_ROS_VERIFICATION_20261103.md)
+for the latest replay and pause/stop/reseed/loss consumer trials.
 
 Use the existing isolated scientific Python environment and the original
 hash-verified private artifacts. Every run needs a new private output directory:

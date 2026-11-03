@@ -143,17 +143,41 @@ class SessionTests(unittest.TestCase):
                                    atol=.005, rtol=0)
         return state
 
-    def base_projection(self, *, threaded=False):
+    def base_projection(self, *, threaded=False, navigation_from_raw=None):
         from lingxi_slam.base_pose import BaseLidarTransform, BasePoseProjector, ScanTime
         self.session = LocalizationSession(self.binding, self.session.factory, clock=lambda: self.now,
-                                           base_metres_per_map_unit=1.)
+                                           base_metres_per_map_unit=1.,
+                                           base_navigation_from_raw=navigation_from_raw)
         self.tracking(threaded=threaded)
         tf = np.eye(4)
         tf[0, 3] = .25
-        projector = BasePoseProjector(lambda stamp: BaseLidarTransform(stamp, tf), metres_per_map_unit=1.)
+        projector = BasePoseProjector(lambda stamp: BaseLidarTransform(stamp, tf), metres_per_map_unit=1.,
+                                     navigation_from_raw=navigation_from_raw)
         timing = ScanTime(1_700_000_000_400_000_000, 18_000_000,
                           1_700_000_000_000_000_000, "header_is_scan_start")
         return timing, projector
+
+    def test_declared_frame_is_shared_copied_and_never_changes_native_tracking(self):
+        from lingxi_slam.base_pose import BasePoseProjector
+        frame = np.array([[0., -1., 0., 2.], [1., 0., 0., -1.], [0., 0., 1., .8], [0., 0., 0., 1.]])
+        timing, projector = self.base_projection(navigation_from_raw=frame)
+        raw = np.array(self.session.state()["mapFromSensor"])
+        expected = raw.copy()
+        expected[:3, 3] -= expected[:3, 0] * .25
+        expected = frame @ expected
+        frame[0, 3] = 99.
+        self.session.project_base(timing, projector, algorithm_stamp=1000.4)
+        state = self.session.state()
+        np.testing.assert_allclose(state["basePose"]["mapFromBase"], expected, atol=1e-12)
+        np.testing.assert_array_equal(state["mapFromSensor"], raw)
+        self.assertEqual(2., state["basePose"]["navigationFromRaw"][0][3])
+        state["basePose"]["navigationFromRaw"][0][3] = 999.
+        self.assertEqual(2., self.session.state()["basePose"]["navigationFromRaw"][0][3])
+        wrong = BasePoseProjector(projector.lookup, metres_per_map_unit=1.)
+        with self.assertRaisesRegex(ValueError, "same_explicit_base_projection_scale_and_frame"):
+            self.session.project_base(timing, wrong, algorithm_stamp=1000.4)
+        with self.assertRaisesRegex(ValueError, "explicit_scale_for_navigation_frame"):
+            LocalizationSession(self.binding, self.session.factory, base_navigation_from_raw=np.eye(4))
 
     def test_base_projection_is_owned_current_frame_full_3d_and_clears_on_next_frame(self):
         timing, projector = self.base_projection()

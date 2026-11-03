@@ -138,11 +138,12 @@ class AcquisitionSettings:
         self.terrain = terrain_settings(value['terrain']) if 'terrain' in value else None
         if self.saved_map_terrain:
             import numpy as np
-            if not np.array_equal(np.array(self.terrain[0].declared_from_raw).reshape(4, 4), np.eye(4)):
-                raise ValueError('identity_saved_map_terrain_geometry_required')
+            from lingxi_slam.base_pose import navigation_transform
             base = getattr(self.platform, 'value', {}).get('basePose', {})
-            if base.get('metresPerMapUnit') != self.terrain[0].metres_per_raw_unit:
-                raise ValueError('same_explicit_saved_map_base_and_terrain_scale_required')
+            if (base.get('metresPerMapUnit') != self.terrain[0].metres_per_raw_unit
+                    or not np.array_equal(np.array(self.terrain[0].declared_from_raw).reshape(4, 4),
+                                          navigation_transform(base.get('navigationFromRaw')))):
+                raise ValueError('same_explicit_saved_map_base_and_terrain_scale_and_frame_required')
         if self.terrain is not None:
             terrain = value['terrain']
             paths = [Path(terrain[name]['library']) for name in ('ground', 'octomap')]

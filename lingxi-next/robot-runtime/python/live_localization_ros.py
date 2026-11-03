@@ -6,7 +6,7 @@ import threading
 import numpy as np
 from scipy.spatial.transform import Rotation
 
-from lingxi_slam.base_pose import timestamp
+from lingxi_slam.base_pose import timestamp, metric_map_pose
 from lingxi_slam.localization_session import LocalizationSession
 from lingxi_slam.registered_acquisition import RegisteredAcquisition
 from lingxi_slam.seeded_localization import rigid_pose
@@ -85,6 +85,7 @@ class LiveLocalizationRosOutput:
                     or packet.algorithm_stamp != algorithm or base.get('status') != 'available'
                     or base.get('lastFrame') != packet.native_frame_id or base.get('scanHeaderNs') != str(header)
                     or base.get('metresPerMapUnit') != self.session.base_scale
+                    or not np.array_equal(base.get('navigationFromRaw'), self.session.base_navigation_from_raw)
                     or base.get('coordinateFrame') != MAP or base.get('bodyFrame') != BASE):
                 self.previous = None
                 return
@@ -97,8 +98,7 @@ class LiveLocalizationRosOutput:
             if not np.allclose(raw_pose, state['mapFromSensor'], rtol=0, atol=1e-8):
                 raise ValueError('same_frame_map_sensor_pose_required')
             map_base = rigid_pose(np.asarray(base['mapFromBase'], dtype=np.float64))
-            map_sensor = raw_pose.copy()
-            map_sensor[:3, 3] *= self.session.base_scale
+            map_sensor = metric_map_pose(raw_pose, self.session.base_scale, self.session.base_navigation_from_raw)
             base_sensor = rigid_pose(np.linalg.inv(map_base) @ map_sensor)
             points = (packet.endpoints - raw_pose[:3, 3]) @ raw_pose[:3, :3] * self.session.base_scale
             if points.ndim != 2 or points.shape[1] != 3 or not 1 <= len(points) <= 65536 or not np.isfinite(points).all():

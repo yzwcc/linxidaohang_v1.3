@@ -102,6 +102,22 @@ class PlatformConfiguration(unittest.TestCase):
         self.assertEqual("recorded", binding.mode)
         self.assertEqual({"frozen": True}, binding.frozen)
 
+    def test_explicit_navigation_frame_is_rigid_numeric_bounded_and_preserved(self):
+        from copy import deepcopy
+        frame = [[0., -1., 0., 2.], [1., 0., 0., -1.], [0., 0., 1., .8], [0., 0., 0., 1.]]
+        value = {**self.arm(), "basePose": {"metresPerMapUnit": .5, "navigationFromRaw": frame}}
+        with patch("live_points.environment", return_value={}):
+            self.assertEqual(value, self.read(value)[0])
+        invalid = [None, [], "identity"]
+        for position, cell in (((0, 0), True), ((1, 0), "1"), ((2, 2), 2.),
+                               ((3, 0), 1.), ((0, 3), 501.), ((0, 3), float("nan"))):
+            changed = deepcopy(frame)
+            changed[position[0]][position[1]] = cell
+            invalid.append(changed)
+        for matrix in invalid:
+            with self.subTest(matrix=matrix), self.assertRaises(ValueError):
+                self.read({**self.arm(), "basePose": {"metresPerMapUnit": 1., "navigationFromRaw": matrix}})
+
     def test_sensor_provenance_hashes_actual_profile_and_configuration_files(self):
         config = self.root / "config"
         config.mkdir()

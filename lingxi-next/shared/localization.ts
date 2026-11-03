@@ -38,6 +38,8 @@ export const basePoseStateSchema = z.object({
   scanHeaderNs: sensorNs.nullable(),
   effectiveScanNs: sensorNs.nullable(),
   metresPerMapUnit: z.number().finite().positive(),
+  navigationFromRaw: rigidMatrixSchema.refine((value) =>
+    value.slice(0, 3).every((row) => Math.abs(row[3]) <= 500)).optional(),
   coordinateUnits: z.literal("metres-at-declared-scale"),
   coordinateFrame: z.literal("lingxi_saved_map"),
   bodyFrame: z.literal("base_link"),

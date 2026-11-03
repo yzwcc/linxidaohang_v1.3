@@ -12,6 +12,7 @@ SOURCES = ('tools/probe_registered_terrain_ros.py', 'tools/registered-terrain-ro
     'tools/verify_registered_terrain_ros.py', 'tools/verify_terrain_ros_evidence.py',
     'robot-runtime/python/registered_terrain.py', 'robot-slam/lingxi_slam/registered_acquisition.py',
     'robot-slam/lingxi_slam/localization_session.py', 'robot-slam/lingxi_slam/localization_tracking.py',
+    'robot-slam/lingxi_slam/base_pose.py',
     'robot-slam/lingxi_slam/seeded_localization.py', 'robot-slam/lingxi_slam/point_data.py',
     'robot-slam/lingxi_slam/point_output.py', 'robot-slam/lingxi_slam/acquisition_output.py',
     'robot-slam/lingxi_slam/observation_archive.py', 'robot-navigation/lingxi_navigation/registered_window.py',

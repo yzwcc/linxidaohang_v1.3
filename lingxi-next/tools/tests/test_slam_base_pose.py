@@ -32,10 +32,11 @@ class BaseProjection(unittest.TestCase):
         value[:3, 3] = xyz
         return value
 
-    def project(self, pose, timing=None, tf=None, scale=1.):
+    def project(self, pose, timing=None, tf=None, scale=1., frame=None):
         timing = timing or self.timing()
         tf = self.pose() if tf is None else tf
-        projector = BasePoseProjector(lambda stamp: BaseLidarTransform(stamp, tf), metres_per_map_unit=scale)
+        projector = BasePoseProjector(lambda stamp: BaseLidarTransform(stamp, tf),
+                                     metres_per_map_unit=scale, navigation_from_raw=frame)
         return projector.project(pose, timing, algorithm_stamp=timing.algorithm_stamp)
 
     def test_original_integer_scan_time_is_not_rounded_through_float_epoch(self):
@@ -69,6 +70,26 @@ class BaseProjection(unittest.TestCase):
         result = projector.project(np.eye(4), timing, algorithm_stamp=timing.algorithm_stamp)
         self.assertEqual([timing.effective_ns], queried)
         np.testing.assert_allclose(result, np.linalg.inv(self.pose((.2, .1, 0.), 15.)), atol=1e-12)
+
+    def test_navigation_rotation_and_metric_origin_are_applied_after_scale_before_dynamic_tf(self):
+        raw, tf = self.pose((1000., -500., 200.), 37.), self.pose((.2, -.1, .7), -23.)
+        frame = self.pose((3., -2., .9))
+        frame[:3, :3] = Rotation.from_euler("xyz", (13., -17., 61.), degrees=True).as_matrix()
+        expected = raw.copy()
+        expected[:3, 3] *= .001
+        expected = frame @ expected @ np.linalg.inv(tf)
+        np.testing.assert_allclose(self.project(raw, tf=tf, scale=.001, frame=frame), expected, atol=1e-12)
+        projector = BasePoseProjector(lambda _: None, metres_per_map_unit=.001, navigation_from_raw=frame)
+        frame[0, 3] = 99.
+        self.assertEqual(3., projector.navigation_from_raw[0, 3])
+        self.assertFalse(projector.navigation_from_raw.flags.writeable)
+
+    def test_navigation_frame_rejects_nonrigid_nonfinite_and_unbounded_declarations(self):
+        for position, value in (((0, 0), 2.), ((3, 0), 1.), ((0, 3), 501.), ((2, 3), float("nan"))):
+            frame = np.eye(4)
+            frame[position] = value
+            with self.subTest(position=position), self.assertRaises(ValueError):
+                self.project(np.eye(4), frame=frame)
 
     def test_missing_or_wrong_time_tf_never_returns_identity_or_old_pose(self):
         timing = self.timing()

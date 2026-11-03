@@ -32,7 +32,8 @@ class SavedMapTerrainFixture:
         self.addCleanup(self.lane.close)
         self.addCleanup(self.release.set)
         wait_for(lambda: self.lane.snapshot().state == 'ready')
-        self.geometry = OfflineGeometry(self.session.base_scale, tuple(map(float, np.eye(4).ravel())))
+        self.geometry = OfflineGeometry(self.session.base_scale,
+            tuple(map(float, self.session.base_navigation_from_raw.ravel())))
         self.budget = TerrainBudget(maximum_age_seconds=.3, maximum_span_seconds=.2,
                                    maximum_processing_seconds=.2)
         self.source = RegisteredTerrainSource(self.session, self.lane, self.geometry,
@@ -121,7 +122,7 @@ class SavedMapTerrainTests(SavedMapTerrainFixture, SyntheticLiveFixture, unittes
             self.source(packet, scan_header_ns=timing.header_ns)
         self.assertIsNone(self.source.snapshot().grid)
 
-    def test_geometry_rotation_translation_scale_and_long_window_are_not_relabelled(self):
+    def test_mismatched_geometry_rotation_translation_scale_and_long_window_are_not_relabelled(self):
         self.terrain()
         for key in ('rotation', 'translation', 'scale', 'window'):
             matrix, scale, budget = np.eye(4), self.session.base_scale, self.budget
@@ -137,6 +138,21 @@ class SavedMapTerrainTests(SavedMapTerrainFixture, SyntheticLiveFixture, unittes
                 RegisteredTerrainSource(self.session, self.lane,
                     OfflineGeometry(scale, tuple(map(float, matrix.ravel()))), projection=spec(),
                     budget=budget, saved_map=True)
+
+    def test_same_declared_3d_frame_transforms_both_ray_ends_without_changing_time_or_scale(self):
+        from scipy.spatial.transform import Rotation
+        frame = np.eye(4)
+        frame[:3, :3] = Rotation.from_euler('xyz', (.2, -.3, 1.1)).as_matrix()
+        frame[:3, 3] = (2., -1., .8)
+        self.prepare(now=time.monotonic(), navigation_from_raw=frame)
+        self.terrain()
+        packet, timing, accepted = self.scan()
+        self.assertTrue(accepted)
+        rays = self.source.submitted.observations.scans[0].returns
+        np.testing.assert_allclose([ray.endpoint_metres for ray in rays], self.geometry.apply(packet.endpoints))
+        np.testing.assert_allclose([ray.origin_metres for ray in rays], self.geometry.apply(packet.origins))
+        self.assertEqual(timing.effective_ns, self.result().latest_scan_ns)
+        self.assertEqual(self.geometry.sha256, self.source.submitted.observations.geometry_declaration_sha256)
 
     def test_saved_grid_requires_all_integer_ordered_timestamp_metadata(self):
         self.terrain()

@@ -127,7 +127,8 @@ class LiveBaseInput(unittest.TestCase):
         self.assertEqual([], calls)
 
     def owner(self):
-        session = NS(base_scale=1., binding=NS(input_mode="live"), revoked=[], projected=[])
+        session = NS(base_scale=1., base_navigation_from_raw=np.eye(4),
+                     binding=NS(input_mode="live"), revoked=[], projected=[])
         session.revoke_base = lambda reason: session.revoked.append(reason)
         session.project_base = lambda *args, **kwargs: session.projected.append((args, kwargs))
         return session, LiveBasePose(session, self.profile(), "header_is_scan_start")

@@ -15,7 +15,7 @@ from live_child import serve, verified_child_session
 
 
 def verify_completion(report, final, *, frozen, binding, sources, config_hash, base_scale=None,
-                      acquisition_integrity=None):
+                      base_navigation_from_raw=None, acquisition_integrity=None):
     """Live shutdown accounts for accepted callbacks, including the discarded tail."""
     identity = asdict(binding)
     worker, state = report["worker"], final["state"]
@@ -32,14 +32,18 @@ def verify_completion(report, final, *, frozen, binding, sources, config_hash, b
     elif 'acquisition' in report:
         raise ValueError('explicit_live_acquisition_option_required')
     if base_scale is not None:
+        from lingxi_slam.base_pose import navigation_transform
+        frame = navigation_transform(base_navigation_from_raw).tolist()
         base, inputs = state.get("basePose", {}), report.get("basePoseInput", {})
         if (base.get("status") != "unavailable" or base.get("mapFromBase") is not None
                 or base.get("lastFrame") != 0 or base.get("scanHeaderNs") is not None
                 or base.get("effectiveScanNs") is not None or base.get("metresPerMapUnit") != base_scale
+                or base.get("navigationFromRaw", navigation_transform().tolist()) != frame
                 or base.get("coordinateFrame") != "lingxi_saved_map" or base.get("bodyFrame") != "base_link"
                 or any(base.get(name) is not False for name in ("physicalScaleValidated", "navigationReady"))
                 or inputs.get("closed") is not True or inputs.get("pendingScanTimes") != 0
                 or inputs.get("retainedDynamicTransforms") != 0 or inputs.get("metresPerMapUnit") != base_scale
+                or inputs.get("navigationFromRaw", navigation_transform().tolist()) != frame
                 or any(inputs.get(name) is not False for name in ("physicalScaleValidated", "navigationReady"))):
             raise ValueError("closed_base_pose_inputs_and_revoked_base_pose_required")
     elif "basePose" in state or "basePoseInput" in report:
@@ -109,6 +113,7 @@ def child(args, sink, platform):
     registration_diagnostics = RegistrationDiagnostics()
     session = make_session(binding, points, base_metres_per_map_unit=(
         options["metresPerMapUnit"] if options is not None else None),
+        base_navigation_from_raw=options.get("navigationFromRaw") if options is not None else None,
         registration_diagnostics=registration_diagnostics)
     base_owner = None
     if options is not None:
@@ -236,6 +241,7 @@ def child(args, sink, platform):
                 raise ValueError("unchanged_live_localization_inputs_required")
             verify_completion(report, final, frozen=platform.frozen, binding=binding,
                               sources=sources, config_hash=config_hash, base_scale=session.base_scale,
+                              base_navigation_from_raw=session.base_navigation_from_raw,
                               acquisition_integrity=acquisition_settings.frozen if acquisition_settings is not None else None)
         except Exception as error:
             report.update(result="failed", errorType=type(error).__name__)

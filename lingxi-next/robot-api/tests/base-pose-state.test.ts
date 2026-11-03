@@ -29,4 +29,17 @@ describe("optional base diagnostic state", () => {
     expect(basePoseStateSchema.safeParse({ ...base, status: "unavailable", reason: "input_closed",
       mapFromBase: null, lastFrame: 0, scanHeaderNs: null, effectiveScanNs: null }).success).toBe(true);
   });
+  it("preserves an explicit rigid navigation frame without certifying calibration", () => {
+    const navigationFromRaw = [[0, -1, 0, 2], [1, 0, 0, -1], [0, 0, 1, 0.8], [0, 0, 0, 1]];
+    const result = basePoseStateSchema.parse({ ...base, navigationFromRaw });
+    expect(result.navigationFromRaw).toEqual(navigationFromRaw);
+    expect(result.physicalScaleValidated).toBe(false);
+    expect(result.navigationReady).toBe(false);
+    for (const value of [null, [], "identity", [[true]],
+      navigationFromRaw.map((row, i) => row.map((cell, j) => i === 0 && j === 3 ? 501 : cell)),
+      navigationFromRaw.map((row, i) => row.map((cell, j) => i === 1 && j === 0 ? 2 : cell)),
+      navigationFromRaw.map((row, i) => row.map((cell, j) => i === 0 && j === 3 ? NaN : cell))]) {
+      expect(basePoseStateSchema.safeParse({ ...base, navigationFromRaw: value }).success).toBe(false);
+    }
+  });
 });

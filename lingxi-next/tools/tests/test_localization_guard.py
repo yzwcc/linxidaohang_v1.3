@@ -96,6 +96,35 @@ class GuardTests(unittest.TestCase):
         self.activate()
         self.assertIsNotNone(self.guard.current())
 
+    def test_navigation_frame_change_revokes_activation_but_explicit_identity_is_legacy_equivalent(self):
+        self.activate()
+        original = self.guard.current().token
+        frame = [[1., 0., 0., 0.], [0., 1., 0., 0.], [0., 0., 1., 0.], [0., 0., 0., 1.]]
+        self.value['state']['basePose']['navigationFromRaw'] = frame
+        self.monitor.refresh()
+        self.assertEqual(original, self.guard.current().token)
+        frame[0][3] = .1
+        self.monitor.refresh()
+        self.assertIsNone(self.guard.current())
+        self.activate()
+        self.assertNotEqual(original, self.guard.current().token)
+        frame[0][3] = 0.
+        self.monitor.refresh()
+        self.assertIsNone(self.guard.current())
+
+    def test_navigation_frame_requires_finite_rigid_numeric_bounded_matrix(self):
+        invalid = [None, [], "identity"]
+        for position, cell in (((0, 0), True), ((0, 0), "1"), ((0, 0), 2.),
+                               ((3, 0), .1), ((0, 3), 501.), ((0, 3), float('nan'))):
+            matrix = [[1., 0., 0., 0.], [0., 1., 0., 0.], [0., 0., 1., 0.], [0., 0., 0., 1.]]
+            matrix[position[0]][position[1]] = cell
+            invalid.append(matrix)
+        for frame in invalid:
+            value = snapshot()
+            value['state']['basePose']['navigationFromRaw'] = frame
+            with self.subTest(frame=frame), self.assertRaises(ValueError):
+                parse_snapshot(value, self.identity, BINDING, self.clock())
+
     def test_poll_freshness_and_source_progress_have_independent_deadlines(self):
         self.activate()
         self.clock.advance(.31)

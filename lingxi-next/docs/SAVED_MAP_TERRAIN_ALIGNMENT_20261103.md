@@ -22,10 +22,11 @@ The new mode shares the observation owner's random private namespace and emits
 `traversable_map` in `lingxi_saved_map`. It does not start Nav2 or admit motion.
 
 Geometry must use exactly the explicit `basePose.metresPerMapUnit` scale and
-identity declared-from-raw transform. Rotation, translation, missing scale and
-scale mismatch are rejected. Both ends of each measured ray are scaled once.
-This establishes mathematical agreement with the saved-map observation output,
-not measured physical scale, floor/gravity alignment or obstacle completeness.
+the shared `navigationFromRaw` transform (identity when omitted). Scale mismatch
+or differing frame geometry is rejected. Both ends of each measured ray use the
+same rigid frame. This establishes mathematical agreement with the saved-map
+observation output, not measured physical scale, floor/gravity alignment or
+obstacle completeness. See [the shared explicit-frame follow-up](EXPLICIT_NAVIGATION_FRAME_20261103.md).
 
 ## Native And ROS Ownership
 
@@ -101,8 +102,10 @@ trials as `terrain-ros-MODE-20261103-g`; no old failure was relabeled as a pass.
 
 The subsequent [native accumulation follow-up](TERRAIN_NATIVE_THROUGHPUT_20261103.md)
 actually reran recording `-e` (28/27, still no supported free cells), registered
-ROS `-i` and generic ROS `-h`. Current committed aggregates bind those real runs;
-the earlier outputs described above remain historical and preserved.
+ROS `-i` and generic ROS `-h`. The [explicit-frame follow-up](EXPLICIT_NAVIGATION_FRAME_20261103.md)
+then reran recording `-f` and registered ROS `-j` against the shared-frame
+implementation. Current committed aggregates bind those real runs; the earlier
+outputs described above remain historical and preserved.
 
 ## Reproduction
 

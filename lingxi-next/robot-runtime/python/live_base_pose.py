@@ -32,7 +32,8 @@ class LiveBasePose:
             raise RuntimeError("live_base_pose_setup_cannot_restart")
         self.buffer = Buffer(cache_time=Duration(seconds=5.))
         self.projector = BasePoseProjector(Tf2BaseLookup(self.buffer, coverage=self.coverage.covers),
-                                          metres_per_map_unit=self.session.base_scale)
+            metres_per_map_unit=self.session.base_scale,
+            navigation_from_raw=self.session.base_navigation_from_raw)
         for topic, static in (("/tf", False), ("/tf_static", True)):
             qos = QoSProfile(history=HistoryPolicy.KEEP_LAST, depth=100,
                              reliability=ReliabilityPolicy.RELIABLE if static else ReliabilityPolicy.BEST_EFFORT,
@@ -102,5 +103,6 @@ class LiveBasePose:
             return {"closed": self.closed.is_set(), "pendingScanTimes": len(self.times.frames),
                     "retainedDynamicTransforms": sum(map(len, self.coverage.dynamic.values())),
                     "maximumTfGapNs": MAXIMUM_TF_GAP_NS, "metresPerMapUnit": self.session.base_scale,
+                    "navigationFromRaw": self.session.base_navigation_from_raw.tolist(),
                     "physicalScaleValidated": False, "navigationReady": False,
                     "observations": dict(self.observations)}

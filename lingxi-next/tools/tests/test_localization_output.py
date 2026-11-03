@@ -20,11 +20,11 @@ if AVAILABLE:
 
 
 class SyntheticLiveFixture:
-    def prepare(self, now=100.):
+    def prepare(self, now=100., navigation_from_raw=None):
         self.now = now
         self.binding = LocalizationBinding('a' * 32, 'live', 'slam-' + 'b' * 32, 'c' * 64, 'd' * 64, 'e' * 64)
         self.session = LocalizationSession(self.binding, lambda: None, clock=lambda: self.now,
-                                           base_metres_per_map_unit=2.)
+            base_metres_per_map_unit=2., base_navigation_from_raw=navigation_from_raw)
         self.session.owner = threading.get_ident()
         self.session.worker_ready = True
         self.session.phase, self.session.matches = 'tracking', 3
@@ -39,7 +39,7 @@ class SyntheticLiveFixture:
         base[:3, :3] = Rotation.from_euler('z', yaw).as_matrix()
         base[0, 3] = x
         sensor = base @ self.extrinsic
-        raw = sensor.copy()
+        raw = np.linalg.inv(self.session.base_navigation_from_raw) @ sensor
         raw[:3, 3] /= self.session.base_scale
         endpoints = self.points / self.session.base_scale @ raw[:3, :3].T + raw[:3, 3]
         origins = np.repeat(raw[:3, 3][None, :], len(endpoints), axis=0)
@@ -54,7 +54,7 @@ class SyntheticLiveFixture:
         self.session.freshness_at = receipt
         self.session.latest = (SimpleNamespace(native_frame_id=frame, algorithm_stamp=timing.algorithm_stamp), receipt)
         projector = BasePoseProjector(lambda ns: BaseLidarTransform(ns, self.extrinsic),
-                                     metres_per_map_unit=self.session.base_scale)
+            metres_per_map_unit=self.session.base_scale, navigation_from_raw=self.session.base_navigation_from_raw)
         self.session.project_base(timing, projector, algorithm_stamp=timing.algorithm_stamp)
         self.output.offer(packet)
         if capture:
@@ -91,6 +91,30 @@ class ObservationTests(SyntheticLiveFixture, unittest.TestCase):
         value = self.output.snapshot()
         np.testing.assert_allclose((np.cos(.2), -np.sin(.2), 0.), value.linear, atol=1e-12)
         np.testing.assert_allclose((0., 0., 1.), value.angular, atol=1e-12)
+
+    def test_nonidentity_3d_frame_aligns_base_sensor_cloud_and_body_twist(self):
+        frame = np.eye(4)
+        frame[:3, :3] = Rotation.from_euler('xyz', (.2, -.3, 1.1)).as_matrix()
+        frame[:3, 3] = (2., -1., .8)
+        self.prepare(navigation_from_raw=frame)
+        self.offer(yaw=.1)
+        self.now += .1
+        packet, _, expected_base = self.offer(2, 1_100_000_000, .1, .2)
+        value = self.output.snapshot()
+        np.testing.assert_allclose(expected_base, value.map_from_base, atol=1e-12)
+        np.testing.assert_allclose(self.extrinsic, value.base_from_sensor, atol=1e-12)
+        np.testing.assert_allclose(self.points, value.sensor_points, atol=1e-12)
+        np.testing.assert_allclose((np.cos(.2), -np.sin(.2), 0.), value.linear, atol=1e-12)
+        np.testing.assert_allclose((0., 0., 1.), value.angular, atol=1e-12)
+        expected_points = packet.endpoints * self.session.base_scale @ frame[:3, :3].T + frame[:3, 3]
+        np.testing.assert_allclose(value.sensor_points @ (value.map_from_base @ value.base_from_sensor)[:3, :3].T
+            + (value.map_from_base @ value.base_from_sensor)[:3, 3], expected_points, atol=1e-12)
+        state = self.session.state()
+        np.testing.assert_allclose(state['basePose']['navigationFromRaw'], frame)
+        np.testing.assert_allclose(state['mapFromSensor'], packet.map_lidar_pose)
+        state['basePose']['navigationFromRaw'][0][3] = 99.
+        self.assertEqual(2., self.session.state()['basePose']['navigationFromRaw'][0][3])
+        self.assertFalse(state['basePose']['physicalScaleValidated'])
 
     def test_large_epoch_preserves_integer_nanoseconds_with_rotated_sensor_extrinsic(self):
         self.extrinsic[:3, :3] = Rotation.from_euler('xyz', (.3, -.2, .4)).as_matrix()

@@ -58,7 +58,7 @@ class LocalizationSession:
     """
 
     def __init__(self, binding, registrar_factory, *, clock=time.monotonic,
-                 maximum_age_seconds=1., base_metres_per_map_unit=None):
+                 maximum_age_seconds=1., base_metres_per_map_unit=None, base_navigation_from_raw=None):
         if (not isinstance(binding, LocalizationBinding) or not callable(registrar_factory)
                 or not callable(clock) or type(maximum_age_seconds) not in (float, int)
                 or not math.isfinite(maximum_age_seconds) or not 0 < maximum_age_seconds <= 5):
@@ -68,6 +68,10 @@ class LocalizationSession:
                 or not math.isfinite(base_metres_per_map_unit) or base_metres_per_map_unit <= 0):
             raise ValueError("explicit_positive_base_pose_unit_scale_required")
         self.base_scale = base_metres_per_map_unit
+        from .base_pose import navigation_transform
+        if base_metres_per_map_unit is None and base_navigation_from_raw is not None:
+            raise ValueError("explicit_scale_for_navigation_frame_required")
+        self.base_navigation_from_raw = navigation_transform(base_navigation_from_raw)
         self.base_record, self.base_revision, self.base_reason = None, 0, "localization_not_tracking"
         self.binding, self.factory, self.clock = binding, registrar_factory, clock
         self.maximum_age = maximum_age_seconds
@@ -137,6 +141,7 @@ class LocalizationSession:
             "scanHeaderNs": str(record[2]) if record is not None else None,
             "effectiveScanNs": str(record[3]) if record is not None else None,
             "metresPerMapUnit": self.base_scale, "coordinateUnits": "metres-at-declared-scale",
+            "navigationFromRaw": self.base_navigation_from_raw.tolist(),
             "coordinateFrame": "lingxi_saved_map", "bodyFrame": "base_link",
             "physicalScaleValidated": False, "navigationReady": False,
         }
@@ -153,8 +158,9 @@ class LocalizationSession:
         from .base_pose import BasePoseProjector
         self._owner()
         if (self.base_scale is None or not isinstance(projector, BasePoseProjector)
-                or projector.scale != self.base_scale):
-            raise ValueError("same_explicit_base_projection_scale_required")
+                or projector.scale != self.base_scale
+                or not np.array_equal(projector.navigation_from_raw, self.base_navigation_from_raw)):
+            raise ValueError("same_explicit_base_projection_scale_and_frame_required")
         with self.lock:
             now = self._now_locked()
             self._expire_locked(now)

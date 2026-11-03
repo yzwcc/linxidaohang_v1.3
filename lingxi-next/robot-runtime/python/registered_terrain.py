@@ -37,9 +37,9 @@ class RegisteredTerrainSource:
             raise ValueError('explicit_localization_lane_and_offline_geometry_required')
         if type(saved_map) is not bool or saved_map and (session.binding.input_mode != 'live'
                 or session.base_scale is None or geometry.metres_per_raw_unit != session.base_scale
-                or not np.array_equal(np.array(geometry.declared_from_raw).reshape(4, 4), np.eye(4))
+                or not np.array_equal(np.array(geometry.declared_from_raw).reshape(4, 4), session.base_navigation_from_raw)
                 or budget.maximum_age_seconds > .3):
-            raise ValueError('same_saved_map_scale_identity_geometry_and_fresh_window_required')
+            raise ValueError('same_saved_map_scale_frame_geometry_and_fresh_window_required')
         self.saved_map, self.scan_stamps = saved_map, {}
         self.submitted_stamps = self.annotated_grid = self.raw_grid = None
         state = lane.snapshot()
@@ -94,6 +94,7 @@ class RegisteredTerrainSource:
                             or base.get('lastFrame') != packet.native_frame_id
                             or base.get('scanHeaderNs') != str(scan_header_ns)
                             or base.get('metresPerMapUnit') != self.geometry.metres_per_raw_unit
+                            or not np.array_equal(base.get('navigationFromRaw'), self.session.base_navigation_from_raw)
                             or base.get('coordinateFrame') != 'lingxi_saved_map'
                             or not np.allclose(packet.map_lidar_pose, state['mapFromSensor'], rtol=0, atol=1e-8)):
                         raise ValueError('same_frame_original_scan_base_projection_required')

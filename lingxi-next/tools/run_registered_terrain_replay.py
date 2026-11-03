@@ -41,6 +41,7 @@ FIELDS = ('work', 'adapter', 'points', 'acquisition', 'bundle', 'reference', 'sa
           'point_reference', 'terrain_config', 'output', 'hypothesis', 'rate')
 SOURCES = ('tools/run_registered_terrain_replay.py', 'robot-runtime/python/localization_control.py',
     'robot-runtime/python/registered_terrain.py', 'robot-slam/lingxi_slam/localization_session.py',
+    'robot-slam/lingxi_slam/base_pose.py',
     'robot-slam/lingxi_slam/localization_tracking.py', 'robot-slam/lingxi_slam/seeded_localization.py',
     'robot-slam/lingxi_slam/registered_acquisition.py', 'robot-navigation/lingxi_navigation/registered_window.py',
     'robot-navigation/lingxi_navigation/terrain_lane.py', 'robot-navigation/lingxi_navigation/terrain_process.py',
