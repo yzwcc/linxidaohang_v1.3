@@ -1,8 +1,17 @@
 # 物理导航桥契约
 
-更新于 2026-11-03。本轮提供管理 API 的物理导航适配器和私有 Unix Socket
-客户端，不是完整的实机 ROS 2/Nav2 桥服务。真实桥进程、七项实时证据采集、
-机器人输出接入与现场验收仍需完成。模拟回执通过测试不代表机器人能够导航。
+更新于 2026-11-03。本轮已提供独立产品的 ROS 2/Nav2 物理桥生产骨架、私有
+Unix Socket 客户端与 AIMDK 输出适配器；真实机器人 topic/frame、Nav2 controller
+输出、地图格式和现场安全验收仍需在目标机上完成。离线测试不代表机器人能够导航。
+
+## AIMDK v1.1.0 输出确认
+
+压缩包中的 `McLocomotionVelocity` 只有 `header`、`source` 和三项速度字段，
+没有 `nonce`、`stop_confirmed` 或 `stopped`。桥因此订阅 `/aima/mc/common/state`，
+并通过 `/aimdk_5Fmsgs/srv/SetMcInputSource` 先 ADD、再 ENABLE 独立输入源。
+停止回执由本地 nonce、零速发布时刻，以及零速发布之后新收到的本源
+`McCommonState.fsm_state.current_state` 为 `STABLE(2)` 或 `SAFE(4)` 组合确认。
+旧状态、其他输入源、超时状态和注册失败都不会授予 `velocityOutput` 准入。
 
 ## 显式启用
 
@@ -26,7 +35,8 @@
 字节。部署者必须让 API 与桥使用同一受限 UID，专用目录模式 `0700`、Socket
 模式 `0600`，不可放入共享可写目录或通过符号链接共享。不开放 TCP 监听。
 路径格式由客户端校验；所有者、目录与 Socket 权限由部署流程负责保证。
-当前通用安装器不会创建、安装或启动物理桥服务，也不会自动开启此选项。
+通用安装器不会自动开启物理桥；部署包必须显式安装 `lingxi-next-navigation.service`
+并完成独立产品、地图收据、标定、足迹和真实 ROS 接口核对。
 
 ## 请求与回执
 
@@ -138,5 +148,5 @@ python3 -m unittest discover -s tools/tests -p test_navigation_diagnostic.py -v
 npx vitest run robot-api/tests/physical-navigation.test.ts robot-api/tests/independent-product.test.ts
 ```
 
-这些测试只确认客户端协议、管理 API 组合与诊断行为，不证明外部物理桥已经
-实现，也不证明地图精度、定位、真实避障、Android 真机或语音首响指标合格。
+这些测试只确认客户端协议、管理 API 组合、物理桥骨架和诊断行为，不证明真实
+ROS 接口、地图精度、定位、避障、Android 真机或语音首响指标合格。

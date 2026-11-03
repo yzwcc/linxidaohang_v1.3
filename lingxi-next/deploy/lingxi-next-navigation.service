@@ -1,0 +1,22 @@
+[Unit]
+Description=Lingxi Next Physical ROS 2/Nav2 Navigation Bridge
+After=network.target lingxi-next-aimdk.service
+Requires=lingxi-next-aimdk.service
+
+[Service]
+User=lingxi-next
+Group=lingxi-next
+EnvironmentFile=/etc/lingxi-next/robot.env
+ExecStart=/bin/bash /opt/lingxi-next/current/deploy/run.sh navigation
+Restart=on-failure
+RestartSec=5
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=false
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/lingxi-next
+TimeoutStopSec=10
+
+[Install]
+WantedBy=multi-user.target
