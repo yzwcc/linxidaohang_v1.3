@@ -64,17 +64,22 @@ def owner(args):
     stop = threading.Event()
     for value in (signal.SIGTERM, signal.SIGINT):
         signal.signal(value, lambda *_: stop.set())
+    api_environment = {"PATH": "/usr/bin:/bin", "LANG": "C.UTF-8", "LINGXI_HOST": "127.0.0.1",
+                       "LINGXI_PORT": "0", "LINGXI_TLS_KEY": str(args.tls_key),
+                       "LINGXI_TLS_CERT": str(args.tls_cert),
+                       "LINGXI_WEB_ROOT": os.environ.get("LINGXI_SLAM_TEST_WEB", str(ROOT / "dist")),
+                       "LINGXI_PAIRING_CODE_SHA256": hashlib.sha256(b"synthetic-slam-workspace").hexdigest()}
+    if args.product_config:
+        configuration = json.loads(args.product_config.read_bytes())
+        api_environment.update({'LINGXI_PRODUCT_CONFIG': str(args.product_config),
+            'LINGXI_PRODUCT_CONFIG_SHA256': hashlib.sha256(args.product_config.read_bytes()).hexdigest()})
+        if configuration.get('actionsBridgeEndpoint'):
+            api_environment['LINGXI_AIMDK_BRIDGE_TOKEN'] = 'synthetic-actions-bridge-token-0001'
     runtime = ManagedSlamOwner([sys.executable, "-B", __file__, "service"], [str(args.node), str(args.bundle)],
         maps=args.maps, output=args.output,
         service_environment={"PATH": "/usr/bin:/bin", "LANG": "C.UTF-8", "PYTHONDONTWRITEBYTECODE": "1",
                              "LINGXI_SLAM_TEST_SOURCE": str(ROOT)},
-        api_environment={"PATH": "/usr/bin:/bin", "LANG": "C.UTF-8", "LINGXI_HOST": "127.0.0.1", "LINGXI_PORT": "0",
-                         "LINGXI_TLS_KEY": str(args.tls_key), "LINGXI_TLS_CERT": str(args.tls_cert),
-                         "LINGXI_WEB_ROOT": os.environ.get("LINGXI_SLAM_TEST_WEB", str(ROOT / "dist")),
-                         **({"LINGXI_PRODUCT_CONFIG": str(args.product_config),
-                             "LINGXI_PRODUCT_CONFIG_SHA256": hashlib.sha256(args.product_config.read_bytes()).hexdigest()}
-                            if args.product_config else {}),
-                         "LINGXI_PAIRING_CODE_SHA256": hashlib.sha256(b"synthetic-slam-workspace").hexdigest()},
+        api_environment=api_environment,
         limits=MappingOwnerLimits(startup_seconds=15., service_stop_seconds=10., api_stop_seconds=5.))
     report = runtime.run(stop=stop, seconds=None, on_listening=lambda value: print(json.dumps({
         **value, "apiPid": runtime.api.pid, "servicePid": runtime.service.pid,

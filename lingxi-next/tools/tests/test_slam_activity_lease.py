@@ -154,13 +154,15 @@ class ActivityLeaseTests(unittest.TestCase):
             os.close(duplicate)
         OperationGate(self.root, shared=True).acquire().close()
 
-    def test_nav2_owner_death_retires_guard_and_term_ignoring_descendant_before_unlock(self):
+    def test_nav2_owner_death_retires_workloads_before_unlock_and_guard_exits(self):
         controller = self.spawn('nav-owner')
         value = json.loads(controller.stdout.readline())
+        self.orphans.append(value['pid'])
         worker = self.wait_file('nav-worker.json')
         descendant = self.wait_file('descendant.json')
+        guard = self.process_identity(value['pid'])
         identities = {pid: self.process_identity(pid) for pid in
-                      (value['pid'], worker['pid'], worker['descendant'], descendant['pid'])}
+                      (worker['pid'], worker['descendant'], descendant['pid'])}
         with self.assertRaises(ActivityBusy):
             OperationGate(self.root).acquire()
         controller.kill()
@@ -175,12 +177,20 @@ class ActivityLeaseTests(unittest.TestCase):
                     self.fail('nav2_orphan_retirement_deadline')
                 time.sleep(.01)
         for pid, original in identities.items():
-            try:
-                state, started = self.process_identity(pid)
-                self.assertFalse((state, started) == (original[0], original[1]) and state not in ('Z', 'X'),
-                                 f'nav2_process_still_live:{pid}:{state}')
-            except FileNotFoundError:
-                pass
+            self.assertFalse(self.same_live_process(pid, original), f'nav2_workload_still_live:{pid}')
+        # The guard releases its FD only after workloads retire, just before exit.
+        deadline = time.monotonic() + 1
+        while self.same_live_process(value['pid'], guard) and time.monotonic() < deadline:
+            time.sleep(.01)
+        self.assertFalse(self.same_live_process(value['pid'], guard), 'nav2_guard_exit_deadline')
+
+    @classmethod
+    def same_live_process(cls, pid, original):
+        try:
+            state, started = cls.process_identity(pid)
+            return started == original[1] and state not in ('Z', 'X')
+        except (FileNotFoundError, ProcessLookupError):
+            return False
 
     @staticmethod
     def process_identity(pid):

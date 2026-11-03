@@ -111,7 +111,7 @@ describe("explicit independent product composition with synthetic services", () 
     expect((await app.inject({ method: "PUT", url: "/api/v1/settings/credentials", headers: headers(),
       remoteAddress: "192.168.1.20", payload: { apiKey: "synthetic-key" } })).statusCode).toBe(426);
   });
-  it("routes independent action readiness and explicit idle confirmation through the actions-only backend", async () => {
+  it("routes independent action readiness, paired expressions and idle confirmation through the actions-only backend", async () => {
     const bridge: ActionsState = {
       bridgeMode: "actions-only", physicalActionsEnabled: false, bridgeEpoch: "b".repeat(32),
       sequence: 0, observedAtMs: Date.now(), actionBusy: true, actionStatus: "linkcraft-awaiting-operator",
@@ -141,6 +141,19 @@ describe("explicit independent product composition with synthetic services", () 
       expect(actions.confirmIdle).toHaveBeenCalledOnce();
       expect((await secureRequest(origin, "GET", "/api/v1/state", undefined, token)).json()).toMatchObject({
         actionBusy: false, expressions: ["开心"] });
+      expect(actions.playExpression).not.toHaveBeenCalled();
+      expect((await secureRequest(origin, "POST", "/api/v1/actions/expression", { name: "开心" })).statusCode).toBe(401);
+      expect((await isolated.inject({ method: "POST", url: "/api/v1/actions/expression",
+        headers: headers(), payload: { name: "开心" } })).statusCode).toBe(426);
+      for (const payload of [{ name: "" }, { name: "开心", extra: true }, {}]) {
+        expect((await secureRequest(origin, "POST", "/api/v1/actions/expression", payload, token)).statusCode).toBe(400);
+      }
+      expect(actions.playExpression).not.toHaveBeenCalled();
+      const expression = await secureRequest(origin, "POST", "/api/v1/actions/expression", { name: "开心" }, token);
+      expect(expression.statusCode).toBe(202);
+      expect(expression.json()).toEqual({ accepted: true, completed: false });
+      expect(actions.playExpression).toHaveBeenCalledOnce();
+      expect(actions.playExpression).toHaveBeenCalledWith("开心", expect.any(Function));
       vi.mocked(localization.runtime!).mockResolvedValue({ ...localizationRuntimeFixture(), phase: "running",
         generation: 1, runId: "f".repeat(32), selectedMap: { mapId: `slam-${"b".repeat(32)}`,
           receiptSha256: "c".repeat(64) }, cleanupComplete: false });
@@ -148,7 +161,8 @@ describe("explicit independent product composition with synthetic services", () 
         actionBusy: false, expressions: [], checks: expect.arrayContaining([
           expect.objectContaining({ id: "actions", ready: false, detail: "定位运行期间动作暂不可用" }),
         ]) });
-      expect(actions.playExpression).not.toHaveBeenCalled();
+      expect((await secureRequest(origin, "POST", "/api/v1/actions/expression", { name: "开心" }, token)).statusCode).toBe(409);
+      expect(actions.playExpression).toHaveBeenCalledOnce();
     } finally { external.mockRestore(); await isolated.close(); }
   });
   it("uses verified local voice events for evidence-bound Q&A without stopping mapping", async () => {
@@ -181,7 +195,7 @@ describe("explicit independent product composition with synthetic services", () 
     expect(speak).not.toHaveBeenCalled();
   });
   it.each(["/api/v1/navigation/point", "/api/v1/navigation/control", "/api/v1/maps/legacy/activate",
-    "/api/v1/tours/legacy/start", "/api/v1/actions/confirm-idle"])("does not enable %s", async (url) => {
+    "/api/v1/tours/legacy/start", "/api/v1/actions/confirm-idle", "/api/v1/actions/expression"])("does not enable %s", async (url) => {
     expect((await app.inject({ method: "POST", url, headers: headers(), payload: {} })).statusCode).toBe(403);
   });
   it("requires explicit composition and refuses vendor and isolated-mode mixing", async () => {

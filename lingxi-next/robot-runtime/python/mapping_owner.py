@@ -16,6 +16,26 @@ import time
 from point_owner import group_alive
 
 
+FAILURE_CODES = frozenset({
+    "mapping_service_process_exited", "mapping_api_process_exited", "mapping_status_closed",
+    "bounded_mapping_status_required", "one_mapping_listening_status_required",
+    "mapping_api_network_port_required", "exact_mapping_listening_status_required",
+    "mapping_process_startup_deadline", "unexpected_mapping_process_status",
+})
+
+
+def failure_code(error):
+    """Only fixed local codes, never exception messages from processes or callbacks."""
+    if isinstance(error, json.JSONDecodeError):
+        return "mapping_status_json_invalid"
+    if (type(error) in (RuntimeError, ValueError) and len(error.args) == 1
+            and type(error.args[0]) is str and error.args[0] in FAILURE_CODES):
+        return error.args[0]
+    if isinstance(error, OSError):
+        return "mapping_process_io_failed"
+    return "mapping_unexpected_error"
+
+
 @dataclass(frozen=True)
 class MappingOwnerLimits:
     startup_seconds: float = 20.
@@ -90,6 +110,7 @@ class ManagedMappingOwner:
         self.service_environment, self.api_environment = service_environment.copy(), api_environment.copy()
         self.service = self.api = None
         self.started = False
+        self._phase = "initializing"
 
     def _spawn(self, command, environment, label):
         with (self.output / ("private-" + label + ".log")).open("xb") as log:
@@ -103,9 +124,9 @@ class ManagedMappingOwner:
     def _available(self, stop):
         if stop.is_set():
             raise InterruptedError("mapping_runtime_stop_requested")
-        for child in (self.service, self.api):
+        for label, child in (("service", self.service), ("api", self.api)):
             if child is not None and child.poll() is not None:
-                raise RuntimeError("mapping_owned_process_exited")
+                raise RuntimeError("mapping_" + label + "_process_exited")
 
     def _service_arguments(self):
         return ["--maps", str(self.maps), "--socket", str(self.endpoint), "--parent-stdin"]
@@ -116,10 +137,14 @@ class ManagedMappingOwner:
                 "LINGXI_DATA_DIR": str(self.output / "data")}
 
     def _start(self, stop):
+        self._phase = "service-start"
         self.service = self._spawn([*self.service_command, *self._service_arguments()],
                                    self.service_environment, "service")
+        self._phase = "service-ready"
         self._ready(self.service, {"service": self.service_name, "event": "listening"}, stop)
+        self._phase = "api-start"
         self.api = self._spawn(self.api_command, self._api_configuration(), "api")
+        self._phase = "api-ready"
         return self._ready(self.api, {"service": "lingxi-next", "event": "listening"}, stop)
 
     def _ready(self, child, expected, stop):
@@ -229,12 +254,22 @@ class ManagedMappingOwner:
         if library.prctl(37, ctypes.byref(prior), 0, 0, 0) or library.prctl(36, 1, 0, 0, 0):
             raise OSError(ctypes.get_errno(), "mapping_child_subreaper_required")
         report = {"schemaVersion": 1, "result": "failed", "failure": None,
+                  "failureCode": None, "failurePhase": None, "cleanupFailurePhases": [],
                   "mappingReady": False, "localizationReady": False, "navigationReady": False}
+
+        def cleanup_failed(phase):
+            report["failure"] = "mapping_process_cleanup_failed"
+            report["cleanupFailurePhases"].append(phase)
+            if report["failureCode"] is None:
+                report["failureCode"], report["failurePhase"] = "mapping_process_cleanup_failed", phase
+
         try:
             self._available(stop)
             status = self._start(stop)
+            self._phase = "listening-callback"
             if on_listening is not None:
                 on_listening(status)
+            self._phase = "running"
             deadline = None if seconds is None else time.monotonic() + seconds
             with selectors.DefaultSelector() as selector:
                 for child in (self.api, self.service):
@@ -250,6 +285,7 @@ class ManagedMappingOwner:
             report["result"] = "stopped"
         except Exception as error:
             report["failure"] = type(error).__name__
+            report["failureCode"], report["failurePhase"] = failure_code(error), self._phase
         finally:
             # Preserve point draining while the service revokes saving and joins
             # native finalization, including its independent reload subprocess.
@@ -257,13 +293,16 @@ class ManagedMappingOwner:
                 ("serviceProcess", self.service, self.limits.service_stop_seconds),
                 ("apiProcess", self.api, self.limits.api_stop_seconds),
             ):
-                try:
-                    if label == "apiProcess":
+                if label == "apiProcess":
+                    try:
                         report["adoptedChildren"] = self._adopted()
+                    except Exception:
+                        cleanup_failed("adopted-children-stop")
+                try:
                     report[label] = self._finish(child, budget)
                 except Exception:
                     report[label] = None
-                    report["failure"] = "mapping_process_cleanup_failed"
+                    cleanup_failed("service-stop" if label == "serviceProcess" else "api-stop")
             report["remainingChildren"] = len(direct_children())
             if not report["remainingChildren"]:
                 library.prctl(36, prior.value, 0, 0, 0)
@@ -274,6 +313,8 @@ class ManagedMappingOwner:
                        or value["processAlive"] or value["groupAlive"])
                        for value in (report["serviceProcess"], report["apiProcess"]))):
             report["result"] = "failed"
+            if report["failureCode"] is None:
+                report["failureCode"], report["failurePhase"] = "mapping_process_cleanup_unconfirmed", "cleanup-check"
         descriptor = os.open(self.output / "owner-report.json", os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
         with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
             json.dump(report, stream, indent=2, allow_nan=False)

@@ -54,6 +54,14 @@ invalid expression acknowledgement preserves local uncertainty until an
 operator confirms idle. Startup never sends an expression. Physical motions and
 LinkCraft resources remain rejected at both product and bridge boundaries.
 
+The paired HTTPS `POST /api/v1/actions/expression` route accepts only
+`{"name":"<configured expression>"}` with no extra fields. It is available only
+with the explicitly selected independent actions backend. Its HTTP 202 response
+is `{"accepted":true,"completed":false}`, never a completion claim. Unknown
+expressions, occupied mapping/localization/navigation, missing pairing and
+plaintext requests do not dispatch an expression. This is a management API;
+no new Web control or Android build is included in this increment.
+
 Product mutations share fail-fast API ownership, not a queue. Localization
 start/seed/pause participate in that ownership; expressions are unavailable
 until localization is stopped and cleanup is confirmed. Active localization is
@@ -141,13 +149,50 @@ The additional live paired-workspace run used the compiled API and WSL against
 the repository on the Windows-mounted `/mnt/e` filesystem. It did **not** pass:
 two workspace assertions failed, one reporting a listener deadline and another
 reporting no startup readiness although service logs were empty. A separate Nav2
-test initially compared a reaped PID after rapid reuse; that test was corrected
-to compare process start identity and then passed. The earlier run with an
+test's initial failure was attributed to PID reuse without confirming that cause.
+Its intermediate comparison was also too weak: a live process changing scheduler
+state could pass. The corrected assertion is described below. The earlier run with an
 incorrect WSL bundle path had 10 module-not-found failures and is superseded.
-The workspace results need a rerun from a native Linux filesystem and are not
-evidence of successful end-to-end integration. No sensor, ROS hardware, robot or
+These mounted-filesystem results are not evidence of successful end-to-end
+integration; the native-filesystem rerun is recorded below. No sensor, ROS hardware, robot or
 motion command was used. Actual Humble Nav2 launch-tree behavior, ARM64 service
 startup and robot output-retirement feedback remain unverified.
+
+## Native Workspace Recheck And Single Expressions (2026-11-03)
+
+The current tracked baseline was extracted to WSL's native Linux filesystem,
+with its own lockfile-installed dependencies. Vite and the SLAM API compiled,
+and all 15 existing workspace tests passed without changing startup deadlines.
+After this increment, the rebuilt API and updated source passed all 16 workspace
+tests. The new case uses an explicitly synthetic loopback actions service and the
+real product configuration, HTTPS API, Unix SLAM services and owned child processes.
+It covers configured single-expression dispatch, unique request/epoch binding,
+zero dispatch during mapping or localization, invalid acknowledgement interlock,
+no queued retry and explicit operator recovery. Physical actions remain disabled.
+Two initial new-fixture attempts failed because its independent bridge token was
+missing and then mismatched; both fixture issues were corrected before the final
+full rerun. No production authentication fallback was added.
+
+Additional checks in this increment:
+
+- Owner lifecycle: 7 tests, including 19 real synthetic owner runs, passed on
+  ordinary-user Linux. Fixed diagnostic codes/phases are additive to the existing
+  private report. Raw exception text is excluded. An adopted-child cleanup error
+  no longer skips API cleanup, and primary failure diagnostics survive a second
+  cleanup error. Forced cleanup remains a failed result.
+- Lease lifetime: 11 tests passed. Workload identities compare `/proc` start time
+  independently of scheduler state; workloads must be retired when the exclusive
+  lease becomes available. The guard, which closes its final FD immediately
+  before interpreter exit, has a separate one-second exit check. A deterministic
+  assertion test covers scheduler-state changes and PID reuse.
+- Existing compiled mapping entrypoint: 10 process/HTTPS/stream tests passed.
+- Windows full Vitest: 661 passed, 24 skipped. Frontend, API and runtime TypeScript
+  checks, production build and 7 release-scope checks passed.
+
+Native-filesystem success does not establish why the earlier Windows-mounted run
+failed, and the historical failure is retained. This increment did not rerun the
+unrestricted Python suite, ROS/Humble launch tree, Java, Android, ARM64 deployment,
+hardware expressions, real sensors, cloud or acoustic acceptance.
 
 ## Previous Integration Verification
 

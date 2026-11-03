@@ -312,7 +312,7 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
         ...(mappingConsole ? ["/api/v1/mapping/start", "/api/v1/mapping/stop-save", "/api/v1/mapping/stop-discard"] : []),
         ...(physicalNavigation ? ["/api/v1/tours/:id/start", "/api/v1/navigation/point",
           "/api/v1/navigation/control", "/api/v1/actions/confirm-idle", "/api/v1/maps/:id/activate"] : []),
-        ...(options.actionsBackend ? ["/api/v1/actions/confirm-idle"] : []),
+        ...(options.actionsBackend ? ["/api/v1/actions/confirm-idle", "/api/v1/actions/expression"] : []),
         ...(localizationConsole ? ["/api/v1/slam/localization/seed", "/api/v1/slam/localization/pause",
           "/api/v1/slam/localization/stop", "/api/v1/slam/localization/start", "/api/v1/slam/localization/shutdown"] : []),
       ].includes(route));
@@ -742,6 +742,15 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
     await jobs.startPoint(point);
     emitState(await stateResponse());
     return reply.code(202).send({ accepted: true });
+  });
+  app.post("/api/v1/actions/expression", async (request, reply) => {
+    if (!productActions) throw deny(403, "独立表情服务未接入");
+    if (!secureRequest(request)) throw deny(426, "表情控制必须通过 HTTPS");
+    const body = z.object({ name: z.string().min(1).max(80) }).strict().safeParse(request.body);
+    if (!body.success) throw deny(400, "表情名称无效");
+    await productActions.playExpression(body.data.name);
+    emitState(await stateResponse());
+    return reply.code(202).send({ accepted: true, completed: false });
   });
   app.post("/api/v1/actions/confirm-idle", async (request, reply) => {
     const body = z.object({ confirmed: z.literal(true) }).strict().safeParse(request.body);

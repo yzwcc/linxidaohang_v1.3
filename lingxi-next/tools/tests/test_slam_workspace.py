@@ -157,14 +157,15 @@ class WorkspaceProcesses(unittest.TestCase):
         finally:
             self.temporary.cleanup()
 
-    def product_config(self, agent_port=18180, navigation_socket=None):
+    def product_config(self, agent_port=18180, navigation_socket=None, actions=False):
         state, token, configuration = self.root / 'product-state', self.root / 'agent-token', self.root / 'product.json'
         state.mkdir(mode=0o700, exist_ok=True)
         token.write_text('synthetic-agent-token-not-a-real-secret\n')
         token.chmod(0o600)
         configuration.write_text(json.dumps({'schemaVersion': 1, 'stateDirectory': str(state),
             'agentUrl': 'http://127.0.0.1:' + str(agent_port), 'agentTokenFile': str(token),
-            **({'navigationSocket': str(navigation_socket)} if navigation_socket else {})}))
+            **({'navigationSocket': str(navigation_socket)} if navigation_socket else {}),
+            **({'actionsBridgeEndpoint': 'http://127.0.0.1:18082/v1'} if actions else {})}))
         configuration.chmod(0o600)
         return configuration
 
@@ -451,6 +452,103 @@ class WorkspaceProcesses(unittest.TestCase):
             'model': 'synthetic-disconnected-model', 'baseUrl': 'https://model.invalid'})
         self.assertEqual('synthetic-disconnected-model', self.request('GET', '/settings')['model'])
         self.assertEqual('stopped', self.stop(process, output)['result'])
+
+    def test_explicit_actions_http_expressions_conflicts_uncertain_ack_and_operator_recovery(self):
+        control = {'busy': False, 'badAck': False, 'sequence': 0}
+        calls = []
+        token = 'synthetic-actions-bridge-token-0001'
+
+        class Actions(BaseHTTPRequestHandler):
+            def log_message(self, *_):
+                pass
+
+            def respond(self, status, value):
+                self.send_response(status)
+                self.end_headers()
+                self.wfile.write(json.dumps(value).encode())
+
+            def authorized(self):
+                if self.headers.get('Authorization') == 'Bearer ' + token:
+                    return True
+                self.respond(401, {})
+                return False
+
+            def do_GET(self):
+                if not self.authorized():
+                    return
+                if self.path != '/v1/state':
+                    return self.respond(404, {})
+                control['sequence'] += 1
+                self.respond(200, {'bridgeMode': 'actions-only', 'physicalActionsEnabled': False,
+                    'bridgeEpoch': 'd' * 32, 'sequence': control['sequence'], 'observedAtMs': int(time.time() * 1000),
+                    'actionBusy': control['busy'], 'actionStatus': 'uncertain' if control['busy'] else None,
+                    'motionPresets': [], 'linkcraftResources': [], 'expressions': ['开心', '平静'],
+                    'actionServices': {name: True for name in ('presetMotion', 'expression', 'linkcraftCatalog',
+                        'linkcraftExecution', 'linkcraftCatalogFresh')}})
+
+            def do_POST(self):
+                if not self.authorized():
+                    return
+                body = json.loads(self.rfile.read(int(self.headers['Content-Length'])))
+                calls.append((self.path, body))
+                if self.path == '/v1/actions/confirm-idle':
+                    control['busy'] = False
+                    return self.respond(200, {**body, 'actionBusy': False, 'confirmed': True})
+                if self.path != '/v1/expression':
+                    return self.respond(404, {})
+                if control['badAck']:
+                    control['busy'] = True
+                self.respond(200, {**body, 'accepted': True, 'completed': False,
+                    'requestId': '0' * 32 if control['badAck'] else body['requestId']})
+
+        bridge = ThreadingHTTPServer(('127.0.0.1', 18082), Actions)
+        thread = threading.Thread(target=bridge.serve_forever, daemon=True)
+        thread.start()
+        try:
+            process, output = self.start(self.product_config(actions=True))
+            state = self.request('GET', '/state')
+            self.assertEqual(['开心', '平静'], state['expressions'], json.dumps(state['checks']))
+            self.assertEqual([], state['motionPresets'])
+            self.assertEqual([], calls, 'startup must not send action commands')
+            expression = lambda expected=202: self.request('POST', '/actions/expression', {'name': '开心'}, expected)
+            self.request('POST', '/actions/expression', {'name': ''}, 400)
+            self.request('POST', '/actions/expression', {'name': 'not-configured'}, 409)
+            self.assertEqual([], calls)
+            self.assertEqual({'accepted': True, 'completed': False}, expression())
+            self.assertEqual('/v1/expression', calls[-1][0])
+            self.assertEqual('d' * 32, calls[-1][1]['bridgeEpoch'])
+            self.assertRegex(calls[-1][1]['requestId'], r'^[a-f0-9]{32}$')
+            mapping = self.mapping()
+            expression(409)
+            self.assertEqual(1, len(calls), 'mapping conflict must not dispatch or queue an expression')
+            saved = self.request('POST', '/mapping/stop-save', {'session': mapping['mappingSession'],
+                'name': 'Synthetic expression isolation map'})['savedSlamMap']['id']
+            preview = self.request('GET', '/slam/maps/' + saved + '/points')
+            runtime = self.localize(saved, preview)
+            expression(409)
+            self.assertEqual(1, len(calls), 'localization conflict must not dispatch or queue an expression')
+            self.request('POST', '/slam/localization/shutdown', {'serviceId': runtime['serviceId'],
+                'expectedGeneration': runtime['generation'], 'runId': runtime['runId']}, 202)
+            self.wait(lambda: self.request('GET', '/slam/localization/runtime')['cleanupComplete'])
+            control['badAck'] = True
+            expression(500)
+            self.assertEqual(2, len(calls))
+            self.assertTrue(self.request('GET', '/state')['actionBusy'])
+            expression(409)
+            self.request('POST', '/mapping/start', {}, 409)
+            self.request('POST', '/actions/confirm-idle', {'confirmed': False}, 400)
+            self.assertEqual(2, len(calls), 'uncertain dispatch must not replay without operator confirmation')
+            self.request('POST', '/actions/confirm-idle', {'confirmed': True})
+            self.assertEqual('/v1/actions/confirm-idle', calls[-1][0])
+            self.assertFalse(self.request('GET', '/state')['actionBusy'])
+            control['badAck'] = False
+            expression()
+            self.assertNotEqual(calls[0][1]['requestId'], calls[-1][1]['requestId'])
+            self.assertEqual('stopped', self.stop(process, output)['result'])
+        finally:
+            bridge.shutdown()
+            bridge.server_close()
+            thread.join(timeout=3)
 
     def test_mapping_blocks_localization_before_resolver_or_child_creation(self):
         process, output = self.start()

@@ -69,6 +69,15 @@ npm run build:slam-runtime
 服务与 API 任一异常退出都会结束整个组合，不自动重启或重发旧命令。
 `owner-report.json` 与私有日志位于运行目录；清理失败为失败结果，不能当作正常关闭。
 
+2026-11-03 起，owner 报告在保留 `failure` 字段的同时新增固定的 `failureCode`
+和 `failurePhase`。例如 `api-ready` + `mapping_process_startup_deadline` 表示 API
+未在既定期限报告监听；`service-ready` + `mapping_status_closed` 表示服务启动状态管道
+关闭；`running` + `mapping_api_process_exited` 表示运行中 API 退出。
+`cleanupFailurePhases` 单独列出清理报错阶段，不覆盖首次失败的 code/phase。
+未捕获到业务异常但发生强制清理时仍为失败，并标记 `cleanup-check`。
+诊断字段只允许固定本地代码，不写入原始异常消息、路径或密钥；报告权限保持 0600。
+遗留子进程回收报错也必须继续尝试 API 清理，不能跳过另一对端。
+
 ## 验证与剩余工作
 
 本地流程通过实际 HTTPS、Unix socket、进程监督器及共享锁运行；
