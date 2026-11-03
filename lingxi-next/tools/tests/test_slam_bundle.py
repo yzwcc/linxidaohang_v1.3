@@ -97,6 +97,8 @@ class SlamBundleContracts(unittest.TestCase):
             "robot-runtime/python/live_terrain_ros.py", "robot-runtime/python/live_localization_ros.py",
             "robot-navigation/lingxi_navigation/terrain_ros.py",
             "robot-navigation/lingxi_navigation/terrain_feed.py", "tools/terrain-arm64/CMakeLists.txt",
+            "robot-navigation/lingxi_navigation/lifecycle_startup.py",
+            "robot-navigation/bridge/physical_nav_bridge.py", "robot-navigation/bridge/nav2_lease_guard.py",
             "tools/terrain-arm64/ground.exports", "tools/terrain-arm64/octomap.exports"]
         for name in native:
             with self.subTest(name=name):
@@ -122,13 +124,19 @@ import hashlib, json, pathlib, runpy, sys
 source = pathlib.Path({str(source)!r})
 runpy.run_path(str(source / 'robot-runtime/python/launch_slam_bundle.py'))
 import managed_slam, slam_service, localization_service, live_acquisition, live_terrain_ros, live_localization_ros, acquisition_bundle, check_ground_native
-from lingxi_navigation import terrain_worker, terrain_process
+from lingxi_navigation import terrain_worker, terrain_process, lifecycle_startup, nav2_action, nav2_producer
+from bridge import physical_nav_bridge, nav2_lease_guard
 from lingxi_slam import acquisition_output
 modules = (managed_slam, slam_service, localization_service, live_acquisition, live_terrain_ros, live_localization_ros, acquisition_bundle,
-           check_ground_native, terrain_worker, terrain_process, acquisition_output)
+           check_ground_native, terrain_worker, terrain_process, acquisition_output,
+           lifecycle_startup, nav2_action, nav2_producer, physical_nav_bridge, nav2_lease_guard)
 assert all(pathlib.Path(module.__file__).resolve().is_relative_to(source) for module in modules)
 assert live_acquisition.ROOT == source
 assert acquisition_bundle.ROOT == source
+assert nav2_lease_guard.ROOT == source
+assert physical_nav_bridge.ROOT == source / 'robot-navigation'
+assert 'rclpy' not in sys.modules
+runpy.run_path(str(source / 'robot-navigation/nav2_physical.launch.py'))
 hashes = acquisition_bundle.source_hashes()
 for name in (*live_acquisition.SOURCES, *live_acquisition.ROS_SOURCES, *live_acquisition.LOCALIZATION_ROS_SOURCES):
     hashes[name] = hashlib.sha256((source / name).read_bytes()).hexdigest()
@@ -139,7 +147,7 @@ print(json.dumps({{'modules': len(modules), 'sourceFiles': len(hashes), 'nativeE
             capture_output=True, text=True, timeout=30, check=False)
         self.assertEqual(0, result.returncode, result.stderr)
         report = json.loads(result.stdout)
-        self.assertEqual(11, report["modules"])
+        self.assertEqual(16, report["modules"])
         self.assertGreater(report["sourceFiles"], 20)
         self.assertFalse(report["nativeExecuted"])
 

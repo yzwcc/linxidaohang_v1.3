@@ -19,65 +19,13 @@ import time
 from run_nav2_offline import world, synthetic_platform, signal_generation, Observer
 from prepare_nav2_offline import prepare, strict_object
 from lingxi_navigation.runtime import Goal, MapIdentity, OfflineNavigationRuntime, RuntimeInputs
+from lingxi_navigation.lifecycle_startup import LifecycleStartup
 from humble_velocity_source import HumbleTwistSource, SourceTimeError
 
 
 class RequestError(Exception):
     def __init__(self, code, status=409):
         self.code, self.status = code, status
-
-
-class LifecycleStartup:
-    """Confirm discovery round trips before one official manager startup request.
-
-    This is a bounded bringup mitigation, not proof that FastDDS has fixed its
-    request/reply discovery race. The runtime's existing startup deadline owns it.
-    """
-    names = ('planner_server', 'controller_server', 'bt_navigator', 'velocity_smoother')
-
-    def __init__(self, clients, manager, state_request, startup_request):
-        self.clients, self.manager = clients, manager
-        self.state_request, self.startup_request = state_request, startup_request
-        self.futures, self.states, self.rounds = [None] * 4, [None] * 4, [0] * 4
-        self.observed = [None] * 4
-        self.next_poll, self.startup, self.sent, self.confirmed = 0., None, False, False
-        self.failure = None
-
-    def poll(self, now):
-        if self.failure is not None:
-            return
-        try:
-            if self.startup is not None and self.startup.done():
-                if self.startup.result().success is not True:
-                    raise RuntimeError('lifecycle_startup_refused')
-                self.confirmed, self.startup = True, None
-            for i, pending in enumerate(self.futures):
-                if pending is not None and pending.done():
-                    state = pending.result().current_state.id
-                    if type(state) is not int or state not in (1, 2, 3):
-                        raise RuntimeError('lifecycle_state_invalid')
-                    self.states[i], self.futures[i] = state, None
-                    self.observed[i] = now
-                    self.rounds[i] += 1
-            if (not self.sent and self.states == [1] * 4 and min(self.rounds) >= 2
-                    and self.current(now) and self.manager.service_is_ready()):
-                # Never resend an uncertain non-idempotent STARTUP request.
-                self.sent = True
-                self.startup = self.manager.call_async(self.startup_request())
-            if now >= self.next_poll:
-                for i, client in enumerate(self.clients):
-                    if self.futures[i] is None and client.service_is_ready():
-                        self.futures[i] = client.call_async(self.state_request())
-                self.next_poll = now + .2
-        except Exception as error:
-            self.failure = str(error) if isinstance(error, RuntimeError) else 'lifecycle_service_failed'
-
-    def current(self, now):
-        return all(observed is not None and 0 <= now - observed <= .6
-                   and client.service_is_ready() for observed, client in zip(self.observed, self.clients))
-
-    def ready(self, now):
-        return self.failure is None and self.confirmed and self.states == [3] * 4 and self.current(now)
 
 
 class Generation:
@@ -259,6 +207,7 @@ class Generation:
         if self.retiring:
             return
         self.retiring = True
+        self.lifecycle.close()
         self.velocity_source.close()
         self.node.destroy_node()
         signal_generation(self.process, signal.SIGINT)

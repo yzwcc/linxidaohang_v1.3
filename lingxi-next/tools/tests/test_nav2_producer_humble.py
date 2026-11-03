@@ -39,8 +39,8 @@ class ActualOwnedNav2Tests(unittest.TestCase):
         from nav_msgs.msg import OccupancyGrid, Odometry
         from sensor_msgs.msg import PointCloud2
         from tf2_msgs.msg import TFMessage
-        self.root = Path(os.environ['LINGXI_NAV2_TEST_OUTPUT'])
-        self.root.mkdir(mode=0o700)
+        self.root = Path(os.environ['LINGXI_NAV2_TEST_OUTPUT']) / self._testMethodName
+        self.root.mkdir(mode=0o700, parents=True)
         rclpy.init(args=[])
         self.addCleanup(rclpy.try_shutdown)
         self.node = rclpy.create_node('controlled_synthetic_nav2_producer_test', use_global_arguments=False)
@@ -229,6 +229,43 @@ class ActualOwnedNav2Tests(unittest.TestCase):
         return sum(any(getattr(message, name) != 0. for name in
                    ('forward_velocity', 'lateral_velocity', 'angular_velocity'))
                    for message in self.output_node.publisher.messages)
+
+    def test_eight_official_startup_generations_never_arm_during_prewarm(self):
+        self.command('stop')
+        self.until(lambda: self.bridge.phase == 'idle' and not self.bridge.requires_stop)
+        durations, namespaces = [], []
+        for _ in range(8):
+            previous = self.backend.generation
+            if previous is not None:
+                self.command('stop')
+                self.until(lambda: self.bridge.phase == 'idle' and not self.bridge.requires_stop
+                    and previous.quiescent())
+            self.command('activate_map')
+            self.until(lambda: self.backend.generation is not previous
+                and self.bridge.state(poll=False)['navigationReady'])
+            current = self.backend.generation
+            self.assertIsNot(current, previous)
+            if previous is not None:
+                self.assertTrue(previous.quiescent())
+                self.assertFalse(previous.process._live_group())
+            startup = current.driver.startup
+            self.assertTrue(startup.sent and startup.confirmed)
+            self.assertTrue(startup.ready(time.monotonic()))
+            self.assertGreaterEqual(min(startup.rounds), 2)
+            self.assertIsNone(current.driver.generation)
+            self.assertFalse(self.output.armed)
+            self.assertEqual(0, self.nonzero_count())
+            namespaces.append(current.node.get_namespace())
+            durations.append(time.monotonic() - self.backend.started_at)
+        self.assertEqual(8, len(set(namespaces)))
+        self.backend.close()
+        self.assertTrue(all(generation.quiescent() for generation in self.generations))
+        (self.root / 'result.json').write_text(json.dumps(dict(schema=1,
+            purpose='production_nav2_startup_with_synthetic_sensors_not_robot_acceptance',
+            generations=8, startupSeconds=durations, namespaces=namespaces,
+            officialStartupConfirmed=True, prewarmNonzeroOutputCount=0,
+            allGenerationsQuiescent=True, startupTimeoutSeconds=self.backend.startup_timeout,
+            physicalMotionSent=False, navigationReady=False)), encoding='utf-8')
 
     def test_real_launch_guard_activation_pause_resume_localization_and_sensor_loss(self):
         self.command('stop')

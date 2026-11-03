@@ -14,10 +14,11 @@ export const metadataFiles = ["package.json", "package-lock.json", "vite.config.
   "docs/slam-point-arm64-target-evidence.json", "docs/slam-point-consumer-preparation-evidence.json",
   "docs/slam-native-point-pipe-evidence.json", "docs/slam-stream-input-evidence.json",
   "robot-slam/runtime-arm64-cp310.lock.json"];
-export const slamDirectories = ["robot-navigation/lingxi_navigation", "robot-slam/native-acquisition-output",
+export const slamDirectories = ["robot-navigation/lingxi_navigation", "robot-navigation/bridge", "robot-slam/native-acquisition-output",
   "tools/terrain-arm64"];
 export const slamMetadata = ["robot-runtime/build-slam.mjs", "robot-navigation/patchworkpp.lock.json",
   "robot-navigation/octomap.lock.json", "robot-navigation/THIRD_PARTY_NOTICES.md",
+  "robot-navigation/nav2_physical.launch.py",
   "robot-navigation/native-ground/ground_bridge.cpp", "robot-navigation/native-octomap/octomap_bridge.cpp"];
 
 export const digest = (bytes) => createHash("sha256").update(bytes).digest("hex");

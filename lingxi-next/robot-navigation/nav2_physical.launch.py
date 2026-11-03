@@ -43,6 +43,6 @@ def generate_launch_description():
         name='velocity_smoother', output='log', parameters=[str(root / 'nav2-parameters.yaml')],
         remappings=[('cmd_vel', 'raw_cmd_vel'), ('cmd_vel_smoothed', 'observed_cmd_vel')]))
     nodes.append(Node(package='nav2_lifecycle_manager', executable='lifecycle_manager',
-        name='lifecycle_manager', output='log', parameters=[dict(use_sim_time=False, autostart=True,
+        name='lifecycle_manager', output='log', parameters=[dict(use_sim_time=False, autostart=False,
         node_names=['planner_server', 'controller_server', 'bt_navigator', 'velocity_smoother'], bond_timeout=2.)]))
     return LaunchDescription([GroupAction([PushRosNamespace(manifest['namespace']), *nodes])])

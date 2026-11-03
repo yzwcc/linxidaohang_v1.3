@@ -266,7 +266,7 @@ class Nav2Generation:
                 local_costmap=controller_namespace(ticket) + '/local_costmap/costmap')
             self.sensors = RosSensorEvidence(self.node, self.identity, topics, map_frame=profile.map_frame,
                 base_frame=profile.base_frame, sensor_frame=profile.sensor_frame, footprint=footprint, clock=clock)
-            self.driver = Nav2ActionDriver(self.node, profile.map_frame, clock=clock)
+            self.driver = Nav2ActionDriver(self.node, profile.map_frame, clock=clock, managed_startup=True)
             self.process = Nav2Process(profile, ticket, run_root / ticket.epoch, clock=clock,
                 **({'operation_lease': self.operation_lease} if self.operation_lease is not None else {}))
         except BaseException:

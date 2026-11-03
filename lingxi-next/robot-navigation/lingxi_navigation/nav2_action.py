@@ -11,6 +11,7 @@ import time
 
 from .physical_bridge import Ticket, pose
 from .navfn import finite
+from .lifecycle_startup import LifecycleStartup
 
 
 @dataclass
@@ -27,13 +28,15 @@ class _Generation:
 
 
 class Nav2ActionDriver:
-    def __init__(self, node, map_frame, *, clock=time.monotonic, lifecycle_max_age=.6):
+    def __init__(self, node, map_frame, *, clock=time.monotonic, lifecycle_max_age=.6,
+                 managed_startup=False):
         import re
         from rclpy.action import ActionClient
         from nav2_msgs.action import NavigateToPose
         from lifecycle_msgs.srv import GetState
         if (type(map_frame) is not str or not re.fullmatch('[A-Za-z][A-Za-z0-9_/]{0,119}', map_frame)
-                or not finite(lifecycle_max_age) or not .1 <= lifecycle_max_age <= 1.):
+                or not finite(lifecycle_max_age) or not .1 <= lifecycle_max_age <= 1.
+                or type(managed_startup) is not bool):
             raise ValueError('explicit_map_frame_and_bounded_lifecycle_age_required')
         self.node, self.map_frame, self.clock = node, map_frame, clock
         self.owner, self.lifecycle_max_age = threading.get_ident(), lifecycle_max_age
@@ -42,11 +45,18 @@ class Nav2ActionDriver:
         self.lifecycle = {}
         self.clients = {}
         self.pending_states = {}
+        self.startup = self.manager = None
         self.action_type, self.state_type = NavigateToPose, GetState
         self.client = ActionClient(node, NavigateToPose, 'navigate_to_pose')
         try:
-            for name in ('planner_server', 'controller_server', 'bt_navigator', 'velocity_smoother'):
+            for name in LifecycleStartup.names:
                 self.clients[name] = node.create_client(GetState, name + '/get_state')
+            if managed_startup:
+                from nav2_msgs.srv import ManageLifecycleNodes
+                self.manager = node.create_client(ManageLifecycleNodes, 'lifecycle_manager/manage_nodes')
+                self.startup = LifecycleStartup(list(self.clients.values()), self.manager, GetState.Request,
+                    lambda: ManageLifecycleNodes.Request(command=ManageLifecycleNodes.Request.STARTUP),
+                    maximum_age=lifecycle_max_age)
         except BaseException:
             self.close()
             raise
@@ -171,6 +181,11 @@ class Nav2ActionDriver:
         if self.closed:
             return
         now = self.clock()
+        if self.startup is not None:
+            self.startup.poll(now)
+            if self.startup.failure is not None:
+                raise RuntimeError('nav2_lifecycle_startup_failed:' + self.startup.failure)
+            return
         for name, future in tuple(self.pending_states.items()):
             if future.done():
                 try:
@@ -186,6 +201,8 @@ class Nav2ActionDriver:
 
     def ready(self):
         self._owned()
+        if self.startup is not None:
+            return not self.closed and self.client.server_is_ready() and self.startup.ready(self.clock())
         return (not self.closed and self.client.server_is_ready() and len(self.lifecycle) == 4
                 and all(active and 0 <= self.clock() - observed <= self.lifecycle_max_age
                         for active, observed in self.lifecycle.values()))
@@ -204,12 +221,17 @@ class Nav2ActionDriver:
             self.cancel(self.generation.ticket)
         self.closed = True
         self.pending_events.clear()
+        if self.startup is not None:
+            self.startup.close()
         for future in self.pending_states.values():
             future.cancel()
         self.pending_states.clear()
         for client in self.clients.values():
             self.node.destroy_client(client)
         self.clients.clear()
+        if self.manager is not None:
+            self.node.destroy_client(self.manager)
+            self.manager = None
         self.client.destroy()
 
 

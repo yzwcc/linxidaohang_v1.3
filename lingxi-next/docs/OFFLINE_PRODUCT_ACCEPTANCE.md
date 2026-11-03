@@ -14,6 +14,13 @@ passes all four final-source actual isolated integration tests, including
 12 consecutive startup/retirement generations. This does not establish a
 FastDDS root-cause repair, physical-path readiness or stable full-stack acceptance.
 
+The [owned producer startup milestone](OWNED_NAV2_STARTUP_20261104.md) applies
+the same official-manager confirmation to production prewarm, with unchanged
+admission and timeout limits. Eight fresh prewarm generations and the complete
+production-path Nav2 lifecycle test pass using synthetic sensors/in-memory
+output. Shared-package source inventory now includes the physical launch and
+bridge scripts. This is not ARM64, physical-motion or full-release acceptance.
+
 Production navigation now supports explicit stopped-map handoff without a
 service restart. The target must already be localized; old prewarm processes,
 ROS readers and output tickets are retired, and a new map-bound stop is required

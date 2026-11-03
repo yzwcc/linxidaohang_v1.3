@@ -63,9 +63,10 @@ SLAM = BundleProfile(
     archive="shared-slam-runtime-arm64.tar.gz", result_prefix="slam_runtime",
     metadata=("robot-runtime/build-slam.mjs", "robot-navigation/patchworkpp.lock.json",
               "robot-navigation/octomap.lock.json", "robot-navigation/THIRD_PARTY_NOTICES.md",
+              "robot-navigation/nav2_physical.launch.py",
               "robot-navigation/native-ground/ground_bridge.cpp",
               "robot-navigation/native-octomap/octomap_bridge.cpp"),
-    directories=("robot-navigation/lingxi_navigation", "robot-slam/native-acquisition-output",
+    directories=("robot-navigation/lingxi_navigation", "robot-navigation/bridge", "robot-slam/native-acquisition-output",
                  "tools/terrain-arm64"),
 )
 

@@ -92,6 +92,11 @@ rerun; only the 73 focused Python tests are new Python evidence for this update.
 
 ## Remaining Acceptance
 
+The later [owned producer startup milestone](OWNED_NAV2_STARTUP_20261104.md)
+transfers this policy to the production path and verifies it separately. The
+production-unchanged statement above describes this original offline milestone,
+not the later implementation.
+
 All ROS trials use synthetic map/sensor inputs in separate network, IPC, mount
 and PID namespaces with loopback only. `physicalMotionSent` and `navigationReady`
 remain false. They do not establish ARM64 execution, calibrated scale/ground
