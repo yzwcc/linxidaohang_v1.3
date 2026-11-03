@@ -223,3 +223,36 @@ it.skipIf(!rootfs || !supported)("completes a product API detour with real Nav2 
   console.info(JSON.stringify({ purpose: "real_nav2_product_detour_not_field_acceptance", passed: true,
     commandCount: latest.commandCount, finalPose: latest.pose, maximumLateral, physicalMotionSent: false, navigationReady: false }));
 }, 90_000);
+
+it.skipIf(!rootfs || !supported)("repeatedly starts and retires twelve isolated Nav2 generations within unchanged deadlines", async () => {
+  const { backend, output } = await isolatedBackend("open");
+  let state = await backend.state();
+  const epochs = new Set<string>();
+  const startupMilliseconds: number[] = [];
+  console.info(JSON.stringify({ purpose: "nav2_startup_reliability_not_field_acceptance", output }));
+  for (let index = 0; index < 12; index++) {
+    const started = Date.now();
+    state = await backend.command({ action: "start", session: state.session, identity: state.identity,
+      expectedEpoch: state.ticket?.epoch ?? null, taskId: `startup-${index}`, pointId: "target",
+      goal: { x: .9, y: 0, yaw: 0 } });
+    const deadline = started + 7000;
+    while (!["running", "failed"].includes(state.phase) && Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 40));
+      state = await backend.state();
+    }
+    expect(state.requiresStop, `generation ${index}: ${state.detail}; diagnostics: ${output}`).toBe(false);
+    expect(state.phase, `generation ${index}: ${state.detail}; diagnostics: ${output}`).toBe("running");
+    expect(epochs.has(state.ticket!.epoch)).toBe(false);
+    epochs.add(state.ticket!.epoch);
+    startupMilliseconds.push(Date.now() - started);
+    state = await backend.command({ action: "stop", session: state.session, identity: state.identity,
+      expectedEpoch: state.ticket!.epoch, taskId: state.ticket!.task_id });
+    expect(state.phase).toBe("idle");
+    expect(state.outputQuiescent).toBe(true);
+    const retired = await backend.state();
+    expectRetiredPoseUnchanged(state, retired);
+    state = retired;
+  }
+  console.info(JSON.stringify({ purpose: "nav2_startup_reliability_not_field_acceptance", output,
+    generations: epochs.size, startupMilliseconds, physicalMotionSent: false, navigationReady: false }));
+}, 120_000);

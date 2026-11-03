@@ -1,14 +1,132 @@
 """Product protocol/ownership tests without ROS; real ROS is an explicit TS integration."""
 from dataclasses import asdict
+from concurrent.futures import Future
 from pathlib import Path
 import sys
 import tempfile
 import threading
 import unittest
+from types import SimpleNamespace
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import offline_nav2_service as product
+
+
+class Client:
+    def __init__(self):
+        self.ready, self.requests = True, []
+
+    def service_is_ready(self):
+        return self.ready
+
+    def call_async(self, request):
+        future = Future()
+        self.requests.append(future)
+        return future
+
+
+class LifecycleStartupTests(unittest.TestCase):
+    def setUp(self):
+        self.clients, self.manager = [Client() for _ in range(4)], Client()
+        self.startup = product.LifecycleStartup(self.clients, self.manager, object, object)
+
+    def states(self, state=1, *, index=None):
+        for i, client in enumerate(self.clients):
+            if index is None or i == index:
+                client.requests[-1].set_result(SimpleNamespace(current_state=SimpleNamespace(id=state)))
+
+    def discover(self):
+        self.startup.poll(0.)
+        self.states()
+        self.startup.poll(.2)
+        self.assertEqual([], self.manager.requests)
+        self.states()
+        self.startup.poll(.4)
+
+    def test_two_complete_roundtrips_precede_single_official_startup(self):
+        self.discover()
+        self.assertEqual(1, len(self.manager.requests))
+        self.assertFalse(self.startup.ready(.4))
+        self.states(3)
+        self.startup.poll(.6)
+        self.assertFalse(self.startup.ready(.6), 'active states alone do not confirm manager startup')
+        self.manager.requests[0].set_result(SimpleNamespace(success=True))
+        self.startup.poll(.7)
+        self.assertTrue(self.startup.ready(.7))
+        self.startup.poll(1.)
+        self.assertEqual(1, len(self.manager.requests))
+
+    def test_missing_or_unresponsive_node_and_manager_never_start(self):
+        self.clients[-1].ready = False
+        self.startup.poll(0.)
+        for now in (.2, .4, .6):
+            for client in self.clients[:-1]:
+                client.requests[-1].set_result(SimpleNamespace(current_state=SimpleNamespace(id=1)))
+            self.startup.poll(now)
+        self.assertEqual([], self.manager.requests)
+        self.assertFalse(self.startup.ready(.6))
+        self.clients[-1].ready = True
+        self.startup.poll(1.)
+        self.assertEqual([], self.manager.requests)
+
+    def test_lost_startup_reply_is_never_replayed_or_promoted(self):
+        self.discover()
+        self.states(3)
+        self.startup.poll(.7)
+        self.startup.poll(4.9)
+        self.assertFalse(self.startup.ready(4.9))
+        self.assertEqual(1, len(self.manager.requests))
+
+    def test_refused_or_failed_startup_is_terminal_without_retry(self):
+        for failure in (False, RuntimeError('synthetic_service_failure')):
+            with self.subTest(failure=failure):
+                self.setUp()
+                self.discover()
+                future = self.manager.requests[0]
+                if isinstance(failure, Exception):
+                    future.set_exception(failure)
+                else:
+                    future.set_result(SimpleNamespace(success=failure))
+                self.startup.poll(.6)
+                self.startup.poll(2.)
+                self.assertIsNotNone(self.startup.failure)
+                self.assertFalse(self.startup.ready(2.))
+                self.assertEqual(1, len(self.manager.requests))
+
+    def test_malformed_state_and_service_exception_never_start(self):
+        for value in (True, 0, 4, '3'):
+            with self.subTest(value=value):
+                self.setUp()
+                self.startup.poll(0.)
+                self.states(value)
+                self.startup.poll(.2)
+                self.assertEqual('lifecycle_state_invalid', self.startup.failure)
+                self.assertEqual([], self.manager.requests)
+        self.setUp()
+        self.startup.poll(0.)
+        self.clients[0].requests[0].set_exception(ValueError('synthetic'))
+        self.startup.poll(.2)
+        self.assertEqual('lifecycle_service_failed', self.startup.failure)
+
+    def test_stale_states_or_disappeared_services_do_not_grant_readiness(self):
+        self.discover()
+        self.states(3)
+        self.manager.requests[0].set_result(SimpleNamespace(success=True))
+        self.startup.poll(.6)
+        self.assertTrue(self.startup.ready(.6))
+        self.assertFalse(self.startup.ready(1.3))
+        self.assertFalse(self.startup.ready(.5))
+        self.clients[0].ready = False
+        self.assertFalse(self.startup.ready(.7))
+
+    def test_stale_unconfigured_state_cannot_trigger_startup_when_manager_appears_late(self):
+        self.manager.ready = False
+        self.discover()
+        self.assertEqual([], self.manager.requests)
+        self.manager.ready = True
+        self.startup.poll(1.2)
+        self.assertEqual([], self.manager.requests)
 
 
 class Generation:

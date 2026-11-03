@@ -78,6 +78,13 @@ describe related request/reply discovery races. Their reports are a diagnostic
 lead, not proof of this host's cause. Lifecycle startup reliability remains
 open; a successful future rerun alone must not erase these two failures.
 
+The subsequent [bounded startup milestone](NAV2_LIFECYCLE_STARTUP_20261104.md)
+adds confirmed discovery round trips and one official lifecycle-manager startup
+request to the isolated product workspace. All four final-source real Nav2
+integration tests now pass, including 12 repeated startup/retirement generations.
+This mitigation does not alter or invalidate the two preserved failures and
+does not certify the physical producer's separate startup path.
+
 Actual robot arrival, speech acoustics, cloud latency, physical map calibration,
 terrain admission, ARM64 resource limits, APK and complete-stack release
 acceptance remain outside this offline correction.

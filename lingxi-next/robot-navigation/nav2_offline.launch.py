@@ -41,8 +41,10 @@ def verify_preparation(root, environment):
 
 def generate_launch_description():
     from launch import LaunchDescription
-    from launch.actions import GroupAction
+    from launch.actions import DeclareLaunchArgument, GroupAction
+    from launch.substitutions import LaunchConfiguration
     from launch_ros.actions import Node, PushRosNamespace
+    from launch_ros.parameter_descriptions import ParameterValue
     root = Path(__file__).resolve().parent
     manifest = verify_preparation(root, os.environ)
     namespace = manifest['namespace']
@@ -60,7 +62,8 @@ def generate_launch_description():
                       remappings=[('cmd_vel', 'raw_cmd_vel'), ('cmd_vel_smoothed', 'observed_cmd_vel')]))
     nodes.append(Node(package='nav2_lifecycle_manager', executable='lifecycle_manager',
                       name='lifecycle_manager', output='log', parameters=[dict(
-                          use_sim_time=True, autostart=True,
+                          use_sim_time=True, autostart=ParameterValue(LaunchConfiguration('autostart'), value_type=bool),
                           node_names=['planner_server', 'controller_server', 'bt_navigator', 'velocity_smoother'],
                           bond_timeout=2.)]))
-    return LaunchDescription([GroupAction([PushRosNamespace(namespace), *nodes])])
+    return LaunchDescription([DeclareLaunchArgument('autostart', default_value='true'),
+                              GroupAction([PushRosNamespace(namespace), *nodes])])

@@ -27,6 +27,59 @@ class RequestError(Exception):
         self.code, self.status = code, status
 
 
+class LifecycleStartup:
+    """Confirm discovery round trips before one official manager startup request.
+
+    This is a bounded bringup mitigation, not proof that FastDDS has fixed its
+    request/reply discovery race. The runtime's existing startup deadline owns it.
+    """
+    names = ('planner_server', 'controller_server', 'bt_navigator', 'velocity_smoother')
+
+    def __init__(self, clients, manager, state_request, startup_request):
+        self.clients, self.manager = clients, manager
+        self.state_request, self.startup_request = state_request, startup_request
+        self.futures, self.states, self.rounds = [None] * 4, [None] * 4, [0] * 4
+        self.observed = [None] * 4
+        self.next_poll, self.startup, self.sent, self.confirmed = 0., None, False, False
+        self.failure = None
+
+    def poll(self, now):
+        if self.failure is not None:
+            return
+        try:
+            if self.startup is not None and self.startup.done():
+                if self.startup.result().success is not True:
+                    raise RuntimeError('lifecycle_startup_refused')
+                self.confirmed, self.startup = True, None
+            for i, pending in enumerate(self.futures):
+                if pending is not None and pending.done():
+                    state = pending.result().current_state.id
+                    if type(state) is not int or state not in (1, 2, 3):
+                        raise RuntimeError('lifecycle_state_invalid')
+                    self.states[i], self.futures[i] = state, None
+                    self.observed[i] = now
+                    self.rounds[i] += 1
+            if (not self.sent and self.states == [1] * 4 and min(self.rounds) >= 2
+                    and self.current(now) and self.manager.service_is_ready()):
+                # Never resend an uncertain non-idempotent STARTUP request.
+                self.sent = True
+                self.startup = self.manager.call_async(self.startup_request())
+            if now >= self.next_poll:
+                for i, client in enumerate(self.clients):
+                    if self.futures[i] is None and client.service_is_ready():
+                        self.futures[i] = client.call_async(self.state_request())
+                self.next_poll = now + .2
+        except Exception as error:
+            self.failure = str(error) if isinstance(error, RuntimeError) else 'lifecycle_service_failed'
+
+    def current(self, now):
+        return all(observed is not None and 0 <= now - observed <= .6
+                   and client.service_is_ready() for observed, client in zip(self.observed, self.clients))
+
+    def ready(self, now):
+        return self.failure is None and self.confirmed and self.states == [3] * 4 and self.current(now)
+
+
 class Generation:
     def __init__(self, owner, ticket, goal):
         import rclpy
@@ -38,6 +91,7 @@ class Generation:
         from tf2_msgs.msg import TFMessage
         from rosgraph_msgs.msg import Clock
         from lifecycle_msgs.srv import GetState
+        from nav2_msgs.srv import ManageLifecycleNodes
         self.owner, self.ticket, self.goal = owner, ticket, goal
         self.retiring, self.sent, self.handle = False, False, None
         self.sequence = 0
@@ -57,13 +111,17 @@ class Generation:
         self.velocity_source = HumbleTwistSource(self.namespace,
             maximum_age_ns=int(owner.runtime.command_timeout * 1e9))
         self.action = ActionClient(self.node, NavigateToPose, 'navigate_to_pose')
-        self.clients = [self.node.create_client(GetState, name + '/get_state') for name in
-                        ('planner_server', 'controller_server', 'bt_navigator', 'velocity_smoother')]
-        self.futures, self.states = [None] * 4, [None] * 4
-        self.next_lifecycle, self.next_sensor = 0., 0.
+        clients = [self.node.create_client(GetState, name + '/get_state') for name in LifecycleStartup.names]
+        manager = self.node.create_client(ManageLifecycleNodes, 'lifecycle_manager/manage_nodes')
+        self.lifecycle = LifecycleStartup(clients, manager, GetState.Request,
+            lambda: ManageLifecycleNodes.Request(command=ManageLifecycleNodes.Request.STARTUP))
+        self.next_sensor = 0.
+        self.started_at = time.monotonic()
+        self.diagnostic = output / 'startup.json'
         self.log = (output / 'nav2.log').open('x', encoding='utf-8')
         try:
-            self.process = subprocess.Popen(['ros2', 'launch', str(output / 'nav2_offline.launch.py')],
+            self.process = subprocess.Popen(['ros2', 'launch', str(output / 'nav2_offline.launch.py'),
+                'autostart:=false'],
                 stdin=subprocess.DEVNULL, stdout=self.log, stderr=subprocess.STDOUT, start_new_session=True)
         except BaseException:
             self.velocity_source.close()
@@ -168,7 +226,6 @@ class Generation:
 
     def tick(self):
         import rclpy
-        from lifecycle_msgs.srv import GetState
         if self.retiring:
             return
         now = time.monotonic()
@@ -188,15 +245,12 @@ class Generation:
             rclpy.spin_once(self.node, timeout_sec=0.)
             if self.retiring:
                 return
-        if not self.sent and now >= self.next_lifecycle:
-            for i, client in enumerate(self.clients):
-                pending = self.futures[i]
-                if pending is not None and pending.done():
-                    self.states[i], self.futures[i] = pending.result().current_state.id, None
-                if self.futures[i] is None and client.service_is_ready():
-                    self.futures[i] = client.call_async(GetState.Request())
-            self.next_lifecycle = now + .2
-        if not self.sent and self.states == [3] * 4 and self.action.server_is_ready():
+        if not self.sent:
+            self.lifecycle.poll(now)
+        if self.lifecycle.failure is not None:
+            self.owner.runtime.terminal(self.ticket, 'failed')
+            return
+        if not self.sent and self.lifecycle.ready(now) and self.action.server_is_ready():
             self.send()
         if self.process.poll() is not None and not self.retiring:
             self.owner.runtime.terminal(self.ticket, 'failed')
@@ -208,6 +262,16 @@ class Generation:
         self.velocity_source.close()
         self.node.destroy_node()
         signal_generation(self.process, signal.SIGINT)
+        with self.diagnostic.open('x', encoding='utf-8') as stream:
+            json.dump(dict(purpose='offline_lifecycle_diagnostic_not_field_acceptance',
+                elapsedSeconds=time.monotonic() - self.started_at,
+                startupSent=self.lifecycle.sent, startupConfirmed=self.lifecycle.confirmed,
+                states=self.lifecycle.states, observationRounds=self.lifecycle.rounds,
+                failure=self.lifecycle.failure, goalSent=self.sent,
+                runtimeDetail=self.owner.runtime.detail, startupTimeoutSeconds=self.owner.runtime.startup_timeout,
+                acceptanceSeconds=(None if self.owner.runtime.accepted_at is None else
+                    self.owner.runtime.accepted_at - self.owner.runtime.requested_at),
+                physicalMotionSent=False, navigationReady=False), stream, allow_nan=False)
 
     def quiescent(self):
         if self.process.poll() is None:
