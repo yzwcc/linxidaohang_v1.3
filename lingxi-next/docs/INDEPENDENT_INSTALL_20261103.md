@@ -85,9 +85,25 @@ pairs or malformed digests block launch. Product state must be owned by the
 service UID with mode 0700; configuration and Agent token files use mode 0600.
 Model and Retriever credentials stay external and are submitted using paired
 HTTPS settings, never bundled or stored in browser/APK configuration.
-AgentSDK must separately target the selected owner's callback origin and
-matching token/state, not the default core API's unrelated credential path.
-No real Agent instance or microphone is automatically reconfigured.
+When the product pair is selected, the installed Agent service derives its
+callback origin as `https://127.0.0.1:LINGXI_SLAM_PORT` (default 3444), reads
+`stateDirectory/credentials/ai.json`, reads the private `agentTokenFile`, and
+binds playback at the configuration's `agentUrl`. It ignores the unrelated core
+`LINGXI_API_URL`, `LINGXI_CREDENTIALS_FILE`, `LINGXI_AGENT_INTERNAL_TOKEN` and
+`LINGXI_AGENT_URL`. Custom SLAM ports must be set consistently in `robot.env`;
+port 3000 and a playback/API port collision are rejected. The robot CA still
+comes from `LINGXI_TLS_CA`, and `LINKSOUL_AGENT_ID` is still required.
+
+After configuring cloud credentials through the paired independent console,
+start voice explicitly with `sudo systemctl start lingxi-next-agent.service`.
+Installation/upgrade does not start another Agent instance or change microphones.
+Incomplete/changed selection, missing product credentials or unsafe private
+paths fail before SDK startup with exit 78, without falling back to core; the
+unit does not retry configuration failures. Clear both product fields to select
+the existing core Agent behavior. Restart voice explicitly after changing its
+configuration, Agent identity, local token or cloud credentials; no live token
+rotation or cross-owner event replay is performed. Switching the owner requires
+stopping the old Agent first. Do not leave a second SDK instance connected.
 
 ## Upgrade, Rollback And Acceptance
 

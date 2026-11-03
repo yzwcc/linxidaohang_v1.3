@@ -157,7 +157,15 @@ case "${1:-}" in
     run_independent_slam
     ;;
   agent)
-    [[ -f "${LINGXI_CREDENTIALS_FILE:-}" && -n "${LINKSOUL_AGENT_ID:-}" ]] || { echo "Configure LinkSoul credentials and agent ID before enabling voice" >&2; exit 1; }
+    if [[ -n "${LINGXI_PRODUCT_CONFIG:-}${LINGXI_PRODUCT_CONFIG_SHA256:-}" ]]; then
+      require_independent_product
+      required_pinned_configuration "${LINGXI_PRODUCT_CONFIG:-}" "${LINGXI_PRODUCT_CONFIG_SHA256:-}" LINGXI_PRODUCT_CONFIG
+      # Java resolves the selected state/credentials, token and playback endpoint.
+      # Never fall back to the unrelated core API environment in product mode.
+    else
+      required_file "${LINGXI_CREDENTIALS_FILE:-}" LINGXI_CREDENTIALS_FILE
+    fi
+    [[ -n "${LINKSOUL_AGENT_ID:-}" ]] || { echo "Configure LinkSoul agent ID before enabling voice" >&2; exit 78; }
     exec /opt/lingxi-next/current/runtime/java/bin/java \
       -Dlogback.configurationFile=/opt/lingxi-next/current/agent/logback.xml \
       -cp '/opt/lingxi-next/current/agent/lingxi-agent.jar:/opt/lingxi-next/current/agent/lib/*' local.lingxi.AgentMain

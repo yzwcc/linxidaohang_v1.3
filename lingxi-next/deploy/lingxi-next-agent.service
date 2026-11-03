@@ -8,6 +8,7 @@ Group=lingxi-next
 EnvironmentFile=/etc/lingxi-next/robot.env
 ExecStart=/bin/bash /opt/lingxi-next/current/deploy/run.sh agent
 Restart=on-failure
+RestartPreventExitStatus=78
 RestartSec=15
 UMask=0077
 NoNewPrivileges=true

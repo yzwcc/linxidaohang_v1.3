@@ -8,14 +8,11 @@ import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONObject;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
-import javax.net.ssl.*;
 import java.net.*;
 import java.net.http.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
-import java.security.*;
-import java.security.cert.CertificateFactory;
-import java.time.Duration;
+import java.security.MessageDigest;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -26,16 +23,16 @@ public final class AgentMain {
     private final WakeGate gate = new WakeGate();
     private final VadEndRegistry vadEnds = new VadEndRegistry();
     private final SpeechRequests speechRequests = new SpeechRequests();
-    private final String agentId = required("LINKSOUL_AGENT_ID");
-    private final String token = required("LINGXI_AGENT_INTERNAL_TOKEN");
-    private final URI api = URI.create(System.getenv().getOrDefault("LINGXI_API_URL", "https://127.0.0.1:3000"));
+    private final AgentConfiguration config;
+    private final String agentId;
+    private final String token;
     private final ConcurrentMap<String, ReplyContext> replies = new ConcurrentHashMap<>();
     private final ConcurrentMap<String, Playback> playing = new ConcurrentHashMap<>();
     private final Semaphore speakerLock = new Semaphore(1);
     private final ExecutorService workers = new ThreadPoolExecutor(4, 4, 0, TimeUnit.MILLISECONDS,
             new ArrayBlockingQueue<>(8), new ThreadPoolExecutor.AbortPolicy());
     private final ScheduledExecutorService monitor = Executors.newSingleThreadScheduledExecutor();
-    private final HttpClient http;
+    private final AgentApiClient apiClient;
     private final AgentSdk sdk;
     private volatile boolean online;
     private volatile boolean authenticated;
@@ -103,22 +100,10 @@ public final class AgentMain {
         }
     }
 
-    AgentMain() throws Exception {
-        if (!"https".equals(api.getScheme()) || !Set.of("127.0.0.1", "localhost", "[::1]").contains(api.getHost())) {
-            throw new IllegalArgumentException("Agent API must be local HTTPS");
-        }
-        KeyStore roots = KeyStore.getInstance(KeyStore.getDefaultType());
-        roots.load(null, null);
-        try (var input = Files.newInputStream(Path.of(required("LINGXI_TLS_CA")))) {
-            roots.setCertificateEntry("robot-ca", CertificateFactory.getInstance("X.509").generateCertificate(input));
-        }
-        TrustManagerFactory trust = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
-        trust.init(roots);
-        SSLContext tls = SSLContext.getInstance("TLS");
-        tls.init(null, trust.getTrustManagers(), null);
-        http = HttpClient.newBuilder().sslContext(tls).connectTimeout(Duration.ofSeconds(2)).build();
-        Path credentialsPath = Path.of(required("LINGXI_CREDENTIALS_FILE"));
-        JSONObject credentials = JSON.parseObject(Files.readString(credentialsPath));
+    AgentMain(AgentConfiguration config) throws Exception {
+        this.config = config; agentId = config.agentId(); token = config.token();
+        apiClient = new AgentApiClient(config);
+        JSONObject credentials = JSON.parseObject(Files.readString(config.credentials()));
         sdk = AgentSdk.create(GATEWAY, credential(credentials, "linksoulAppId"),
                 credential(credentials, "linksoulAppKey"), credential(credentials, "linksoulAppSecret"));
     }
@@ -149,7 +134,7 @@ public final class AgentMain {
                 acceptRecognition(id, event, text, param, response);
             }
         });
-        HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 18180), 8);
+        HttpServer server = HttpServer.create(config.playbackAddress(), 8);
         server.setExecutor(workers);
         server.createContext("/", this::handle);
         server.start();
@@ -418,14 +403,7 @@ public final class AgentMain {
     }
 
     private CompletableFuture<HttpResponse<String>> postEvent(Map<String, Object> event) {
-        HttpRequest request = HttpRequest.newBuilder(api.resolve("/api/v1/agent/events"))
-                .timeout(Duration.ofSeconds("recognition".equals(event.get("kind")) ? 180 : 5))
-                .header("Content-Type", "application/json")
-                .header("X-Agent-Token", token).POST(HttpRequest.BodyPublishers.ofString(JSON.toJSONString(event))).build();
-        return http.sendAsync(request, HttpResponse.BodyHandlers.ofString()).thenApply(response -> {
-            if (response.statusCode() != 200 && response.statusCode() != 204) throw new CompletionException(new IllegalStateException("Event rejected"));
-            return response;
-        });
+        return apiClient.postEvent(event);
     }
 
     private static void send(HttpExchange exchange, int status, Object body) {
@@ -442,10 +420,14 @@ public final class AgentMain {
         if (value == null || value.isBlank()) throw new IllegalStateException("Required credential not configured: " + name);
         return value;
     }
-    private static String required(String name) {
-        String value = System.getenv(name);
-        if (value == null || value.isBlank()) throw new IllegalStateException("Required setting missing: " + name);
-        return value;
+    public static void main(String[] args) throws Exception {
+        AgentConfiguration config;
+        try { config = AgentConfiguration.load(System.getenv()); }
+        catch (Exception ignored) {
+            System.err.println("Agent configuration invalid; verify selected owner, private credentials and pinned product configuration.");
+            System.exit(78);
+            return;
+        }
+        new AgentMain(config).start();
     }
-    public static void main(String[] args) throws Exception { new AgentMain().start(); }
 }

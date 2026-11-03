@@ -92,13 +92,40 @@ only and retains product data. Rollback restores that release's selection;
 changed configuration bytes block the switch before service changes. Mutable
 cloud credentials and token rotation stay external to immutable releases.
 
-The Agent bridge must separately target this API's `/api/v1/agent/events` and
-use the matching local token. This change does not start another AgentSDK
-instance, alter microphones, install vendor software or configure real cloud
-credentials automatically.
+The installed `deploy/run.sh agent` consumes the same product configuration and
+digest. It targets `/api/v1/agent/events` on local HTTPS `LINGXI_SLAM_PORT`
+(default 3444), uses `agentTokenFile`, reads cloud credentials only from
+`stateDirectory/credentials/ai.json`, and binds the configured loopback
+`agentUrl` port instead of hardcoding 18180. In this mode the unrelated core
+API URL, token, credentials path and Agent URL are ignored. Invalid selections
+fail before SDK initialization, with no fallback to core. Java validates the
+bounded hash-bound schema, relevant direct/private paths and port consistency;
+the owner still independently validates navigation and native/runtime exclusions.
+
+The Agent service must still be started explicitly after paired settings and
+robot/cloud verification. Stop it before changing callback owners, then restart
+after changing token/credentials/configuration. No second Agent instance,
+microphone change, vendor installation or automatic credential copying is added.
+Unmanaged launcher users must coordinate the API port themselves; installed
+service port derivation is not discovery or proof of an active owner.
 
 ## Verification And Limits
 
+- Installed passive Agent binding update: the pinned-SDK Maven verification
+  built the current JAR on Windows (32 tests, zero failures/errors, one Linux
+  permissions case skipped). The ordinary-user Linux JVM rerun passed all 32
+  tests without skips. These include real loopback HTTPS callbacks, selected
+  token/playback binding, redirect/rejection/disconnect handling and a child
+  JVM rejecting an invalid selection before SDK startup. No live SDK session
+  or cloud/microphone input is used by these tests.
+- For that update, targeted API/product/shared-workspace regression passed
+  40 tests with four explicit environment skips; production TypeScript/Vite
+  build passed. The isolated Linux deployment suite passed both lifecycle
+  cases, including installed Agent shell selection with a synthetic Java
+  executable. Release scope passed seven cases; source inventory passed two
+  with one Windows symlink skip. The shell fixture is not SDK execution, and
+  the JVM tests are not ARM64 target acceptance. No new archive or APK was
+  produced; the existing 0.1.21 artifacts remain unchanged.
 - Windows full API/Web regression: 621 passed, 24 explicit environment skips.
   Production TypeScript and Vite build passed; managed shared API compiled.
 - Linux targeted API/configuration/Unix transport regression: 67 passed and one

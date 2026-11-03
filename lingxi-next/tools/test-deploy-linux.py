@@ -325,6 +325,28 @@ print(json.dumps(result))
             self.assertIn('RestartPreventExitStatus=78', unit)
             self.assertIn('Conflicts=lingxi-next-independent-' + other + '.service', unit)
 
+        # This fixture checks the installed shell selection only. Java configuration
+        # and actual HTTPS callbacks have separate tests using the real JVM.
+        script(current / 'runtime/java/bin/java', 'printf "synthetic-java-selected\\n"')
+        agent_env = {'LINKSOUL_AGENT_ID': 'synthetic-agent'}
+        self.assertEqual(78, execute('agent', **agent_env).returncode)
+        core_credentials = config / 'core-ai.json'
+        core_credentials.write_text('{}')
+        core = execute('agent', **agent_env, LINGXI_CREDENTIALS_FILE=str(core_credentials))
+        self.assertEqual(0, core.returncode, core.stderr)
+        self.assertEqual('synthetic-java-selected\n', core.stdout)
+        product_agent = execute('agent', **agent_env, **selections)
+        self.assertEqual(0, product_agent.returncode, product_agent.stderr)
+        self.assertEqual('synthetic-java-selected\n', product_agent.stdout)
+        for change in ({'LINGXI_PRODUCT_CONFIG_SHA256': ''}, {'LINGXI_PRODUCT_CONFIG': ''},
+                       {'LINGXI_PRODUCT_CONFIG_SHA256': '0' * 64}, {'LINGXI_INDEPENDENT_PRODUCT': '0'},
+                       {'LINKSOUL_AGENT_ID': ''}):
+            rejected = execute('agent', **{**agent_env, **selections, **change})
+            self.assertEqual(78, rejected.returncode, rejected.stderr)
+            self.assertEqual('', rejected.stdout)
+        unit = Path('/etc/systemd/system/lingxi-next-agent.service').read_text()
+        self.assertIn('RestartPreventExitStatus=78', unit)
+
 
 def main():
     if sys.platform != "linux" or os.geteuid() != 0:
