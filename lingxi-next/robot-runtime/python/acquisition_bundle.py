@@ -51,7 +51,7 @@ def core_matches(required, available):
             raise ValueError('explicit_acquisition_core_library_inventory_required')
         result = {}
         for name, value in values.items():
-            if (type(name) is not str or re.fullmatch(r'lib[A-Za-z0-9_-]+\.so(?:\.[0-9]+)*', name) is None
+            if (type(name) is not str or re.fullmatch(r'lib[A-Za-z0-9_-]+\.so(?:\.[0-9][A-Za-z0-9]*)*', name) is None
                     or not digest(value)):
                 raise ValueError('named_pinned_acquisition_core_libraries_required')
             key = name.partition('.so')[0]

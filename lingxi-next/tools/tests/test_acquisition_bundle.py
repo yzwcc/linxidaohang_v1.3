@@ -57,6 +57,16 @@ class AcquisitionBundle(unittest.TestCase):
             with self.subTest(core=core), self.assertRaises(ValueError):
                 self.verify(core)
 
+    def test_actual_gtsam_prerelease_aliases_preserve_identical_byte_requirement(self):
+        core = {**self.core, 'libgtsam.so.4.3a0': self.core['libgtsam.so.4']}
+        self.assertEqual(bundle.ENGINE, self.verify(core)['engine'])
+        core['libgtsam.so.4.3a0'] = 'c' * 64
+        with self.assertRaisesRegex(ValueError, 'unambiguous_acquisition_core_aliases'):
+            self.verify(core)
+        for name in ('libgtsam.so.a0', 'libgtsam.so.4..3', 'libgtsam.so.4/other', '../libgtsam.so.4'):
+            with self.subTest(name=name), self.assertRaisesRegex(ValueError, 'named_pinned_acquisition'):
+                self.verify({**self.core, name: self.core['libgtsam.so.4']})
+
     def test_module_report_or_manifest_replacement_is_not_adopted(self):
         for path in (self.library, self.root / 'build-report.json', self.root / bundle.MANIFEST):
             before = path.read_bytes()

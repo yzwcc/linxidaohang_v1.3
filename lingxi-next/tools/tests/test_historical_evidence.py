@@ -76,11 +76,21 @@ class HistoricalEvidenceTests(unittest.TestCase):
         self.assertFalse(self.verify()["currentSourceBindingsMatch"])
 
     def test_unknown_or_absent_source_sections_cannot_bypass_verification(self):
-        for section in ("result", "unknown", "actualRuntimeSourceSha256", "inputIntegrity.sourcesSha256"):
+        for section in ("result", "unknown", "actualRuntimeSourceSha256", "trialSourceSha256",
+                        "inputIntegrity.sourcesSha256"):
             self.value["entries"][self.name]["sourceSection"] = section
             self.write_binding()
             with self.subTest(section=section), self.assertRaises(ValueError):
                 self.verify()
+
+    def test_explicit_trial_sources_remain_bound_to_original_git_revision(self):
+        self.report['trialSourceSha256'] = self.report.pop('sourceSha256')
+        self.freeze()
+        self.value['entries'][self.name]['sourceSection'] = 'trialSourceSha256'
+        self.write_binding()
+        self.assertTrue(self.verify()['historicalSourcesVerified'])
+        self.source.write_bytes(b'updated runtime selector, not a repeated trial\n')
+        self.assertEqual({'src/worker.py'}, set(self.verify()['currentSourceDrift']))
 
     def test_explicit_nested_integrity_sources_remain_git_bound_and_expose_drift(self):
         self.report['inputIntegrity'] = {'sourcesSha256': self.report.pop('sourceSha256')}

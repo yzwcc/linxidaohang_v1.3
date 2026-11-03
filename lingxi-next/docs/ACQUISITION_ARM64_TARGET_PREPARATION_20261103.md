@@ -1,5 +1,15 @@
 # ARM64 Acquisition Target Trial Preparation
 
+Follow-up on 2026-11-04: installed integration corrected the production GTSAM
+prerelease-alias verifier. A new current-source candidate,
+`acquisition-target-trial-20261104-installed-a`, was prepared from the unchanged
+verified native build and new component `5f0464ab...`. Its trial manifest is
+`b57ae103494445fadf415b2cc29d326b4319fe5050658cc227f7c2ef9a0816b1`.
+All nine members and 14 current source identities were independently checked;
+29 contracts are configured and zero executed. The old candidate and QEMU
+record below remain preserved historical evidence, not the current Python
+validator candidate. See [installed inputs](INSTALLED_ACQUISITION_INPUTS.md).
+
 Date: 2026-11-03. Prepared and checked offline; **zero ARM64 acquisition
 target executions**. SSH did not complete a banner/host-key exchange, so no
 authenticated robot connection, upload, remote command, sensor subscription,

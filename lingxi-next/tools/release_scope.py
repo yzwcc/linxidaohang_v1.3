@@ -30,6 +30,7 @@ INDEPENDENT_FILES = frozenset((
     'independent/source/tools/arm64_python_runtime.py',
     'independent/source/tools/check_installed_slam_python.py',
     'independent/source/tools/prepare_installed_mapping_inputs.py',
+    'independent/source/tools/prepare_installed_acquisition_inputs.py',
     'independent/source/robot-navigation/bridge/physical_nav_bridge.py',
     'independent/source/robot-navigation/bridge/nav2_lease_guard.py',
     'independent/source/robot-slam/lingxi_slam/activity_lease.py',

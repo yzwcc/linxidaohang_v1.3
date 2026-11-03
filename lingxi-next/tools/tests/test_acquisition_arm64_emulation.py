@@ -176,7 +176,8 @@ class EmulationTests(unittest.TestCase):
         self.assertEqual('arm64_emulation_failed_not_accepted',
                          json.loads((self.args.output / 'report.json').read_bytes())['result'])
 
-    def test_recorded_emulation_is_current_synthetic_and_not_target_acceptance(self):
+    def test_recorded_emulation_preserves_frozen_trial_sources_not_current_target_acceptance(self):
+        import audit_historical_evidence as historical
         path = check.ROOT / 'docs/evidence/acquisition-arm64-emulation-20261104.json'
         report = json.loads(path.read_bytes())
         self.assertEqual(check.RESULT, report['result'])
@@ -190,8 +191,11 @@ class EmulationTests(unittest.TestCase):
                          report['syntheticExport']['sha256'])
         self.assertEqual(19, len(report['resolvedDependencies']))
         self.assertEqual(7, sum(entry['origin'] == 'trial' for entry in report['resolvedDependencies'].values()))
-        for name, identity in {**report['trialSourceSha256'], **report['sourceSha256']}.items():
+        for name, identity in report['sourceSha256'].items():
             self.assertEqual(identity, check.trial.sha256(check.ROOT / name), name)
+        verified = historical.verify('docs/evidence/acquisition-arm64-emulation-20261104.json')
+        self.assertTrue(verified['historicalSourcesVerified'])
+        self.assertEqual({'robot-runtime/python/acquisition_bundle.py'}, set(verified['currentSourceDrift']))
         for marker in ('/home/', '192.168.', '10.201.', 'password', 'pairingCode', 'credentials'):
             self.assertNotIn(marker, path.read_text(encoding='utf-8'))
 

@@ -76,7 +76,7 @@ def catalog(path=CATALOG):
                 or set(entry) not in ({"revision", "reportCanonicalSha256", "sourceByteTransforms"},
                                      {"revision", "reportCanonicalSha256", "sourceByteTransforms", "sourceSection"})
                 or entry.get("sourceSection", "sourceSha256") not in (
-                    "sourceSha256", "actualRuntimeSourceSha256", "inputIntegrity.sourcesSha256")
+                    "sourceSha256", "actualRuntimeSourceSha256", "trialSourceSha256", "inputIntegrity.sourcesSha256")
                 or not isinstance(entry["revision"], str) or not REVISION.fullmatch(entry["revision"])
                 or not isinstance(entry["reportCanonicalSha256"], str)
                 or not DIGEST.fullmatch(entry["reportCanonicalSha256"])

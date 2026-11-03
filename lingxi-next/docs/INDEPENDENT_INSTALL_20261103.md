@@ -98,6 +98,11 @@ LINGXI_ACQUISITION_SETTINGS_SHA256=REVIEWED_SHA256
 Leave both fields of an unused selection empty. Changed bytes, incomplete
 pairs or malformed digests block launch. Product state must be owned by the
 service UID with mode 0700; configuration and Agent token files use mode 0600.
+For service-accessible acquisition and optional target-tested terrain inputs,
+follow [Installed Acquisition Inputs](INSTALLED_ACQUISITION_INPUTS.md). It
+preserves original component/target receipts and geometric declarations, then
+prints the generated settings hash for this existing selection pair. This is
+an explicit preparation/verification step, not automatic service activation.
 Model and Retriever credentials stay external and are submitted using paired
 HTTPS settings, never bundled or stored in browser/APK configuration.
 When the product pair is selected, the installed Agent service derives its

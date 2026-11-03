@@ -2,6 +2,12 @@
   "schemaVersion": 1,
   "purpose": "immutable_historical_evidence_not_current_target_acceptance",
   "entries": {
+    "docs/evidence/acquisition-arm64-emulation-20261104.json": {
+      "revision": "a8229c3331fd4d2f6bd4030c01d4f27b06f30cb8",
+      "reportCanonicalSha256": "f518d2f77437faea5752ca819f4d266f723c1476be630349989efa9c461a3263",
+      "sourceByteTransforms": {},
+      "sourceSection": "trialSourceSha256"
+    },
     "docs/evidence/acquisition-ground-inspection-20261103.json": {
       "revision": "f7287a8c1e2a972f05570258d09e91c0ac268006",
       "reportCanonicalSha256": "cf4145a3fd58e2ba1dd44f9e409f290df96000245e2e9617ca6cb690054c6fde",

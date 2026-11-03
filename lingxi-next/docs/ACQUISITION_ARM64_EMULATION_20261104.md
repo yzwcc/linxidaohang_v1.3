@@ -1,5 +1,11 @@
 # ARM64 Acquisition Emulation
 
+Follow-up on 2026-11-04: the later installed-input integration corrected the
+Python core-library alias verifier for GTSAM `4.3a0` names. The native bytes and
+this original QEMU report remain unchanged. Its trial source identities are
+verified against `a8229c3` in the historical catalog, not relabeled as a new
+current-source run. See [installed inputs](INSTALLED_ACQUISITION_INPUTS.md).
+
 Recorded 2026-11-04 from the existing frozen acquisition trial, after release
 0.1.23. This verifies execution of the actual ARM64 synthetic contract binary
 under QEMU user-mode on an ordinary-user Linux x86_64 workstation. It is not

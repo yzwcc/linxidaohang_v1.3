@@ -73,7 +73,7 @@ class ReleaseScopeTests(unittest.TestCase):
         status = {'classification': 'commissioning', 'productionAccepted': False,
                   'independentStackIncluded': True, 'independent': scope}
         for module in ('arm64_python_runtime', 'check_installed_slam_python',
-                       'prepare_installed_mapping_inputs'):
+                       'prepare_installed_mapping_inputs', 'prepare_installed_acquisition_inputs'):
             filename = 'independent/source/tools/' + module + '.py'
             with self.subTest(module=module):
                 self.assertIn(filename, INDEPENDENT_FILES)
