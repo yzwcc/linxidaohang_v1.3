@@ -91,6 +91,11 @@ private output; `verify` is read-only. No target executable is launched by eithe
 
 ## Remaining Gates
 
+The source-bound [target-trial tool](TERRAIN_ARM64_TARGET_PREPARATION_20261103.md)
+now prepares these actual adapters and existing native ground/fusion tests for
+bounded ordinary-user execution without ROS. Preparation is complete; actual
+target execution remains separate and does not grant live runtime admission.
+
 The report keeps `targetExecutionValidated`, `freshProcessLoadPassed`,
 `physicalScaleValidated`, `groundSupportValidated` and `navigationReady` false.
 It is deliberately not a live runtime's adjacent successful load report and

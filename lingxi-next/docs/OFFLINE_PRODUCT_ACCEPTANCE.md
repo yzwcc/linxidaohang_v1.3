@@ -59,6 +59,12 @@ relative SONAME aliases and licenses, and adds their inputs to the shared source
 inventory. Static cross-build verification is complete; actual target loading,
 runtime admission and physical calibration are not.
 
+The [ARM64 terrain target-trial preparation](TERRAIN_ARM64_TARGET_PREPARATION_20261103.md)
+packages those verified adapters and 21 exact native ground/fusion contracts for
+an isolated ordinary-user robot process. Linux preparation/transport checks and
+the actual host-native contract helper pass; the real target bundle is prepared.
+Robot execution, live-sensor integration and metric navigation remain open.
+
 ## Release Rules
 
 - Keep default point-cloud display and clearance Z limits at 0.1--1.4 m. Do not
