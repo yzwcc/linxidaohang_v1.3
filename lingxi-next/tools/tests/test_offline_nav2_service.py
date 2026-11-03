@@ -229,7 +229,7 @@ class CallbackBudgetTests(unittest.TestCase):
             output = Path(raw)
             (output / ('a' * 32)).mkdir()
             owner = SimpleNamespace(output=output, runtime=SimpleNamespace(command_timeout=.15))
-            generation = product.Generation(owner, SimpleNamespace(epoch='a' * 32), None)
+            generation = product.RosGeneration(owner, SimpleNamespace(epoch='a' * 32), None)
             try:
                 profiles = {call.args[1]: call.args[2] for call in node.create_publisher.call_args_list}
                 self.assertEqual({'traversable_map', 'odom', 'tf', 'registered_obstacles', '/clock'}, set(profiles))
@@ -241,7 +241,7 @@ class CallbackBudgetTests(unittest.TestCase):
                 generation.log.close()
 
     def test_construction_phases_preserve_their_actual_steady_time_intervals(self):
-        generation = product.Generation.__new__(product.Generation)
+        generation = product.RosGeneration.__new__(product.RosGeneration)
         generation.construction_phases, generation.construction_previous = [], 2.
         with patch.object(product.time, 'monotonic', side_effect=(2.4, 2.7)):
             generation.constructed('node')
@@ -253,12 +253,13 @@ class CallbackBudgetTests(unittest.TestCase):
         self.assertAlmostEqual(.3, second['elapsedSeconds'])
 
     def generation(self):
-        generation = product.Generation.__new__(product.Generation)
+        generation = product.RosGeneration.__new__(product.RosGeneration)
         generation.retiring, generation.sent, generation.next_sensor = False, True, 0.
         generation.tick_phase_maximum_seconds = {}
         generation.node, generation.publish = object(), Mock()
         generation.velocity_source = SimpleNamespace(take=lambda: None)
         generation.lifecycle = SimpleNamespace(failure=None)
+        generation.owner = SimpleNamespace(inputs_current=lambda: True)
         generation.process = SimpleNamespace(poll=lambda: None)
         return generation
 
@@ -308,6 +309,22 @@ class CallbackBudgetTests(unittest.TestCase):
         with patch.dict(sys.modules, {'rclpy': ros}), patch.object(product.time, 'monotonic', return_value=0.):
             generation.tick()
         self.assertEqual(40, ros.spin_once.call_count)
+
+    def test_blocked_ros_call_is_recorded_but_stale_parent_pose_cannot_dispatch(self):
+        generation = self.generation()
+        generation.sent = False
+        generation.owner.inputs_current = lambda: False
+        generation.lifecycle = SimpleNamespace(failure=None, poll=Mock(), ready=Mock(return_value=True))
+        clock = [0.]
+        def spin(*args, **kwargs):
+            clock[0] += .331
+        ros = SimpleNamespace(spin_once=Mock(side_effect=spin))
+        with patch.dict(sys.modules, {'rclpy': ros}), \
+                patch.object(product.time, 'monotonic', side_effect=lambda: clock[0]):
+            generation.tick()
+        self.assertAlmostEqual(.331, generation.tick_phase_maximum_seconds['callbacks'])
+        generation.lifecycle.poll.assert_not_called()
+        generation.lifecycle.ready.assert_not_called()
 
     def test_retirement_inside_callback_stops_dispatch_immediately(self):
         generation = self.generation()

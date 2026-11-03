@@ -81,7 +81,7 @@ it.skipIf(!rootfs || !supported)("starts the portable HTTP workspace and confirm
 
 it.skipIf(!rootfs || !supported)("drives real isolated Nav2 from paired Web API and awakened voice, preserving pause epochs", async () => {
   directory = await mkdtemp(path.join(os.tmpdir(), "lingxi-real-nav2-"));
-  const { backend } = await isolatedBackend("open");
+  const { backend, output } = await isolatedBackend("open");
   app = await buildServer({ offlineNavigationBackend: backend, stateDirectory: directory,
     staticDirectory: path.join(directory, "none"), internalAgentToken: "offline-integration-only" });
   const paired = await app.inject({ method: "POST", url: "/api/v1/session/pair", payload: { pairingCode: "lingxi-dev-only" } });
@@ -101,7 +101,7 @@ it.skipIf(!rootfs || !supported)("drives real isolated Nav2 from paired Web API 
     while (Date.now() < end) {
       const value = await backend.state();
       if (condition(value)) return value;
-      if (value.requiresStop) throw new Error(`runtime fault: ${value.detail}`);
+      if (value.requiresStop || value.phase === "failed") throw new Error(`runtime fault: ${value.detail}; diagnostics: ${output}`);
       await new Promise((resolve) => setTimeout(resolve, 120));
     }
     throw new Error("bounded real Nav2 condition timeout");

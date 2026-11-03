@@ -16,7 +16,7 @@ import subprocess
 import sys
 import time
 
-from run_nav2_offline import world, synthetic_platform, signal_generation, Observer
+from run_nav2_offline import world, synthetic_platform, Observer
 from prepare_nav2_offline import prepare, strict_object
 from lingxi_navigation.runtime import Goal, MapIdentity, OfflineNavigationRuntime, RuntimeInputs
 from lingxi_navigation.lifecycle_startup import LifecycleStartup
@@ -28,7 +28,7 @@ class RequestError(Exception):
         self.code, self.status = code, status
 
 
-class Generation:
+class RosGeneration:
     def __init__(self, owner, ticket, goal):
         import rclpy
         from rclpy.action import ActionClient
@@ -78,7 +78,7 @@ class Generation:
         try:
             self.process = subprocess.Popen(['ros2', 'launch', str(output / 'nav2_offline.launch.py'),
                 'autostart:=false'],
-                stdin=subprocess.DEVNULL, stdout=self.log, stderr=subprocess.STDOUT, start_new_session=True)
+                stdin=subprocess.DEVNULL, stdout=self.log, stderr=subprocess.STDOUT, start_new_session=False)
             self.constructed('launch')
         except BaseException:
             self.velocity_source.close()
@@ -223,8 +223,11 @@ class Generation:
                 break
         if self.retiring:
             return
+        now = time.monotonic()
         self.tick_phase_maximum_seconds['callbacks'] = max(
             self.tick_phase_maximum_seconds.get('callbacks', 0.), time.monotonic() - callback_started)
+        if not self.owner.inputs_current():
+            return
         if not self.sent:
             self.measured('lifecycle', lambda: self.lifecycle.poll(now))
         if self.lifecycle.failure is not None:
@@ -243,8 +246,9 @@ class Generation:
         self.lifecycle.close()
         self.velocity_source.close()
         self.node.destroy_node()
-        signal_generation(self.process, signal.SIGINT)
-        with self.diagnostic.open('x', encoding='utf-8') as stream:
+        if self.process.poll() is None:
+            self.process.send_signal(signal.SIGINT)
+        with self.diagnostic.with_name('ros-startup.json').open('x', encoding='utf-8') as stream:
             json.dump(dict(purpose='offline_lifecycle_diagnostic_not_field_acceptance',
                 elapsedSeconds=time.monotonic() - self.started_at,
                 startupSent=self.lifecycle.sent, startupConfirmed=self.lifecycle.confirmed,
@@ -255,25 +259,18 @@ class Generation:
                 fixturePublicationMode=os.environ.get('RMW_FASTRTPS_PUBLICATION_MODE', 'SYNCHRONOUS'),
                 tickPhaseMaximumSeconds=self.tick_phase_maximum_seconds,
                 maximumLoopGapSeconds=self.owner.maximum_loop_gap,
-                acceptanceSeconds=(None if self.owner.runtime.accepted_at is None else
-                    self.owner.runtime.accepted_at - self.owner.runtime.requested_at),
+                acceptanceSeconds=None,
                 physicalMotionSent=False, navigationReady=False), stream, allow_nan=False)
-
-    def quiescent(self):
-        if self.process.poll() is None:
-            return False
-        try:
-            os.killpg(self.process.pid, 0)
-            return False
-        except ProcessLookupError:
-            self.log.close()
-            return self.retiring
 
     def close(self):
         self.retire()
-        signal_generation(self.process, signal.SIGKILL)
+        if self.process.poll() is None:
+            self.process.kill()
         self.process.wait(timeout=2.)
         self.log.close()
+
+
+from offline_nav2_worker import WorkerGeneration as Generation
 
 
 class Service:
@@ -303,7 +300,7 @@ class Service:
         if self.building is not None or (self.generation is not None and not self.generation.quiescent()):
             raise RuntimeError('previous_generation_not_retired')
         self.generation, self.retiring_ticket = None, None
-        # ROS entity construction must not block the single watchdog/callback owner.
+        # Process creation must not block the single watchdog owner.
         self.building = self.factory.submit(Generation, self, ticket, goal)
 
     def retire(self, ticket):
@@ -457,25 +454,24 @@ def serve(service, reader=sys.stdin.buffer, writer=sys.stdout):
         writer.flush()
 
 
+def isolated_environment():
+    if (os.environ.get('ROS_LOCALHOST_ONLY') != '1' or os.environ.get('ROS_DISTRO') != 'humble'
+            or os.environ.get('RMW_IMPLEMENTATION') != 'rmw_fastrtps_cpp'
+            or set(os.listdir('/sys/class/net')) != {'lo'}):
+        raise ValueError('isolated_loopback_humble_required')
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--case', choices=('open', 'blocked', 'detour', 'appearing-wall'), required=True)
     parser.add_argument('--output', type=Path, required=True)
     args = parser.parse_args()
-    if (os.environ.get('ROS_LOCALHOST_ONLY') != '1' or os.environ.get('ROS_DISTRO') != 'humble'
-            or os.environ.get('RMW_IMPLEMENTATION') != 'rmw_fastrtps_cpp'
-            or set(os.listdir('/sys/class/net')) != {'lo'}):
-        raise ValueError('isolated_loopback_humble_required')
+    isolated_environment()
     if (not args.output.is_absolute() or args.output.exists() or args.output.is_symlink()
             or args.output.parent.resolve(strict=True) != args.output.parent):
         raise ValueError('new_offline_output_required')
     os.umask(0o077)
     args.output.mkdir(mode=0o700)
-    import rclpy
-    rclpy.init()
-    # Keep the Python participant alive across goal generations. Node construction
-    # can hold the GIL even in the factory thread when recreating a participant.
-    coordinator = rclpy.create_node('offline_workspace_owner', use_global_arguments=False)
     owner = Service(args.case, args.output)
     def terminate(_signal, _frame):
         raise SystemExit(1)
@@ -484,10 +480,4 @@ if __name__ == '__main__':
     try:
         serve(owner)
     finally:
-        try:
-            owner.close()
-        finally:
-            try:
-                coordinator.destroy_node()
-            finally:
-                rclpy.shutdown()
+        owner.close()

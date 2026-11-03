@@ -132,10 +132,7 @@ def run(output):
         raise ValueError('explicit_new_private_diagnostic_library_required')
     trial = output / 'runtime'
     trial.mkdir(mode=0o700)
-    import rclpy
     import offline_nav2_service as product
-    rclpy.init(args=[])
-    coordinator = rclpy.create_node('offline_diagnostic_owner', use_global_arguments=False)
     service = product.Service('open', trial)
     observations, retirements, error, final_state = [], [], None, None
     try:
@@ -161,15 +158,9 @@ def run(output):
         error = type(caught).__name__ + ':' + str(caught)
     finally:
         try:
-            try:
-                final_state = service.state()
-            finally:
-                service.close()
+            final_state = service.state()
         finally:
-            try:
-                coordinator.destroy_node()
-            finally:
-                rclpy.shutdown()
+            service.close()
     logs = sorted(trial.glob('*/nav2.log'))
     records = []
     try:
@@ -180,7 +171,8 @@ def run(output):
         error = error or type(caught).__name__ + ':' + str(caught)
     sources = ('tools/nav2_service_diagnostic.py', 'tools/native-service-diagnostic/service_diagnostic.cpp',
                'tools/nav2-offline-service-isolated.sh',
-               'tools/offline_nav2_service.py', 'robot-navigation/lingxi_navigation/lifecycle_startup.py',
+               'tools/offline_nav2_service.py', 'tools/offline_nav2_worker.py',
+               'robot-navigation/lingxi_navigation/lifecycle_startup.py',
                'robot-navigation/nav2_offline.launch.py', 'robot-navigation/lingxi_navigation/nav2_profile.py')
     report = dict(schema=1, purpose='isolated_lifecycle_service_diagnosis_not_robot_acceptance',
         versions=versions, generations=observations, retirements=retirements, finalState=final_state,

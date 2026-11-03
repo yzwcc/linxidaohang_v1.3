@@ -5,20 +5,24 @@ route. Earlier vendor-only acceptance records in ACCEPTANCE.md are historical;
 vendor SLAM licensing is not a prerequisite for this route. No robot connection
 or deployment is authorized by completing an offline check.
 
-The [official-component startup milestone](NAV2_COMPONENT_STARTUP_20261104.md)
-uses upstream Humble composition without replacing vendor DDS/AIMDK or relaxing
-admission deadlines. An earlier service diagnostic passed twelve starts and all
-104 replies. Final-source production-path tests pass all three cases with
-synthetic sensors/in-memory output, including eight fresh prewarms. The separate
-full API suite still fails repeated startup: per-call timing captured 333-ms
-publishing and, in a later experiment, 331-ms callback dispatch. ClockQoS, async
-publishing and system-time experiments did not fix it and were withdrawn.
-Blocking ROS IO still needs separation from the watchdog owner; this is not yet
-implemented or accepted. Final regressions pass 104 focused Python tests,
-15 bundle tests, one Linux wrapper test and 750 TypeScript tests (25 explicit
-skips); Web/API/runtime checks and Web/API builds pass. Those passes do not
-supersede the failing actual-Nav2 API stress test. This is not physical or
-complete-product acceptance.
+The [ROS-worker milestone](NAV2_ROS_WORKER_20261104.md) separates native ROS IO
+from the offline watchdog owner using bounded, ticket/source-time-bound IPC and
+confirmed whole-process-group retirement. The final actual-Humble API suite
+passes all four cases, including twelve consecutive starts/stops, voice task
+control and detour. Input/velocity/startup/retirement deadlines are unchanged.
+New Linux worker contracts pass 18/18; the combined Linux selection passes
+149 with two explicit bundle skips; default TypeScript tests pass 750 with 25
+explicit skips. Web/API/runtime type checks and Web/API builds pass. A first
+worker cold-start failure and the correction are retained in the linked record.
+This closes that offline blocking milestone, not physical or complete-product
+acceptance.
+
+The preceding [official-component startup milestone](NAV2_COMPONENT_STARTUP_20261104.md)
+preserves earlier API failures and measurements of 333-ms publish and 331-ms
+callback dispatch. ClockQoS, async publishing and system-time experiments did
+not fix them and were withdrawn. Official Humble composition is retained;
+vendor DDS/AIMDK remains untouched. The worker boundary addresses propagation
+of native stalls into the offline runtime; it is not a middleware root-cause fix.
 
 The [lifecycle reply freshness correction](LIFECYCLE_REPLY_FRESHNESS_20261104.md)
 rejects delayed GetState replies using query issue time instead of renewing them
@@ -28,8 +32,8 @@ tests. Startup deadlines and motion admission remain unchanged. The separate
 four-test API/voice Nav2 rerun passes three cases but fails repeated startup at
 generation zero with another controller change_state response-send timeout;
 that failure is preserved, not superseded by passing prewarm tests. The
-FastDDS discovery cause, repeated startup reliability and field acceptance
-remain open.
+FastDDS discovery cause and field acceptance remain open; the later worker
+milestone above separately records passing repeated API startup tests.
 
 The [tour timing correction](TOUR_DWELL_AND_RETURN_20261104.md) preserves point
 dwell across interruption and prevents idle return during active answers. It
@@ -74,7 +78,7 @@ established by this milestone.
 | Localization | Explicit seeded small-gicp tracking, original-ingress pose freshness, generation-bound callbacks, same-frame acquisition registration, map provenance, base projection | Replay tracking, bad seeds, loss/recovery, stale generation and registered retirement tests passed; real recorded GLIM/terrain diagnostic completes but yields no supported free cells; target composition remains unverified | Independent moving trajectory and ground-truth errors; global relocalization remains a separate capability |
 | Global planning | Pinned native Nav2 NavFn over explicit costmaps | Unknown space, blocked goals, complete path identity and bounded worker | Map scale, robot clearance and actual route reachability |
 | Occupancy and ground | Pinned OctoMap acquisition-time rays and Patchwork++ fusion; recorded diagnostic fits unchanged work limits; passive live factories and opt-in owned private ROS output are wired; native/registered ROS trials pass | Diagnose zero supported free cells with calibrated geometry; validate actual ARM64 factories, output and timing/overload; declared-frame results remain separate from metric admission | Physical scale, ground support, blind spots and real obstacle visibility |
-| Local navigation | Real ROS Humble NavFn + RPP + closed-loop smoother passed six synthetic scenes; native OctoMap revisions preserve independent support; registered localization pause/stop/reseed/loss revoke actual costmaps; paired API/Web polling and DDS publication-age rejection passed | Integrate recorded metric localization/occupancy/ground support, controller-computation/physical-transport freshness and guarded AIMDK handoff; concurrent startup remains unaccepted | Walking dynamics, stopping distance, dynamic people/obstacles and emergency stop |
+| Local navigation | Real ROS Humble NavFn + RPP + closed-loop smoother passed six synthetic scenes; native OctoMap revisions preserve independent support; registered localization pause/stop/reseed/loss revoke actual costmaps; paired API/Web polling, DDS publication-age rejection and isolated repeated startup passed | Integrate recorded metric localization/occupancy/ground support, controller-computation/physical-transport freshness and guarded AIMDK handoff; target startup remains unverified | Walking dynamics, stopping distance, dynamic people/obstacles and emergency stop |
 | Tours and tasks | Multi-point/round sequencing, one retry then skip, manual pause, dialogue quiet-resume, return policy; correlated narration-stop barriers and late-callback tests; real offline Nav2 two-point tour, voice pause/resume and Q&A/no-return passed | Recorded backend integration and actual AgentSDK completion/stop correlation | Actual arrival, interruption/resume and narration at each point |
 | Voice and AI | AgentSDK passive-event gating, deduplication, allowlists, evidence-bound retrieval, timeout/streaming; cloud cancellation, failed-playback stop barriers and superseded-turn regressions passed | Real AgentSDK playback correlation, live cloud matrix and end-to-end latency; offline workspace deliberately stubs playback and disables cloud | 100-wake/8-hour negatives, zero forbidden execution, acoustic P95 first response <=2 s |
 | Web and Android | Shared Chinese React console, point-cloud map inspection, landscape Capacitor project; real Nav2 offline point-cloud workspace; source-bound signed APK 0.1.19/code20 verified | Desktop/landscape workflow and connection-loss regressions; APK current-source checks passed, not device acceptance | Real CA trust, Android devices, LAN reconnection and point picking |
