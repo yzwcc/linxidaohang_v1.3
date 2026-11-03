@@ -33,6 +33,16 @@ class MapEvidence:
 
 
 @dataclass(frozen=True)
+class MapHandoff:
+    """A rebound output needs a new map-bound stop before activation can ACK."""
+    identity: MapEvidence
+
+    def __post_init__(self):
+        if type(self.identity) is not MapEvidence:
+            raise ValueError('typed_navigation_map_handoff_required')
+
+
+@dataclass(frozen=True)
 class Ticket:
     task_id: str
     epoch: str
@@ -200,6 +210,8 @@ class PhysicalNavigationBridge:
                 self.phase, self.retiring, self.output_quiescent = self.retiring, None, True
                 if self.phase == 'idle':
                     self.requires_stop = False
+                    if self.detail == 'navigation_map_activation_pending':
+                        self.detail = 'navigation_map_activated'
             elif self.clock() >= self.deadline:
                 self.phase, self.retiring, self.detail, self.requires_stop = 'failed', 'failed', 'output_retirement_timeout', True
         if self.closed:
@@ -260,7 +272,8 @@ class PhysicalNavigationBridge:
                 raise BridgeError('navigation_map_id_invalid', 400)
             initial = pose(request['initialPose']) if 'initialPose' in request else None
             try:
-                chosen = self.backend.activate_map(request['mapId'], initial)
+                selection = self.backend.activate_map(request['mapId'], initial)
+                chosen = selection.identity if type(selection) is MapHandoff else selection
                 if type(chosen) is not MapEvidence or chosen.mapId != request['mapId']:
                     raise ValueError('activation_evidence_mismatch')
                 if chosen.mapId == self.identity.mapId and chosen != self.identity:
@@ -271,8 +284,14 @@ class PhysicalNavigationBridge:
             except Exception as error:
                 self._fault('navigation_map_activation_unconfirmed')
                 raise BridgeError('navigation_map_activation_unconfirmed', 503) from error
+            changed = chosen != self.identity
             self.identity, self.phase, self.detail = chosen, 'idle', 'navigation_map_activated'
             self.ticket = self.point_id = self.goal = None
+            if changed or type(selection) is MapHandoff:
+                self.last_pose, self.last_checks = dict(x=0., y=0., yaw=0.), dict.fromkeys(CHECKS, False)
+                self.requires_stop = True
+                self._retire('idle', 'navigation_map_activation_pending')
+                return None
             return self.state(poll=False)
         fields = {'id', 'action', 'session', 'expectedEpoch', 'taskId', 'mapId', 'evidence'}
         if action == 'start':

@@ -253,10 +253,49 @@ describe("physical navigation admission", () => {
       .rejects.toThrow("activation_identity_mismatch");
   });
 
+  it("rebinds a selected map without carrying over old task or readiness", async () => {
+    const nextIdentity = { ...identity, mapId: `slam-${"1".repeat(32)}`, receiptSha256: "2".repeat(64) };
+    const nextMap = { ...map, id: nextIdentity.mapId };
+    const nextPoint = { ...point, mapId: nextIdentity.mapId };
+    const checks = Object.fromEntries(Object.keys(state().checks).map((key) => [key, false])) as PhysicalNavigationState["checks"];
+    const next = state({ sequence: 2, identity: nextIdentity, checks, navigationReady: false });
+    const backend = fakeBackend([state({ sequence: 1 }), { ...next, sequence: 3 }]);
+    let calls = 0;
+    backend.activateMap = async (request) => {
+      expect(request.mapId).toBe(nextIdentity.mapId);
+      expect(request.evidence).toBeUndefined();
+      return next;
+    };
+    backend.command = async () => { calls++; return next; };
+    const adapter = new PhysicalNavigationAdapter(baseAdapter(), backend);
+    await expect(adapter.activateMap(nextMap)).resolves.toBeUndefined();
+    await expect(adapter.startNavigation(nextPoint, nextMap, "new-map-task"))
+      .rejects.toThrow("navigation_admission_gates_not_ready");
+    expect(calls).toBe(0);
+  });
+
+  it("rejects a map-switch reply until the fresh stop completes", async () => {
+    const nextIdentity = { ...identity, mapId: `slam-${"1".repeat(32)}` };
+    const backend = fakeBackend([state()]);
+    backend.activateMap = async () => state({ sequence: 1, identity: nextIdentity, phase: "stopping",
+      outputQuiescent: false, requiresStop: true, navigationReady: false });
+    await expect(new PhysicalNavigationAdapter(baseAdapter(), backend).activateMap({ ...map, id: nextIdentity.mapId }))
+      .rejects.toThrow("activation_identity_mismatch");
+  });
+
   it("rejects inconsistent readiness evidence", () => {
     expect(physicalNavigationStateSchema.safeParse(state({
       checks: { ...state().checks, tf: false }, navigationReady: true,
     })).success).toBe(false);
+  });
+
+  it("accepts taskless stopping for initial-stop and map-handoff status only", () => {
+    const stopping = state({ phase: "stopping", outputQuiescent: false, requiresStop: true, navigationReady: false });
+    expect(physicalNavigationStateSchema.safeParse(stopping).success).toBe(true);
+    expect(physicalNavigationStateSchema.safeParse({ ...stopping, outputQuiescent: true }).success).toBe(false);
+    for (const phase of ["requested", "running", "paused", "finished"] as const) {
+      expect(physicalNavigationStateSchema.safeParse({ ...stopping, phase }).success).toBe(false);
+    }
   });
 });
 

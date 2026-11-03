@@ -9,6 +9,7 @@ import sys
 import time
 import traceback
 import unittest
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'robot-navigation'))
@@ -17,9 +18,10 @@ from test_nav2_producer import profile
 from test_localization_guard import BINDING, snapshot
 import test_physical_evidence_humble as evidence_fixtures
 from lingxi_navigation.localization_guard import LocalizationGuard, LocalizationMonitor
-from lingxi_navigation.nav2_producer import Nav2Generation, OwnedNav2Backend, spin_callbacks
+from lingxi_navigation.nav2_producer import Nav2Generation, Nav2MapSelection, OwnedNav2Backend, spin_callbacks
 from lingxi_navigation.physical_bridge import BridgeError, MapEvidence, PhysicalNavigationBridge
-from lingxi_navigation.physical_ros import AimdkVelocityOutput, digest_footprint
+from lingxi_navigation.physical_maps import load_map_selection
+from lingxi_navigation.physical_ros import AimdkVelocityOutput, FileMapActivator, digest_footprint
 
 
 @unittest.skipUnless(os.environ.get('LINGXI_VERIFY_NAV2_PRODUCER_ROS') == '1',
@@ -186,7 +188,8 @@ class ActualOwnedNav2Tests(unittest.TestCase):
             self.publish()
         spin_callbacks(self.executor)
         self.localization_value['state']['state'] = 'tracking' if self.localization_enabled else 'lost'
-        self.monitor.refresh()
+        if self.monitor.thread is None:
+            self.monitor.refresh()
 
     def until(self, predicate, seconds=35.):
         deadline = time.monotonic() + seconds
@@ -288,10 +291,95 @@ class ActualOwnedNav2Tests(unittest.TestCase):
             self.bridge.tick()
         self.assertEqual(3, len(self.generations))
         self.record('sensor_expiry_no_automatic_restart')
+        self.verify_map_switch()
         (self.root / 'result.json').write_text(json.dumps(dict(schema=1, testOnly=True,
             robotConnected=False, vendorPublisher=False, nav2ProcessesExecuted=True,
             syntheticSensors=True, syntheticLocalization=True, localizationSocketExecuted=False,
             physicalCalibrationValidated=False, trace=self.trace), indent=2), encoding='utf-8')
+
+    def verify_map_switch(self):
+        self.localization.activation = None
+        self.sensors_enabled = True
+        self.command('stop')
+        self.until(lambda: self.bridge.phase == 'idle' and not self.bridge.requires_stop)
+        self.assertIsNone(self.backend.generation)
+        old_identity, count = self.identity, self.nonzero_count()
+        catalog = self.root / 'catalog'
+        directory = catalog / 'second-map'
+        directory.mkdir(parents=True)
+        (directory / 'map-ready.json').write_text(json.dumps(dict(schemaVersion=3, session='c' * 32,
+            freshProcessReloadPassed=True, inputMode='recorded', mappingEngine='glim-full-async-v1',
+            savedPointsSha256=BINDING['points_sha256'], sensorProvenance=dict(profileSha256=BINDING['profile_sha256']))),
+            encoding='utf-8')
+        (directory / 'calibration.json').write_text('{"testOnly":true}', encoding='utf-8')
+        footprint = self.root / 'footprint.json'
+        (directory / 'footprint.json').write_bytes(footprint.read_bytes())
+        activator = FileMapActivator(catalog)
+        self.identity = activator.evidence('slam-' + 'c' * 32)
+        self.profile = replace(self.profile, limits=replace(self.profile.limits, identity=self.identity))
+        self.localization_value['runtime']['selectedMap'] = dict(mapId=self.identity.mapId,
+            receiptSha256=self.identity.receiptSha256)
+        self.localization_value['state']['binding'].update(map_id=self.identity.mapId,
+            receipt_sha256=self.identity.receiptSha256)
+        profile_file = self.root / 'map-switch-profile.json'
+        limits = self.profile.limits
+        profile_file.write_text(json.dumps(dict(schema=1, footprintSha256=self.identity.footprintSha256,
+            clearanceRadiusMetres=.3, stoppingMarginMetres=.1, forward=limits.forward,
+            lateral=limits.lateral, angular=limits.angular, acceleration=limits.acceleration,
+            deceleration=limits.deceleration, angularAcceleration=limits.angular_acceleration,
+            commandAge=limits.command_age, firstCommandTimeout=limits.first_command_timeout)), encoding='utf-8')
+        options = {key: getattr(self.profile, key) for key in ('map_frame', 'base_frame', 'sensor_frame',
+            'cloud_topic', 'odometry_topic', 'terrain_topic', 'tf_topic', 'tf_static_topic')}
+
+        def reader(endpoint, identity, binding):
+            self.monitor = LocalizationMonitor(endpoint, identity, binding,
+                exchange=lambda: copy.deepcopy(self.localization_value))
+            self.addCleanup(self.monitor.close)
+            return self.monitor
+
+        def loader(map_id):
+            with patch('lingxi_navigation.physical_maps.LocalizationMonitor', side_effect=reader):
+                selection = load_map_selection(activator, map_id, footprint=footprint,
+                    profile_file=profile_file, profile_options=options, localization_endpoint='/synthetic-only.sock',
+                    run_root=self.root, executor=self.executor, output=self.output, operation_gate=None, activate=True)
+            self.localization = selection.localization
+            def factory(ticket):
+                generation = selection.factory(ticket)
+                self.generations.append(generation)
+                return generation
+            return Nav2MapSelection(selection.identity, selection.localization, factory)
+
+        self.backend.map_loader = loader
+        self.number += 1
+        self.assertIsNone(self.bridge.request(dict(id=f'{self.number:032x}', action='activate_map',
+            session=self.bridge.session, mapId=self.identity.mapId)))
+        self.assertEqual(self.identity, self.output.identity)
+        self.assertNotEqual(old_identity, self.output.identity)
+        self.assertIsNone(self.output.completed_retirement)
+        self.assertFalse(self.output.armed)
+        self.assertEqual(count, self.nonzero_count())
+        self.until(lambda: self.bridge.phase == 'idle' and not self.bridge.requires_stop)
+        self.assertEqual(self.identity, self.output.completed_retirement.identity)
+        self.assertIsNone(self.output.completed_retirement.ticket)
+        self.until(lambda: self.bridge.state(poll=False)['navigationReady'])
+        self.assertEqual(self.identity, self.generations[-1].identity)
+        self.record('new_map_fresh_stop_and_real_nav2_ready_without_motion')
+        self.command('start')
+        self.until(lambda: self.bridge.phase == 'running' and self.nonzero_count() >= count + 10)
+        self.record('new_map_real_action_and_twist_in_memory_only')
+        self.command('stop')
+        self.until(lambda: self.bridge.phase == 'idle' and not self.bridge.requires_stop)
+        warmup = self.backend.generation
+        self.assertIsNotNone(warmup)
+        count = self.nonzero_count()
+        self.command('activate_map')
+        self.assertTrue(warmup.quiescent())
+        self.assertFalse(warmup.process._live_group())
+        self.assertIsNone(self.output.ticket)
+        self.until(lambda: self.bridge.phase == 'idle' and not self.bridge.requires_stop)
+        self.assertIsNone(self.output.completed_retirement.ticket)
+        self.assertEqual(count, self.nonzero_count())
+        self.record('same_map_reconfirmation_retires_old_ticket_and_unused_warmup')
 
 
 if __name__ == '__main__':

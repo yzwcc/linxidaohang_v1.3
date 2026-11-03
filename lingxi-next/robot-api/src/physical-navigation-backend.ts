@@ -129,7 +129,8 @@ export class UnixRosNavigationBackend implements PhysicalNavigationBackend {
   }
 
   activateMap(value: PhysicalNavigationMapActivation) {
-    return this.typed(physicalNavigationMapActivationSchema.parse(value), 5000);
+    // Unclaimed producer exit precedes a separate map-bound stop deadline.
+    return this.typed(physicalNavigationMapActivationSchema.parse(value), 7000);
   }
 
   close(): Promise<void> {

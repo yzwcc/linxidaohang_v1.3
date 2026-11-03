@@ -28,9 +28,9 @@
   不等待 Unix Socket。查询同时校验地图回执、points/profile 哈希、服务/运行/seed 代次、
   tracking 状态与带原始时间戳的机身诊断位姿。Socket 总期限 250 ms，快照期限 300 ms，
   定位帧无进展 500 ms 撤销授权；查询失败、重新 seed 或服务重启均要求显式重新确认地图。
-- `activate_map()` 现可确认本导航进程固定地图与当前定位代次，不再无条件抛出未接入错误。
-  它不会启动定位、替用户 seed 或加载其他地图；须先在现有定位页面选图并提交胸部雷达
-  4×4 初值，持续跟踪后再确认。另一张地图需停止并重新配置/启动导航进程；平面
+- `activate_map()` 现可确认当前定位代次，并在停止后切换另一张已验证且正在 tracking 的地图。
+  它不会启动定位或替用户 seed；须先在现有定位页面选图并提交胸部雷达
+  4×4 初值，持续跟踪并确认停止后再激活。旧生产进程退出、新输出停止回执确认后才返回；平面
   `initialPose` 不适用于胸部雷达 seed，因此明确拒绝且不改变当前代次。
 - 定位授权只是附加否决条件。按 `effectiveScanNs` 精确查找机身里程计历史并比较平面位置
   和朝向，不能用最近帧代替；匹配后仍需通过原有传感器、TF、地形、足迹和输出检查。
@@ -45,7 +45,7 @@
 | --- | --- |
 | `LINGXI_NAV2_PROFILE_FILE` | 直接绝对路径，完整 JSON，足迹哈希与保存地图回执一致 |
 | `LINGXI_NAV2_RUN_ROOT` | 已存在、服务 UID 所有、权限 0700 的直接绝对目录，每 epoch 使用新子目录 |
-| `LINGXI_MAP_ROOT` / `LINGXI_ACTIVE_MAP_ID` | 已验证保存地图目录及地图身份；不是定位成功证明 |
+| `LINGXI_MAP_ROOT` / `LINGXI_ACTIVE_MAP_ID` | 已验证保存地图目录及启动地图身份；不是定位成功证明；运行中可显式换图 |
 | `LINGXI_FOOTPRINT_FILE` | 与保存地图证据哈希一致的外部足迹文件 |
 | `LINGXI_POINTCLOUD_TOPIC` / `LINGXI_ODOMETRY_TOPIC` / `LINGXI_TERRAIN_TOPIC` | 实际点云、保存地图坐标系位姿、带新采集时间的地形 topic |
 | `LINGXI_MAP_FRAME` / `LINGXI_BASE_FRAME` / `LINGXI_SENSOR_FRAME` | 固定为 `lingxi_saved_map` / `base_link` / `lidar_chest_front`，须真实存在 |
@@ -53,7 +53,7 @@
 | `LINGXI_NAVIGATION_SOCKET` | 沿用私有目录/Socket、同 UID 和受管产品配置要求 |
 | `LINGXI_LOCALIZATION_SOCKET` | 当前 SLAM owner 的定位服务 Socket；绝对直接路径、父目录 0700、Socket 0600、同非 root UID；owner 重启后重新配置/启动导航 |
 
-固定地图回执须为已通过新进程重载的 `map-ready.json` schema 2/3，并绑定 points/profile 哈希。
+选中地图回执须为已通过新进程重载的 `map-ready.json` schema 2/3，并绑定 points/profile 哈希。
 地图目录按回执身份解析，最多检查 2048 个直接目录条目；重复地图身份拒绝，不能靠目录名选图。
 每次准备新 Nav2 epoch 前重新核对地图身份、定位绑定及足迹，不能沿用更换后的文件。
 
@@ -110,7 +110,8 @@ costmap 发布节拍/回调积压造成的旧证据超时；未放宽速度或�
 这尚未完成完整产品链路：地形坐标与原始采集时间仍需统一，新输出尚未与实际定位 Socket、
 真实 GLIM 和 Nav2 组合测试。当前 guard 只核对已有外部数据源，不能制造或补齐数据；
 定位 Socket 可读也不等于可导航。
-现有定位服务中的地图加载/胸部雷达 seed 沿用独立页面流程，导航只确认当前固定地图和代次。
+现有定位服务中的地图加载/胸部雷达 seed 沿用独立页面流程，导航只确认已跟踪的地图和代次。
+后续多地图生产入口及真实 Nav2 离线验证见[地图切换记录](NAV2_MAP_HANDOFF_20261103.md)。
 还需补齐上述组合链路、ARM64 实际运行、现场传感器/TF/足迹核对、AIMDK 输入源及停止回执验证，
 随后才能进行短距离导航、动态避障、讲解打断恢复等现场验收。
 同域 DDS 图端点检查不是消息认证，不承诺抵御同 ROS 域的恶意发布者。

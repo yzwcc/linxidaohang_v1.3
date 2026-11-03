@@ -76,7 +76,8 @@ class FakeBackend:
     def activate_map(self, map_id, initial_pose):
         if map_id == self.identity.mapId:
             return self.identity
-        return MapEvidence(map_id, "d" * 64, "e" * 64, "f" * 64)
+        self.identity = MapEvidence(map_id, "d" * 64, "e" * 64, "f" * 64)
+        return self.identity
 
 
 def request_id(number):
@@ -228,9 +229,17 @@ class BridgeTests(unittest.TestCase):
             "session": self.bridge.session,
             "mapId": new_id,
         })
+        self.assertIsNone(result)
+        self.assertTrue(self.bridge.requires_stop)
+        self.assertFalse(any(self.bridge.last_checks.values()))
+        self.assertEqual('stopping', self.bridge.phase)
+        self.bridge.tick()
+        result = self.bridge.state(poll=False)
         self.assertEqual(new_id, result["identity"]["mapId"])
         self.assertEqual(new_id, self.bridge.identity.mapId)
         self.assertEqual("idle", result["phase"])
+        self.assertEqual('navigation_map_activated', result['detail'])
+        self.assertIsNone(self.backend.retire_calls[-1][0])
 
     def test_close_keeps_closed_state_and_requires_no_new_command(self):
         self.recover_initial_stop()
@@ -275,6 +284,34 @@ class SocketTests(BridgeTests):
                 payload = json.loads(response)
                 self.assertTrue(payload["ok"])
                 self.assertEqual("idle", payload["value"]["phase"])
+            finally:
+                client.close()
+                server.close()
+
+    def test_map_selection_response_waits_for_new_map_retirement(self):
+        import json
+        self.recover_initial_stop()
+        with tempfile.TemporaryDirectory() as temp:
+            directory = Path(temp).resolve()
+            directory.chmod(0o700)
+            server = PhysicalNavigationSocket(directory / 'navigation.sock', self.bridge)
+            client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            try:
+                client.connect(str(server.endpoint))
+                new_id = 'slam-' + '9' * 32
+                request = dict(id=request_id(81), action='activate_map', session=self.bridge.session, mapId=new_id)
+                self.backend.retirement_available = False
+                client.sendall((json.dumps(request) + '\n').encode())
+                server.step(0)
+                server.step(0)
+                self.assertEqual('stopping', self.bridge.phase)
+                self.assertFalse(select.select([client], [], [], 0)[0])
+                self.backend.retirement_available = True
+                payload = json.loads(self.drive(server, client))
+                self.assertTrue(payload['ok'])
+                self.assertEqual(new_id, payload['value']['identity']['mapId'])
+                self.assertEqual('navigation_map_activated', payload['value']['detail'])
+                self.assertIsNone(payload['value']['ticket'])
             finally:
                 client.close()
                 server.close()

@@ -58,7 +58,8 @@ export const physicalNavigationStateSchema = z.object({
     context.addIssue({ code: "custom", message: "navigation_ready_must_match_all_admission_gates" });
   }
   if ((state.ticket === null) !== (state.pointId === null) ||
-      (["requested", "running", "stopping", "paused", "finished"].includes(state.phase) && !state.ticket) ||
+      (["requested", "running", "paused", "finished"].includes(state.phase) && !state.ticket) ||
+      (state.phase === "stopping" && state.outputQuiescent) ||
       (["idle", "paused", "finished"].includes(state.phase) && !state.outputQuiescent)) {
     context.addIssue({ code: "custom", message: "inconsistent_physical_navigation_state" });
   }

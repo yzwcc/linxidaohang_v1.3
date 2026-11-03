@@ -21,10 +21,10 @@ sys.path.insert(0, str(ROOT.parent / 'robot-slam'))
 
 from lingxi_slam.activity_lease import OperationGate
 
-from lingxi_navigation.nav2_producer import Nav2Generation, OwnedNav2Backend, load_profile, spin_callbacks
-from lingxi_navigation.localization_guard import LocalizationGuard, LocalizationMonitor
+from lingxi_navigation.nav2_producer import OwnedNav2Backend, spin_callbacks
+from lingxi_navigation.physical_maps import load_map_selection, read_map_inputs
 from lingxi_navigation.physical_bridge import PhysicalNavigationBridge
-from lingxi_navigation.physical_ros import AimdkVelocityOutput, FileMapActivator, digest_footprint
+from lingxi_navigation.physical_ros import AimdkVelocityOutput, FileMapActivator
 from lingxi_navigation.physical_socket import PhysicalNavigationSocket
 
 
@@ -69,20 +69,15 @@ def build_runtime():
         raise RuntimeError("direct_footprint_file_required")
     map_activator = FileMapActivator(map_root)
     identity = map_activator.evidence(map_id)
-    localization_binding = map_activator.localization_binding(map_id)
-    monitor = LocalizationMonitor(_required_env('LINGXI_LOCALIZATION_SOCKET'), identity, localization_binding)
-    localization = LocalizationGuard(monitor)
-    if digest_footprint(footprint) != identity.footprintSha256:
-        raise RuntimeError("active_map_footprint_mismatch")
-    profile = load_profile(Path(_required_env("LINGXI_NAV2_PROFILE_FILE")), identity,
+    localization_endpoint = _required_env('LINGXI_LOCALIZATION_SOCKET')
+    profile_file = Path(_required_env("LINGXI_NAV2_PROFILE_FILE"))
+    profile_options = dict(
         map_frame=_required_env("LINGXI_MAP_FRAME"), base_frame=_required_env("LINGXI_BASE_FRAME"),
         sensor_frame=_required_env("LINGXI_SENSOR_FRAME"), cloud_topic=_required_env("LINGXI_POINTCLOUD_TOPIC"),
         odometry_topic=_required_env("LINGXI_ODOMETRY_TOPIC"), terrain_topic=_required_env("LINGXI_TERRAIN_TOPIC"),
         tf_topic=os.environ.get("LINGXI_TF_TOPIC", "/tf"),
         tf_static_topic=os.environ.get("LINGXI_TF_STATIC_TOPIC", "/tf_static"))
-    if (profile.map_frame, profile.base_frame, profile.sensor_frame) != (
-            'lingxi_saved_map', 'base_link', 'lidar_chest_front'):
-        raise RuntimeError('same_localization_projection_frames_required')
+    read_map_inputs(map_activator, map_id, footprint, profile_file, profile_options)
     run_root = Path(_required_env("LINGXI_NAV2_RUN_ROOT"))
     if (not run_root.is_absolute() or run_root.resolve(strict=True) != run_root or not run_root.is_dir()
             or run_root.stat().st_uid != os.geteuid() or run_root.stat().st_mode & 0o077):
@@ -93,34 +88,33 @@ def build_runtime():
     from rclpy.node import Node
 
     rclpy.init(args=None)
-    node = executor = output = backend = None
+    node = executor = output = backend = selection = None
     try:
         node = Node("lingxi_next_physical_navigation", use_global_arguments=False)
         executor = SingleThreadedExecutor()
         executor.add_node(node)
         output = AimdkVelocityOutput(node, identity)
 
-        def factory(ticket):
-            if (map_activator.evidence(map_id) != identity
-                    or map_activator.localization_binding(map_id) != localization_binding
-                    or digest_footprint(footprint) != identity.footprintSha256):
-                raise RuntimeError("saved_map_evidence_changed_before_nav2_preparation")
-            generation = Nav2Generation(profile, ticket, run_root, footprint, executor,
-                                        operation_gate=operation_gate)
-            try:
-                generation.connect(output, profile.limits, validate_observation=localization.validate_observation)
-                return generation
-            except BaseException:
-                generation.close()
-                raise
+        def select_map(chosen_id, *, activate=True):
+            return load_map_selection(map_activator, chosen_id, footprint=footprint,
+                profile_file=profile_file, profile_options=profile_options,
+                localization_endpoint=localization_endpoint, run_root=run_root, executor=executor,
+                output=output, operation_gate=operation_gate, activate=activate)
 
-        backend = OwnedNav2Backend(identity, output, factory, lambda: spin_callbacks(executor), localization=localization)
-        monitor.start()
+        selection = select_map(map_id, activate=False)
+        if selection.identity != identity:
+            raise RuntimeError('startup_map_evidence_changed')
+        backend = OwnedNav2Backend(identity, output, selection.factory, lambda: spin_callbacks(executor),
+                                   localization=selection.localization, map_loader=select_map)
         bridge = PhysicalNavigationBridge(backend, identity)
         socket = PhysicalNavigationSocket(socket_path, bridge)
         return rclpy, node, executor, output, backend, socket
     except BaseException:
-        _close_runtime(rclpy, node, executor, output, backend)
+        try:
+            if backend is None and selection is not None:
+                selection.localization.monitor.close()
+        finally:
+            _close_runtime(rclpy, node, executor, output, backend)
         raise
 
 

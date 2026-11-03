@@ -36,6 +36,7 @@ class _Client:
     output: bytes = b''
     identifier: str | None = None
     pending: str | None = None
+    pending_map: str | None = None
 
 
 class PhysicalNavigationSocket:
@@ -108,6 +109,7 @@ class PhysicalNavigationSocket:
             result = self.bridge.request(request)
             if result is None:
                 client.pending = request['action']
+                client.pending_map = request.get('mapId') if client.pending == 'activate_map' else None
                 client.deadline = time.monotonic() + self.bridge.retirement_timeout + .5
             else:
                 self._respond(client, value=result)
@@ -146,7 +148,8 @@ class PhysicalNavigationSocket:
             if client.pending:
                 expected = 'paused' if client.pending == 'pause' else 'idle'
                 if (self.bridge.phase == expected and self.bridge.output_quiescent
-                        and self.bridge.retiring is None and not self.bridge.requires_stop):
+                        and self.bridge.retiring is None and not self.bridge.requires_stop
+                        and (client.pending_map is None or self.bridge.identity.mapId == client.pending_map)):
                     self._respond(client, value=self.bridge.state())
                 elif self.bridge.phase == 'failed' or time.monotonic() >= client.deadline:
                     self._respond(client, error=BridgeError('navigation_retirement_unconfirmed', 503))

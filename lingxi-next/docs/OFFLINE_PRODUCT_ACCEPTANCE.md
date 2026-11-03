@@ -5,6 +5,13 @@ route. Earlier vendor-only acceptance records in ACCEPTANCE.md are historical;
 vendor SLAM licensing is not a prerequisite for this route. No robot connection
 or deployment is authorized by completing an offline check.
 
+Production navigation now supports explicit stopped-map handoff without a
+service restart. The target must already be localized; old prewarm processes,
+ROS readers and output tickets are retired, and a new map-bound stop is required
+before activation ACK. See [map handoff](NAV2_MAP_HANDOFF_20261103.md) for current
+unit/Unix/real-Nav2 results, preserved intermittent failure and historical evidence
+test failures. This does not change physical calibration or terrain admission.
+
 The [physical-navigation client milestone](PHYSICAL_NAVIGATION_BRIDGE.md) adds
 explicit independent-product composition, saved-map activation, seven-gate
 admission, task/epoch acknowledgements and a private Unix transport. The external

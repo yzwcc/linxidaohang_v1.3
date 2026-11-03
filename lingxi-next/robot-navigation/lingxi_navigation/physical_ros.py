@@ -855,6 +855,22 @@ class AimdkVelocityOutput:
         self.ticket = ticket
         self.completed_retirement = None
 
+    def rebind_map(self, identity: MapEvidence):
+        """Retire map ownership without transferring the old stop receipt."""
+        self._owned()
+        proof = self.completed_retirement
+        if (type(identity) is not MapEvidence
+                or identity.mapId == self.identity.mapId and identity != self.identity
+                or self.armed or not self.ready(self.identity)
+                or type(proof) is not Retirement or proof.identity != self.identity
+                or proof.ticket != self.ticket or not proof.output_quiescent
+                or not 0 <= proof.observed_at <= self.clock()):
+            raise RuntimeError('confirmed_idle_output_map_handoff_required')
+        self.identity, self.ticket = identity, None
+        self.completed_retirement = self.state = self.feedback = None
+        self.armed_at = self.last_command_at = self.last_command_generated = None
+        self.command_sequence, self.last_velocity = 0, (0., 0., 0.)
+
     def arm(self, ticket: Ticket, identity: MapEvidence) -> bool:
         self._owned()
         if type(ticket) is not Ticket or self.armed or not self.ready(identity):

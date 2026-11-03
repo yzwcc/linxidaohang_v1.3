@@ -21,8 +21,10 @@ Unix Socket、Action 客户端及 AIMDK 速度适配器，并通过真实 Humble
 部署入口通过 `OwnedNav2Backend` 管理每个 epoch 的 Nav2 进程、Action 客户端和
 `ControllerVelocityChannel`。确认初始停止后才预热，没有就绪前不排队发送目标。
 暂停后先撤销输出，再清退整个生产进程组；继续必须使用新 epoch，不能复用旧控制流。
-`FileMapActivator` 仍只核验保存地图证据；生产后端的 `activate_map` 明确拒绝，
-尚未加载 Nav2 地图或设置定位初值，不能把地图目录存在当作定位初始化成功。
+`FileMapActivator` 只核验保存地图证据；生产后端现在可在停止确认后绑定已持续定位的
+保存地图，并重建地图专属的生产者、定位 guard 与输出身份。它不会启动定位或代填初值，
+也不能把地图目录存在当作定位初始化成功。换图必须取得新的停止回执，不复用旧任务。
+具体流程及离线边界见 [地图切换记录](NAV2_MAP_HANDOFF_20261103.md)。
 地形 `OccupancyGrid` 的新鲜度也不等于地面支撑、标定或几何精度验收通过。
 物理桥不会随此次更新自动启用；ARM64 目标运行验证及实机导航仍未完成。
 速度通道的验证与限制见 [速度链路记录](PHYSICAL_VELOCITY_VALIDATION_20261103.md)，
@@ -90,7 +92,7 @@ Python 预检与 API 都会核验 UID、私有权限、路径和现存 Socket �
 | action | 请求字段（除 id/action） | 超时 |
 |---|---|---|
 | `state` | 无 | 1500 ms |
-| `activate_map` | `session`、`mapId`，可选 `evidence`、`initialPose` | 5000 ms |
+| `activate_map` | `session`、`mapId`，可选 `evidence`、`initialPose` | 7000 ms |
 | `start` | `session`、`expectedEpoch`、`taskId`、`mapId`、`pointId`、`goal`、`evidence` | 5000 ms |
 | `pause` / `resume` | `session`、`expectedEpoch`、`taskId`、`mapId`、`pointId`、`evidence` | 5000 ms |
 | `stop` | `session`、`expectedEpoch`、`taskId`、`mapId`、`evidence`，当前点位存在时附 `pointId` | 7000 ms |
@@ -107,6 +109,7 @@ Python 预检与 API 都会核验 UID、私有权限、路径和现存 Socket �
 `requiresStop`、`outputQuiescent`、`pose`、`checks`、`navigationReady` 和
 `physicalMotionSent`。`ticket` 为 `{task_id,epoch}` 或 `null`，与点位同步存在。
 `session` 和任务 `epoch` 都是 32 位十六进制，重启桥须更换 `session`。
+初始停止及地图交接的 `stopping` 可以没有任务；这不表示已停止，必须等新的回执确认。
 
 `checks` 必须来源于真实、持续更新且失效即撤销的证据：
 

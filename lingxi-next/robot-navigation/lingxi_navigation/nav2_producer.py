@@ -14,7 +14,7 @@ import time
 
 from .nav2_profile import BEHAVIOR_TREE, THROUGH_POSES_BEHAVIOR_TREE, _parameters
 from .navfn import finite
-from .physical_bridge import CHECKS, MapEvidence, Observation, Ticket
+from .physical_bridge import CHECKS, BridgeError, MapEvidence, MapHandoff, Observation, Ticket
 from .physical_velocity import ControllerVelocityChannel, VelocityLimits, controller_namespace
 
 
@@ -331,9 +331,24 @@ class Nav2Generation:
             self.operation_lease = None
 
 
+@dataclass(frozen=True)
+class Nav2MapSelection:
+    identity: MapEvidence
+    localization: object
+    factory: object
+
+    def __post_init__(self):
+        from .localization_guard import LocalizationGuard
+        if (type(self.identity) is not MapEvidence or not callable(self.factory)
+                or type(self.localization) is not LocalizationGuard
+                or self.localization.monitor.identity != self.identity):
+            raise ValueError('bound_nav2_map_selection_required')
+
+
 class OwnedNav2Backend:
     """Prewarm an unused epoch; never queue a goal while Nav2 is starting."""
-    def __init__(self, identity, output, factory, spin, *, clock=time.monotonic, startup_timeout=30., localization=None):
+    def __init__(self, identity, output, factory, spin, *, clock=time.monotonic, startup_timeout=30.,
+                 localization=None, map_loader=None):
         if (type(identity) is not MapEvidence or not callable(factory) or not callable(spin)
                 or not finite(startup_timeout) or not 1. <= startup_timeout <= 60.):
             raise ValueError('owned_nav2_backend_configuration_required')
@@ -343,6 +358,7 @@ class OwnedNav2Backend:
         self.reserved, self.startup_complete = None, False
         self.used_epochs, self.closed = set(), False
         self.localization = localization
+        self.map_loader = map_loader
 
     def _owned(self):
         if threading.get_ident() != self.owner:
@@ -461,7 +477,38 @@ class OwnedNav2Backend:
             raise RuntimeError('live_map_loader_and_localization_seed_not_integrated')
         if self.closed or self.retiring is not None:
             raise RuntimeError('quiescent_navigation_map_handoff_required')
-        return self.localization.activate_map(map_id, initial_pose)
+        if self.map_loader is None:
+            return self.localization.activate_map(map_id, initial_pose)
+        if initial_pose is not None:
+            raise BridgeError('chest_lidar_localization_seed_required', 400)
+        if (self.reserved is not None or self.output.armed
+                or self.generation is not None and self.generation.claimed):
+            raise BridgeError('quiescent_navigation_map_handoff_required')
+        selection = self.map_loader(map_id)
+        if type(selection) is not Nav2MapSelection:
+            raise RuntimeError('navigation_map_selection_identity_mismatch')
+        try:
+            if (selection.identity.mapId != map_id
+                    or map_id == self.identity.mapId and selection.identity != self.identity):
+                raise RuntimeError('navigation_map_selection_identity_mismatch')
+            # Only an unclaimed prewarm may remain after a confirmed stop.
+            # Its entire producer and subscriptions must leave before rebinding.
+            if self.generation is not None:
+                self.generation.close()
+                self.generation = None
+            self.spin()
+            self.output.poll()
+            selection.localization.activate_map(map_id, None)
+            self.localization.monitor.close()
+            self.output.rebind_map(selection.identity)
+        except BaseException as error:
+            selection.localization.monitor.close()
+            if isinstance(error, BridgeError):
+                raise RuntimeError('navigation_map_handoff_interrupted') from error
+            raise
+        self.identity, self.localization, self.factory = selection.identity, selection.localization, selection.factory
+        self.started_at, self.startup_complete = None, False
+        return MapHandoff(self.identity)
 
     def close(self):
         import secrets

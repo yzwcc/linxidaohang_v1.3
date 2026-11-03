@@ -13,7 +13,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'robot-navigation'))
 import test_physical_ros as fixtures
 from test_physical_bridge import FakeClock, evidence, request_id
-from lingxi_navigation.nav2_producer import Nav2Generation, PhysicalNav2Profile, OwnedNav2Backend, load_profile, prepare_producer, spin_callbacks
+from lingxi_navigation.nav2_producer import Nav2Generation, Nav2MapSelection, PhysicalNav2Profile, OwnedNav2Backend, load_profile, prepare_producer, spin_callbacks
 from lingxi_navigation.physical_bridge import CHECKS, BridgeError, Observation, PhysicalNavigationBridge, Ticket
 from lingxi_navigation.physical_ros import AimdkVelocityOutput
 from lingxi_navigation.physical_velocity import VelocityLimits, controller_namespace
@@ -501,6 +501,174 @@ class OwnedBackendTests(unittest.TestCase):
         self.assertFalse(self.output.armed)
         with self.assertRaisesRegex(RuntimeError, 'reservation'):
             self.output.reserve(Ticket('other', 'f' * 32), self.identity)
+
+    def candidate(self, identity=None):
+        from test_localization_guard import BINDING, snapshot
+        from lingxi_navigation.localization_guard import LocalizationMonitor, LocalizationGuard
+        identity = identity or evidence('b')
+        monitor = LocalizationMonitor('/unused-test.sock', identity, BINDING,
+            clock=self.clock, exchange=lambda: snapshot(identity))
+        self.addCleanup(monitor.close)
+        monitor.refresh()
+        guard = LocalizationGuard(monitor)
+        guard.activate_map(identity.mapId, None)
+        def factory(ticket):
+            generation = FakeGeneration(ticket, identity, self.clock, self.output)
+            self.generations.append(generation)
+            return generation
+        return Nav2MapSelection(identity, guard, factory)
+
+    def activation(self, identity):
+        self.number += 1
+        return self.bridge.request(dict(id=request_id(self.number), action='activate_map',
+            session=self.bridge.session, mapId=identity.mapId))
+
+    def test_switch_tears_down_warmup_and_requires_fresh_new_map_stop(self):
+        self.install_localization()
+        self.backend.activate_map(self.identity.mapId, None)
+        self.boot()
+        old_generation = self.generations[0]
+        old_generation.close = Mock()
+        old_proof = self.output.completed_retirement
+        selection = self.candidate()
+        self.backend.map_loader = Mock(return_value=selection)
+        self.assertIsNone(self.activation(selection.identity))
+        old_generation.close.assert_called_once()
+        self.assertEqual(selection.identity, self.bridge.identity)
+        self.assertEqual(selection.identity, self.output.identity)
+        self.assertIsNone(self.output.ticket)
+        self.assertIsNone(self.output.completed_retirement)
+        self.assertIsNone(self.output.retirement(old_proof.nonce))
+        self.assertTrue(self.bridge.requires_stop)
+        self.assertEqual(dict(x=0., y=0., yaw=0.), self.bridge.last_pose)
+        self.bridge.tick()
+        self.assertEqual('stopping', self.bridge.phase)
+        self.assertEqual(1, len(self.generations))
+        self.refresh()
+        self.bridge.tick()
+        self.assertEqual('idle', self.bridge.phase)
+        self.assertEqual('navigation_map_activated', self.bridge.detail)
+        proof = self.output.completed_retirement
+        self.assertEqual(selection.identity, proof.identity)
+        self.assertNotEqual(old_proof.nonce, proof.nonce)
+        self.assertIsNone(proof.ticket)
+        self.assertEqual(2, len(self.generations))
+        self.assertNotEqual(old_generation.ticket.epoch, self.generations[-1].ticket.epoch)
+        self.assertEqual(selection.identity, self.generations[-1].identity)
+        self.assertFalse(self.output.armed)
+        self.assertFalse(self.bridge.state()['navigationReady'])
+        old_generation.queue.append((Ticket('old', old_generation.ticket.epoch), 'accepted'))
+        self.generations[-1].ready = True
+        self.bridge.tick()
+        self.assertTrue(self.bridge.state()['navigationReady'])
+        self.assertIsNone(self.bridge.ticket)
+
+    def test_candidate_preflight_rejection_leaves_idle_map_and_warmup_unchanged(self):
+        self.install_localization()
+        self.backend.activate_map(self.identity.mapId, None)
+        self.boot()
+        old = self.backend.generation
+        old.close = Mock()
+        self.backend.map_loader = Mock(side_effect=BridgeError('saved_map_localization_tracking_required', 503))
+        with self.assertRaisesRegex(BridgeError, 'tracking_required'):
+            self.activation(evidence('b'))
+        self.assertIs(old, self.backend.generation)
+        old.close.assert_not_called()
+        self.assertEqual(self.identity, self.output.identity)
+        self.assertEqual('idle', self.bridge.phase)
+        self.assertFalse(self.bridge.requires_stop)
+
+    def test_cleanup_failure_does_not_rebind_or_reuse_candidate(self):
+        self.install_localization()
+        self.backend.activate_map(self.identity.mapId, None)
+        self.boot()
+        self.backend.generation.close = Mock(side_effect=RuntimeError('synthetic_exit_failure'))
+        selection = self.candidate()
+        self.backend.map_loader = Mock(return_value=selection)
+        with self.assertRaisesRegex(BridgeError, 'activation_unconfirmed'):
+            self.activation(selection.identity)
+        self.assertEqual(self.identity, self.output.identity)
+        self.assertTrue(selection.localization.monitor.stopping.is_set())
+        self.assertTrue(self.bridge.requires_stop)
+        self.assertFalse(self.output.armed)
+
+    def test_active_or_reserved_task_cannot_rebind_output(self):
+        self.boot()
+        selection = self.candidate()
+        self.backend.localization = selection.localization
+        self.backend.map_loader = Mock(return_value=selection)
+        self.output.reserve(Ticket('reserved', 'd' * 32), self.identity)
+        self.backend.reserved = self.output.ticket
+        with self.assertRaisesRegex(BridgeError, 'quiescent_navigation'):
+            self.backend.activate_map(selection.identity.mapId, None)
+        self.backend.map_loader.assert_not_called()
+        with self.assertRaisesRegex(RuntimeError, 'output_map_handoff'):
+            self.output.rebind_map(selection.identity)
+        self.assertEqual(self.identity, self.output.identity)
+
+    def test_new_map_stop_timeout_never_starts_its_producer(self):
+        self.install_localization()
+        self.command('stop')
+        self.refresh()
+        self.bridge.tick()
+        selection = self.candidate()
+        self.backend.map_loader = Mock(return_value=selection)
+        self.activation(selection.identity)
+        self.clock.advance(3.01)
+        self.bridge.tick()
+        self.assertEqual('failed', self.bridge.phase)
+        self.assertTrue(self.bridge.requires_stop)
+        self.assertFalse(self.bridge.output_quiescent)
+        self.assertFalse(self.generations)
+
+    def test_reconfirming_same_map_retires_old_task_ticket_before_next_stop(self):
+        self.install_localization()
+        self.command('stop')
+        self.refresh()
+        self.bridge.tick()
+        old_ticket = Ticket('finished-task', 'e' * 32)
+        self.output.reserve(old_ticket, self.identity)
+        self.output.retire(old_ticket, 'd' * 32)
+        self.refresh()
+        self.output.complete_retirement('d' * 32)
+        self.bridge.ticket = old_ticket
+        selection = self.candidate(self.identity)
+        self.backend.map_loader = Mock(return_value=selection)
+        self.activation(self.identity)
+        self.assertIsNone(self.output.ticket)
+        self.assertIsNone(self.bridge.ticket)
+        self.assertIsNone(self.output.completed_retirement)
+        self.refresh()
+        self.bridge.tick()
+        self.assertEqual('idle', self.bridge.phase)
+        self.assertIsNone(self.output.completed_retirement.ticket)
+        self.command('stop')
+        self.assertFalse(self.output.armed)
+        self.assertEqual('stopping', self.bridge.phase)
+
+    def test_old_map_and_changed_same_id_evidence_cannot_own_new_output(self):
+        self.boot()
+        selection = self.candidate()
+        old_proof = self.output.completed_retirement
+        self.output.rebind_map(selection.identity)
+        self.assertFalse(self.output.ready(self.identity))
+        self.assertFalse(self.output.arm(Ticket('late', 'f' * 32), self.identity))
+        self.assertIsNone(self.output.retirement(old_proof.nonce))
+        with self.assertRaisesRegex(RuntimeError, 'output_map_handoff'):
+            self.output.rebind_map(replace(selection.identity, receiptSha256='e' * 64))
+
+    def test_candidate_tracking_loss_after_warmup_exit_never_admits_it(self):
+        self.install_localization()
+        self.backend.activate_map(self.identity.mapId, None)
+        self.boot()
+        selection = self.candidate()
+        self.backend.map_loader = Mock(return_value=selection)
+        self.backend.generation.close = Mock(side_effect=lambda: self.clock.advance(.51))
+        with self.assertRaisesRegex(BridgeError, 'activation_unconfirmed'):
+            self.activation(selection.identity)
+        self.assertEqual(self.identity, self.output.identity)
+        self.assertTrue(self.bridge.requires_stop)
+        self.assertFalse(self.output.armed)
 
 
 if __name__ == '__main__':
