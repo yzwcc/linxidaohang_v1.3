@@ -274,3 +274,15 @@ Robot execution, live-sensor integration and metric navigation remain open.
   support. Shared-package/installer forwarding, target loading and throughput,
   metric/gravity/ground/base calibration and field acceptance remain open.
   No robot connection, sensor subscription, motion or deployment occurred.
+- [Explicit ARM64 terrain runtime selection](LIVE_ACQUISITION_WIRING_20261103.md#arm64-terrain-selection)
+  allows the live acquisition factory to consume the exact trial bundle and a
+  pinned successful external target-runner receipt, without impossible adjacent
+  host build reports. Runtime selection is read-only and shares all 21-contract
+  result checks with the runner; source, library, receipt and dependency changes
+  fail preflight. Focused Linux regression: 114 passed, zero skips/failures;
+  source inventory: six passed; shared bundle: 11 passed/one host-Node skip.
+  These tests use synthetic target receipts and do not establish target loading.
+  Current real bundle `terrain-target-trial-20261103-b` is prepared only; TCP/22
+  timed out before authentication. Real target execution, calibrated ground
+  support, live throughput and physical navigation remain outstanding. No robot
+  command, release archive rebuild or APK change occurred.

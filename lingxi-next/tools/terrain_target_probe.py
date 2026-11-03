@@ -5,6 +5,7 @@ import hashlib
 import importlib.util
 import io
 import json
+import math
 import os
 from pathlib import Path, PurePosixPath
 import platform
@@ -163,6 +164,24 @@ def run_contracts(root, contracts):
     if not result.wasSuccessful() or result.skipped or sorted(result.passed) != contracts:
         raise RuntimeError("terrain_native_contract_failed:\n" + output.getvalue())
     return sorted(result.passed)
+
+
+def validate_result(value, manifest, identity):
+    """Shared by the SSH runner and read-only runtime admission."""
+    expected = {Path(name).name: entry["sha256"] for name, entry in manifest["files"].items()
+                if name.startswith("native/") and ".so" in name}
+    if (type(value) is not dict or value.get("result") != RESULT
+            or value.get("inputClassification") != "synthetic_fixture"
+            or type(value.get("target")) is not dict
+            or value.get("target", {}).get("machine") != "aarch64"
+            or value.get("trialManifestSha256") != identity or value.get("buildReportSha256") != manifest["buildReportSha256"]
+            or value.get("executedContracts") != manifest["contracts"]
+            or type(value.get("probeSeconds")) not in (int, float)
+            or not math.isfinite(value["probeSeconds"]) or not 0 <= value["probeSeconds"] <= 120
+            or value.get("mappedLibrariesSha256") != expected or value.get("checks") != CHECKS
+            or any(item is not True for item in value["checks"].values())
+            or value.get("boundaries") != BOUNDARIES or any(item is not False for item in value["boundaries"].values())):
+        raise ValueError("complete_source_bound_arm64_terrain_result_required")
 
 
 def probe(root):

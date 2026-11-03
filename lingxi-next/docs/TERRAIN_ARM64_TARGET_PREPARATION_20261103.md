@@ -16,12 +16,13 @@ NavFn dependency, the existing 21 ground/fusion contracts, a standalone probe,
 two AArch64 adapters, two pinned OctoMap libraries and original license notices.
 No maps, recordings, credentials or business data are included.
 
-Actual preparation completed in the ordinary WSL user cache under
-`terrain-target-trial-20261103-a`, from `terrain-arm64-build-20261103-c`.
-The manifest SHA256 is:
+The current preparation completed in the ordinary WSL user cache under
+`terrain-target-trial-20261103-b`, from `terrain-arm64-build-20261103-c`.
+It includes the shared result validator used by both the runner and runtime.
+The earlier `a` bundle is preserved, not overwritten. Current manifest SHA256:
 
 ```text
-eaaa91328e628470b3c18e1700491eb1272f77ca31cfdaffb5324edb6ca7c9ec
+48769048242daaa2eb4c05ff0c494021e111569fcb94d1d90307ac3cc0a637d5
 ```
 
 The adapter identities remain those recorded in
@@ -74,8 +75,12 @@ existing connector; do not place credentials in arguments or files.
   SSH banner. No authentication, upload, robot command, deployment or network
   configuration change occurred. No additional scan is needed for this trial.
 
-Even a successful target trial will not manufacture the adjacent successful
-runtime build/load reports required by `live_acquisition.terrain_settings()`.
+A successful target trial can now be selected explicitly by passive live
+acquisition through its pinned bundle and external runner receipt, without
+manufacturing host build reports. See the
+[runtime selection contract](LIVE_ACQUISITION_WIRING_20261103.md#arm64-terrain-selection).
+No successful real target receipt exists yet. The latest bounded workstation
+TCP/22 check timed out before authentication; no upload or robot command ran.
 Live sensor timing, calibrated ground geometry, supported free cells and the
 guarded physical navigation chain remain separate integration work.
 

@@ -55,6 +55,7 @@ BOUND_SOURCE_MODULES = (
     'robot-runtime/python/acquisition_bundle.py',
     'robot-runtime/python/controlled_localization.py',
     'robot-runtime/python/live_acquisition.py',
+    'robot-runtime/python/terrain_bundle.py',
     'tools/run_glim_supervised_replay.py',
 )
 

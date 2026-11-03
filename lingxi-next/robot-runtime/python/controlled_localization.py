@@ -43,6 +43,8 @@ SOURCES = (
     "robot-runtime/python/live_acquisition.py",
     "robot-runtime/python/live_terrain_ros.py",
     "robot-runtime/python/acquisition_bundle.py",
+    "robot-runtime/python/terrain_bundle.py",
+    "tools/terrain_target_probe.py",
 )
 
 

@@ -2,7 +2,6 @@
 import argparse
 import hashlib
 import json
-import math
 import os
 from pathlib import Path, PurePosixPath
 import shlex
@@ -68,20 +67,7 @@ def command(remote):
 
 
 def validate_result(value, manifest, identity):
-    expected = {Path(name).name: entry["sha256"] for name, entry in manifest["files"].items()
-                if name.startswith("native/") and ".so" in name}
-    if (type(value) is not dict or value.get("result") != probe.RESULT
-            or value.get("inputClassification") != "synthetic_fixture"
-            or type(value.get("target")) is not dict
-            or value.get("target", {}).get("machine") != "aarch64"
-            or value.get("trialManifestSha256") != identity or value.get("buildReportSha256") != manifest["buildReportSha256"]
-            or value.get("executedContracts") != manifest["contracts"]
-            or type(value.get("probeSeconds")) not in (int, float)
-            or not math.isfinite(value["probeSeconds"]) or not 0 <= value["probeSeconds"] <= 120
-            or value.get("mappedLibrariesSha256") != expected or value.get("checks") != probe.CHECKS
-            or any(item is not True for item in value["checks"].values())
-            or value.get("boundaries") != probe.BOUNDARIES or any(item is not False for item in value["boundaries"].values())):
-        raise ValueError("complete_source_bound_arm64_terrain_result_required")
+    probe.validate_result(value, manifest, identity)
 
 
 def run(args):

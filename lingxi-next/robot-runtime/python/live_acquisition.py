@@ -23,7 +23,7 @@ SOURCES = ('robot-runtime/python/live_acquisition.py', 'robot-runtime/python/acq
     'robot-navigation/lingxi_navigation/terrain.py', 'robot-navigation/lingxi_navigation/terrain_protocol.py',
     'robot-navigation/lingxi_navigation/terrain_worker.py', 'robot-navigation/lingxi_navigation/ground.py',
     'robot-navigation/lingxi_navigation/occupancy.py', 'robot-navigation/lingxi_navigation/recorded_occupancy.py',
-    'tools/check_ground_native.py')
+    'tools/check_ground_native.py', 'robot-runtime/python/terrain_bundle.py', 'tools/terrain_target_probe.py')
 ROS_SOURCES = ('robot-runtime/python/live_terrain_ros.py',
     'robot-navigation/lingxi_navigation/terrain_ros.py', 'robot-navigation/lingxi_navigation/terrain_feed.py')
 
@@ -37,7 +37,8 @@ def metadata(path, expected, maximum=262144):
 
 def terrain_settings(value):
     """Keep native ground/clearance independent from the display height filter."""
-    if type(value) is not dict or set(value) != {'geometry', 'projection', 'ground', 'octomap'}:
+    if (type(value) is not dict or set(value) not in ({'geometry', 'projection', 'ground', 'octomap'},
+            {'geometry', 'projection', 'ground', 'octomap', 'targetTrial'})):
         raise ValueError('complete_declared_terrain_settings_required')
     geometry = value['geometry']
     if type(geometry) is not dict or set(geometry) != {'metres_per_raw_unit', 'declared_from_raw'}:
@@ -45,12 +46,17 @@ def terrain_settings(value):
     declared = OfflineGeometry(geometry['metres_per_raw_unit'], tuple(geometry['declared_from_raw']))
     projection = ClearanceProjection(**value['projection'])
     ground, octomap = value['ground'], value['octomap']
-    fields = {'library', 'sha256', 'buildReportSha256'}
+    fields = {'library', 'sha256'} | (set() if 'targetTrial' in value else {'buildReportSha256'})
     if (type(ground) is not dict or set(ground) != fields | {'declaration'}
             or type(octomap) is not dict or set(octomap) != fields | {'dependencies'}
             or type(octomap['dependencies']) is not dict or set(octomap['dependencies']) != DEPENDENCIES
             or not all(map(digest_value, octomap['dependencies'].values()))):
         raise ValueError('explicit_declared_terrain_native_builds_required')
+    declaration = GroundDeclaration(**ground['declaration'])
+    if 'targetTrial' in value:
+        from terrain_bundle import verify_selection
+        verify_selection(value['targetTrial'], ground, octomap)
+        return declared, projection, declaration
     from check_ground_native import verified_build
     ground_library = metadata(ground['library'], ground['sha256'], 16 * 1024**2)
     ground_report = metadata(ground_library.parent / 'build-report.json', ground['buildReportSha256'])
@@ -68,7 +74,7 @@ def terrain_settings(value):
         raise ValueError('source_bound_declared_terrain_octomap_build_required')
     for name, expected in octomap['dependencies'].items():
         metadata(octomap_library.parent / 'lib' / name, expected, 16 * 1024**2)
-    return declared, projection, GroundDeclaration(**ground['declaration'])
+    return declared, projection, declaration
 
 
 class AcquisitionSettings:
@@ -135,6 +141,10 @@ class AcquisitionSettings:
                 (*SOURCES, *(ROS_SOURCES if self.ros_output else ()))})
         if self.ros_output:
             frozen['rosOutputMode'] = 'private_declared_terrain'
+        if self.terrain is not None and 'targetTrial' in value['terrain']:
+            trial = value['terrain']['targetTrial']
+            frozen.update(terrainTrialManifestSha256=trial['manifestSha256'],
+                          terrainTargetReportSha256=trial['reportSha256'])
         if self.path.read_bytes() != payload or config_path.read_bytes() != config_bytes:
             raise ValueError('unchanged_acquisition_settings_during_preflight_required')
         return frozen

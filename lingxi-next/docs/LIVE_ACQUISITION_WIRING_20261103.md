@@ -33,8 +33,9 @@ source identities, ELF architecture and the already-enabled
 The parent passes both the sidecar path and its complete integrity identity to
 the child. Missing pairs, recorded input, wrong architecture and input changes
 are rejected. Each on-demand launch rechecks the selected inputs. Optional
-terrain additionally requires declared geometry, projection, ground declaration,
-source-bound native build reports and matching AArch64 libraries/dependencies.
+terrain additionally requires declared geometry, projection, ground declaration
+and matching AArch64 libraries/dependencies. Existing source-bound native build
+reports remain supported; the explicit target-trial alternative is below.
 
 The shared launcher requires the sidecar outside its extracted package and
 separate from the persistent maps, run output and frozen native inputs. The
@@ -141,6 +142,35 @@ Generated preparation/evidence directories remain private, ignored local
 artifacts, not source-control payloads or a production delivery. The archive
 does not contain a production acquisition sidecar, terrain calibration or
 external native libraries. Its successful preparation is not field acceptance.
+
+## ARM64 Terrain Selection
+
+An optional `terrain.targetTrial` object selects the exact ARM64 terrain trial
+already executed by `run_terrain_target_trial.py run`. Its four required fields
+are `root`, `manifestSha256`, `report` and `reportSha256`. Paths are direct
+absolute paths; `report` is the external private local runner receipt, not a
+bundled target output. In this mode `ground` and `octomap` retain `library` and
+`sha256`, the ground declaration and OctoMap dependencies, but omit
+`buildReportSha256`. Mixing target and host-build provenance is rejected.
+
+The read-only verifier checks exact bundle inventory, current production source
+and native bridge identities, selected library/dependency hashes, successful
+runner exit and all 21 exact target contracts. It shares the runner's complete
+result validator and rechecks inputs before returning. It never loads native
+code, imports bundled tests or executes a probe. Both pinned receipt and bundle
+identities are included in parent/child preflight. The receipt is trusted local
+operator input, not cryptographic attestation or physical motion authorization.
+
+Focused Linux regression: 114 tests passed, zero skips/failures, 46.084 seconds.
+This includes 15 new runtime-selection tests, the actual live Python factory
+with synthetic sensors/native/process fixtures, pause withdrawal and terminal
+cleanup. Source-inventory JavaScript checks: six passed. Shared-bundle checks:
+11 passed and one skipped because host Node was not supplied in that WSL run.
+Synthetic ELF headers and receipts are not evidence of ARM64 execution.
+
+No production sidecar, calibration or successful real target receipt was
+created. The current prepared trial is `terrain-target-trial-20261103-b`;
+the immutable 0.1.21 archive and APK were not rebuilt.
 
 ## Remaining Gates
 
