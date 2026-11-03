@@ -35,13 +35,24 @@ class ServiceDiagnosticTests(unittest.TestCase):
         self.assertFalse(summary['rootCauseEstablished'])
 
     def test_failed_reply_exposes_both_sides_without_asserting_a_cause(self):
-        summary = diagnostic.summarize(pair(2, present=1))
+        summary = diagnostic.summarize(pair(2, matched=False, present=1))
         failure, = summary['unsuccessfulResponses']
         self.assertTrue(failure['clientReaderIdentityMatches'])
         self.assertTrue(failure['clientWriterIdentityMatches'])
-        self.assertTrue(failure['serverRelatedReaderMatched'])
+        self.assertFalse(failure['serverRelatedReaderMatched'])
         self.assertEqual(1, failure['serverRmwReaderPresence'])
+        self.assertEqual('MAYBE', failure['serverRmwReaderPresenceName'])
+        self.assertTrue(summary['failureMechanismEstablished'])
         self.assertFalse(summary['rootCauseEstablished'])
+
+    def test_other_failures_do_not_claim_the_observed_discovery_mechanism(self):
+        summary = diagnostic.summarize(pair(3, matched=False, present=1))
+        self.assertFalse(summary['failureMechanismEstablished'])
+
+    def test_unknown_server_reader_presence_is_rejected(self):
+        records = pair(2, present=4)
+        with self.assertRaisesRegex(ValueError, 'known_server_reader_presence'):
+            diagnostic.summarize(records)
 
     def test_mismatched_reader_identity_and_unmatched_reply_remain_visible(self):
         records = pair(2, matched=False, present=1)

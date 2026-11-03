@@ -77,13 +77,41 @@ for a successful check or discarded:
   `TimeoutError:bounded_diagnostic_observation_expired`. The diagnostic did
   not resend a transition, and the report records `physicalMotionSent=false`.
 
-The failed sample strengthens the evidence that client match counts and the
-server listener's view can disagree or remain inconclusive at response time;
-it does not establish the deeper cause. The response-send timeout is
-reproduced, so the earlier conclusion that it was not reproduced is superseded.
-The 12 successful generations remain useful comparison data, not a fix or a
-reliability claim. No deadline was increased, and these results do not justify
-a middleware substitution or patch.
+The failure now identifies the concrete failure mechanism: when the service
+attempted to send its reply, the server-side RMW listener still reported
+MAYBE for the client response reader. In the installed Humble header,
+`client_present_t::MAYBE` means the client endpoint pair is still registered,
+but its response reader is not in the server's matched-reader set. The
+instrumented `check_for_subscription(..., 0ns)` snapshots show this state
+before and after the real send call. The official `rmw_send_response` path
+waits for that exact reader only up to the response writer's QoS
+`max_blocking_time`; on `MAYBE` it returns `RMW_RET_TIMEOUT` with
+`client will not receive response` before calling the response writer. This
+matches the captured `returnCode: 2` and server log exactly. The client's
+1/1 match counters and matching GUIDs establish its local view, not that the
+server listener has processed the reciprocal match callback.
+
+Thus the service-discovery race causing this failed reply is established; why
+the reciprocal discovery callback was late in that generation is not. The
+12-success run remains comparison data, not a reliability claim. The Humble
+rootfs has `rclcpp 16.0.21`; its merged no-crash handling for send-response
+errors does not retry or recover the missing response. The related upstream
+[rmw_fastrtps issue #842](https://github.com/ros2/rmw_fastrtps/issues/842)
+describes the same Nav2/lifecycle response-discovery race and remains open in
+the current upstream issue listing. The upstream [service-discovery redesign
+PR #418](https://github.com/ros2/rmw_fastrtps/pull/418) proposes holding
+requests until both response endpoints are matched, but it is unmerged and is
+not a drop-in Humble patch. No RMW, Fast-DDS, or timeout configuration has
+been changed.
+
+One product-level experiment staggered the five Nav2 process launches at
+150ms intervals. It never produced a service request/response pair: the
+lifecycle manager remained in `Creating and initializing lifecycle service
+clients` until the unchanged startup deadline and never advertised its
+management services. Its report is preserved at
+`service-diag-stagger-20261104-b/report.json`; the experiment was rejected and
+both launch descriptions were restored. This is not a failure of the service
+race probe and is not counted as a passing or failing service sample.
 
 The wrapper parser is now mutually exclusive, its usage includes the new mode,
 and generic preflight dispatch occurs before diagnostic compilation or any

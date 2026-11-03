@@ -15,6 +15,8 @@ MARKER = 'LINGXI_SERVICE_DIAGNOSTIC '
 PACKAGES = {'ros-humble-rmw-fastrtps-shared-cpp': '6.2.10', 'ros-humble-fastrtps': '2.6.12',
             'ros-humble-nav2-lifecycle-manager': '1.1.20'}
 SERVICE = re.compile(r'/lingxi_offline_[0-9a-f]{32}/(?:planner_server|controller_server|bt_navigator|velocity_smoother)/change_state')
+READER_PRESENCE = {0: 'FAILURE', 1: 'MAYBE', 2: 'YES', 3: 'GONE'}
+RMW_RET_TIMEOUT = 2
 
 
 def environment():
@@ -86,6 +88,9 @@ def summarize(records):
             raise ValueError('correlated_service_request_required')
         if response['returnCode'] != 0:
             after = response['after']
+            presence = after['rmwReaderPresence']
+            if type(presence) is not int or presence not in READER_PRESENCE:
+                raise ValueError('known_server_reader_presence_required')
             timeouts.append(dict(service=key[0], sequence=key[1], returnCode=response['returnCode'],
                 clientReaderIdentityMatches=(request['declaredReader'] == request['actualReader']
                     == response['relatedReader']),
@@ -94,11 +99,17 @@ def summarize(records):
                 clientMatchedResponseCount=request['matchedResponseCount'],
                 serverMatchedListAvailable=after['matchedListAvailable'],
                 serverRelatedReaderMatched=after['relatedReaderMatched'],
-                serverRmwReaderPresence=after['rmwReaderPresence'],
+                serverRmwReaderPresence=presence,
+                serverRmwReaderPresenceName=READER_PRESENCE[presence],
                 before=response['before'], after=after))
+    mechanism_established = bool(timeouts) and all(
+        item['returnCode'] == RMW_RET_TIMEOUT and item['clientReaderIdentityMatches']
+        and item['serverRmwReaderPresenceName'] == 'MAYBE'
+        and item['serverRelatedReaderMatched'] is False for item in timeouts)
     return dict(requestCount=len(requests), responseCount=len(responses),
                 unobservedResponseCount=len(set(requests) - set(responses)),
-                unsuccessfulResponses=timeouts, rootCauseEstablished=False)
+                unsuccessfulResponses=timeouts, failureMechanismEstablished=mechanism_established,
+                rootCauseEstablished=False)
 
 
 def wait(service, predicate, deadline):
