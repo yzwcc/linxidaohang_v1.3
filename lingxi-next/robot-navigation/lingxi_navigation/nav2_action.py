@@ -222,7 +222,7 @@ class RosNavigationBackend:
     activate selects a verified map and updates the sensor/output owners together.
     The caller's existing single-threaded ROS executor owns tick/spinning.
     """
-    def __init__(self, driver, sensors, output, activate, spin, *, controller=None):
+    def __init__(self, driver, sensors, output, activate, spin, *, controller=None, validate_observation=None):
         from .physical_velocity import ControllerVelocityChannel
         if type(driver) is not Nav2ActionDriver or not callable(activate) or not callable(spin):
             raise ValueError('owned_ros_action_evidence_and_output_sources_required')
@@ -231,6 +231,9 @@ class RosNavigationBackend:
         self.driver, self.sensors, self.output = driver, sensors, output
         self.activate, self.spin = activate, spin
         self.controller = controller
+        if validate_observation is not None and not callable(validate_observation):
+            raise ValueError('callable_localization_observation_veto_required')
+        self.validate_observation = validate_observation
         self.retiring_ticket = None
 
     def tick(self):
@@ -246,6 +249,9 @@ class RosNavigationBackend:
         if type(value) is not Observation:
             raise ValueError('current_sensor_observation_required')
         checks = dict(value.checks)
+        if self.validate_observation is not None:
+            checks['localization'] = (checks['localization']
+                and self.validate_observation(self.sensors, value) is True)
         checks['nav2Lifecycle'] = self.driver.ready()
         # Sensor evidence cannot vouch for the independent AIMDK output owner.
         # Readiness is granted only by its current, nonce-fenced feedback.

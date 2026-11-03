@@ -298,6 +298,13 @@ class LocalizationManager:
             if current["thread"].is_alive() or not current["cleanup"]:
                 raise RuntimeError("localization_service_cleanup_unconfirmed")
 
+    def navigation_snapshot(self):
+        # Serialize lifecycle changes around the child's already-fenced state
+        # read. The private service handles requests sequentially, including seeds.
+        with self.lock:
+            state = self.proxy({"action": "state"})
+            return {"runtime": self.runtime(), "state": state}
+
 
 def dispatch(manager, value):
     if type(value) is not dict or type(value.get("action")) is not str:
@@ -305,6 +312,8 @@ def dispatch(manager, value):
     action = value["action"]
     if action == "runtime" and set(value) == {"action"}:
         return manager.runtime()
+    if action == "navigation_snapshot" and set(value) == {"action"}:
+        return manager.navigation_snapshot()
     if action == "start" and set(value) == {"action", "serviceId", "mapId", "receiptSha256", "expectedGeneration"}:
         return manager.start(value["mapId"], value["receiptSha256"], value["expectedGeneration"], value["serviceId"])
     if action == "shutdown" and set(value) == {"action", "serviceId", "runId", "expectedGeneration"}:

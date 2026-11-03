@@ -315,42 +315,76 @@ class FileMapActivator:
         return path
 
     def _receipt(self, directory: Path) -> Path | None:
+        receipts = []
         for name in ("receipt.json", "map-ready.json", "receipt"):
             path = directory / name
             if path.is_symlink() or not path.is_file():
                 continue
             if path.stat().st_size > 64 * 1024:
                 raise ValueError("bounded_saved_map_receipt_required")
-            return path
-        return None
+            receipts.append(path)
+        if len(receipts) > 1:
+            raise ValueError("unambiguous_saved_map_receipt_required")
+        return receipts[0] if receipts else None
+
+    def _receipt_value(self, receipt):
+        def strict(pairs):
+            result = {}
+            for key, value in pairs:
+                if key in result:
+                    raise ValueError("duplicate_saved_map_receipt_field")
+                result[key] = value
+            return result
+        return json.loads(receipt.read_text(encoding="utf-8"), object_pairs_hook=strict)
 
     def _directory_for(self, map_id: str) -> Path:
-        direct = self.root / map_id
-        if direct.is_dir() and not direct.is_symlink() and self._receipt(direct) is not None:
-            return direct
-
-        # The catalog stores the map id in map-ready.json's session field, not
-        # necessarily in the directory name. Only inspect direct child folders.
-        root_receipt = self._receipt(self.root)
-        if root_receipt is not None:
-            return self.root
+        # A directory name is not a map identity. Check every bounded direct
+        # entry, including duplicates, using the receipt's declared session.
         try:
-            children = sorted(self.root.iterdir(), key=lambda item: item.name)
+            with os.scandir(self.root) as entries:
+                children = []
+                for index, entry in enumerate(entries):
+                    if index >= 2048:
+                        raise ValueError("bounded_saved_map_catalog_required")
+                    if entry.is_dir(follow_symlinks=False):
+                        children.append(Path(entry.path))
         except OSError as error:
             raise ValueError("saved_map_directory_missing") from error
-        for child in children[:32]:
+        matches = []
+        for child in [self.root, *children]:
             if child.is_symlink() or not child.is_dir():
                 continue
             receipt = self._receipt(child)
             if receipt is None:
                 continue
             try:
-                value = json.loads(receipt.read_text(encoding="utf-8"))
-            except (OSError, UnicodeError, json.JSONDecodeError):
+                value = self._receipt_value(receipt)
+            except (OSError, UnicodeError, ValueError):
                 continue
             if isinstance(value, dict) and value.get("session") == map_id[5:]:
-                return child
-        raise ValueError("saved_map_directory_missing")
+                matches.append(child)
+        if not matches:
+            raise ValueError("saved_map_directory_missing")
+        if len(matches) != 1:
+            raise ValueError("unambiguous_saved_map_directory_required")
+        return matches[0]
+
+    def localization_binding(self, map_id):
+        self.evidence(map_id)
+        receipt = self._receipt(self._directory_for(map_id))
+        value = self._receipt_value(receipt)
+        provenance = value.get('sensorProvenance')
+        if (receipt.name != 'map-ready.json' or type(value.get('schemaVersion')) is not int
+                or value['schemaVersion'] not in (2, 3) or value.get('freshProcessReloadPassed') is not True
+                or value.get('inputMode') not in ('live', 'recorded')
+                or value['schemaVersion'] == 3 and value.get('mappingEngine') != 'glim-full-async-v1'
+                or value['schemaVersion'] == 2 and 'mappingEngine' in value
+                or type(provenance) is not dict):
+            raise ValueError('reloaded_profile_bound_localization_map_required')
+        result = dict(points_sha256=value.get('savedPointsSha256'), profile_sha256=provenance.get('profileSha256'))
+        if any(type(item) is not str or re.fullmatch('[a-f0-9]{64}', item) is None for item in result.values()):
+            raise ValueError('saved_map_localization_hashes_required')
+        return result
 
     def evidence(self, map_id: str) -> MapEvidence:
         if type(map_id) is not str or re.fullmatch(r"slam-[a-f0-9]{32}", map_id) is None:
@@ -389,6 +423,7 @@ class RosSensorEvidence:
             raise ValueError("distinct_map_base_and_sensor_frames_required")
         self.clock, self.maximum_age, self.footprint_sha256 = clock, maximum_age, digest_footprint(footprint)
         self.latest_cloud = self.latest_odom = None
+        self.odom_history = {}
         self.latest_global = self.latest_local = self.latest_terrain = None
         self.receipts, self.previous_stamps, self.tf_parents = {}, {}, {}
         self.aligned_samples = None
@@ -483,8 +518,26 @@ class RosSensorEvidence:
         return self._accept("cloud", message, parse)
 
     def _odom(self, message):
-        return self._accept("odom", message, lambda value: parse_odometry(
+        accepted = self._accept("odom", message, lambda value: parse_odometry(
             value, map_frame=self.map_frame, base_frame=self.base_frame))
+        if accepted:
+            stamp, acquired_at = self.receipts['odom']
+            self.odom_history[stamp] = acquired_at, dict(self.latest_odom[1])
+            if len(self.odom_history) > 64:
+                del self.odom_history[next(iter(self.odom_history))]
+        elif 'odom' not in self.receipts:
+            self.odom_history.clear()
+        return accepted
+
+    def localization_sample_at(self, stamp):
+        self._owned()
+        now, ros = self._sample_clock()
+        value = self.odom_history.get(stamp)
+        if (self.closed or self.clock_failed or 'odom' not in self.receipts or value is None
+                or not 0 <= now - value[0] <= self.maximum_age
+                or not 0 <= (ros - stamp) / 1e9 <= self.maximum_age):
+            return None
+        return dict(value[1])
 
     def _tf(self, message):
         return self._transforms(message, static=False)
@@ -596,6 +649,7 @@ class RosSensorEvidence:
                 pass
         self.subscriptions = []
         self.receipts.clear()
+        self.odom_history.clear()
         self.aligned_samples = None
         if hasattr(self, "tf_buffer"):
             self.tf_buffer.clear()

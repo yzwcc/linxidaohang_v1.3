@@ -24,6 +24,17 @@
   只有全部生产进程退出和本任务新零速状态回执同时成立才交还输出所有权。
 - 启动最多等待 30 秒；超时或进程崩溃进入故障，必须显式停止确认，不自动再次启动任务。
   资源退出分别尝试，某一 ROS 清理失败不会跳过其他资源或进程终止。
+- 导航通过后台只读线程查询现有 GLIM 定位服务的 `navigation_snapshot`，ROS/输出线程
+  不等待 Unix Socket。查询同时校验地图回执、points/profile 哈希、服务/运行/seed 代次、
+  tracking 状态与带原始时间戳的机身诊断位姿。Socket 总期限 250 ms，快照期限 300 ms，
+  定位帧无进展 500 ms 撤销授权；查询失败、重新 seed 或服务重启均要求显式重新确认地图。
+- `activate_map()` 现可确认本导航进程固定地图与当前定位代次，不再无条件抛出未接入错误。
+  它不会启动定位、替用户 seed 或加载其他地图；须先在现有定位页面选图并提交胸部雷达
+  4×4 初值，持续跟踪后再确认。另一张地图需停止并重新配置/启动导航进程；平面
+  `initialPose` 不适用于胸部雷达 seed，因此明确拒绝且不改变当前代次。
+- 定位授权只是附加否决条件。按 `effectiveScanNs` 精确查找机身里程计历史并比较平面位置
+  和朝向，不能用最近帧代替；匹配后仍需通过原有传感器、TF、地形、足迹和输出检查。
+  不将诊断位姿提升为物理标定结果，定位服务的 readiness/physicalScaleValidated 仍为 false。
 
 ## 配置要求
 
@@ -37,9 +48,14 @@
 | `LINGXI_MAP_ROOT` / `LINGXI_ACTIVE_MAP_ID` | 已验证保存地图目录及地图身份；不是定位成功证明 |
 | `LINGXI_FOOTPRINT_FILE` | 与保存地图证据哈希一致的外部足迹文件 |
 | `LINGXI_POINTCLOUD_TOPIC` / `LINGXI_ODOMETRY_TOPIC` / `LINGXI_TERRAIN_TOPIC` | 实际点云、保存地图坐标系位姿、带新采集时间的地形 topic |
-| `LINGXI_MAP_FRAME` / `LINGXI_BASE_FRAME` / `LINGXI_SENSOR_FRAME` | 三个不同且真实存在的 frame |
+| `LINGXI_MAP_FRAME` / `LINGXI_BASE_FRAME` / `LINGXI_SENSOR_FRAME` | 固定为 `lingxi_saved_map` / `base_link` / `lidar_chest_front`，须真实存在 |
 | `LINGXI_TF_TOPIC` / `LINGXI_TF_STATIC_TOPIC` | 默认 `/tf` / `/tf_static`，可显式指定 |
 | `LINGXI_NAVIGATION_SOCKET` | 沿用私有目录/Socket、同 UID 和受管产品配置要求 |
+| `LINGXI_LOCALIZATION_SOCKET` | 当前 SLAM owner 的定位服务 Socket；绝对直接路径、父目录 0700、Socket 0600、同非 root UID；owner 重启后重新配置/启动导航 |
+
+固定地图回执须为已通过新进程重载的 `map-ready.json` schema 2/3，并绑定 points/profile 哈希。
+地图目录按回执身份解析，最多检查 2048 个直接目录条目；重复地图身份拒绝，不能靠目录名选图。
+每次准备新 Nav2 epoch 前重新核对地图身份、定位绑定及足迹，不能沿用更换后的文件。
 
 profile 字段必须完整且不得重复或增加未知字段：`schema=1`、`footprintSha256`、
 `clearanceRadiusMetres`、`stoppingMarginMetres`、`forward`、`lateral`、`angular`、
@@ -50,17 +66,28 @@ costmap topic 从 epoch 推导，旧环境变量不能覆盖为共享 costmap。
 
 ## 验证结果
 
-- 生产者单元测试：18 项通过，覆盖参数/清单、预热、显式停止、暂停/新 epoch 恢复、
-  启动失败、旧回调隔离及异常清理。
+- 生产者单元测试：21 项通过，覆盖参数/清单、预热、显式停止、暂停/新 epoch 恢复、
+  启动失败、旧回调隔离、定位授权及异常清理。
 - Nav2 profile 回归：17 项通过；DDS 时间读取器：12 项通过；速度单测：18 项通过。
-- Linux 普通用户 `test_physical*.py`：66 项通过，14 项 opt-in 测试跳过。
-  这些 opt-in 测试另在隔离 Humble 运行：传感器/tf2 5 项、Action/lifecycle 4 项、速度 5 项通过。
+- Linux 普通用户 `test_localization*.py`：102 项中 96 项通过，6 项环境 opt-in 跳过。
+  包含真实私有 Unix Socket 的服务/读取器往返、合成定位 worker 的丢失/恢复及有界退出；
+  不表示真实 GLIM 算法、真实采集或物理标定通过。
+- Linux 普通用户 `test_physical*.py`：84 项中 69 项通过，15 项 opt-in 测试跳过。
+  这些 ROS opt-in 测试另在隔离 Humble 运行：传感器/tf2 6 项、Action/lifecycle 4 项、速度 5 项通过。
+  精确原时间戳查询与过期拒绝使用真实 DDS/tf2；定位 veto 后迟到速度被拒绝且输出置零，
+  恢复 veto 不自动重新 arm。
 - 打包范围与原生源码引用闭包检查：7 项通过；后续独立安装包必须包含生产者模块与启动脚本。
 - 实际 Humble Nav2 planner/controller/BT/smoother 进程组合测试连续 3 次通过
   （输出 `nav2_producer_20261103_o/p/q`）：每次暂停前至少 10 条、
   新 epoch 恢复后至少另 10 条非零有效指令进入内存 AIMDK 发布器，传感器停止后故障置零，
   旧进程组退出且不自动重启。传感器、地形、位姿和 AIMDK 发布器均为测试替身；
   机器人未连接，测试中的 `physicalMotionSent` 只表示内存非零发布尝试，不表示物理运动。
+- 新增定位 guard 的实际 Nav2 组合测试连续 2 次通过（输出
+  `localization_producer_20261103_c/d`）：确认地图前不预热，暂停后使用新 epoch，点云仍正常
+  发布时单独撤销定位会置零并退出进程组；定位恢复不重启旧任务，显式停止/确认地图/新任务
+  后才重新输出；随后传感器停止也置零退出。此组合中的定位快照和传感器仍为合成输入，
+  未运行真实定位 Socket 或 GLIM；真实 Socket 往返由上述独立测试覆盖，不能合并声称实机
+  端到端导航通过。两次组合分别约 13.1/11.5 秒，均只使用内存 AIMDK 发布器。
 
 重跑入口，`ROOTFS` 必须为独立 Humble rootfs，`OUTPUT` 必须是未使用的新绝对输出路径：
 
@@ -78,8 +105,9 @@ costmap 发布节拍/回调积压造成的旧证据超时；未放宽速度或�
 
 ## 未完成项
 
-保存地图加载与定位初值尚未接入：生产 `activate_map()` 明确抛出
-`live_map_loader_and_localization_seed_not_integrated`，不假报激活成功。
-还需 ARM64 实际运行、现场传感器/TF/足迹核对、AIMDK 输入源及停止回执验证，
+尚未完成定位结果按原始采集时刻发布 ROS odometry/TF/点云的完整产品链路，当前 guard
+只核对已有外部数据源，不能制造或补齐数据；定位 Socket 可读也不等于可导航。
+现有定位服务中的地图加载/胸部雷达 seed 沿用独立页面流程，导航只确认当前固定地图和代次。
+还需补齐该发布链路、ARM64 实际运行、现场传感器/TF/足迹核对、AIMDK 输入源及停止回执验证，
 随后才能进行短距离导航、动态避障、讲解打断恢复等现场验收。
 同域 DDS 图端点检查不是消息认证，不承诺抵御同 ROS 域的恶意发布者。

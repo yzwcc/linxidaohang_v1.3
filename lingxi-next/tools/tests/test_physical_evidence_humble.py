@@ -130,6 +130,7 @@ class ActualPhysicalEvidenceTests(unittest.TestCase):
     def test_delayed_tf_keeps_prior_pair_only_until_its_acquisition_deadline(self):
         self.publish()
         self.until(self.ready)
+
         previous = self.ready()
         time.sleep(.06)
         stamp = self.publish(transforms=False)
@@ -146,6 +147,16 @@ class ActualPhysicalEvidenceTests(unittest.TestCase):
         self.assertFalse(self.sensors.tf_failed)
         self.publish()
         self.until(self.ready)
+
+    def test_localization_handoff_uses_exact_original_odometry_time_and_expires(self):
+        first = self.publish() - 10_000_000
+        self.until(self.ready)
+        self.assertEqual(dict(x=0., y=0., yaw=0.), self.sensors.localization_sample_at(first))
+        self.assertIsNone(self.sensors.localization_sample_at(first + 1))
+        second = self.publish() - 10_000_000
+        self.until(lambda: self.sensors.receipts['odom'][0] == second)
+        self.assertIsNotNone(self.sensors.localization_sample_at(first))
+        self.until(lambda: self.sensors.localization_sample_at(first) is None, seconds=1.)
 
     def test_invalid_tf_revokes_prior_aligned_pair_immediately(self):
         from tf2_msgs.msg import TFMessage

@@ -202,8 +202,10 @@ class ActualPhysicalVelocityTests(unittest.TestCase):
         def spin():
             self.refresh()
             executor.spin_once(timeout_sec=.005)
+        localization_valid = True
         backend = RosNavigationBackend(driver, NS(observe=self.observation), self.output,
-            lambda *_: self.identity, spin, controller=self.channel)
+            lambda *_: self.identity, spin, controller=self.channel,
+            validate_observation=lambda *_: localization_valid)
         def run_until(predicate):
             def step():
                 backend.tick()
@@ -218,6 +220,21 @@ class ActualPhysicalVelocityTests(unittest.TestCase):
         publisher.publish(message)
         run_until(lambda: self.output.physical_motion_sent)
         self.assertEqual(.005, self.output_node.publisher.messages[-1].forward_velocity)
+        prior_count = len(self.output_node.publisher.messages)
+        localization_valid = False
+        checks = backend.observe().checks
+        self.assertFalse(checks['localization'])
+        self.assertTrue(all(value for key, value in checks.items() if key != 'localization'))
+        publisher.publish(message)
+        with self.assertRaisesRegex(ValueError, 'current_generation_controller_evidence_required'):
+            run_until(lambda: False)
+        self.assertFalse(self.output.armed)
+        self.assertTrue(self.output.controller_fault)
+        self.assertEqual([0.], [item.forward_velocity
+            for item in self.output_node.publisher.messages[prior_count:]])
+        localization_valid = True
+        self.assertTrue(backend.observe().checks['localization'])
+        self.assertFalse(self.output.armed)
         source = self.channel.source
         backend.retire(ticket, 'b' * 32)
         self.assertTrue(source.quiescent)

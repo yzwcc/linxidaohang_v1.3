@@ -1,5 +1,6 @@
 """Real owned Nav2 nodes, synthetic sensors and in-memory AIMDK. No robot IO."""
-from dataclasses import asdict
+import copy
+from dataclasses import asdict, replace
 import json
 import os
 from pathlib import Path
@@ -13,9 +14,11 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'robot-navigation'))
 import test_physical_ros as fixtures
 from test_nav2_producer import profile
+from test_localization_guard import BINDING, snapshot
 import test_physical_evidence_humble as evidence_fixtures
+from lingxi_navigation.localization_guard import LocalizationGuard, LocalizationMonitor
 from lingxi_navigation.nav2_producer import Nav2Generation, OwnedNav2Backend, spin_callbacks
-from lingxi_navigation.physical_bridge import MapEvidence, PhysicalNavigationBridge
+from lingxi_navigation.physical_bridge import BridgeError, MapEvidence, PhysicalNavigationBridge
 from lingxi_navigation.physical_ros import AimdkVelocityOutput, digest_footprint
 
 
@@ -45,7 +48,17 @@ class ActualOwnedNav2Tests(unittest.TestCase):
         footprint = self.root / 'footprint.json'
         footprint.write_text('{"testOnlyRadius":0.3}', encoding='utf-8')
         self.identity = MapEvidence('slam-' + 'a' * 32, 'a' * 64, 'b' * 64, digest_footprint(footprint))
-        self.profile = profile(self.identity)
+        self.profile = replace(profile(self.identity), map_frame='lingxi_saved_map', sensor_frame='lidar_chest_front')
+        self.localization_value = snapshot(self.identity)
+        self.localization_value['state']['mapFromSensor'][0][3] = 0.
+        self.localization_value['state']['mapFromSensor'][1][3] = 0.
+        self.localization_value['state']['basePose']['mapFromBase'][0][3] = 0.
+        self.localization_value['state']['basePose']['mapFromBase'][1][3] = 0.
+        self.monitor = LocalizationMonitor('/synthetic-localization-not-a-service.sock', self.identity, BINDING,
+            exchange=lambda: copy.deepcopy(self.localization_value))
+        self.addCleanup(self.monitor.close)
+        self.localization = LocalizationGuard(self.monitor)
+        self.localization_enabled, self.published_frames = True, 7
         sensor_qos = QoSProfile(depth=1, reliability=ReliabilityPolicy.BEST_EFFORT)
         tf_qos = QoSProfile(depth=100, reliability=ReliabilityPolicy.RELIABLE)
         latched_qos = QoSProfile(depth=1, reliability=ReliabilityPolicy.RELIABLE,
@@ -59,7 +72,7 @@ class ActualOwnedNav2Tests(unittest.TestCase):
             ('tf_static', TFMessage, '/tf_static', latched_qos)):
             self.publishers[name] = self.node.create_publisher(kind, topic, qos)
         self.publishers['tf_static'].publish(TFMessage(transforms=[
-            evidence_fixtures.ActualPhysicalEvidenceTests.transform('base_link', 'lidar', 0)]))
+            evidence_fixtures.ActualPhysicalEvidenceTests.transform(self.profile.base_frame, self.profile.sensor_frame, 0)]))
         old, _, self.messages, _, Node = fixtures.PhysicalRosTests()._aimdk_fake_modules()
         def restore():
             for key, value in old.items():
@@ -75,9 +88,10 @@ class ActualOwnedNav2Tests(unittest.TestCase):
         def factory(ticket):
             generation = Nav2Generation(self.profile, ticket, self.root, footprint, self.executor)
             self.generations.append(generation)
-            generation.connect(self.output, self.profile.limits)
+            generation.connect(self.output, self.profile.limits,
+                validate_observation=self.localization.validate_observation)
             return generation
-        self.backend = OwnedNav2Backend(self.identity, self.output, factory, self.spin)
+        self.backend = OwnedNav2Backend(self.identity, self.output, factory, self.spin, localization=self.localization)
         self.backend_errors = []
         command = self.output.command
         def recorded_command(value, limits, observation):
@@ -134,18 +148,19 @@ class ActualOwnedNav2Tests(unittest.TestCase):
             message.header.frame_id = frame
             message.header.stamp.sec, message.header.stamp.nanosec = divmod(ns, 1_000_000_000)
         cloud = PointCloud2()
-        stamp(cloud, 'lidar', now - 20_000_000)
+        stamp(cloud, self.profile.sensor_frame, now - 20_000_000)
         cloud.width = cloud.height = 1
         cloud.point_step = cloud.row_step = 12
         cloud.fields = [PointField(name=name, offset=index * 4, datatype=PointField.FLOAT32, count=1)
             for index, name in enumerate(('x', 'y', 'z'))]
         cloud.data = struct.pack('fff', 2., 0., .2)
         odom = Odometry()
-        stamp(odom, 'map', now - 10_000_000)
-        odom.child_frame_id = 'base_link'
+        scan_ns = now - 10_000_000
+        stamp(odom, self.profile.map_frame, scan_ns)
+        odom.child_frame_id = self.profile.base_frame
         odom.pose.pose.orientation.w = 1.
         grid = OccupancyGrid()
-        stamp(grid, 'map', now)
+        stamp(grid, self.profile.map_frame, now)
         grid.info.width, grid.info.height, grid.info.resolution = 160, 160, .05
         grid.info.origin.position.x = grid.info.origin.position.y = -4.
         grid.info.origin.orientation.w = 1.
@@ -155,7 +170,11 @@ class ActualOwnedNav2Tests(unittest.TestCase):
         self.publishers['terrain'].publish(grid)
         for ns in (now - 40_000_000, now):
             self.publishers['tf'].publish(TFMessage(transforms=[
-                evidence_fixtures.ActualPhysicalEvidenceTests.transform('map', 'base_link', ns)]))
+                evidence_fixtures.ActualPhysicalEvidenceTests.transform(self.profile.map_frame, self.profile.base_frame, ns)]))
+        self.published_frames += 1
+        self.localization_value['state']['lastFrame'] = self.published_frames
+        self.localization_value['state']['basePose'].update(lastFrame=self.published_frames,
+            scanHeaderNs=str(scan_ns), effectiveScanNs=str(scan_ns))
 
     def spin(self):
         message = self.messages.McCommonState()
@@ -166,6 +185,8 @@ class ActualOwnedNav2Tests(unittest.TestCase):
             self.last_publish = now
             self.publish()
         spin_callbacks(self.executor)
+        self.localization_value['state']['state'] = 'tracking' if self.localization_enabled else 'lost'
+        self.monitor.refresh()
 
     def until(self, predicate, seconds=35.):
         deadline = time.monotonic() + seconds
@@ -181,6 +202,9 @@ class ActualOwnedNav2Tests(unittest.TestCase):
 
     def command(self, action):
         self.number += 1
+        if action == 'activate_map':
+            return self.bridge.request(dict(id=f'{self.number:032x}', action=action, session=self.bridge.session,
+                mapId=self.identity.mapId, evidence=asdict(self.identity)))
         ticket = self.bridge.ticket
         request = dict(id=f'{self.number:032x}', action=action, session=self.bridge.session,
             taskId=ticket.task_id if ticket else 'tour', expectedEpoch=ticket.epoch if ticket else None,
@@ -200,8 +224,13 @@ class ActualOwnedNav2Tests(unittest.TestCase):
                    ('forward_velocity', 'lateral_velocity', 'angular_velocity'))
                    for message in self.output_node.publisher.messages)
 
-    def test_real_launch_action_velocity_pause_resume_sensor_loss_and_process_teardown(self):
+    def test_real_launch_guard_activation_pause_resume_localization_and_sensor_loss(self):
         self.command('stop')
+        self.until(lambda: self.bridge.phase == 'idle' and not self.bridge.requires_stop)
+        self.assertEqual([], self.generations)
+        self.assertFalse(self.bridge.state(poll=False)['navigationReady'])
+        self.assertEqual(0, self.nonzero_count())
+        self.command('activate_map')
         self.until(lambda: self.bridge.state(poll=False)['navigationReady'])
         self.assertEqual(1, len(self.generations))
         self.assertFalse(self.output.armed)
@@ -223,19 +252,46 @@ class ActualOwnedNav2Tests(unittest.TestCase):
         self.assertNotEqual(first.epoch, self.bridge.ticket.epoch)
         self.until(lambda: self.bridge.phase == 'running' and self.nonzero_count() >= count + 10)
         self.record('resumed_with_fresh_namespace')
+        self.localization_enabled = False
+        self.until(lambda: self.bridge.phase == 'failed' and self.bridge.retiring is None, seconds=5.)
+        self.assertTrue(self.sensors_enabled)
+        self.assertFalse(self.output.armed)
+        self.assertTrue(self.generations[1].quiescent())
+        self.assertEqual(0., self.output_node.publisher.messages[-1].forward_velocity)
+        self.record('localization_loss_stops_with_sensors_still_publishing')
+        count = self.nonzero_count()
+        self.localization_enabled = True
+        for _ in range(20):
+            self.bridge.tick()
+            time.sleep(.01)
+        self.assertIsNotNone(self.monitor.current())
+        self.assertIsNone(self.localization.current())
+        self.assertEqual(count, self.nonzero_count())
+        self.assertEqual(2, len(self.generations))
+        with self.assertRaises(BridgeError):
+            self.command('resume')
+        self.command('stop')
+        self.until(lambda: self.bridge.phase == 'idle' and not self.bridge.requires_stop)
+        self.assertEqual(2, len(self.generations))
+        self.command('activate_map')
+        self.until(lambda: self.bridge.state(poll=False)['navigationReady'])
+        self.command('start')
+        self.until(lambda: self.bridge.phase == 'running' and self.nonzero_count() >= count + 10)
+        self.record('explicit_stop_activation_and_new_task_required_after_localization_loss')
         self.sensors_enabled = False
         self.until(lambda: self.bridge.phase == 'failed' and self.bridge.retiring is None, seconds=5.)
         self.assertTrue(self.bridge.requires_stop)
         self.assertFalse(self.output.armed)
-        self.assertTrue(self.generations[1].quiescent())
+        self.assertTrue(self.generations[2].quiescent())
         self.assertEqual(0., self.output_node.publisher.messages[-1].forward_velocity)
         for _ in range(10):
             self.bridge.tick()
-        self.assertEqual(2, len(self.generations))
+        self.assertEqual(3, len(self.generations))
         self.record('sensor_expiry_no_automatic_restart')
         (self.root / 'result.json').write_text(json.dumps(dict(schema=1, testOnly=True,
             robotConnected=False, vendorPublisher=False, nav2ProcessesExecuted=True,
-            syntheticSensors=True, trace=self.trace), indent=2), encoding='utf-8')
+            syntheticSensors=True, syntheticLocalization=True, localizationSocketExecuted=False,
+            physicalCalibrationValidated=False, trace=self.trace), indent=2), encoding='utf-8')
 
 
 if __name__ == '__main__':

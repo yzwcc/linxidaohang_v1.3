@@ -344,6 +344,70 @@ class ManagerTests(unittest.TestCase):
             self.manager.proxy({"action": "state"})
         self.assertEqual(409, caught.exception.status)
 
+    def test_navigation_snapshot_returns_same_owned_runtime_and_worker(self):
+        self.start()
+        result = service.dispatch(self.manager, {'action': 'navigation_snapshot'})
+        self.assertEqual(self.manager.runtime(), result['runtime'])
+        self.assertEqual(asdict(self.manager.current['binding']), result['state']['binding'])
+        self.assertFalse(result['state']['navigationReady'])
+        self.assertEqual([{'action': 'state'}], self.exchanges)
+        self.finish()
+        with self.assertRaises(service.ControlError):
+            self.manager.navigation_snapshot()
+
+    def test_navigation_snapshot_rejects_lifecycle_change_during_child_read(self):
+        self.start()
+        original = self.manager.exchange
+        def late(endpoint, value):
+            result = original(endpoint, value)
+            current = self.manager.runtime()
+            self.manager.shutdown(current['runId'], current['generation'], self.manager.instance)
+            return result
+        self.manager.exchange = late
+        with self.assertRaises(service.ControlError):
+            self.manager.navigation_snapshot()
+
+    def test_actual_private_unix_reader_is_read_only_and_loss_is_not_auto_rearmed(self):
+        from test_localization_guard import BINDING, snapshot
+        from test_physical_bridge import evidence
+        from lingxi_navigation.localization_guard import LocalizationMonitor, LocalizationGuard
+        from lingxi_navigation.physical_bridge import MapEvidence
+        self.start()
+        identity = MapEvidence(MAP, RECEIPT, evidence().calibrationSha256, evidence().footprintSha256)
+        state = snapshot(identity)['state']
+        state['binding'] = asdict(self.manager.current['binding'])
+        self.manager.exchange = lambda *_: {'ok': True, 'value': json.loads(json.dumps(state))}
+        endpoint = self.root / 'nav-snapshot.sock'
+        server = service.LocalizationServiceServer(endpoint, self.manager)
+        thread = threading.Thread(target=server.serve_forever, kwargs={'poll_interval': .01})
+        monitor = LocalizationMonitor(endpoint, identity, BINDING)
+        guard = LocalizationGuard(monitor)
+        try:
+            thread.start()
+            monitor.start()
+            self.wait(lambda: monitor.current() is not None)
+            self.assertIsNone(guard.current())
+            self.assertEqual(identity, guard.activate_map(MAP, None))
+            self.assertEqual(self.manager.instance, guard.current().token[0])
+            state['state'] = 'lost'
+            self.wait(lambda: monitor.current() is None)
+            state['state'] = 'tracking'
+            self.wait(lambda: monitor.current() is not None)
+            self.assertIsNone(guard.current())
+            guard.activate_map(MAP, None)
+            self.assertIsNotNone(guard.current())
+            self.assertFalse(self.manager.runtime()['navigationReady'])
+            self.assertFalse(state['basePose']['physicalScaleValidated'])
+            self.assertEqual(1, len(self.owners))
+            self.assertEqual([], self.exchanges)
+        finally:
+            monitor.close()
+            server.shutdown()
+            thread.join(2.)
+            server.server_close()
+        self.assertFalse(thread.is_alive())
+        self.assertFalse(endpoint.exists())
+
     def test_missing_acknowledgement_is_not_retried(self):
         self.start()
         calls = []
@@ -436,6 +500,11 @@ class ManagerTests(unittest.TestCase):
             self.wait(lambda: self.manager.runtime()["phase"] in ("running", "failed"))
             self.assertEqual("running", self.manager.runtime()["phase"])
             state = self.manager.proxy({"action": "state"})
+            observed = self.manager.navigation_snapshot()
+            self.assertEqual(state['binding'], observed['state']['binding'])
+            self.assertEqual(self.manager.runtime()['runId'], observed['runtime']['runId'])
+            self.assertEqual('unseeded', observed['state']['state'])
+            self.assertFalse(observed['state']['navigationReady'])
             bindings.append(state["binding"])
             paused = self.manager.proxy({"action": "pause", "binding": state["binding"],
                                          "expectedGeneration": state["generation"]})

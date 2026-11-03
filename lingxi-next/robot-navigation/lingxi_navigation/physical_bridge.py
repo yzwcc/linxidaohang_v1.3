@@ -265,6 +265,9 @@ class PhysicalNavigationBridge:
                     raise ValueError('activation_evidence_mismatch')
                 if chosen.mapId == self.identity.mapId and chosen != self.identity:
                     raise ValueError('changed_current_map_evidence')
+            except BridgeError:
+                # Explicitly unsupported selection/seed requests have no side effects.
+                raise
             except Exception as error:
                 self._fault('navigation_map_activation_unconfirmed')
                 raise BridgeError('navigation_map_activation_unconfirmed', 503) from error

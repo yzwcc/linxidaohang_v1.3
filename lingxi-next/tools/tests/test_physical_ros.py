@@ -155,6 +155,57 @@ class PhysicalRosTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "saved_map_directory_missing"):
                 FileMapActivator(root).evidence("slam-" + "b" * 32)
 
+    def test_map_named_directory_and_root_still_require_matching_session(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            map_id = 'slam-' + 'a' * 32
+            child = root / map_id
+            child.mkdir()
+            for folder in (root, child):
+                (folder / 'map-ready.json').write_text(json.dumps(dict(session='b' * 32)))
+                (folder / 'calibration.json').write_bytes(b'calibration')
+                (folder / 'footprint.json').write_bytes(b'footprint')
+            with self.assertRaisesRegex(ValueError, 'directory_missing'):
+                FileMapActivator(root).evidence(map_id)
+
+    def test_catalog_after_32_entries_is_found_but_duplicate_identity_is_rejected(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            for index in range(40):
+                (root / ('empty-%02d' % index)).mkdir()
+            child = root / 'z-map'
+            child.mkdir()
+            (child / 'map-ready.json').write_text(json.dumps(dict(session='a' * 32)))
+            (child / 'calibration.json').write_bytes(b'calibration')
+            (child / 'footprint.json').write_bytes(b'footprint')
+            self.assertEqual('slam-' + 'a' * 32, FileMapActivator(root).evidence('slam-' + 'a' * 32).mapId)
+            duplicate = root / 'duplicate'
+            duplicate.mkdir()
+            (duplicate / 'map-ready.json').write_bytes((child / 'map-ready.json').read_bytes())
+            with self.assertRaisesRegex(ValueError, 'unambiguous'):
+                FileMapActivator(root).evidence('slam-' + 'a' * 32)
+
+    def test_localization_binding_requires_reloaded_map_profile_and_points(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / 'calibration.json').write_bytes(b'calibration')
+            (root / 'footprint.json').write_bytes(b'footprint')
+            value = dict(schemaVersion=3, mappingEngine='glim-full-async-v1', session='a' * 32,
+                inputMode='live', freshProcessReloadPassed=True, savedPointsSha256='d' * 64,
+                sensorProvenance=dict(profileSha256='e' * 64))
+            receipt = root / 'map-ready.json'
+            receipt.write_text(json.dumps(value))
+            self.assertEqual(dict(points_sha256='d' * 64, profile_sha256='e' * 64),
+                FileMapActivator(root).localization_binding('slam-' + 'a' * 32))
+            for changed in (dict(value, schemaVersion=True), dict(value, freshProcessReloadPassed=False),
+                            dict(value, savedPointsSha256='invalid'), dict(value, sensorProvenance={})):
+                receipt.write_text(json.dumps(changed))
+                with self.assertRaises(ValueError):
+                    FileMapActivator(root).localization_binding('slam-' + 'a' * 32)
+            receipt.write_text('{"session":"' + 'b' * 32 + '",' + json.dumps(value)[1:])
+            with self.assertRaises(ValueError):
+                FileMapActivator(root).evidence('slam-' + 'a' * 32)
+
     def _aimdk_fake_modules(self, add_state=2, enable_state=1):
         module = types.ModuleType("aimdk_msgs")
         message_module = types.ModuleType("aimdk_msgs.msg")

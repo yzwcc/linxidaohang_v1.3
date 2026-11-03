@@ -377,6 +377,60 @@ class OwnedBackendTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, 'not_integrated'):
             self.backend.activate_map(self.identity.mapId, dict(x=0., y=0., yaw=0.))
 
+    def install_localization(self):
+        from test_localization_guard import BINDING, snapshot
+        from lingxi_navigation.localization_guard import LocalizationMonitor, LocalizationGuard
+        self.localization_value = snapshot(self.identity)
+        monitor = LocalizationMonitor('/unused-test.sock', self.identity, BINDING,
+            clock=self.clock, exchange=lambda: self.localization_value)
+        self.addCleanup(monitor.close)
+        monitor.refresh()
+        self.backend.localization = LocalizationGuard(monitor)
+        return monitor
+
+    def test_saved_map_handoff_required_before_any_producer_preparation(self):
+        self.install_localization()
+        self.command('stop')
+        self.refresh()
+        self.bridge.tick()
+        self.assertFalse(self.generations)
+        self.backend.activate_map(self.identity.mapId, None)
+        self.bridge.tick()
+        self.assertEqual(1, len(self.generations))
+
+    def test_changed_seed_revokes_running_epoch_without_automatic_recovery(self):
+        monitor = self.install_localization()
+        self.backend.activate_map(self.identity.mapId, None)
+        self.boot()
+        self.command('start')
+        self.bridge.tick()
+        self.localization_value['state']['generation'] += 1
+        monitor.refresh()
+        self.bridge.tick()
+        self.assertFalse(self.output.armed)
+        self.assertTrue(self.bridge.requires_stop)
+        self.assertEqual('stopping', self.bridge.phase)
+        self.finish_retirement()
+        self.assertEqual('failed', self.bridge.phase)
+        self.assertEqual(1, len(self.generations))
+
+    def test_unsupported_map_or_planar_seed_does_not_fault_idle_owner(self):
+        self.install_localization()
+        self.command('stop')
+        self.refresh()
+        self.bridge.tick()
+        for map_id, initial in (('slam-' + 'f' * 32, None), (self.identity.mapId, dict(x=0., y=0., yaw=0.))):
+            self.number += 1
+            request = dict(id=request_id(self.number), action='activate_map', session=self.bridge.session, mapId=map_id)
+            if initial is not None:
+                request['initialPose'] = initial
+            with self.assertRaises(BridgeError):
+                self.bridge.request(request)
+            self.assertEqual('idle', self.bridge.phase)
+            self.assertTrue(self.bridge.output_quiescent)
+            self.assertFalse(self.bridge.requires_stop)
+        self.assertFalse(self.generations)
+
     def test_reservation_requires_prior_stop_and_never_arms(self):
         ticket = Ticket('tour', 'e' * 32)
         with self.assertRaisesRegex(RuntimeError, 'reservation'):

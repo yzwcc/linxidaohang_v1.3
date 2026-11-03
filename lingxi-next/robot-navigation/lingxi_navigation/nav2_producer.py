@@ -243,12 +243,12 @@ class Nav2Generation:
             self.close()
             raise
 
-    def connect(self, output, limits):
+    def connect(self, output, limits, *, validate_observation=None):
         from .nav2_action import RosNavigationBackend
         self.controller = ControllerVelocityChannel(output, limits, clock=self.clock)
         self.backend = RosNavigationBackend(self.driver, self.sensors, output,
             lambda *_: (_ for _ in ()).throw(RuntimeError('live_map_activation_not_integrated')),
-            lambda: None, controller=self.controller)
+            lambda: None, controller=self.controller, validate_observation=validate_observation)
 
     def tick(self):
         if self.closing:
@@ -310,7 +310,7 @@ class Nav2Generation:
 
 class OwnedNav2Backend:
     """Prewarm an unused epoch; never queue a goal while Nav2 is starting."""
-    def __init__(self, identity, output, factory, spin, *, clock=time.monotonic, startup_timeout=30.):
+    def __init__(self, identity, output, factory, spin, *, clock=time.monotonic, startup_timeout=30., localization=None):
         if (type(identity) is not MapEvidence or not callable(factory) or not callable(spin)
                 or not finite(startup_timeout) or not 1. <= startup_timeout <= 60.):
             raise ValueError('owned_nav2_backend_configuration_required')
@@ -319,6 +319,7 @@ class OwnedNav2Backend:
         self.generation = self.started_at = self.retiring = self.retire_at = None
         self.reserved, self.startup_complete = None, False
         self.used_epochs, self.closed = set(), False
+        self.localization = localization
 
     def _owned(self):
         if threading.get_ident() != self.owner:
@@ -330,6 +331,8 @@ class OwnedNav2Backend:
         if self.closed or self.retiring is not None or self.generation is not None:
             return
         if not self.output.ready(self.identity) or len(self.used_epochs) >= 4096:
+            return
+        if self.localization is not None and self.localization.current() is None:
             return
         ticket = Ticket('preparing', secrets.token_hex(16))
         if ticket.epoch in self.used_epochs:
@@ -346,6 +349,8 @@ class OwnedNav2Backend:
         self.spin()
         self.output.poll()
         if self.generation is not None and self.retiring is None:
+            if self.localization is not None and self.localization.current() is None:
+                raise RuntimeError('navigation_localization_handoff_revoked')
             self.generation.tick()
             if not self.startup_complete:
                 try:
@@ -357,7 +362,8 @@ class OwnedNav2Backend:
 
     def observe(self):
         self._owned()
-        if self.generation is None or self.generation.closing or self.retiring is not None:
+        if (self.generation is None or self.generation.closing or self.retiring is not None
+                or self.localization is not None and self.localization.current() is None):
             return Observation(self.identity, self.clock(), dict(x=0., y=0., yaw=0.),
                                dict.fromkeys(CHECKS, False), self.output.physical_motion_sent)
         return self.generation.backend.observe()
@@ -425,7 +431,12 @@ class OwnedNav2Backend:
         return proof
 
     def activate_map(self, map_id, initial_pose):
-        raise RuntimeError('live_map_loader_and_localization_seed_not_integrated')
+        self._owned()
+        if self.localization is None:
+            raise RuntimeError('live_map_loader_and_localization_seed_not_integrated')
+        if self.closed or self.retiring is not None:
+            raise RuntimeError('quiescent_navigation_map_handoff_required')
+        return self.localization.activate_map(map_id, initial_pose)
 
     def close(self):
         self._owned()
@@ -433,6 +444,10 @@ class OwnedNav2Backend:
         try:
             self.output.fence_controller()
         finally:
-            if self.generation is not None:
-                self.generation.close()
-                self.generation = None
+            try:
+                if self.generation is not None:
+                    self.generation.close()
+                    self.generation = None
+            finally:
+                if self.localization is not None:
+                    self.localization.monitor.close()
