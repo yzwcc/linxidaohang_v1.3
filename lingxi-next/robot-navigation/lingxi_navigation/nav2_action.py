@@ -269,7 +269,7 @@ class RosNavigationBackend:
     def retirement(self, nonce):
         if not self.driver.action_retired(self.retiring_ticket):
             return None
-        return self.output.retirement(nonce)
+        return self.output.complete_retirement(nonce)
 
     def activate_map(self, map_id, initial_pose):
         return self.activate(map_id, initial_pose)

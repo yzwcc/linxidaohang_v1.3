@@ -18,11 +18,14 @@
 ## 检查结果
 
 - Portable 传感器边界：14 项通过，包括采集年龄向物理桥传递、库存上限和停止清退。
-- 原 ROS 解析/AIMDK 输出适配：8 项通过。
-- WSL 普通用户 `test_physical*.py`：45 项通过、4 项 opt-in ROS 测试跳过。
+- 原 ROS 解析/AIMDK 输出适配及清退释放回归：10 项通过。
+- WSL 普通用户 `test_physical*.py`：47 项通过、8 项 opt-in ROS 测试跳过。
 - 定向 Vitest（physical-navigation、independent-product）：44 项通过，3 项 Linux-only 跳过。
 - 隔离真实 ROS 2 Humble/FastDDS/tf2：4 项通过，覆盖晚到静态 TF、拆分动态链和不同
   采集时刻、缺少新 TF、DDS 旧数据/空闲过期，以及切换暂停 ROS 时钟后的锁定。
+- 隔离真实 Humble NavigateToPose Action 与 GetState 服务：4 项通过，覆盖取消 ACK
+  尚无终止结果、暂停后才接单、显式启动/暂停/继续/停止与旧任务迟到回调、拒单与
+  生命周期证据过期。服务端不运行真实 Nav2 规划器或控制器，传感器与输出为测试替身。
 
 真实 ROS 测试只在 loopback 网络、独立 mount/IPC/PID 命名空间和只读源代码中运行；
 没有 AIMDK 输出发布者，没有机器人、麦克风、云服务或实际运动 IO。
@@ -32,7 +35,16 @@ python3 -B -m unittest discover -s tools/tests -p test_physical_evidence.py -v
 python3 -B -m unittest discover -s tools/tests -p test_physical_ros.py -v
 # 使用已有的隔离 Humble rootfs；输出路径必须是新的。
 sudo bash tools/nav2-offline-service-isolated.sh --verify-physical-evidence ROOTFS open NEW_OUTPUT
+sudo bash tools/nav2-offline-service-isolated.sh --verify-physical-action ROOTFS open OTHER_NEW_OUTPUT
 ```
+
+## 清退释放修复
+
+原输出适配器即使返回停止证据，也一直保留 `retiring`，导致首次停止之后无法启动，
+暂停之后也不能继续。现在后端先等 Action 真正终止，再完成 nonce 绑定的输出清退，
+只允许后续显式新任务重新 arm。旧回执保留采样时间而不续期，新 arm 会使旧 nonce 作废。
+零速发布异常不会留下可完成的停止证据；重复 arm 或覆盖正在清退的 nonce 被拒绝。
+这不新增任何非零速度转发，也不会自动启用物理桥。
 
 ## 尚未接通
 

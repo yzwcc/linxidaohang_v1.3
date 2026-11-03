@@ -254,6 +254,7 @@ class PhysicalRosTests(unittest.TestCase):
             self.assertTrue(output.ready(identity))
             ticket = Ticket("task", "d" * 32)
             self.assertTrue(output.arm(ticket, identity))
+            self.assertFalse(output.arm(Ticket("other", "f" * 32), identity))
             nonce = "e" * 32
             output.retire(ticket, nonce)
             self.assertGreater(node.publisher.messages[-1].header.stamp.sec, 0)
@@ -261,6 +262,81 @@ class PhysicalRosTests(unittest.TestCase):
             clock.value = 10.1
             output._state_message(state)
             self.assertTrue(output.retirement(nonce).output_quiescent)
+            # Reading a physical proof alone must not release the output owner.
+            self.assertFalse(output.ready(identity))
+            proof = output.complete_retirement(nonce)
+            self.assertEqual(proof, output.retirement(nonce))
+            self.assertTrue(output.ready(identity))
+            self.assertTrue(output.arm(Ticket("resumed", "f" * 32), identity))
+            self.assertIsNone(output.retirement(nonce))
+            with self.assertRaisesRegex(ValueError, "retirement_ticket"):
+                output.retire(ticket, "f" * 32)
+        finally:
+            for key, value in old.items():
+                if value is None:
+                    sys.modules.pop(key, None)
+                else:
+                    sys.modules[key] = value
+
+    def test_aimdk_startup_stop_and_repeated_confirmed_stop_keep_original_ticket(self):
+        identity = MapEvidence("slam-" + "a" * 32, "a" * 64, "b" * 64, "c" * 64)
+        old, _, messages, _, Node = self._aimdk_fake_modules()
+        try:
+            clock, node = Clock(), Node()
+            output = AimdkVelocityOutput(node, identity, clock=clock)
+            for _ in range(4):
+                output.poll()
+            state = messages.McCommonState()
+            state.input_source.name, state.fsm_state.current_state = "lingxi-next", 2
+            output.retire(None, "1" * 32)
+            with self.assertRaisesRegex(ValueError, "retirement_ticket"):
+                output.retire(None, "2" * 32)
+            clock.value += .01
+            output._state_message(state)
+            self.assertIsNone(output.complete_retirement("2" * 32))
+            self.assertIsNotNone(output.complete_retirement("1" * 32))
+            self.assertIsNone(output.retiring)
+            self.assertTrue(output.ready(identity))
+            ticket = Ticket("first", "2" * 32)
+            self.assertTrue(output.arm(ticket, identity))
+            for nonce in ("3" * 32, "4" * 32):
+                output.retire(ticket, nonce)
+                clock.value += .01
+                output._state_message(state)
+                proof = output.complete_retirement(nonce)
+                self.assertEqual(ticket, proof.ticket)
+            clock.value += .31
+            self.assertIsNone(output.retirement("4" * 32))
+            self.assertFalse(output.ready(identity))
+            self.assertFalse(output.arm(Ticket("expired", "5" * 32), identity))
+            output.close()
+            self.assertIsNone(output.retirement("4" * 32))
+        finally:
+            for key, value in old.items():
+                if value is None:
+                    sys.modules.pop(key, None)
+                else:
+                    sys.modules[key] = value
+
+    def test_aimdk_failed_zero_publication_cannot_complete_retirement(self):
+        identity = MapEvidence("slam-" + "a" * 32, "a" * 64, "b" * 64, "c" * 64)
+        old, _, messages, _, Node = self._aimdk_fake_modules()
+        try:
+            clock, node = Clock(), Node()
+            output = AimdkVelocityOutput(node, identity, clock=clock)
+            for _ in range(4):
+                output.poll()
+            def failed_publish(message):
+                raise RuntimeError("synthetic_publish_failure")
+            node.publisher.publish = failed_publish
+            with self.assertRaisesRegex(RuntimeError, "synthetic_publish_failure"):
+                output.retire(None, "1" * 32)
+            state = messages.McCommonState()
+            state.input_source.name, state.fsm_state.current_state = "lingxi-next", 2
+            clock.value += .01
+            output._state_message(state)
+            self.assertIsNone(output.complete_retirement("1" * 32))
+            self.assertFalse(output.ready(identity))
         finally:
             for key, value in old.items():
                 if value is None:

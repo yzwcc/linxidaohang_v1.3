@@ -642,7 +642,9 @@ class AimdkVelocityOutput:
         self.input_source_ready = False
         self.state = None
         self.ticket = None
+        self.armed = False
         self.retiring = None
+        self.completed_retirement = None
         self.zero_published_at = None
         self.physical_motion_sent = False
         self.feedback = None
@@ -765,22 +767,38 @@ class AimdkVelocityOutput:
 
     def arm(self, ticket: Ticket, identity: MapEvidence) -> bool:
         self._owned()
-        if type(ticket) is not Ticket or not self.ready(identity):
+        if type(ticket) is not Ticket or self.armed or not self.ready(identity):
             return False
         self.ticket = ticket
+        self.armed = True
+        self.completed_retirement = None
         self.physical_motion_sent = False
         return True
 
     def retire(self, ticket: Ticket | None, nonce: str):
         self._owned()
-        if type(nonce) is not str or re.fullmatch(r"[a-f0-9]{32}", nonce) is None or ticket != self.ticket:
+        if (self.closed or type(nonce) is not str or re.fullmatch(r"[a-f0-9]{32}", nonce) is None
+                or ticket != self.ticket or self.retiring is not None):
             raise ValueError("velocity_retirement_ticket_required")
+        # Fence this generation before the external zero publication, even if it fails.
+        self.armed = False
+        self.completed_retirement = None
         self.retiring = nonce
         self.zero_published_at = self.clock()
-        self.publisher.publish(self._message())
+        try:
+            self.publisher.publish(self._message())
+        except Exception:
+            self.zero_published_at = None
+            raise
 
     def retirement(self, nonce: str) -> Retirement | None:
         self._owned()
+        if self.closed:
+            return None
+        proof = self.completed_retirement
+        if (self.retiring is None and proof is not None and proof.nonce == nonce
+                and proof.ticket == self.ticket and 0 <= self.clock() - proof.observed_at <= self.maximum_age):
+            return proof
         if self.retiring != nonce or self.state is None or self.zero_published_at is None:
             return None
         stamp, current = self.state
@@ -788,6 +806,19 @@ class AimdkVelocityOutput:
                 or self.clock() - stamp < 0 or self.clock() - stamp > self.maximum_age):
             return None
         return Retirement(nonce, self.identity, self.ticket, stamp, True)
+
+    def complete_retirement(self, nonce: str) -> Retirement | None:
+        """Release only after the backend has also observed action termination.
+
+        Keep the original receipt briefly available for the bridge's validation;
+        an explicit new arm invalidates it instead of relabeling an old nonce.
+        """
+        self._owned()
+        proof = self.retirement(nonce)
+        if proof is not None:
+            self.completed_retirement = proof
+            self.retiring = self.zero_published_at = None
+        return proof
 
     def close(self):
         self._owned()
@@ -813,4 +844,5 @@ class AimdkVelocityOutput:
                     self.registration_future.cancel()
                 except Exception:
                     pass
-            self.ticket = self.retiring = None
+            self.ticket = self.retiring = self.completed_retirement = None
+            self.armed = False
