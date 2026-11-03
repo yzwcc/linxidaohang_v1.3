@@ -328,13 +328,19 @@ print(json.dumps(result))
 
         bridge = current / 'bridge/aimdk_ros_bridge.py'
         bridge.parent.mkdir(exist_ok=True)
-        bridge.write_text('import json, sys; print(json.dumps(sys.argv[1:]))\n')
+        bridge.write_text("import json, os, sys; print(json.dumps({'args': sys.argv[1:], "
+                          "'pythonpath': os.environ.get('PYTHONPATH', '')}))\n")
         for mode, expected in (('actions', 'actions-only'), ('aimdk', 'full')):
             result = execute(mode)
             self.assertEqual(0, result.returncode, result.stderr)
-            self.assertEqual(['--mode', expected], json.loads(result.stdout))
+            value = json.loads(result.stdout)
+            self.assertEqual(['--mode', expected], value['args'])
+            if mode == 'actions':
+                self.assertEqual(str(independent / 'source/robot-slam'), value['pythonpath'].split(':')[0])
         self.assertEqual(78, execute('actions', LINGXI_INDEPENDENT_PRODUCT='0').returncode)
         self.assertEqual(78, execute('actions', LINGXI_ROS_SETUP='').returncode)
+        self.assertEqual(78, execute('actions', LINGXI_MAP_ROOT='').returncode)
+        self.assertEqual(78, execute('actions', LINGXI_MAP_ROOT='/unconfigured-maps').returncode)
         for name, other in (('actions', 'aimdk'), ('aimdk', 'actions')):
             unit = Path('/etc/systemd/system/lingxi-next-' + name + '.service').read_text()
             self.assertIn('Conflicts=lingxi-next-' + other + '.service', unit)

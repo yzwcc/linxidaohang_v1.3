@@ -1,4 +1,4 @@
-"""Shared admission for native mapping/localization, retained by the actual child."""
+"""Catalog-bound SLAM and robot-operation admission, retained across child exec."""
 import os
 from pathlib import Path
 import stat
@@ -7,6 +7,7 @@ import threading
 
 
 LEASE_ENV = "LINGXI_SLAM_LEASE_FD"
+OPERATION_ENV = "LINGXI_OPERATION_LEASE_FD"
 
 
 class ActivityBusy(Exception):
@@ -41,11 +42,13 @@ class ActivityLease:
 class ActivityGate:
     """Stable lock inode in a private catalog. Never delete or replace the lock file."""
 
-    def __init__(self, path):
+    def __init__(self, path, *, shared=False):
         self.path = Path(path)
-        if (sys.platform != "linux" or os.geteuid() == 0 or not self.path.is_absolute()
+        if (type(shared) is not bool or sys.platform != "linux" or os.geteuid() == 0 or not self.path.is_absolute()
                 or self.path.parent.resolve(strict=True) != self.path.parent):
             raise ValueError("direct_ordinary_user_activity_lock_required")
+        self.shared = shared
+        self.busy_code = "slam_activity_busy"
         self.parent = self.path.parent.stat()
         self._parent()
 
@@ -64,9 +67,9 @@ class ActivityGate:
             info = os.fstat(descriptor)
             _private_file(info)
             try:
-                fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                fcntl.flock(descriptor, (fcntl.LOCK_SH if self.shared else fcntl.LOCK_EX) | fcntl.LOCK_NB)
             except BlockingIOError:
-                raise ActivityBusy("slam_activity_busy") from None
+                raise ActivityBusy(self.busy_code) from None
             self._parent()
             current = self.path.lstat()
             if (current.st_dev, current.st_ino) != (info.st_dev, info.st_ino):
@@ -79,13 +82,29 @@ class ActivityGate:
                 os.close(descriptor)
 
 
-def inherited_activity_fds():
-    """Preserve the supervisor's lease across the independent map-reload subprocess."""
-    value = os.environ.get(LEASE_ENV)
+class OperationGate(ActivityGate):
+    """Same catalog: mapping/expressions exclusive, localization/Nav2 shared."""
+
+    def __init__(self, maps, *, shared=False):
+        super().__init__(Path(maps) / ".robot-operation.lock", shared=shared)
+        self.busy_code = "robot_operation_busy"
+
+
+def inherited_lease_fd(name):
+    value = os.environ.get(name)
     if value is None:
-        return ()
+        return None
     if not value.isascii() or not value.isdecimal() or value != str(int(value)) or not 3 <= int(value) <= 2**31 - 1:
         raise ValueError("valid_inherited_activity_descriptor_required")
     descriptor = int(value)
     _private_file(os.fstat(descriptor))
-    return (descriptor,)
+    return descriptor
+
+
+def inherited_activity_fds():
+    """Preserve both leases across the independent map-reload subprocess."""
+    descriptors = tuple(fd for name in (LEASE_ENV, OPERATION_ENV)
+                        if (fd := inherited_lease_fd(name)) is not None)
+    if len(set(descriptors)) != len(descriptors):
+        raise ValueError("distinct_inherited_activity_descriptors_required")
+    return descriptors

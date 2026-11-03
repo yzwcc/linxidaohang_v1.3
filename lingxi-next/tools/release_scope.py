@@ -28,6 +28,8 @@ INDEPENDENT_FILES = frozenset((
     'independent/source/tools/run_glim_supervised_replay.py',
     'independent/source/tools/run_glim_mapping_trial.py',
     'independent/source/robot-navigation/bridge/physical_nav_bridge.py',
+    'independent/source/robot-navigation/bridge/nav2_lease_guard.py',
+    'independent/source/robot-slam/lingxi_slam/activity_lease.py',
     'independent/source/robot-navigation/lingxi_navigation/nav2_producer.py',
     'independent/source/robot-navigation/lingxi_navigation/localization_guard.py',
     'independent/source/robot-runtime/python/live_localization_ros.py',

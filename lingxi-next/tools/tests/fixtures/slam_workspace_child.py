@@ -13,7 +13,7 @@ ROOT = Path(os.environ.get("LINGXI_SLAM_TEST_SOURCE", Path(__file__).resolve().p
 os.environ["LINGXI_MAPPING_TEST_SOURCE_ROOT"] = str(ROOT)
 os.environ["LINGXI_LOCALIZATION_TEST_SOURCE_ROOT"] = str(ROOT)
 sys.path[:0] = [str(ROOT / "robot-runtime/python"), str(ROOT / "robot-slam")]
-from lingxi_slam.activity_lease import ActivityGate
+from lingxi_slam.activity_lease import ActivityGate, OperationGate
 from localization_service import LocalizationBinding, LocalizationManager, SavedMapResolver
 from mapping_service import MappingManager
 from slam_service import serve
@@ -48,11 +48,13 @@ def service(args):
                    "LINGXI_SLAM_TEST_SOURCE": str(ROOT)}
     gate = ActivityGate(args.maps / ".slam-activity.lock")
     mapping = MappingManager(args.maps, lambda output: [sys.executable, "-B", __file__,
-        "mapping", "--output", str(output)], environment, points_enabled=True, activity_gate=gate)
+        "mapping", "--output", str(output)], environment, points_enabled=True, activity_gate=gate,
+        operation_gate=OperationGate(args.maps))
     resolver = SavedMapResolver(args.maps, "e" * 64, "recorded", PROVENANCE)
     localization = LocalizationManager(args.runs, resolver, lambda chosen, output: [
         sys.executable, "-B", __file__, "localization", "--output", str(output),
-        "--binding", json.dumps(asdict(chosen.binding))], environment, input_mode="recorded", activity_gate=gate)
+        "--binding", json.dumps(asdict(chosen.binding))], environment, input_mode="recorded", activity_gate=gate,
+        operation_gate=OperationGate(args.maps, shared=True))
     serve(args.socket, args.localization_socket, mapping, localization, parent_input=sys.stdin.buffer,
           status=lambda value: print(json.dumps(value), flush=True))
     return 0

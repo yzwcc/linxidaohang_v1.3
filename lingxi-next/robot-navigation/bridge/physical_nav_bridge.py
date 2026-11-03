@@ -17,6 +17,9 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT.parent / 'robot-slam'))
+
+from lingxi_slam.activity_lease import OperationGate
 
 from lingxi_navigation.nav2_producer import Nav2Generation, OwnedNav2Backend, load_profile, spin_callbacks
 from lingxi_navigation.localization_guard import LocalizationGuard, LocalizationMonitor
@@ -59,6 +62,7 @@ def build_runtime():
         raise RuntimeError("independent_product_flag_required")
     socket_path = _required_env("LINGXI_NAVIGATION_SOCKET")
     map_root = Path(_required_env("LINGXI_MAP_ROOT"))
+    operation_gate = OperationGate(map_root, shared=True)
     map_id = _required_env("LINGXI_ACTIVE_MAP_ID")
     footprint = Path(_required_env("LINGXI_FOOTPRINT_FILE"))
     if not footprint.is_absolute() or footprint.is_symlink() or not footprint.is_file():
@@ -101,7 +105,8 @@ def build_runtime():
                     or map_activator.localization_binding(map_id) != localization_binding
                     or digest_footprint(footprint) != identity.footprintSha256):
                 raise RuntimeError("saved_map_evidence_changed_before_nav2_preparation")
-            generation = Nav2Generation(profile, ticket, run_root, footprint, executor)
+            generation = Nav2Generation(profile, ticket, run_root, footprint, executor,
+                                        operation_gate=operation_gate)
             try:
                 generation.connect(output, profile.limits, validate_observation=localization.validate_observation)
                 return generation

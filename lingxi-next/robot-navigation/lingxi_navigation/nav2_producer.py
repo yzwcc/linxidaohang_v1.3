@@ -161,7 +161,7 @@ def prepare_producer(profile, ticket, root):
 
 class Nav2Process:
     """Nonblocking TERM/KILL and whole-process-group retirement, Linux only."""
-    def __init__(self, profile, ticket, root, *, clock=time.monotonic):
+    def __init__(self, profile, ticket, root, *, clock=time.monotonic, operation_lease=None):
         if sys.platform != 'linux' or os.environ.get('ROS_DISTRO') != 'humble':
             raise RuntimeError('linux_humble_nav2_producer_required')
         executable = shutil.which('ros2')
@@ -172,8 +172,17 @@ class Nav2Process:
         self.log = (root / 'nav2.log').open('xb')
         environment = dict(os.environ, ROS_LOG_DIR=str(root / 'ros-log'))
         try:
-            self.child = subprocess.Popen([executable, 'launch', str(root / 'nav2_physical.launch.py')],
-                stdin=subprocess.DEVNULL, stdout=self.log, stderr=subprocess.STDOUT,
+            command = [executable, 'launch', str(root / 'nav2_physical.launch.py')]
+            inherited = ()
+            if operation_lease is not None:
+                from lingxi_slam.activity_lease import OPERATION_ENV
+                inherited = (operation_lease.fileno(),)
+                environment[OPERATION_ENV] = str(inherited[0])
+                command = [sys.executable, '-B', str(Path(__file__).resolve().parents[1]
+                    / 'bridge/nav2_lease_guard.py'), *command]
+            self.child = subprocess.Popen(command,
+                stdin=subprocess.PIPE if inherited else subprocess.DEVNULL,
+                stdout=self.log, stderr=subprocess.STDOUT, pass_fds=inherited,
                 start_new_session=True, env=environment)
         except BaseException:
             self.log.close()
@@ -215,11 +224,14 @@ class Nav2Process:
         stopped = exited and not self._live_group()
         if stopped:
             self.log.close()
+            if self.child.stdin is not None:
+                self.child.stdin.close()
         return stopped
 
 
 class Nav2Generation:
-    def __init__(self, profile, ticket, run_root, footprint, executor, *, clock=time.monotonic):
+    def __init__(self, profile, ticket, run_root, footprint, executor, *, clock=time.monotonic,
+                 operation_gate=None):
         import rclpy
         from .nav2_action import Nav2ActionDriver
         from .physical_ros import RosSensorEvidence, RosTopics
@@ -227,9 +239,10 @@ class Nav2Generation:
         self.claimed = self.closing = False
         self.node = self.driver = self.sensors = self.process = self.controller = None
         self.executor, self.backend = executor, None
-        self.node = rclpy.create_node('physical_navigation_client', namespace=controller_namespace(ticket),
-            context=executor.context, use_global_arguments=False)
+        self.operation_lease = operation_gate.acquire() if operation_gate is not None else None
         try:
+            self.node = rclpy.create_node('physical_navigation_client', namespace=controller_namespace(ticket),
+                context=executor.context, use_global_arguments=False)
             executor.add_node(self.node)
             topics = RosTopics(cloud=profile.cloud_topic, odometry=profile.odometry_topic,
                 tf=profile.tf_topic, tf_static=profile.tf_static_topic, terrain=profile.terrain_topic,
@@ -238,7 +251,8 @@ class Nav2Generation:
             self.sensors = RosSensorEvidence(self.node, self.identity, topics, map_frame=profile.map_frame,
                 base_frame=profile.base_frame, sensor_frame=profile.sensor_frame, footprint=footprint, clock=clock)
             self.driver = Nav2ActionDriver(self.node, profile.map_frame, clock=clock)
-            self.process = Nav2Process(profile, ticket, run_root / ticket.epoch, clock=clock)
+            self.process = Nav2Process(profile, ticket, run_root / ticket.epoch, clock=clock,
+                **({'operation_lease': self.operation_lease} if self.operation_lease is not None else {}))
         except BaseException:
             self.close()
             raise
@@ -293,7 +307,7 @@ class Nav2Generation:
                 and self.driver is None and self.sensors is None
                 and process_stopped)
 
-    def close(self):
+    def close(self, *, release_operation=True):
         deadline = time.monotonic() + 2.
         cleanup_error = None
         while True:
@@ -302,10 +316,19 @@ class Nav2Generation:
             except Exception as error:
                 cleanup_error = error
             if self.quiescent():
+                if release_operation:
+                    self.release_operation()
                 return
             if time.monotonic() >= deadline:
                 raise RuntimeError('owned_nav2_cleanup_unconfirmed') from cleanup_error
             time.sleep(.01)
+
+    def release_operation(self):
+        if not self.quiescent():
+            raise RuntimeError('quiescent_nav2_operation_release_required')
+        if self.operation_lease is not None:
+            self.operation_lease.close()
+            self.operation_lease = None
 
 
 class OwnedNav2Backend:
@@ -426,6 +449,8 @@ class OwnedNav2Backend:
                 return None
         proof = self.output.complete_retirement(nonce)
         if proof is not None:
+            if generation is not None:
+                generation.release_operation()
             self.generation, self.retiring = None, None
             self.reserved = None
         return proof
@@ -439,15 +464,32 @@ class OwnedNav2Backend:
         return self.localization.activate_map(map_id, initial_pose)
 
     def close(self):
+        import secrets
         self._owned()
         self.closed = True
+        retirement_requested = False
         try:
             self.output.fence_controller()
+            if self.generation is not None:
+                if self.retiring is None:
+                    self.retire(self.reserved, secrets.token_hex(16))
+                retirement_requested = True
         finally:
             try:
                 if self.generation is not None:
-                    self.generation.close()
-                    self.generation = None
+                    self.generation.close(release_operation=False)
+                    if retirement_requested:
+                        deadline = time.monotonic() + 2.
+                        while True:
+                            self.spin()
+                            self.output.poll()
+                            if self.output.complete_retirement(self.retiring) is not None:
+                                break
+                            if time.monotonic() >= deadline:
+                                raise RuntimeError('nav2_shutdown_output_retirement_unconfirmed')
+                            time.sleep(.01)
+                        self.generation.release_operation()
+                        self.generation = None
             finally:
                 if self.localization is not None:
                     self.localization.monitor.close()

@@ -19,7 +19,7 @@ AVAILABLE = sys.platform == "linux" and os.geteuid() != 0 and all(importlib.util
     for name in ("numpy", "scipy"))
 if AVAILABLE:
     import localization_service as service
-    from lingxi_slam.activity_lease import ActivityGate
+    from lingxi_slam.activity_lease import ActivityBusy, ActivityGate, OperationGate
     from mapping_service import MappingManager
 
 MAP = "slam-" + "b" * 32
@@ -126,6 +126,39 @@ class ManagerTests(unittest.TestCase):
         self.addCleanup(mapping.close)
         return mapping
 
+    def test_localization_shares_with_navigation_but_excludes_expression_and_mapping(self):
+        self.manager.operation_gate = OperationGate(self.root, shared=True)
+        mapping = self.shared_mapping()
+        mapping.operation_gate = OperationGate(self.root)
+        self.start()
+        navigation = OperationGate(self.root, shared=True).acquire()
+        try:
+            with self.assertRaises(ActivityBusy):
+                OperationGate(self.root).acquire()
+            with self.assertRaises(service.ControlError) as caught:
+                mapping.start()
+            self.assertEqual('robot_operation_busy', caught.exception.code)
+            self.finish()
+            with self.assertRaises(ActivityBusy):
+                OperationGate(self.root).acquire()
+        finally:
+            navigation.close()
+        OperationGate(self.root).acquire().close()
+
+    def test_expression_lock_rejects_localization_without_generation_change_or_resolution(self):
+        self.manager.operation_gate = OperationGate(self.root, shared=True)
+        held = OperationGate(self.root).acquire()
+        before = self.manager.runtime()
+        try:
+            with self.assertRaises(service.ControlError) as caught:
+                self.manager.start(MAP, RECEIPT, 0, self.manager.instance)
+            self.assertEqual('robot_operation_busy', caught.exception.code)
+            self.assertEqual(before, self.manager.runtime())
+            self.assertFalse(self.resolve_entered.is_set())
+            self.assertEqual([], self.owners)
+        finally:
+            held.close()
+
     def assert_activity_busy(self, callback):
         with self.assertRaises(service.ControlError) as caught:
             callback()
@@ -198,12 +231,16 @@ class ManagerTests(unittest.TestCase):
 
     def test_unconfirmed_localization_cleanup_keeps_shared_gate_after_thread_exit(self):
         mapping = self.shared_mapping()
+        self.manager.operation_gate = OperationGate(self.root, shared=True)
         self.unclean = True
         self.start()
         self.addCleanup(self.manager.current["lease"].close)
+        self.addCleanup(self.manager.current['operation_lease'].close)
         self.finish()
         self.assertFalse(self.manager.runtime()["cleanupComplete"])
         self.assert_activity_busy(mapping.start)
+        with self.assertRaises(ActivityBusy):
+            OperationGate(self.root).acquire()
 
     def test_localization_thread_start_failure_releases_shared_gate(self):
         mapping = self.shared_mapping()

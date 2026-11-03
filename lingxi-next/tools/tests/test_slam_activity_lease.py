@@ -12,7 +12,7 @@ from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "robot-slam"))
-from lingxi_slam.activity_lease import ActivityBusy, ActivityGate, LEASE_ENV, inherited_activity_fds
+from lingxi_slam.activity_lease import ActivityBusy, ActivityGate, OperationGate, LEASE_ENV, OPERATION_ENV, inherited_activity_fds
 from lingxi_slam.process_supervisor import ProcessSupervisor
 
 LINUX_USER = sys.platform == "linux" and os.geteuid() != 0
@@ -47,8 +47,8 @@ class ActivityLeaseTests(unittest.TestCase):
         self.leases.append(lease)
         return lease
 
-    def spawn(self, mode, **kwargs):
-        process = subprocess.Popen([sys.executable, "-u", str(CHILD), mode, str(self.root)],
+    def spawn(self, mode, *args, **kwargs):
+        process = subprocess.Popen([sys.executable, "-u", str(CHILD), mode, str(self.root), *args],
                                    stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                                    stderr=subprocess.PIPE, text=True, **kwargs)
         self.children.append(process)
@@ -110,34 +110,113 @@ class ActivityLeaseTests(unittest.TestCase):
         worker = self.wait_file("worker.json")
         self.assertTrue(worker["unrelatedClosed"])
         self.assertGreaterEqual(worker["leaseFd"], 3)
+        self.assertEqual(2, len(worker['leaseFds']))
         controller.kill()
         controller.communicate(timeout=5)
         with self.assertRaises(ActivityBusy):
             self.acquire()
+        with self.assertRaises(ActivityBusy):
+            OperationGate(self.root, shared=True).acquire()
         (self.root / "release").touch()
         self.wait_available()
+        OperationGate(self.root).acquire().close()
+
+    def test_independent_shared_processes_coexist_and_exclusive_requests_are_not_queued(self):
+        first = self.spawn('operation-contender', 'shared')
+        second = self.spawn('operation-contender', 'shared')
+        for process in (first, second):
+            process.stdin.write('go\n')
+            process.stdin.flush()
+            self.assertEqual('held', process.stdout.readline().strip())
+        with self.assertRaises(ActivityBusy):
+            OperationGate(self.root).acquire()
+        rejected = self.spawn('operation-contender', 'exclusive')
+        rejected.stdin.write('go\n')
+        rejected.stdin.flush()
+        self.assertEqual('busy', rejected.stdout.readline().strip())
+        rejected.communicate(timeout=5)
+        first.communicate('release\n', timeout=5)
+        with self.assertRaises(ActivityBusy):
+            OperationGate(self.root).acquire()
+        second.communicate('release\n', timeout=5)
+        OperationGate(self.root).acquire().close()
+
+    def test_exclusive_blocks_shared_and_second_exclusive_until_final_descriptor_closes(self):
+        held = OperationGate(self.root).acquire()
+        self.leases.append(held)
+        duplicate = os.dup(held.fileno())
+        held.close()
+        try:
+            for shared in (False, True):
+                with self.assertRaises(ActivityBusy):
+                    OperationGate(self.root, shared=shared).acquire()
+        finally:
+            os.close(duplicate)
+        OperationGate(self.root, shared=True).acquire().close()
+
+    def test_nav2_owner_death_retires_guard_and_term_ignoring_descendant_before_unlock(self):
+        controller = self.spawn('nav-owner')
+        value = json.loads(controller.stdout.readline())
+        worker = self.wait_file('nav-worker.json')
+        descendant = self.wait_file('descendant.json')
+        identities = {pid: self.process_identity(pid) for pid in
+                      (value['pid'], worker['pid'], worker['descendant'], descendant['pid'])}
+        with self.assertRaises(ActivityBusy):
+            OperationGate(self.root).acquire()
+        controller.kill()
+        controller.communicate(timeout=5)
+        deadline = time.monotonic() + 5
+        while True:
+            try:
+                OperationGate(self.root).acquire().close()
+                break
+            except ActivityBusy:
+                if time.monotonic() >= deadline:
+                    self.fail('nav2_orphan_retirement_deadline')
+                time.sleep(.01)
+        for pid, original in identities.items():
+            try:
+                state, started = self.process_identity(pid)
+                self.assertFalse((state, started) == (original[0], original[1]) and state not in ('Z', 'X'),
+                                 f'nav2_process_still_live:{pid}:{state}')
+            except FileNotFoundError:
+                pass
+
+    @staticmethod
+    def process_identity(pid):
+        fields = (Path('/proc') / str(pid) / 'stat').read_text().rsplit(')', 1)[1].split()
+        return fields[0], fields[19]
 
     def test_independent_reload_subprocess_retains_lease_after_intermediate_exit(self):
         lease = self.acquire()
-        relay = self.spawn("relay", env={**os.environ, LEASE_ENV: str(lease.fileno())},
-                           pass_fds=(lease.fileno(),))
+        operation = OperationGate(self.root).acquire()
+        self.leases.append(operation)
+        relay = self.spawn("relay", env={**os.environ, LEASE_ENV: str(lease.fileno()),
+                           OPERATION_ENV: str(operation.fileno())}, pass_fds=(lease.fileno(), operation.fileno()))
         output, errors = relay.communicate(timeout=5)
         self.assertEqual(0, relay.returncode, errors)
         self.orphans.append(int(output))
-        self.wait_file("sleeper.json")
+        self.assertEqual(2, len(self.wait_file('sleeper.json')['leaseFds']))
         lease.close()
+        operation.close()
         with self.assertRaises(ActivityBusy):
             self.acquire()
+        with self.assertRaises(ActivityBusy):
+            OperationGate(self.root, shared=True).acquire()
         (self.root / "release").touch()
         self.wait_available()
+        OperationGate(self.root).acquire().close()
 
     def test_supervisor_start_failure_and_unused_owner_release_the_lease(self):
         for mode in ("unused", "spawn-failure", "thread-failure", "normal"):
             with self.subTest(mode=mode):
+                operation = OperationGate(self.root).acquire()
+                self.leases.append(operation)
                 owner = ProcessSupervisor([sys.executable, "-u", str(ROOT / "tools/tests/fixtures/slam_process_child.py"),
                                            "normal"], cwd=self.root,
                                           environment={"PYTHONPATH": str(ROOT / "robot-slam")},
-                                          stderr_path=self.root / (mode + ".log"), activity_lease=self.acquire())
+                                          stderr_path=self.root / (mode + ".log"), activity_lease=self.acquire(),
+                                          operation_lease=operation)
                 try:
                     if mode == "spawn-failure":
                         with patch("lingxi_slam.process_supervisor.subprocess.Popen", side_effect=OSError("synthetic")):
@@ -155,12 +234,15 @@ class ActivityLeaseTests(unittest.TestCase):
                         self.assertEqual("running", owner.snapshot()["state"])
                         with self.assertRaises(ActivityBusy):
                             self.acquire()
+                        with self.assertRaises(ActivityBusy):
+                            OperationGate(self.root, shared=True).acquire()
                 finally:
                     state = owner.stop()
                 self.assertTrue(state["cleanupComplete"])
                 self.assertFalse(state["processAlive"])
                 self.assertFalse(state["monitorAlive"])
                 self.wait_available()
+                OperationGate(self.root).acquire().close()
 
     def test_unconfirmed_process_cleanup_keeps_parent_lease(self):
         owner = ProcessSupervisor([sys.executable, "-c", "pass"], cwd=self.root,
@@ -190,6 +272,12 @@ class ActivityLeaseTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             ProcessSupervisor([sys.executable, "-c", "pass"], cwd=self.root,
                               environment={LEASE_ENV: str(lease.fileno())}, stderr_path=self.root / "reserved.log")
+        with self.assertRaises(ValueError):
+            ProcessSupervisor([sys.executable, '-c', 'pass'], cwd=self.root,
+                              environment={OPERATION_ENV: str(lease.fileno())}, stderr_path=self.root / 'op-reserved.log')
+        with patch.dict(os.environ, {LEASE_ENV: str(lease.fileno()), OPERATION_ENV: str(lease.fileno())}), \
+                self.assertRaises(ValueError):
+            inherited_activity_fds()
 
     def test_catalog_and_lock_must_remain_private(self):
         self.acquire().close()

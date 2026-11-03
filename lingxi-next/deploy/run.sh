@@ -144,6 +144,8 @@ case "${1:-}" in
   actions)
     require_independent_product
     source_ros_runtime
+    required_directory "${LINGXI_MAP_ROOT:-}" LINGXI_MAP_ROOT
+    export PYTHONPATH="$INDEPENDENT/source/robot-slam${PYTHONPATH:+:$PYTHONPATH}"
     exec /usr/bin/python3 "$CURRENT/bridge/aimdk_ros_bridge.py" --mode actions-only
     ;;
   navigation)

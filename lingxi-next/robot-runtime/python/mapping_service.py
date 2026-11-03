@@ -17,7 +17,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(ROOT / "robot-slam"), str(ROOT / "tools")]
 from lingxi_slam.process_protocol import session_id
 from lingxi_slam.process_supervisor import ProcessLimits, ProcessSupervisor
-from lingxi_slam.activity_lease import ActivityBusy, ActivityGate
+from lingxi_slam.activity_lease import ActivityBusy, ActivityGate, OperationGate
 from mapping_platform import configuration
 
 
@@ -49,7 +49,8 @@ class MappingManager:
     """One slot, explicit session ownership and no native calls in request handlers."""
 
     def __init__(self, maps, command_factory, environment, *, owner_factory=ProcessSupervisor,
-                 points_enabled=False, input_mode="recorded", activity_gate=None, capture_limit_seconds=None):
+                 points_enabled=False, input_mode="recorded", activity_gate=None, operation_gate=None,
+                 capture_limit_seconds=None):
         self.maps = Path(maps)
         if (not self.maps.is_absolute() or self.maps.resolve(strict=True) != self.maps
                 or not self.maps.is_dir() or not callable(command_factory) or type(points_enabled) is not bool
@@ -65,6 +66,7 @@ class MappingManager:
         self.points_enabled = points_enabled
         self.input_mode = input_mode
         self.activity_gate = activity_gate
+        self.operation_gate = operation_gate
         self.capture_limit_seconds = capture_limit_seconds
 
     def state(self):
@@ -117,25 +119,31 @@ class MappingManager:
                         raise ControlError("mapping_busy")
                 identity = uuid.uuid4().hex
                 output = self.maps / identity
-                lease = None
+                lease = operation_lease = None
                 try:
+                    if self.operation_gate is not None:
+                        operation_lease = self.operation_gate.acquire()
                     if self.activity_gate is not None:
                         lease = self.activity_gate.acquire()
                     owner = self.owner_factory(
                         self.command_factory(output), cwd=self.maps, environment=self.environment,
                         stderr_path=self.maps / (identity + ".private.log"),
                         limits=ProcessLimits(startup_seconds=30., progress_seconds=2., shutdown_seconds=100.),
-                        **({"activity_lease": lease} if lease is not None else {}))
-                except ActivityBusy:
-                    if lease is not None:
-                        lease.close()
-                    raise ControlError("slam_activity_busy") from None
+                        **({"activity_lease": lease} if lease is not None else {}),
+                        **({"operation_lease": operation_lease} if operation_lease is not None else {}))
+                except ActivityBusy as error:
+                    for held in (lease, operation_lease):
+                        if held is not None:
+                            held.close()
+                    raise ControlError(str(error)) from None
                 except BaseException:
-                    if lease is not None:
-                        lease.close()
+                    for held in (lease, operation_lease):
+                        if held is not None:
+                            held.close()
                     raise
                 self.current = {"owner": owner, "output": output, "phase": "requested",
-                                "result": None, "decision": None, "lease": lease}
+                                "result": None, "decision": None, "lease": lease,
+                                "operation_lease": operation_lease}
             try:
                 owner.start()
             except BaseException:
@@ -222,9 +230,11 @@ class MappingManager:
 
     @staticmethod
     def _release_cleaned(current, state):
-        if (current["lease"] is not None and state["cleanupComplete"] is True
+        if (state["cleanupComplete"] is True
                 and not state["processAlive"] and not state["monitorAlive"]):
-            current["lease"].close()
+            for key in ("lease", "operation_lease"):
+                if current.get(key) is not None:
+                    current[key].close()
 
     @staticmethod
     def _revoke(owner):
@@ -358,6 +368,7 @@ def create_manager(config_file, maps):
         "--config", str(config_file), "--output", str(output),
     ], environment, points_enabled="pointAdapter" in config, input_mode=config["inputMode"],
         activity_gate=ActivityGate(maps / ".slam-activity.lock"),
+        operation_gate=OperationGate(maps),
         capture_limit_seconds=config["maxSeconds"] if config["inputMode"] == "live" else None)
 
 

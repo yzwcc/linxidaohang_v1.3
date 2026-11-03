@@ -144,11 +144,16 @@ class FakeGeneration:
     def quiescent(self):
         return self.closing and self.terminated
 
+    def release_operation(self):
+        if not self.quiescent():
+            raise RuntimeError('synthetic_generation_not_quiescent')
+
 
 class CleanupTests(unittest.TestCase):
     def generation(self):
         value = Nav2Generation.__new__(Nav2Generation)
         value.closing = False
+        value.operation_lease = Mock()
         value.node, value.executor = Mock(), Mock()
         value.controller, value.driver, value.sensors, value.process = Mock(), Mock(), Mock(), Mock()
         value.process.quiescent.return_value = True
@@ -180,6 +185,25 @@ class CleanupTests(unittest.TestCase):
             value.close()
         value.process.stop.assert_called_once()
         value.process.quiescent.assert_called_once()
+        value.operation_lease.close.assert_not_called()
+
+    def test_operation_lease_is_not_released_until_generation_is_quiescent(self):
+        value = self.generation()
+        lease = value.operation_lease
+        with self.assertRaisesRegex(RuntimeError, 'quiescent_nav2_operation'):
+            value.release_operation()
+        lease.close.assert_not_called()
+        value.close()
+        lease.close.assert_called_once()
+        self.assertIsNone(value.operation_lease)
+
+    def test_busy_operation_gate_does_not_create_any_ros_node(self):
+        gate = NS(acquire=Mock(side_effect=RuntimeError('synthetic_operation_busy')))
+        ros = NS(create_node=Mock())
+        with patch.dict(sys.modules, {'rclpy': ros}), self.assertRaisesRegex(RuntimeError, 'operation_busy'):
+            Nav2Generation(profile(), Ticket('preparing', 'd' * 32), Path('/unused'),
+                           Path('/unused'), Mock(), operation_gate=gate)
+        ros.create_node.assert_not_called()
 
     def test_partial_process_creation_failure_releases_all_existing_ros_resources(self):
         node, executor, sensors, driver = Mock(), Mock(), Mock(), Mock()
@@ -201,8 +225,14 @@ class CleanupTests(unittest.TestCase):
         output.fence_controller.side_effect = RuntimeError('synthetic_output_failure')
         with self.assertRaisesRegex(RuntimeError, 'synthetic_output_failure'):
             backend.close()
-        generation.close.assert_called_once()
+        generation.close.assert_called_once_with(release_operation=False)
+        generation.release_operation.assert_not_called()
+        self.assertIs(generation, backend.generation)
         self.assertTrue(backend.closed)
+        output.fence_controller.side_effect = None
+        backend.close()
+        generation.release_operation.assert_called_once()
+        self.assertIsNone(backend.generation)
 
     def test_entrypoint_cleanup_attempts_every_resource_and_reports_failed_shutdown(self):
         close = runpy.run_path(str(ROOT / 'robot-navigation/bridge/physical_nav_bridge.py'))['_close_runtime']
@@ -222,6 +252,18 @@ class CleanupTests(unittest.TestCase):
         self.assertEqual(['socket', 'backend', 'output', 'node', 'ros'], calls)
         executor.shutdown.assert_called_once_with(timeout_sec=1.)
         self.assertEqual(2, len(errors))
+
+    def test_shutdown_without_fresh_output_retirement_retains_operation_lease(self):
+        output, generation = Mock(), Mock()
+        output.complete_retirement.return_value = None
+        backend = OwnedNav2Backend(evidence(), output, Mock(), Mock())
+        backend.generation = generation
+        with patch('lingxi_navigation.nav2_producer.time.monotonic', side_effect=(0., 3.)), \
+                self.assertRaisesRegex(RuntimeError, 'shutdown_output_retirement_unconfirmed'):
+            backend.close()
+        generation.close.assert_called_once_with(release_operation=False)
+        generation.release_operation.assert_not_called()
+        self.assertIs(generation, backend.generation)
 
 
 class OwnedBackendTests(unittest.TestCase):
@@ -322,6 +364,25 @@ class OwnedBackendTests(unittest.TestCase):
         self.command('resume')
         self.assertNotEqual(old.epoch, self.bridge.ticket.epoch)
         self.assertEqual('requested', self.bridge.phase)
+
+    def test_retirement_keeps_operation_lease_until_output_proof_and_process_cleanup(self):
+        self.boot()
+        self.command('start')
+        self.bridge.tick()
+        generation = self.generations[0]
+        generation.release_operation = Mock(wraps=generation.release_operation)
+        self.command('pause')
+        self.refresh(.31)
+        self.bridge.tick()
+        generation.release_operation.assert_not_called()
+        generation.terminated = True
+        with patch.object(self.output, 'complete_retirement', return_value=None):
+            self.refresh()
+            self.bridge.tick()
+        generation.release_operation.assert_not_called()
+        self.refresh()
+        self.bridge.tick()
+        generation.release_operation.assert_called_once()
 
     def test_failed_prearm_start_has_own_ticket_and_new_stop_receipt(self):
         self.boot()

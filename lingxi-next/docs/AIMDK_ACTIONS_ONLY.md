@@ -41,11 +41,10 @@ In `actions-only` mode:
 - Restart does not clear a persisted action uncertainty or pending LinkCraft
   completion. The existing explicit operator-confirmation rules still apply.
 
-Physical actions intentionally remain unadmitted: this isolated service cannot
-infer whether the independent GLIM/Nav2 owner is mapping, localizing, navigating
-or still retiring a prior operation. That owner must supply a coherent,
-generation-bound lifecycle interlock before the product delegates real motion.
-Do not use `full` mode to circumvent this missing independent integration.
+Physical actions intentionally remain unadmitted. The operation lease described
+below adds cross-process exclusion for expressions, not generation-bound physical
+action completion. Preset/LinkCraft delegation still requires independent
+completion evidence. Do not select `full` mode to bypass this restriction.
 The independent Web/Android product can now explicitly select this adapter for
 allowlisted expressions and operator idle confirmation only. No action client
 is constructed without the pinned optional `actionsBridgeEndpoint` selection.
@@ -59,14 +58,54 @@ Product mutations share fail-fast API ownership, not a queue. Localization
 start/seed/pause participate in that ownership; expressions are unavailable
 until localization is stopped and cleanup is confirmed. Active localization is
 not reported as a physical action and does not veto the separately guarded Nav2
-navigation path. Stop/shutdown remain recovery paths. Independent lifecycle
-ownership across processes remains unfinished, so this deliberately conservative
-expression policy is not full tour/action product acceptance.
+navigation path. Stop/shutdown remain recovery paths. This deliberately
+conservative expression policy is not full tour/action product acceptance.
+
+## Cross-Process Operation Lease
+
+The product entry points now use a second stable lock file at
+`LINGXI_MAP_ROOT/.robot-operation.lock`. The existing `.slam-activity.lock`
+continues to exclude concurrent mapping and localization sensor owners.
+
+| Operation | Operation Lease | Release |
+| --- | --- | --- |
+| Mapping | Exclusive | Confirmed native process/monitor cleanup |
+| Localization | Shared | Confirmed native process/monitor cleanup |
+| Nav2 preparation and active generation | Shared | Generation cleanup plus output retirement proof |
+| Allowlisted expression dispatch | Exclusive | Service acknowledgement or bounded dispatch failure |
+
+All acquisitions are nonblocking. Busy expressions return HTTP 409 before any
+AIMDK service dispatch. Missing/invalid catalog configuration or an unavailable
+lease component returns 503, with no fallback. No old request is queued.
+Localization can coexist with Nav2, but an expression requires localization to
+be stopped as well. An expression acknowledgement is not physical completion;
+the existing persistent uncertain-dispatch interlock remains in force.
+
+`ProcessSupervisor` passes both lease descriptors only to the owned native child;
+the fresh map-reload subprocess preserves both. Closing a parent's descriptor
+does not unlock an inherited descriptor. Files are owned private single-link
+regular files, and are never deleted or replaced by cleanup or deployment.
+
+Each production Nav2 generation acquires its shared lease before creating its
+ROS client or launching Nav2. The launch guard inherits the descriptor and watches
+a bridge-owned lifetime pipe. Bridge exit closes that pipe; the guard terminates
+its same-process-group launch children, including TERM-ignoring descendants,
+before releasing its descriptor. Normal retirement keeps the parent's lease
+until both process cleanup and output retirement are observed. A failed output
+fence retains the lease even when process cleanup has finished.
+
+This coordinates cooperating product services running as the same ordinary
+Linux user against the same private catalog. It is not a robot-wide motion lock,
+an emergency stop, or exclusion of vendor/standalone processes using another
+directory. The same-process-group lifetime contract must still be verified with
+the actual target ROS launch tree. No physical preset or LinkCraft action was
+enabled by this change.
 
 ## Deployment Preparation
 
 `deploy/run.sh actions` explicitly selects `--mode actions-only` after checking
-the independent-product flag, installed sources and the configured ROS setup.
+the independent-product flag, installed sources, configured ROS setup and map
+catalog. It loads the installed `robot-slam` Python package for the shared lease.
 It uses the existing internal token, loopback port and private interlock file;
 no credentials are added to source, browser storage or a release archive.
 
@@ -77,7 +116,39 @@ includes the new unit and never automatically resumes it after a failure.
 Diagnostics include its service state. No existing 0.1.22 archive or APK was
 rebuilt or relabeled for this milestone.
 
-## Offline Verification
+## Cross-Process Lease Verification (2026-11-03)
+
+This lease change was validated offline without connecting to the robot:
+
+- Linux ordinary-user `test_slam_activity_lease.py`: 11 tests passed, including
+  cross-process shared/exclusive contention, inherited SLAM + operation FDs,
+  Nav2 guard parent death and TERM-ignoring descendant cleanup.
+- Linux ordinary-user focused process/runtime batch before the final shutdown
+  proof case: 185 tests passed, 10 skipped. This snapshot included lease,
+  supervisor, mapping/localization managers, Nav2, workspace, release scope and
+  live-acquisition tests. The Nav2 producer suite subsequently passed again on
+  Windows with 25 tests after adding shutdown-retirement coverage.
+- Python AIMDK bridge on Windows: 54 passed, 1 Linux-only case skipped. This
+  includes expression lock contention with zero service dispatch and confirmed
+  lease release after the service callback.
+- Vitest API/product/navigation/config subset: 76 passed, 7 skipped. API/runtime
+  TypeScript checks and the compiled SLAM API entrypoint build passed.
+- Linux isolated deployment install/upgrade/rollback: 2 passed. Release scope:
+  7 passed. Shell/Python diff whitespace checks passed.
+
+The additional live paired-workspace run used the compiled API and WSL against
+the repository on the Windows-mounted `/mnt/e` filesystem. It did **not** pass:
+two workspace assertions failed, one reporting a listener deadline and another
+reporting no startup readiness although service logs were empty. A separate Nav2
+test initially compared a reaped PID after rapid reuse; that test was corrected
+to compare process start identity and then passed. The earlier run with an
+incorrect WSL bundle path had 10 module-not-found failures and is superseded.
+The workspace results need a rerun from a native Linux filesystem and are not
+evidence of successful end-to-end integration. No sensor, ROS hardware, robot or
+motion command was used. Actual Humble Nav2 launch-tree behavior, ARM64 service
+startup and robot output-retirement feedback remain unverified.
+
+## Previous Integration Verification
 
 - `python -B -m unittest robot-api/tests/test_aimdk_bridge.py -q`:
   52 tests, including 13 action-mode tests, passed with synthetic ROS types and

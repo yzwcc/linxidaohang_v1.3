@@ -2,6 +2,7 @@
 import importlib.util
 import io
 import math
+import os
 import sqlite3
 import struct
 import tempfile
@@ -13,6 +14,9 @@ import types
 import unittest
 from contextlib import closing, ExitStack, redirect_stderr
 from unittest.mock import Mock, patch
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'robot-slam'))
+from lingxi_slam.activity_lease import ActivityBusy, OperationGate
 
 
 def module(name, **members):
@@ -989,7 +993,9 @@ class ActionsOnlyMode(unittest.TestCase):
         client = node.expression_client
         client.responses = [obj(success=True)]
         factory = lambda: obj(header=obj(header=obj(stamp=None)), emotion_id=0, mode=0, priority=0)
-        with patch.object(bridge, "PlayEmoji", request_type(factory)):
+        lease = Mock()
+        with patch.object(bridge, "PlayEmoji", request_type(factory)), \
+                patch.object(node, '_expression_operation_lease', return_value=lease):
             handler = self.handler(node, "/v1/expression", {
                 "name": "开心", "bridgeEpoch": node.bridge_epoch, "requestId": "a" * 32,
             })
@@ -1003,7 +1009,51 @@ class ActionsOnlyMode(unittest.TestCase):
             handler.do_POST()
             self.assertEqual(409, handler.send_json.call_args.args[0])
         self.assertEqual(1, len(client.requests))
+        lease.close.assert_called_once()
         self.assertTrue(all(not value.requests for name, value in self.clients.items() if not name.endswith("PlayEmoji")))
+
+    def test_expression_requires_configured_available_operation_window_before_ros_dispatch(self):
+        node = self.node()
+        with patch.dict(os.environ, {}, clear=True):
+            with self.assertRaises(bridge.AdapterError) as caught:
+                node.play_expression('开心')
+            self.assertEqual(503, caught.exception.status)
+        for failure, status in ((ActivityBusy('robot_operation_busy'), 409),
+                                (ValueError('synthetic_invalid_catalog'), 503)):
+            with patch.dict(os.environ, {'LINGXI_MAP_ROOT': '/synthetic/maps'}), \
+                    patch('lingxi_slam.activity_lease.OperationGate', side_effect=failure), \
+                    self.assertRaises(bridge.AdapterError) as caught:
+                node.play_expression('开心')
+            self.assertEqual(status, caught.exception.status)
+        self.assertFalse(node.motion_action_lock.locked())
+        self.assertTrue(all(not client.requests for client in self.clients.values()))
+
+    @unittest.skipUnless(sys.platform == 'linux' and os.geteuid() != 0, 'requires ordinary-user Linux locks')
+    def test_real_shared_navigation_lease_blocks_http_expression_and_release_allows_dispatch(self):
+        with tempfile.TemporaryDirectory(prefix='lxemoji-') as maps, \
+                patch.dict(os.environ, {'LINGXI_MAP_ROOT': maps}):
+            node = self.node()
+            node.get_clock = lambda: obj(now=lambda: obj(to_msg=lambda: 'stamp'))
+            node.expression_client.responses = [obj(success=True)]
+            factory = lambda: obj(header=obj(header=obj(stamp=None)), emotion_id=0, mode=0, priority=0)
+            held = OperationGate(Path(maps), shared=True).acquire()
+            try:
+                handler = self.handler(node, '/v1/expression', {
+                    'name': '开心', 'bridgeEpoch': node.bridge_epoch, 'requestId': 'c' * 32})
+                handler.do_POST()
+                self.assertEqual(409, handler.send_json.call_args.args[0])
+                self.assertEqual([], node.expression_client.requests)
+            finally:
+                held.close()
+            with patch.object(bridge, 'PlayEmoji', request_type(factory)):
+                def check_held(*_args, **_kwargs):
+                    with self.assertRaises(ActivityBusy):
+                        OperationGate(Path(maps), shared=True).acquire()
+                    return obj(success=True)
+                with patch.object(node, '_call_service', side_effect=check_held) as dispatch:
+                    self.assertTrue(node.play_expression('开心')['accepted'])
+                    dispatch.assert_called_once()
+            OperationGate(Path(maps)).acquire().close()
 
     def test_state_health_and_read_only_preset_status_routes_remain_available(self):
         node = self.node()

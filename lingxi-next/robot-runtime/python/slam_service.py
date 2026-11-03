@@ -10,7 +10,7 @@ import threading
 
 from mapping_service import MappingSocketServer, create_manager as create_mapping
 from localization_service import LocalizationServiceServer, create_manager as create_localization
-from lingxi_slam.activity_lease import ActivityGate
+from lingxi_slam.activity_lease import ActivityGate, OperationGate
 
 
 def serve(mapping_endpoint, localization_endpoint, mapping, localization, *, parent_input=None, status=None):
@@ -19,6 +19,11 @@ def serve(mapping_endpoint, localization_endpoint, mapping, localization, *, par
     if (not isinstance(mapping.activity_gate, ActivityGate) or not isinstance(localization.activity_gate, ActivityGate)
             or mapping.maps != localization.activity_gate.path.parent
             or mapping.activity_gate.path != localization.activity_gate.path
+            or not isinstance(mapping.operation_gate, OperationGate)
+            or not isinstance(localization.operation_gate, OperationGate)
+            or mapping.operation_gate.path != mapping.maps / '.robot-operation.lock'
+            or mapping.operation_gate.path != localization.operation_gate.path
+            or mapping.operation_gate.shared or not localization.operation_gate.shared
             or mapping.input_mode != localization.input_mode):
         raise ValueError("shared_catalog_activity_gate_and_input_required")
     stopping = threading.Event()

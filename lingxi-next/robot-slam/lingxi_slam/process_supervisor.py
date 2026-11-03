@@ -12,7 +12,7 @@ import time
 import uuid
 
 from .process_protocol import decode
-from .activity_lease import ActivityLease, LEASE_ENV
+from .activity_lease import ActivityLease, LEASE_ENV, OPERATION_ENV
 
 
 @dataclass(frozen=True)
@@ -42,7 +42,7 @@ class ProcessSupervisor:
     """Single-use local owner. Commands/environment are trusted composition, never HTTP input."""
 
     def __init__(self, command, *, cwd, environment, stderr_path, limits=None, clock=time.monotonic,
-                 activity_lease=None):
+                 activity_lease=None, operation_lease=None):
         self.limits = ProcessLimits() if limits is None else limits
         if (sys.platform != "linux" or not isinstance(self.limits, ProcessLimits) or not callable(clock)
                 or type(command) not in (list, tuple) or not 1 <= len(command) <= 64
@@ -51,8 +51,10 @@ class ProcessSupervisor:
                 or type(environment) is not dict
                 or any(type(key) is not str or not key or "=" in key or "\x00" in key
                        or type(value) is not str or "\x00" in value for key, value in environment.items())
-                or set(environment) & {"LINGXI_SLAM_SESSION", LEASE_ENV, "LD_PRELOAD", "PYTHONINSPECT", "PYTHONSTARTUP"}
-                or activity_lease is not None and not isinstance(activity_lease, ActivityLease)):
+                or set(environment) & {"LINGXI_SLAM_SESSION", LEASE_ENV, OPERATION_ENV, "LD_PRELOAD", "PYTHONINSPECT", "PYTHONSTARTUP"}
+                or any(lease is not None and not isinstance(lease, ActivityLease)
+                       for lease in (activity_lease, operation_lease))
+                or activity_lease is not None and activity_lease is operation_lease):
             raise ValueError("explicit_local_posix_process_configuration_required")
         executable = Path(command[0])
         self.cwd = Path(cwd).resolve(strict=True)
@@ -63,6 +65,7 @@ class ProcessSupervisor:
             raise ValueError("absolute_executable_working_directory_and_new_private_log_required")
         self.command, self.environment, self.clock = tuple(command), environment.copy(), clock
         self.activity_lease = activity_lease
+        self.operation_lease = operation_lease
         self.session = uuid.uuid4().hex
         self.condition, self.requested_stop = threading.Condition(), threading.Event()
         self.state, self.failure = "new", None
@@ -94,11 +97,13 @@ class ProcessSupervisor:
                                      | getattr(os, "O_NOFOLLOW", 0), 0o600)
                 with os.fdopen(descriptor, "wb", buffering=0) as private_log:
                     descriptor = None
-                    inherited = () if self.activity_lease is None else (self.activity_lease.fileno(),)
+                    leases = {name: str(lease.fileno()) for name, lease in (
+                        (LEASE_ENV, self.activity_lease), (OPERATION_ENV, self.operation_lease)) if lease is not None}
+                    inherited = tuple(map(int, leases.values()))
                     self.process = subprocess.Popen(
                         self.command, cwd=self.cwd,
                         env={**self.environment, "LINGXI_SLAM_SESSION": self.session,
-                             **({LEASE_ENV: str(inherited[0])} if inherited else {})},
+                             **leases},
                         stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=private_log,
                         bufsize=0, close_fds=True, pass_fds=inherited, start_new_session=True, shell=False,
                     )
@@ -286,8 +291,9 @@ class ProcessSupervisor:
             self._release_activity()
 
     def _release_activity(self):
-        if self.activity_lease is not None:
-            self.activity_lease.close()
+        for lease in (self.activity_lease, self.operation_lease):
+            if lease is not None:
+                lease.close()
 
     def _group_has_live_members(self):
         with os.scandir("/proc") as entries:

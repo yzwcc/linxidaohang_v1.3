@@ -1075,8 +1075,10 @@ class X2Node(Node):
             raise AdapterError("表情不在 X2 白名单中", 400)
         if not self.motion_action_lock.acquire(blocking=False):
             raise AdapterError("已有动作服务请求正在处理", 409)
+        operation_lease = None
         try:
             self._require_action_window()
+            operation_lease = self._expression_operation_lease()
             self.ensure_no_active_preset_motion()
             client = self.expression_client
             if client is None:
@@ -1101,7 +1103,26 @@ class X2Node(Node):
             self._set_action_interlock("idle")
             return {"accepted": True, "completed": False}
         finally:
+            if operation_lease is not None:
+                operation_lease.close()
             self.motion_action_lock.release()
+
+    def _expression_operation_lease(self):
+        if self.mode == "full":
+            return None
+        try:
+            from lingxi_slam.activity_lease import ActivityBusy, OperationGate
+        except ImportError:
+            raise AdapterError("机器人操作互锁组件不可用", 503) from None
+        maps = os.environ.get("LINGXI_MAP_ROOT", "")
+        if not maps:
+            raise AdapterError("机器人操作互锁未配置地图目录", 503)
+        try:
+            return OperationGate(Path(maps)).acquire()
+        except ActivityBusy:
+            raise AdapterError("建图、定位或导航正在占用机器人操作窗口", 409) from None
+        except (OSError, ValueError):
+            raise AdapterError("机器人操作互锁状态不可用", 503) from None
 
     def execute_linkcraft_resource(self, identifier: Any) -> dict[str, Any]:
         self.require_physical_actions()

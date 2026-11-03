@@ -15,7 +15,7 @@ from unittest.mock import patch
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "robot-runtime/python"))
 from mapping_service import ControlError, MappingManager, MappingSocketServer, create_manager, dispatch
-from lingxi_slam.activity_lease import ActivityBusy, ActivityGate
+from lingxi_slam.activity_lease import ActivityBusy, ActivityGate, OperationGate
 
 
 class MappingControl(unittest.TestCase):
@@ -105,14 +105,45 @@ class MappingControl(unittest.TestCase):
             MappingManager(self.maps, lambda _: [], {}, capture_limit_seconds=300)
         self.assertEqual([], self.owners)
 
+    @unittest.skipUnless(sys.platform == 'linux' and os.geteuid() != 0, 'requires ordinary-user Linux locks')
+    def test_mapping_excludes_localization_navigation_and_expressions_until_cleanup(self):
+        self.manager.operation_gate = OperationGate(self.maps)
+        navigation = OperationGate(self.maps, shared=True).acquire()
+        try:
+            self.assert_code('robot_operation_busy', self.manager.start)
+            self.assertEqual([], self.owners)
+        finally:
+            navigation.close()
+        self.manager.start()
+        for shared in (False, True):
+            with self.assertRaises(ActivityBusy):
+                OperationGate(self.maps, shared=shared).acquire()
+        self.manager.finish(self.owners[-1].session, save=False)
+        OperationGate(self.maps).acquire().close()
+
+    @unittest.skipUnless(sys.platform == 'linux' and os.geteuid() != 0, 'requires ordinary-user Linux locks')
+    def test_busy_sensor_gate_releases_partial_operation_lease(self):
+        self.manager.operation_gate = OperationGate(self.maps)
+        self.manager.activity_gate = ActivityGate(self.maps / '.slam-activity.lock')
+        held = self.manager.activity_gate.acquire()
+        try:
+            self.assert_code('slam_activity_busy', self.manager.start)
+            OperationGate(self.maps).acquire().close()
+            self.assertEqual([], self.owners)
+        finally:
+            held.close()
+
     def test_service_factory_forwards_the_verified_configuration_limit_only_for_live_input(self):
         for mode in ("live", "recorded"):
             config = {"inputMode": mode, **({"maxSeconds": 73.25} if mode == "live" else {})}
             with patch("mapping_service.configuration", return_value=(config, {})), \
-                    patch("mapping_service.ActivityGate") as gate:
+                    patch("mapping_service.ActivityGate") as gate, \
+                    patch("mapping_service.OperationGate") as operation:
                 manager = create_manager(self.maps / "synthetic-config.json", self.maps)
             gate.assert_called_once_with(self.maps / ".slam-activity.lock")
             self.assertIs(manager.activity_gate, gate.return_value)
+            self.assertIs(manager.operation_gate, operation.return_value)
+            operation.assert_called_once_with(self.maps)
             self.addCleanup(manager.close)
             if mode == "live":
                 self.assertEqual(73.25, manager.state()["captureLimitSeconds"])
@@ -125,21 +156,27 @@ class MappingControl(unittest.TestCase):
         os.chmod(self.maps, 0o700)
         gate = ActivityGate(self.maps / "activity.lock")
         self.manager.activity_gate = gate
+        self.manager.operation_gate = OperationGate(self.maps)
         self.manager.start()
         owner = self.owners[0]
         owner.state = "failed"
         self.assertFalse(self.manager.state()["cleanupComplete"])
         with self.assertRaises(ActivityBusy):
             gate.acquire()
+        with self.assertRaises(ActivityBusy):
+            OperationGate(self.maps, shared=True).acquire()
         owner.cleaned = True
         state = owner.snapshot()
         with patch.object(owner, "snapshot", return_value={**state, "processAlive": True}):
             self.manager.state()
             with self.assertRaises(ActivityBusy):
                 gate.acquire()
+            with self.assertRaises(ActivityBusy):
+                OperationGate(self.maps).acquire()
             self.assert_code("mapping_busy", self.manager.start)
         self.assertTrue(self.manager.state()["cleanupComplete"])
         gate.acquire().close()
+        OperationGate(self.maps).acquire().close()
 
     @unittest.skipUnless(sys.platform == "linux" and os.geteuid() != 0,
                          "requires ordinary-user Linux file locks")
