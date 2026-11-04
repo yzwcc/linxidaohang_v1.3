@@ -8,6 +8,16 @@ interpreters, the vendor installation or a running service.
 
 ## Offline Provisioning
 
+For the frozen 0.1.25 commissioning release, prefer the prepared
+`artifacts/lingxi-next-python-cp310-arm64-v1.tar.gz` companion kit. Its identity,
+contents and actual Linux extraction checks are recorded in
+[the kit verification](PYTHON_RUNTIME_KIT_20261104.md). Verify its archive SHA256
+before extraction, then run `sha256sum -c SHA256SUMS` inside its extracted root.
+Use the included installer and `wheelhouse/` together, as shown in its README;
+all parent directories must be readable by the `lingxi-next` service UID. This
+does not require rebuilding or modifying the main archive or APK.
+
+The following download path remains available when preparing a new wheelhouse.
 Reuse `tools/arm64_python_runtime.py` and the existing five-wheel lock; do not
 install numerical packages globally or copy an existing venv to a new path.
 Venvs contain absolute paths and must be created at their final location.

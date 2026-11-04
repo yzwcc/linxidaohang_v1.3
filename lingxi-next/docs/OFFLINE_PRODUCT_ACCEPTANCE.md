@@ -5,6 +5,13 @@ route. Earlier vendor-only acceptance records in ACCEPTANCE.md are historical;
 vendor SLAM licensing is not a prerequisite for this route. No robot connection
 or deployment is authorized by completing an offline check.
 
+Offline handoff: the immutable 0.1.25 main archive/APK and the
+[standalone ARM64 Python dependency kit](PYTHON_RUNTIME_KIT_20261104.md) are
+prepared and verified. Prioritize the linked target-commissioning sequence;
+do not repeat passed builds or expand offline scope without a concrete defect.
+Installed ARM64 dependencies, live timing/calibration, supported ground,
+physical navigation, real cloud/audio and Android field acceptance remain open.
+
 The [current 0.1.25 commissioning release](INDEPENDENT_RELEASE_0_1_25_VALIDATION_20261104.md)
 contains the latest independent source/runtime and matching signed landscape
 APK. Actual extraction verified 368 current source files, 24 package imports and
