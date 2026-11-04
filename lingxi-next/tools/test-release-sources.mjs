@@ -11,6 +11,7 @@ test("release source filter retains native verification inputs and excludes gene
     "python/managed_slam.py", "python/product_configuration.py", "check_ground_native.py",
     "check_installed_slam_python.py", "arm64_python_runtime.py", "prepare_installed_mapping_inputs.py",
     "prepare_installed_acquisition_inputs.py",
+    "offline_nav2_worker.py", "nav2-offline-service-isolated.sh",
     "check-runtime.mjs"]) {
     assert.equal(sourceMemberAllowed(name, false), true, name);
   }
@@ -30,12 +31,14 @@ test("source copy applies filters during recursion", async () => {
     await mkdir(path.join(source, "__pycache__"));
     await writeFile(path.join(source, "native", "CMakeLists.txt"), "fixture-native\n");
     await writeFile(path.join(source, "check_ground_native.py"), "fixture-verifier\n");
+    await writeFile(path.join(source, "nav2-offline-service-isolated.sh"), "#!/bin/bash\nexit 0\n");
     await writeFile(path.join(source, "__pycache__", "owner.pyc"), "cache");
     await writeFile(path.join(source, "private-settings.json"), "excluded");
     const target = path.join(work, "target");
     await copySourceTree(source, target);
     assert.equal(await readFile(path.join(target, "native", "CMakeLists.txt"), "utf8"), "fixture-native\n");
     assert.equal(await readFile(path.join(target, "check_ground_native.py"), "utf8"), "fixture-verifier\n");
+    assert.equal(await readFile(path.join(target, "nav2-offline-service-isolated.sh"), "utf8"), "#!/bin/bash\nexit 0\n");
     await assert.rejects(readFile(path.join(target, "__pycache__", "owner.pyc")), { code: "ENOENT" });
     await assert.rejects(readFile(path.join(target, "private-settings.json")), { code: "ENOENT" });
   } finally { await rm(work, { recursive: true, force: true }); }

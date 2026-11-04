@@ -80,6 +80,20 @@ class ReleaseScopeTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, 'declared_independent_commissioning_components_missing'):
                     verify_independent_scope(status, json.dumps(scope), INDEPENDENT_FILES - {filename})
 
+    def test_process_isolated_offline_diagnostic_sources_are_mandatory(self):
+        scope = json.loads((Path(__file__).resolve().parents[2] / 'deploy/independent-scope.json').read_bytes())
+        status = {'classification': 'commissioning', 'productionAccepted': False,
+                  'independentStackIncluded': True, 'independent': scope}
+        for name in ('offline_nav2_service.py', 'offline_nav2_worker.py', 'run_nav2_offline.py',
+                     'prepare_nav2_offline.py', 'humble_velocity_source.py',
+                     'nav2-offline-service-isolated.sh', 'nav2_service_diagnostic.py',
+                     'native-service-diagnostic/service_diagnostic.cpp'):
+            filename = 'independent/source/tools/' + name
+            with self.subTest(name=name):
+                self.assertIn(filename, INDEPENDENT_FILES)
+                with self.assertRaisesRegex(ValueError, 'declared_independent_commissioning_components_missing'):
+                    verify_independent_scope(status, json.dumps(scope), INDEPENDENT_FILES - {filename})
+
     def test_native_source_reference_closure_checks_actual_verifiers_without_importing(self):
         root = Path(__file__).resolve().parents[2]
         captured = {'independent/source/' + name: (root / name).read_bytes() for name in BOUND_SOURCE_MODULES}

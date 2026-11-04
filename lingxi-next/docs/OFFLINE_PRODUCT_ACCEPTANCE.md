@@ -5,6 +5,14 @@ route. Earlier vendor-only acceptance records in ACCEPTANCE.md are historical;
 vendor SLAM licensing is not a prerequisite for this route. No robot connection
 or deployment is authorized by completing an offline check.
 
+The [current 0.1.25 commissioning release](INDEPENDENT_RELEASE_0_1_25_VALIDATION_20261104.md)
+contains the latest independent source/runtime and matching signed landscape
+APK. Actual extraction verified 368 current source files, 24 package imports and
+142 external native-input files. The extracted isolated Nav2 diagnostic passed
+twelve starts/retirements and all 96 replies. Shell diagnostic sources are now
+included and mandatory. Archive/APK identities and retained external dependencies
+are explicit; this is not installed ARM64 or complete-product acceptance.
+
 The [ROS-worker milestone](NAV2_ROS_WORKER_20261104.md) separates native ROS IO
 from the offline watchdog owner using bounded, ticket/source-time-bound IPC and
 confirmed whole-process-group retirement. The final actual-Humble API suite

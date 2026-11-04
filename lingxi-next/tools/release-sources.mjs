@@ -4,7 +4,7 @@ import path from "node:path";
 const excludedDirectories = new Set(["node_modules", "__pycache__", "build", "dist",
   "tests", "test", "fixtures", "credentials", "secrets"]);
 const sourceExtensions = new Set([".py", ".ts", ".tsx", ".mjs", ".cpp", ".hpp", ".h",
-  ".cmake", ".json", ".json5", ".md", ".txt", ".patch", ".map", ".yaml", ".yml"]);
+  ".cmake", ".json", ".json5", ".md", ".txt", ".patch", ".map", ".yaml", ".yml", ".sh"]);
 
 export function sourceMemberAllowed(relative, directory) {
   const parts = relative.split(/[\\/]/);
