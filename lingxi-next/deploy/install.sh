@@ -78,6 +78,8 @@ else
 fi
 install -d -m 0755 "$ROOT/releases/$VERSION"
 cp -a "$PACKAGE/." "$ROOT/releases/$VERSION/"
+chown -R root:root "$ROOT/releases/$VERSION"
+chmod 0755 "$ROOT/releases/$VERSION"
 if [[ -n "$LEGACY" ]]; then
   "$PACKAGE/runtime/node/bin/node" "$PACKAGE/tools/migrate-legacy.mjs" --source-dir "$LEGACY" --destination "$DATA"
 fi

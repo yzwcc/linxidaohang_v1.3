@@ -24,6 +24,17 @@ class MappingServiceIsolation(unittest.TestCase):
                 self.assertIn("ReadWritePaths=/var/lib/lingxi-next\n", service)
 
 
+class ReleaseDirectoryPermissions(unittest.TestCase):
+    def test_installed_release_root_is_service_traversable_and_root_owned(self):
+        installer = (ROOT / "deploy" / "install.sh").read_text(encoding="utf-8")
+        copy = 'cp -a "$PACKAGE/." "$ROOT/releases/$VERSION/"'
+        ownership = 'chown -R root:root "$ROOT/releases/$VERSION"'
+        permissions = 'chmod 0755 "$ROOT/releases/$VERSION"'
+        self.assertLess(installer.index(copy), installer.index(ownership))
+        self.assertLess(installer.index(ownership), installer.index(permissions))
+        self.assertLess(installer.index(permissions), installer.index("deployment_begin"))
+
+
 @unittest.skipUnless(sys.platform == "linux", "POSIX installation ownership and permissions")
 class InstalledDdsProfile(unittest.TestCase):
     def setUp(self):
