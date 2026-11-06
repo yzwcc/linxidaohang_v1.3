@@ -7,6 +7,7 @@ ConditionPathExists=/opt/lingxi-next/current/independent/runtime/slam-main.mjs
 [Service]
 User=lingxi-next
 Group=lingxi-next
+SupplementaryGroups=manager
 EnvironmentFile=/etc/lingxi-next/robot.env
 ExecStart=/bin/bash /opt/lingxi-next/current/deploy/run.sh independent-slam
 Restart=on-failure
@@ -17,6 +18,7 @@ NoNewPrivileges=true
 PrivateTmp=false
 ProtectSystem=strict
 ProtectHome=true
+BindReadOnlyPaths=/etc/lingxi-next/dds/ros_dds_configuration.xml:/agibot/software/entry/cfg/ros_dds_configuration.xml
 ReadWritePaths=/var/lib/lingxi-next
 TimeoutStopSec=120
 

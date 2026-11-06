@@ -198,9 +198,9 @@ class MappingPlatform:
                 frozen = inputs(args)
             else:
                 from live_child import verified_inputs
-                from lingxi_slam.dds_profile import selected_profile
                 verified_inputs(args)
-                frozen = {"ddsProfileSha256": sha256(selected_profile())}
+                frozen = {"ddsProfileSha256": sha256(Path(
+                    "/agibot/software/entry/cfg/ros_dds_configuration.xml"))}
             core = verify_bundle(args.core_root)
             mapper = verify_replay_bundle(args.mapping_root, PURPOSE)
             verify_control(args.mapping_root)

@@ -106,6 +106,15 @@ class InstalledDdsProfile(unittest.TestCase):
             from lingxi_slam.dds_profile import selected_profile
             self.assertEqual(self.target, selected_profile())
 
+    def test_only_product_mapping_services_receive_vendor_read_group(self):
+        binding = "BindReadOnlyPaths=/etc/lingxi-next/dds/ros_dds_configuration.xml:/agibot/software/entry/cfg/ros_dds_configuration.xml"
+        for name in ("lingxi-next-independent-mapping.service", "lingxi-next-independent-slam.service"):
+            with self.subTest(name=name):
+                service = (ROOT / "deploy" / name).read_text(encoding="utf-8")
+                self.assertIn("SupplementaryGroups=manager", service)
+                self.assertIn(binding, service)
+                self.assertIn("User=lingxi-next", service)
+
 
 if __name__ == "__main__":
     unittest.main()

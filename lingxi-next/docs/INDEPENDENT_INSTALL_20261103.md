@@ -26,6 +26,10 @@ from its verified live-input evidence and copies those exact bytes to
 `/etc/lingxi-next/dds/ros_dds_configuration.xml` as root:`lingxi-next`
 0640. The live owner selects that copy and rechecks the evidence hash before
 opening ROS. The vendor file and its permissions are left unchanged.
+The mapping units receive the existing read-only `manager` group only to
+traverse the vendor configuration path. A service-private read-only bind
+presents the product copy at that legacy path, preserving source-bound GLIM
+checks without changing the vendor file.
 
 ## Configure The Independent Owner
 
