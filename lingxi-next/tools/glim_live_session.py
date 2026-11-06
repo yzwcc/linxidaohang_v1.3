@@ -57,9 +57,10 @@ def duration(value):
 
 
 def validate_environment(root, core):
+    from lingxi_slam.dds_profile import selected_profile
     wanted = {
         "ROS_DISTRO": "humble", "ROS_DOMAIN_ID": "0", "RMW_IMPLEMENTATION": "rmw_fastrtps_cpp",
-        "FASTRTPS_DEFAULT_PROFILES_FILE": DDS_PROFILE, "AMENT_PREFIX_PATH": "/opt/ros/humble",
+        "FASTRTPS_DEFAULT_PROFILES_FILE": str(selected_profile(DDS_PROFILE)), "AMENT_PREFIX_PATH": "/opt/ros/humble",
         "OMP_NUM_THREADS": "2", "OPENBLAS_NUM_THREADS": "2",
         "LD_LIBRARY_PATH": ":".join((str(root / "lib"), str(core / "lib"),
                                    "/opt/ros/humble/lib/aarch64-linux-gnu", "/opt/ros/humble/lib")),

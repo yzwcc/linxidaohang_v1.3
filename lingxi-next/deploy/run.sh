@@ -111,6 +111,7 @@ verified_native_inputs() {
 run_independent_mapping() {
   require_independent_product
   source_ros_runtime
+  export LINGXI_DDS_PROFILE="${LINGXI_DDS_PROFILE:-/etc/lingxi-next/dds/ros_dds_configuration.xml}"
   required_file "${LINGXI_MAPPING_CONFIG:-}" LINGXI_MAPPING_CONFIG
   required_directory "${LINGXI_MAP_ROOT:-}" LINGXI_MAP_ROOT
   local node api output parent python
@@ -135,6 +136,7 @@ run_independent_mapping() {
 run_independent_slam() {
   require_independent_product
   source_ros_runtime
+  export LINGXI_DDS_PROFILE="${LINGXI_DDS_PROFILE:-/etc/lingxi-next/dds/ros_dds_configuration.xml}"
   required_file "${LINGXI_SLAM_CONFIG:-}" LINGXI_SLAM_CONFIG
   required_directory "${LINGXI_MAP_ROOT:-}" LINGXI_MAP_ROOT
   local node api output parent python

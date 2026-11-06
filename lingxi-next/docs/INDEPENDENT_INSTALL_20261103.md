@@ -21,6 +21,11 @@ Use the actual archive filename. The adjacent SHA256 and verification report
 must match it. Existing stage/archive names are rejected; use a new version.
 Installation starts only the core management API on HTTPS port 3000.
 It does not start SLAM, navigation, AgentSDK or any robot motion.
+For an independent package, installation reads the pinned DDS profile hash
+from its verified live-input evidence and copies those exact bytes to
+`/etc/lingxi-next/dds/ros_dds_configuration.xml` as root:`lingxi-next`
+0640. The live owner selects that copy and rechecks the evidence hash before
+opening ROS. The vendor file and its permissions are left unchanged.
 
 ## Configure The Independent Owner
 

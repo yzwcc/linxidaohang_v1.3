@@ -29,13 +29,17 @@ def digest_file(path, expected):
 
 def environment(root, core):
     import pwd
+    sys.path.insert(0, str(ROOT / "robot-slam"))
+    from lingxi_slam.dds_profile import selected_profile
+    profile = str(selected_profile())
     # ROS expands its log directory even when application ROS logging is disabled.
     home = pwd.getpwuid(os.geteuid()).pw_dir
     return {
         "PATH": "/usr/bin:/bin", "HOME": home, "LANG": "C.UTF-8", "PYTHONDONTWRITEBYTECODE": "1",
         "PYTHONNOUSERSITE": "1", "PYTHONUNBUFFERED": "1",
         "ROS_DISTRO": "humble", "ROS_DOMAIN_ID": "0", "RMW_IMPLEMENTATION": "rmw_fastrtps_cpp",
-        "FASTRTPS_DEFAULT_PROFILES_FILE": "/agibot/software/entry/cfg/ros_dds_configuration.xml",
+        "FASTRTPS_DEFAULT_PROFILES_FILE": profile,
+        **({"LINGXI_DDS_PROFILE": profile} if "LINGXI_DDS_PROFILE" in os.environ else {}),
         "AMENT_PREFIX_PATH": "/opt/ros/humble", "OMP_NUM_THREADS": "2", "OPENBLAS_NUM_THREADS": "2",
         "PYTHONPATH": ("/opt/ros/humble/local/lib/python3.10/dist-packages:"
                        "/opt/ros/humble/lib/python3.10/site-packages"),

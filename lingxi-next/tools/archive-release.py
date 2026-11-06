@@ -66,6 +66,8 @@ with tarfile.open(output, "w:gz", format=tarfile.PAX_FORMAT) as archive:
     # on the build workstation; stream the original entries into the final tar.
     for item in sorted(stage.rglob("*")):
         relative = item.relative_to(stage).as_posix()
+        if "__pycache__" in relative.split("/") or ".pytest_cache" in relative.split("/"):
+            continue
         if relative == "SHA256SUMS":
             continue
         if relative == "runtime" or relative.startswith("runtime/"):

@@ -98,11 +98,12 @@ def verified_inputs(args):
     from slam_target_probe import verify_bundle
     from run_glim_offline_trial import explicit_diagnostic_profile
     from verify_slam_capture import sha256
+    from lingxi_slam.dds_profile import selected_profile
 
     baseline = json.loads((ROOT / "docs/slam-humble-live-evidence.json").read_text(encoding="utf-8"))
     if (sha256(args.root / "replay-manifest.json") != baseline["replayManifestSha256"]
             or sha256(args.core_root / "bundle-manifest.json") != baseline["coreBundleManifestSha256"]
-            or sha256(Path(live.DDS_PROFILE)) != baseline["runs"]["start"]["ddsProfileSha256"]):
+            or sha256(selected_profile(live.DDS_PROFILE)) != baseline["runs"]["start"]["ddsProfileSha256"]):
         raise ValueError("same_verified_live_inputs_and_dds_profile_required")
     manifest = verify_replay_bundle(args.root, live.PURPOSE)
     core = verify_bundle(args.core_root)
