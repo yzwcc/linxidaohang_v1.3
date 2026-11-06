@@ -14,6 +14,16 @@ sys.path[:0] = [str(ROOT / "deploy"), str(ROOT / "robot-slam"),
 from lingxi_slam.dds_profile import selected_profile
 
 
+class MappingServiceIsolation(unittest.TestCase):
+    def test_glim_services_have_writable_private_tmp_and_strict_system(self):
+        for name in ("lingxi-next-independent-mapping.service", "lingxi-next-independent-slam.service"):
+            with self.subTest(name=name):
+                service = (ROOT / "deploy" / name).read_text(encoding="utf-8")
+                self.assertIn("PrivateTmp=true\n", service)
+                self.assertIn("ProtectSystem=strict\n", service)
+                self.assertIn("ReadWritePaths=/var/lib/lingxi-next\n", service)
+
+
 @unittest.skipUnless(sys.platform == "linux", "POSIX installation ownership and permissions")
 class InstalledDdsProfile(unittest.TestCase):
     def setUp(self):
