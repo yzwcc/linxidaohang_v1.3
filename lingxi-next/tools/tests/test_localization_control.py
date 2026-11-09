@@ -95,6 +95,56 @@ class MapInputs(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "matching_saved_map_sensor_provenance_required"):
             self.load(sensor_provenance=self.receipt["sensorProvenance"])
 
+    def test_verified_snapshot_detects_each_map_input_change(self):
+        fingerprint = {}
+        self.load(input_fingerprint=fingerprint)
+        self.assertEqual(fingerprint, control.map_input_fingerprint(self.saved, self.profile))
+        paths = [self.receipt_file, self.point_file, self.profile,
+                 self.saved / "map/graph.bin", self.saved / "map/traj_lidar.txt"]
+        for path in paths:
+            original = path.read_bytes()
+            try:
+                path.write_bytes(original + b"changed")
+                with self.subTest(path=path.name):
+                    self.assertNotEqual(fingerprint, control.map_input_fingerprint(self.saved, self.profile))
+            finally:
+                path.write_bytes(original)
+        for name in ("observations-ready.json", "private-observations.bin"):
+            path = self.saved / name
+            path.write_bytes(b"source")
+            self.assertNotEqual(fingerprint, control.map_input_fingerprint(self.saved, self.profile))
+            changed = control.map_input_fingerprint(self.saved, self.profile)
+            path.write_bytes(b"changed")
+            self.assertNotEqual(changed, control.map_input_fingerprint(self.saved, self.profile))
+            path.unlink()
+        (self.saved / "map/extra").mkdir()
+        self.assertNotEqual(fingerprint, control.map_input_fingerprint(self.saved, self.profile))
+
+    def test_snapshot_rejects_symlinks_and_failed_load_does_not_publish(self):
+        target = self.saved / "private-observations.bin"
+        target.symlink_to(self.point_file)
+        with self.assertRaises(ValueError):
+            control.map_input_fingerprint(self.saved, self.profile)
+        target.unlink()
+        fingerprint = {}
+        with self.assertRaises(ValueError):
+            self.load(receipt_sha256="0" * 64, input_fingerprint=fingerprint)
+        self.assertEqual({}, fingerprint)
+        with self.assertRaisesRegex(ValueError, "empty_localization_input_fingerprint"):
+            self.load(input_fingerprint={"unverified": True})
+
+    def test_input_change_during_full_validation_rejects_snapshot(self):
+        original = control.inventory_map
+        def changed(path):
+            result = original(path)
+            self.profile.write_bytes(b"changed")
+            return result
+        fingerprint = {}
+        with patch.object(control, "inventory_map", side_effect=changed):
+            with self.assertRaisesRegex(ValueError, "localization_inputs_changed_during_load"):
+                self.load(input_fingerprint=fingerprint)
+        self.assertEqual({}, fingerprint)
+
     def test_v1_receipt_with_unproven_sensor_field_is_rejected(self):
         self.receipt["sensorProvenance"] = {"schemaVersion": 1}
         self.write_receipt()
@@ -443,7 +493,8 @@ class ControlAndOwnership(unittest.TestCase):
     def test_unreviewed_platform_live_or_missing_point_output_is_rejected(self):
         for options in ({"platform": "arm64-humble", "inputMode": "recorded", "pointAdapter": "/x"},
                         {"inputMode": "live", "pointAdapter": "/x"}, {"inputMode": "recorded"}):
-            with patch.object(runtime, "configuration", return_value=(options, {})):
+            with patch.object(runtime, "configuration", return_value=(options, {})), patch.object(
+                    runtime.host_platform, "machine", return_value="x86_64"):
                 with self.subTest(options=options), self.assertRaises(ValueError):
                     runtime.verified_configuration(Path("/unused"))
 

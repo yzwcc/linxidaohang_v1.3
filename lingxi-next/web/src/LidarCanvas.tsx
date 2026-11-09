@@ -35,7 +35,8 @@ export default function LidarCanvas({ connection, preview, inactiveNotice, synth
   const viewRef = useRef<LidarViewport | undefined>(undefined);
   const boundsRef = useRef<ReturnType<typeof lidarBounds> | undefined>(undefined);
   const contextKey = useRef("");
-  const previewKey = preview ? `${preview.mapId}:${preview.receiptSha256}:${preview.pointsSha256}` : "";
+  const scanDetail = preview?.scanPreview && !pointSelection?.enabled ? preview.scanPreview : undefined;
+  const previewKey = preview ? `${preview.mapId}:${preview.receiptSha256}:${preview.pointsSha256}:${scanDetail ? "scan" : "map"}` : "";
   const canMeasure = Boolean(preview && !seedSelection);
   const rawDisplay = Boolean(preview || frame && (coordinateUnits === "native-raw" || synthetic));
   const displayKey = previewKey || (frame ? `${connection?.baseUrl}:${frame.epoch}:${frame.frameId}:${coordinateUnits}` : "");
@@ -77,7 +78,7 @@ export default function LidarCanvas({ connection, preview, inactiveNotice, synth
     if (preview) {
       setFrame({
         sequence: 1, epoch: preview.mapId, source: "point-cloud", frameId: "GLIM",
-        sensorFrame: "saved-map", fixedFrame: true, stampMs: 0, receivedAtMs: 0, points: preview.points,
+        sensorFrame: "saved-map", fixedFrame: true, stampMs: 0, receivedAtMs: 0, points: scanDetail?.points ?? preview.points,
       });
       setNotice("");
       return;
@@ -113,7 +114,7 @@ export default function LidarCanvas({ connection, preview, inactiveNotice, synth
       if (lastReceived && performance.now() - lastReceived > 2000) unavailable("扫描数据已中断");
     }, 250);
     return () => { subscription.close(); clearInterval(freshness); };
-  }, [connection, preview, inactiveNotice, synthetic]);
+  }, [connection, preview, inactiveNotice, synthetic, scanDetail]);
 
   useEffect(() => {
     if (!canvasRef.current) return;
@@ -338,7 +339,8 @@ export default function LidarCanvas({ connection, preview, inactiveNotice, synth
       {correctedMap && <span className="tag" data-testid="corrected-map-revision">优化地图 v{correctedMap.revision} / {correctedMap.submaps} 子图 / 共 {correctedMap.totalPoints.toLocaleString()} 点</span>}
       {frame && <span className="tag">{preview ? "已保存点云" : inputMode === "recorded" ? "录制数据验证" : inputMode === "synthetic" ? "合成测试" : coordinateUnits === "native-raw" ? "实时 SLAM" : frame.source === "point-cloud" ? "PointCloud2" : "LaserScan"}</span>}
       {frame && (preview || coordinateUnits === "native-raw") && <span className="tag">原始坐标 / 未标定</span>}
-      {preview?.sampled && <span className="tag">抽样预览 / 共 {preview.totalPoints.toLocaleString()} 点</span>}
+      {scanDetail && <span className="tag" data-testid="saved-scan-detail">激光扫描细节</span>}
+      {preview?.sampled && !scanDetail && <span className="tag">抽样预览 / 共 {preview.totalPoints.toLocaleString()} 点</span>}
       {rawDisplay && activeDisplay.fit === "main" && <span className="tag">主体视野 / 1–99% / 远点保留</span>}
       {rawDisplay && activeDisplay.sliced && <span className="tag" data-testid="lidar-slice-count"
         data-visible={displayCount.visible} data-available={displayCount.available}>

@@ -23,6 +23,7 @@ SOURCES = (
     "robot-runtime/python/localization_control.py",
     "robot-runtime/python/mapping_platform.py",
     "robot-slam/lingxi_slam/localization_session.py",
+    "robot-slam/lingxi_slam/localization_lane.py",
     "robot-slam/lingxi_slam/localization_tracking.py",
     "robot-slam/lingxi_slam/seeded_localization.py",
     "robot-runtime/python/live_localization.py",

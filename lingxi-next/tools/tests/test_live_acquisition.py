@@ -1,5 +1,6 @@
 """Passive live composition with synthetic ELF/ctypes/sensors, never robot IO."""
 from copy import deepcopy
+from contextlib import ExitStack
 from dataclasses import asdict, replace
 import importlib.util
 import json
@@ -32,11 +33,13 @@ if AVAILABLE:
 
 class SettingsFixture:
     def prepare(self):
+        self.contexts = ExitStack()
+        self.addCleanup(self.contexts.close)
         fixture = bundle_fixture.AcquisitionBundle()
         fixture.setUp()
         self.addCleanup(fixture.doCleanups)
         self.component = fixture
-        self.root = Path(self.enterContext(tempfile.TemporaryDirectory())).resolve()
+        self.root = Path(self.contexts.enter_context(tempfile.TemporaryDirectory())).resolve()
         self.config_dir = self.root / 'config'
         self.config_dir.mkdir()
         self.odometry = self.config_dir / 'config_odometry_cpu.json'
@@ -56,7 +59,7 @@ class SettingsFixture:
 
     def terrain(self):
         # Only the ground provenance check is a stub; its own tests check pinned sources.
-        self.ground_check = self.enterContext(patch('check_ground_native.verified_build', return_value={}))
+        self.ground_check = self.contexts.enter_context(patch('check_ground_native.verified_build', return_value={}))
         terrain = dict(geometry=dict(metres_per_raw_unit=1.,
             declared_from_raw=list(map(float, np.eye(4).ravel()))), projection=asdict(spec()))
         for name in ('ground', 'octomap'):
@@ -271,8 +274,8 @@ class CompositionTests(SettingsFixture, unittest.TestCase):
         self.native_calls = []
         self.release, self.terrain_calls = threading.Event(), []
         self.release.set()
-        self.enterContext(patch('lingxi_slam.acquisition_output.ctypes.CDLL', return_value=self.library))
-        self.enterContext(patch.object(live, 'verify_loaded_libraries'))
+        self.contexts.enter_context(patch('lingxi_slam.acquisition_output.ctypes.CDLL', return_value=self.library))
+        self.contexts.enter_context(patch.object(live, 'verify_loaded_libraries'))
         case = self
         def counts(destination):
             case.native_calls.append(('counts', threading.get_ident()))
@@ -312,7 +315,7 @@ class CompositionTests(SettingsFixture, unittest.TestCase):
             def process(**kwargs):
                 case.process = Process(case.release, case.terrain_calls)
                 return case.process
-            self.enterContext(patch.object(live, 'TerrainProcess', side_effect=process))
+            self.contexts.enter_context(patch.object(live, 'TerrainProcess', side_effect=process))
         self.composition = live.AcquisitionComposition(self.settings(), self.session, self.root)
         self.addCleanup(self.composition.finish)
         self.addCleanup(self.release.set)

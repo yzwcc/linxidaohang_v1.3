@@ -7,6 +7,7 @@ import { z } from "zod";
 import type { SavedSlamMap, SavedSlamPointPreview } from "../../shared/contracts";
 import type { SavedSlamReferences } from "../../shared/slam-reference";
 import { mappingEndpointPoses, MAX_TRAJECTORY_BYTES } from "./slam-map-references";
+import { readSavedScanPreview } from "./saved-scan-preview";
 
 const positive = z.number().int().positive().safe();
 const sha256 = z.string().regex(/^[a-f0-9]{64}$/);
@@ -118,6 +119,7 @@ async function verifyObservations(directory: string, receipt: z.infer<typeof rec
       !(await readFile(file)).equals(bytes) || !(await readFile(path.join(directory, "map-ready.json"))).equals(receiptBytes)) {
     throw new Error("unchanged_slam_observation_archive_required");
   }
+  return observation;
 }
 
 /** Read-only: receipts are never imported into AIMDK maps or the navigation database. */
@@ -149,7 +151,7 @@ export class SavedSlamMapCatalog {
         counts.savedFrames !== inventory.num_all_frames || counts.submaps !== inventory.num_submaps) {
       throw new Error("consistent_saved_slam_counts_required");
     }
-    await verifyObservations(directory, receipt, receiptBytes);
+    const observation = await verifyObservations(directory, receipt, receiptBytes);
     const pointsFile = path.join(directory, "private-saved-points.f64");
     if ((await direct(pointsFile, true)).size !== counts.points * 24) {
       throw new Error("complete_saved_slam_points_required");
@@ -218,7 +220,7 @@ export class SavedSlamMapCatalog {
       ...(receipt.schemaVersion !== 1 ? { sensorProvenance: receipt.sensorProvenance } : {}),
       ...(receipt.schemaVersion === 3 ? { mappingEngine: receipt.mappingEngine } : {}),
     };
-    return { map, pointsFile, trajectoryFile: path.join(mapRoot, "traj_lidar.txt"),
+    return { map, pointsFile, observation, directory, trajectoryFile: path.join(mapRoot, "traj_lidar.txt"),
       trajectorySha256: entries.find(([file]) => file === "traj_lidar.txt")![2],
       pointsSha256: receipt.savedPointsSha256,
       receiptSha256: createHash("sha256").update(receiptBytes).digest("hex") };
@@ -232,7 +234,7 @@ export class SavedSlamMapCatalog {
     if (entries.length > MAX_MAPS) throw new Error("bounded_saved_slam_catalog_required");
     const maps = [];
     for (const entry of entries) {
-      try { maps.push({ directory: entry.name, ...await this.load(entry.name) }); }
+      try { maps.push(await this.load(entry.name)); }
       catch { /* Incomplete, failed and changed maps do not enter the catalog. */ }
     }
     const counts = new Map<string, number>();
@@ -284,6 +286,7 @@ export class SavedSlamMapCatalog {
       receiptSha256: found.receiptSha256, pointsSha256: found.pointsSha256,
       totalPoints: found.map.counts.points, sampled: stride !== 1, points,
       ...(seedReferences ? { seedReferences } : {}),
+      scanPreview: await readSavedScanPreview(found.directory, found.receiptSha256, found.observation),
     };
   }
 }

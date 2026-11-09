@@ -96,6 +96,8 @@ export type SavedSlamPointPreview = {
   sampled: boolean;
   points: number[];
   seedReferences?: SavedSlamReferences;
+  scanPreview?: { source: "registered-laser-returns"; archiveSha256: string;
+    sourceReturns: number; voxelSize: number; points: number[] };
 };
 
 export type MapPoint = {

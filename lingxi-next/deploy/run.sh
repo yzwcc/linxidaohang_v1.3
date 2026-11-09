@@ -156,7 +156,9 @@ run_independent_slam() {
   api="$(independent_api slam)"
   parent="${LINGXI_RUNTIME_DIR:-/var/lib/lingxi-next/runtime}"
   required_directory "$parent" LINGXI_RUNTIME_DIR
-  output="$parent/slam-$(date -u +%Y%m%dT%H%M%SZ)-$$"
+  # Leave room for r/<run-id>/localization.sock within the Unix socket limit.
+  # The owner exclusively creates this new directory and rejects collisions.
+  output="$parent/s-$$-$RANDOM"
   # The supervised owner controls child shutdown and preserves its run evidence.
   export LINGXI_WEB_ROOT="$INDEPENDENT/assets/slam/web"
   export LINGXI_PORT="${LINGXI_SLAM_PORT:-3444}"

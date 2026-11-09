@@ -78,6 +78,8 @@ class SensorWorker:
         if self.state in ("stopped", "failed"):
             return
         self.state, self.failure = "failed", reason
+        # Fixed internal codes survive supervisor termination in the private log.
+        print(f"sensor_worker_fault:{reason}", file=sys.stderr, flush=True)
         self.counts["discardedMessages"] += len(self.queue)
         self.queue.clear()
         self.pending_bytes = self.pending_clouds = 0

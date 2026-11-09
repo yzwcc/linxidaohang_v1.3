@@ -38,8 +38,67 @@ def direct(path, *, directory=False):
     return info
 
 
+def map_input_fingerprint(directory, profile):
+    """Hash every validated map input without repeating acquisition reconstruction.
+
+    A snapshot bracketing the full load permits byte-for-byte revalidation at
+    shutdown. It includes directory entries, bindings and optional source archives.
+    """
+    directory, profile = Path(directory), Path(profile)
+    direct(directory, directory=True)
+    result = {}
+
+    def file_hash(path, key, maximum):
+        if direct(path).st_size > maximum:
+            raise ValueError("bounded_localization_fingerprint_input_required")
+        sha, size = hashlib.sha256(), 0
+        with path.open("rb") as stream:
+            for block in iter(lambda: stream.read(1024 * 1024), b""):
+                size += len(block)
+                if size > maximum:
+                    raise ValueError("bounded_localization_fingerprint_input_required")
+                sha.update(block)
+        result[key] = sha.hexdigest()
+
+    file_hash(profile, "profile", 65536)
+    for name, maximum in (("map-ready.json", 16384),
+                          ("private-saved-points.f64", 2_000_000 * 24)):
+        file_hash(directory / name, name, maximum)
+    for name, maximum in (("observations-ready.json", 32768),
+                          ("private-observations.bin", 768 * 1024**2)):
+        path = directory / name
+        if path.exists() or path.is_symlink():
+            file_hash(path, name, maximum)
+    root = directory / "map"
+    direct(root, directory=True)
+    pending, entries, total = [(root, 0)], 0, 0
+    while pending:
+        folder, depth = pending.pop()
+        if depth > 4:
+            raise ValueError("bounded_localization_fingerprint_tree_required")
+        with os.scandir(folder) as children:
+            for child in children:
+                entries += 1
+                path, info = Path(child.path), child.stat(follow_symlinks=False)
+                key = path.relative_to(directory).as_posix()
+                if entries > 4096 or stat.S_ISLNK(info.st_mode):
+                    raise ValueError("bounded_direct_localization_fingerprint_tree_required")
+                if stat.S_ISDIR(info.st_mode):
+                    direct(path, directory=True)
+                    result[key] = "directory"
+                    pending.append((path, depth + 1))
+                elif stat.S_ISREG(info.st_mode):
+                    total += info.st_size
+                    if total > 64 * 1024**2:
+                        raise ValueError("bounded_localization_fingerprint_tree_required")
+                    file_hash(path, key, 64 * 1024**2)
+                else:
+                    raise ValueError("direct_localization_fingerprint_file_required")
+    return result
+
+
 def load_map(directory, map_id, receipt_sha256, profile, profile_sha256, *, session,
-             input_mode, config=None, sensor_provenance=None):
+             input_mode, config=None, sensor_provenance=None, input_fingerprint=None):
     """Load owned point bytes from an integrity-checked map, never a client path.
 
     Versions 2/3 bind current sensor provenance; v3 selects full optimized maps.
@@ -52,6 +111,9 @@ def load_map(directory, map_id, receipt_sha256, profile, profile_sha256, *, sess
     LocalizationBinding(session, input_mode, map_id, receipt_sha256, "0" * 64, profile_sha256)
     directory, profile = Path(directory), Path(profile)
     direct(directory, directory=True)
+    if input_fingerprint is not None and (type(input_fingerprint) is not dict or input_fingerprint):
+        raise ValueError("empty_localization_input_fingerprint_required")
+    before = map_input_fingerprint(directory, profile) if input_fingerprint is not None else None
     receipt_file, points_file = directory / "map-ready.json", directory / "private-saved-points.f64"
     if direct(receipt_file).st_size > 16384 or direct(profile).st_size > 65536:
         raise ValueError("bounded_localization_receipt_and_profile_required")
@@ -133,13 +195,18 @@ def load_map(directory, map_id, receipt_sha256, profile, profile_sha256, *, sess
             or inspect_map(map_root) != inventory):
         raise ValueError("localization_inputs_changed_during_load")
     points.flags.writeable = False
+    if input_fingerprint is not None:
+        if map_input_fingerprint(directory, profile) != before:
+            raise ValueError("localization_inputs_changed_during_load")
+        input_fingerprint.update(before)
     return binding, points
 
 
 class LocalizedNative:
-    """Compose localization on the existing point worker; no new native thread."""
+    """Keep LIO on its sensor owner; optionally isolate saved-map registration."""
 
-    def __init__(self, session, native_factory, *, acquisition_output=None, on_acquisition=None):
+    def __init__(self, session, native_factory, *, acquisition_output=None, on_acquisition=None,
+                 asynchronous=False, on_frame=None):
         if not isinstance(session, LocalizationSession) or not callable(native_factory):
             raise ValueError("localization_session_and_point_native_factory_required")
         if acquisition_output is not None or on_acquisition is not None:
@@ -150,16 +217,24 @@ class LocalizedNative:
         self.acquisition_output, self.on_acquisition = acquisition_output, on_acquisition
         self.session, self.closed, self.failed = session, False, False
         self.owner = threading.get_ident()
+        self.registration_lane = None
         self.current_scan = None
         self.current_points = None
         self.point_delivered = False
         self.last_stamp = self.last_received_at = None
         try:
-            session.open_worker()
+            if asynchronous:
+                from lingxi_slam.localization_lane import LocalizationLane
+                self.registration_lane = LocalizationLane(session, on_acquisition=on_acquisition,
+                    on_frame=on_frame).start()
+            else:
+                session.open_worker()
             self.native = native_factory(self.accept)
         except BaseException:
             try:
-                if session.owner == self.owner:
+                if self.registration_lane is not None:
+                    self.registration_lane.stop()
+                elif session.owner == self.owner:
                     session.close_worker(failed=True)
             finally:
                 if self.acquisition_output is not None:
@@ -175,6 +250,8 @@ class LocalizedNative:
             raise RuntimeError("current_single_matching_localization_scan_required")
         self.point_delivered = True
         self.current_points = packet
+        if self.registration_lane is not None:
+            return self.session.state()
         return self.session.observe(
             packet, session=self.session.binding.session,
             input_mode=self.session.binding.input_mode, received_at=context[1],
@@ -187,7 +264,10 @@ class LocalizedNative:
     def _call(self, method, *args):
         self._active()
         try:
-            self.session.tick()
+            if self.registration_lane is None:
+                self.session.tick()
+            else:
+                self.registration_lane.check()
             return getattr(self.native, method)(*args)
         except BaseException:
             self.failed = True
@@ -211,21 +291,28 @@ class LocalizedNative:
                     or self.last_stamp is not None and stamp <= self.last_stamp
                     or self.last_received_at is not None and scan.received_at < self.last_received_at):
                 raise ValueError("ordered_original_localization_scan_required")
-            self.session.tick()
+            if self.registration_lane is None:
+                self.session.tick()
+            else:
+                self.registration_lane.check()
             self.current_scan = (stamp, scan.received_at, self.session.state()["generation"])
             self.point_delivered = False
             self.current_points = None
             self.last_stamp, self.last_received_at = stamp, scan.received_at
             result = self.native.frame(stamp, scan.points, scan.offsets)
+            packet = None
             if self.acquisition_output is not None:
                 packet = self.acquisition_output.take(stamp, result[0])
                 if (packet is None) != (self.current_points is None):
                     raise RuntimeError("same_frame_point_and_acquisition_delivery_required")
-                if packet is not None:
+                if packet is not None and self.registration_lane is None:
                     registered = self.session.register_acquisition(packet, self.current_points,
                         received_at=self.current_scan[1], expected_generation=self.current_scan[2])
                     if registered is not None:
                         self.on_acquisition(registered)
+            if self.registration_lane is not None:
+                self.registration_lane.offer(self.current_points, scan.received_at, self.current_scan[2],
+                    packet, (scan.header_ns, stamp, result[0], result[1]))
             return result
         except BaseException:
             self.failed = True
@@ -256,7 +343,10 @@ class LocalizedNative:
                         self.failed = True
                         raise
             finally:
-                self.session.close_worker(failed=self.failed)
+                if self.registration_lane is not None:
+                    self.registration_lane.stop()
+                else:
+                    self.session.close_worker(failed=self.failed)
 
 
 def strict_json(payload):

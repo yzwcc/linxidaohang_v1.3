@@ -215,6 +215,34 @@ class MappingControl(unittest.TestCase):
         self.assertEqual(2, len(self.owners))
         self.assertNotEqual(self.owners[0].output, self.owners[1].output)
 
+    def test_optional_preview_never_delays_save_or_duplicates_work(self):
+        entered, release = threading.Event(), threading.Event()
+        calls = []
+        def render(output):
+            calls.append(output)
+            entered.set()
+            release.wait(2.)
+            raise RuntimeError("optional display cache failed")
+        self.manager.preview_builder = render
+        self.manager.start()
+        owner = self.owners[-1]
+        owner.output.mkdir()
+        (owner.output / "observations-ready.json").write_text("{}")
+        try:
+            result = self.manager.finish(owner.session, save=True, name="Synthetic map")
+            self.assertTrue(result["saved"])
+            self.assertTrue(entered.wait(1.))
+            self.assertTrue(self.manager.preview_thread.is_alive())
+            self.assertEqual("idle", self.manager.state()["phase"])
+            self.assertEqual(result, self.manager.finish(owner.session, save=True, name="Synthetic map"))
+            self.manager._schedule_preview(owner.output)
+            self.assertEqual([owner.output], calls)
+        finally:
+            release.set()
+            self.manager.preview_thread.join(2.)
+        self.assertTrue((owner.output / "map-ready.json").is_file())
+        self.assertEqual(result, self.manager.finish(owner.session, save=True, name="Synthetic map"))
+
     def test_live_session_requires_a_live_receipt(self):
         self.manager.input_mode = "live"
         self.assertEqual("live", self.manager.state()["inputMode"])

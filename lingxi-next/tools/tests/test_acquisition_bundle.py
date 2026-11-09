@@ -1,5 +1,6 @@
 """Explicit synthetic module-selection fixtures; never load or execute an ELF."""
 from copy import deepcopy
+from contextlib import ExitStack
 import json
 from pathlib import Path
 import sys
@@ -13,7 +14,9 @@ import acquisition_bundle as bundle
 
 class AcquisitionBundle(unittest.TestCase):
     def setUp(self):
-        self.root = Path(self.enterContext(tempfile.TemporaryDirectory())).resolve()
+        self.contexts = ExitStack()
+        self.addCleanup(self.contexts.close)
+        self.root = Path(self.contexts.enter_context(tempfile.TemporaryDirectory())).resolve()
         (self.root / 'lib').mkdir()
         self.library = self.root / 'lib' / bundle.LIBRARY
         self.library.write_bytes(b'\x7fELF\x02\x01' + b'\0' * 12 + (183).to_bytes(2, 'little'))

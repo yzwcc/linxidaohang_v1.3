@@ -1,4 +1,4 @@
-"""Passive Humble sensors and saved-map tracking on one native owner thread."""
+"""Passive Humble LIO with a separate, bounded saved-map registration owner."""
 from dataclasses import asdict
 from importlib.metadata import version
 from pathlib import Path
@@ -8,7 +8,7 @@ import threading
 
 from controlled_localization import native_library_inventory, source_hashes
 from localization_control import (
-    LocalizationControlServer, LocalizedNative, digest, load_map, make_session)
+    LocalizationControlServer, LocalizedNative, digest, load_map, make_session, map_input_fingerprint)
 from mapping_platform import verify_loaded_libraries
 from mapping_service import private_json
 from live_child import serve, verified_child_session
@@ -25,6 +25,14 @@ def verify_completion(report, final, *, frozen, binding, sources, config_hash, b
     numeric = ("acceptedImu", "acceptedClouds", "completedMessages",
                "discardedMessages", "rejectedMessages")
     stream_counts = stream["counts"]
+    lane = report.get("registrationLane")
+    if lane is not None and (
+            any(type(lane.get(key)) is not int or lane[key] < 0
+                for key in ("offered", "processed", "replaced", "discarded", "pending"))
+            or lane["offered"] != lane["processed"] + lane["replaced"] + lane["discarded"]
+            or lane["pending"] != 0 or lane.get("closed") is not True
+            or lane.get("failed") is not False or lane.get("threadAlive") is not False):
+        raise ValueError("closed_accounted_registration_lane_required")
     if acquisition_integrity is not None:
         from live_acquisition import verify_terminal
         verify_terminal(report.get('acquisition'), acquisition_integrity,
@@ -106,9 +114,11 @@ def child(args, sink, platform):
         from live_acquisition import child_settings
         acquisition_settings = child_settings(args, platform)
     child_session = verified_child_session(platform.args)
+    map_inputs = {}
     binding, points = load_map(
         args.saved_map, args.map_id, args.receipt_sha256, platform.profile, args.profile_sha256,
-        session=child_session, input_mode="live", sensor_provenance=platform.sensor_provenance())
+        session=child_session, input_mode="live", sensor_provenance=platform.sensor_provenance(),
+        input_fingerprint=map_inputs)
     options = platform.value.get("basePose")
     registration_diagnostics = RegistrationDiagnostics()
     session = make_session(binding, points, base_metres_per_map_unit=(
@@ -130,6 +140,7 @@ def child(args, sink, platform):
     calls = dict.fromkeys(("create", "imu", "frame", "close"), 0)
     owners, main_thread, libraries = set(), threading.get_ident(), {}
     acquisition = None
+    registration_lanes = []
     if acquisition_settings is not None:
         from live_acquisition import AcquisitionComposition
         acquisition = AcquisitionComposition(acquisition_settings, session, args.output)
@@ -155,8 +166,12 @@ def child(args, sink, platform):
                 wrapped.close()
                 raise
         if acquisition is not None:
-            return acquisition.factory(native)
-        return LocalizedNative(session, native)
+            wrapper = acquisition.factory(native, asynchronous=True, on_frame=frame)
+        else:
+            wrapper = LocalizedNative(session, native, asynchronous=True,
+                                      on_frame=frame if base_owner is not None else None)
+        registration_lanes.append(wrapper.registration_lane)
+        return wrapper
 
     def revoke():
         # Only the mailbox changes here; native operations stay on the sensor worker.
@@ -167,7 +182,8 @@ def child(args, sink, platform):
     observation_owner = acquisition.localization_ros_output if acquisition is not None else None
 
     def frame(header, algorithm, pose, statistics):
-        base_owner.frame(header, algorithm, pose, statistics)
+        if base_owner is not None:
+            base_owner.frame(header, algorithm, pose, statistics)
         if observation_owner is not None:
             observation_owner.capture(header, algorithm)
         if acquisition is not None:
@@ -176,7 +192,7 @@ def child(args, sink, platform):
     worker = SensorWorker(
         factory, SensorProfile("lidar_chest_front", "lidar_imu_chest_front",
                                "frame_relative_nanoseconds_hypothesis"), platform.hypothesis,
-        on_frame=frame if base_owner is not None else None)
+        on_frame=None)
     report = {"result": "failed", "session": binding.session, "inputMode": "live",
               "robotContacted": True, "motionCommandsSent": False,
               "localizationReady": False, "navigationReady": False,
@@ -229,15 +245,16 @@ def child(args, sink, platform):
         report.update(nativeCalls=calls, nativeOwnerIsSingleNonMainThread=len(owners) == 1,
                       actualLoadedLibrariesSha256=libraries,
                       registrationDiagnostics=registration_diagnostics.summary())
+        if len(registration_lanes) == 1:
+            report["registrationLane"] = registration_lanes[0].summary()
         if report["result"] == "live_sensor_session_closed":
             report["result"] = "live_localization_runtime_closed"
         private_json(args.output / "localization-final.json", final)
         try:
-            reloaded, _ = load_map(
-                args.saved_map, args.map_id, args.receipt_sha256, platform.profile,
-                args.profile_sha256, session=binding.session, input_mode="live",
-                sensor_provenance=platform.sensor_provenance())
-            if (platform.verify() != platform.frozen or source_hashes() != sources or reloaded != binding
+            # The full geometry validation ran between identical input snapshots.
+            # Rehash those same bytes instead of rebuilding every saved laser ray.
+            if (map_input_fingerprint(args.saved_map, platform.profile) != map_inputs
+                    or platform.verify() != platform.frozen or source_hashes() != sources
                     or digest(args.config.read_bytes()) != config_hash or digest(gicp.read_bytes()) != gicp_hash):
                 raise ValueError("unchanged_live_localization_inputs_required")
             verify_completion(report, final, frozen=platform.frozen, binding=binding,

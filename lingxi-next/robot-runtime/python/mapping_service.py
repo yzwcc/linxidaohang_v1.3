@@ -50,7 +50,7 @@ class MappingManager:
 
     def __init__(self, maps, command_factory, environment, *, owner_factory=ProcessSupervisor,
                  points_enabled=False, input_mode="recorded", activity_gate=None, operation_gate=None,
-                 capture_limit_seconds=None):
+                 capture_limit_seconds=None, preview_builder=None):
         self.maps = Path(maps)
         if (not self.maps.is_absolute() or self.maps.resolve(strict=True) != self.maps
                 or not self.maps.is_dir() or not callable(command_factory) or type(points_enabled) is not bool
@@ -68,6 +68,7 @@ class MappingManager:
         self.activity_gate = activity_gate
         self.operation_gate = operation_gate
         self.capture_limit_seconds = capture_limit_seconds
+        self.preview_builder, self.preview_thread = preview_builder, None
 
     def state(self):
         with self.lock:
@@ -210,6 +211,8 @@ class MappingManager:
                 raise ControlError("discard_created_ready_map", 503)
             with self.lock:
                 current["phase"], current["result"] = "idle", result
+            if save:
+                self._schedule_preview(current["output"])
             return result
         except Exception as error:
             if finishing is not None:
@@ -244,6 +247,23 @@ class MappingManager:
                 process.stdin.close()
             except OSError:
                 pass
+
+    def _schedule_preview(self, output):
+        # Display detail runs after confirmed save, outside the native mapper and its deadlines.
+        # One optional job at a time; a busy renderer never delays a new capture or queues old work.
+        try:
+            if (self.preview_builder is None or self.preview_thread is not None and self.preview_thread.is_alive()
+                    or not (output / "observations-ready.json").is_file()):
+                return
+            def render():
+                try:
+                    self.preview_builder(output)
+                except Exception:
+                    pass  # The original, independently reloaded map remains usable.
+            self.preview_thread = threading.Thread(target=render, name="saved-scan-preview", daemon=True)
+            self.preview_thread.start()
+        except Exception:
+            pass
 
     def close(self):
         with self.lock:
@@ -363,13 +383,17 @@ def serve(endpoint, manager, *, parent_input=None, status=None):
 
 def create_manager(config_file, maps):
     config, environment = configuration(config_file)
+    def preview_builder(output):
+        from lingxi_slam.saved_scan_preview import build
+        return build(output)
     return MappingManager(maps, lambda output: [
         sys.executable, "-B", str(ROOT / "robot-runtime/python/controlled_mapping.py"),
         "--config", str(config_file), "--output", str(output),
     ], environment, points_enabled="pointAdapter" in config, input_mode=config["inputMode"],
         activity_gate=ActivityGate(maps / ".slam-activity.lock"),
         operation_gate=OperationGate(maps),
-        capture_limit_seconds=config["maxSeconds"] if config["inputMode"] == "live" else None)
+        capture_limit_seconds=config["maxSeconds"] if config["inputMode"] == "live" else None,
+        preview_builder=preview_builder)
 
 
 def main():

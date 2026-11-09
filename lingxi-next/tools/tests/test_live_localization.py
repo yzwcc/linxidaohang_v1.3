@@ -56,6 +56,17 @@ class LiveCompletion(unittest.TestCase):
     def test_clean_discarded_tail_is_not_claimed_as_full_input(self):
         self.verify()
 
+    def test_async_registration_requires_closed_and_balanced_frame_accounting(self):
+        lane = dict(offered=10, processed=6, replaced=3, discarded=1, pending=0,
+                    closed=True, failed=False, threadAlive=False)
+        self.report["registrationLane"] = lane
+        self.verify()
+        for key, value in (("offered", 11), ("processed", True), ("pending", 1),
+                           ("closed", False), ("failed", True), ("threadAlive", True)):
+            self.report["registrationLane"] = {**lane, key: value}
+            with self.subTest(key=key), self.assertRaisesRegex(ValueError, "registration_lane"):
+                self.verify()
+
     def test_acquisition_is_explicit_and_counters_match_the_actual_pose_stream(self):
         expected = {'settingsSha256': 'a' * 64}
         self.report['acquisition'] = dict(configured=True, nativeCreated=True, nativeClosed=True,
