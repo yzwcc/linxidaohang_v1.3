@@ -1,5 +1,8 @@
 # Target Independent Mapping Owner - 2026-11-06
 
+Historical record. The [November 9 follow-up](TARGET_MAPPING_SAVE_RELOAD_20261109.md)
+records the newer release, 300-second profile and successful live Web save/reload.
+
 Target: `192.168.0.128`. This records an installed mapping owner and web
 console, not a captured or accepted map.
 

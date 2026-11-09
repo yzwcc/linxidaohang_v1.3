@@ -1,5 +1,8 @@
 # Robot Target Commissioning - 2026-11-06
 
+Historical record. See the [November 9 follow-up](TARGET_MAPPING_SAVE_RELOAD_20261109.md)
+for the subsequently installed mapping service and live Web capture/save/reload.
+
 Target: `192.168.0.128`. This is a partial commissioning record for the
 independent console, live sensor preview and isolated Python dependency runtime.
 It is not a mapping, localization, navigation, voice or Android acceptance.

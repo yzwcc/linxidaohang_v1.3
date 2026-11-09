@@ -100,6 +100,18 @@ granted by a copied manifest.
 
 ## Retention And Delivery
 
+Treat a successfully prepared input directory as immutable. Verification checks
+the exact inventory as well as the declared hashes, so even an extra backup
+file inside the directory invalidates it. Keep reviewed configuration edits,
+environment backups, diagnostics and temporary files in separate private
+staging/backup directories. To change a capture limit or other setting, edit a
+reviewed source configuration outside the closure, compute its actual SHA256,
+and prepare a new versioned output at its final location using the service UID.
+Do not edit `mapping.json` or its completion receipt in place. Stop the active
+owner only after the operator's capture/save has finished, back up `robot.env`
+outside the closure, select the new root and manifest together, and verify the
+installed owner's effective selection before inviting another capture.
+
 Upgrade/code rollback retain the external selection and private data directory.
 They do not automatically start mapping/navigation/voice. Keep old versioned
 inputs until an operator has checked the replacement; do not edit frozen
@@ -137,3 +149,8 @@ The earlier missing temporary-parent trial and the superseded preclarification
 receipt remain private; neither was relabeled as the current successful run.
 This is actual file-level verification of ARM64 artifacts, not ARM64 execution
 or current-robot acceptance.
+
+For the subsequently deployed 300-second input selection and actual live Web
+capture/save/reload result, see the
+[November 9 target record](TARGET_MAPPING_SAVE_RELOAD_20261109.md). Its passing
+functional checks do not grant geometric or navigation acceptance.
