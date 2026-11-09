@@ -1,0 +1,310 @@
+{
+  "schema_version": 1,
+  "collected_at": "2026-11-09T14:09:10.769026+00:00",
+  "purpose": "interface_evidence_only",
+  "physical_validation": "NOT_RUN",
+  "playback_gate": "NOT_VALIDATED",
+  "target_operator_supplied": {
+    "model": null,
+    "firmware": null,
+    "aimdk_version": null
+  },
+  "capabilities": {
+    "authoritative_position_and_completion": "UNVERIFIED",
+    "pause_checkpoint_and_stand": "UNVERIFIED",
+    "resume_body_from_stand_at_checkpoint": "UNVERIFIED",
+    "synchronized_audio_resume_and_voice_handoff": "UNVERIFIED",
+    "target_version_and_resource_compatibility": "UNVERIFIED"
+  },
+  "sdk": {
+    "status": "ok",
+    "interface_count": 101,
+    "core_definitions": [
+      {
+        "path": "robot/app_proxy/msg/CurrentVersion.msg",
+        "sha256": "574fb48e322f428b73870f6a2e7e093c24d0d336ab8a57f3268928419d86f4c7",
+        "declarations": [
+          {
+            "line": 5,
+            "declaration": "string version"
+          },
+          {
+            "line": 7,
+            "declaration": "string name"
+          },
+          {
+            "line": 9,
+            "declaration": "string[] files"
+          },
+          {
+            "line": 11,
+            "declaration": "uint64 download_timestamp_seconds"
+          }
+        ]
+      },
+      {
+        "path": "robot/app_proxy/msg/RobotResource.msg",
+        "sha256": "f1164ac24c6509460b860442f775a1f59559ed0aa554940997a5fd3b68d0a114",
+        "declarations": [
+          {
+            "line": 5,
+            "declaration": "string resource_key"
+          },
+          {
+            "line": 7,
+            "declaration": "CurrentVersion current_version"
+          }
+        ]
+      },
+      {
+        "path": "robot/app_proxy/srv/ExecuteActionResource.srv",
+        "sha256": "ca2a7830a7e7ebaab6e64d42d58158cde0e14c73376d0e8208fbd2cee5cefdf9",
+        "declarations": [
+          {
+            "line": 7,
+            "declaration": "CommonRequest header"
+          },
+          {
+            "line": 9,
+            "declaration": "string resource_key"
+          },
+          {
+            "line": 11,
+            "declaration": "string resource_version"
+          },
+          {
+            "line": 13,
+            "declaration": "SlaveDevice[] slaves"
+          },
+          {
+            "line": 16,
+            "declaration": "string meta"
+          },
+          {
+            "line": 19,
+            "declaration": "---"
+          },
+          {
+            "line": 24,
+            "declaration": "CommonResponse header"
+          }
+        ]
+      },
+      {
+        "path": "robot/app_proxy/srv/GetRobotResources.srv",
+        "sha256": "b7c53ea0a8d1420fd88253dcd755257985bdc0f9b5f44a58c86f4da6a3743b7d",
+        "declarations": [
+          {
+            "line": 7,
+            "declaration": "CommonRequest header"
+          },
+          {
+            "line": 10,
+            "declaration": "---"
+          },
+          {
+            "line": 15,
+            "declaration": "CommonResponse header"
+          },
+          {
+            "line": 19,
+            "declaration": "RobotResource[] robot_resources"
+          }
+        ]
+      },
+      {
+        "path": "robot/common/msg/CommonResponse.msg",
+        "sha256": "bb33cf169353fa4ac412d85e54785fcf0e6d91d53dfe658f0ca728d555ff8382",
+        "declarations": [
+          {
+            "line": 2,
+            "declaration": "ResponseHeader header"
+          },
+          {
+            "line": 5,
+            "declaration": "CommonState status"
+          },
+          {
+            "line": 8,
+            "declaration": "string message"
+          }
+        ]
+      },
+      {
+        "path": "robot/hal/audio/msg/AudioFile.msg",
+        "sha256": "b3c6a8b10cf3c8504b753ab56dddf053400c3d5c43a2e616d359df38831c3bf2",
+        "declarations": [
+          {
+            "line": 2,
+            "declaration": "string pkg_name"
+          },
+          {
+            "line": 5,
+            "declaration": "string file_name"
+          },
+          {
+            "line": 8,
+            "declaration": "string file_path"
+          },
+          {
+            "line": 11,
+            "declaration": "AudioInfo info"
+          },
+          {
+            "line": 14,
+            "declaration": "uint32 priority"
+          },
+          {
+            "line": 17,
+            "declaration": "uint32 priority_weight"
+          }
+        ]
+      },
+      {
+        "path": "robot/interaction/msg/PlayMediaFileRequest.msg",
+        "sha256": "ff8e78bf102e1fa1a7081f7e9648931eb9c77ac636b923d761d4ce384cae25c5",
+        "declarations": [
+          {
+            "line": 2,
+            "declaration": "string file_name"
+          },
+          {
+            "line": 5,
+            "declaration": "uint32 sample_rate"
+          },
+          {
+            "line": 8,
+            "declaration": "TtsPriorityLevel priority_level"
+          },
+          {
+            "line": 11,
+            "declaration": "uint32 priority_weight"
+          },
+          {
+            "line": 14,
+            "declaration": "string domain"
+          },
+          {
+            "line": 17,
+            "declaration": "string trace_id"
+          },
+          {
+            "line": 20,
+            "declaration": "bool is_interrupted"
+          }
+        ]
+      },
+      {
+        "path": "robot/mc/motion/msg/McPlayerState.msg",
+        "sha256": "79f992417b2819d2b201eb238dc9139953c509a272ca3eae6ea0d24c33eaa6ff",
+        "declarations": [
+          {
+            "line": 5,
+            "declaration": "uint32 value"
+          },
+          {
+            "line": 8,
+            "declaration": "uint32 IDLE = 0"
+          },
+          {
+            "line": 11,
+            "declaration": "uint32 PRE_PLAYING = 1"
+          },
+          {
+            "line": 14,
+            "declaration": "uint32 PLAYING = 2"
+          },
+          {
+            "line": 17,
+            "declaration": "uint32 INTERRUPTING = 3"
+          },
+          {
+            "line": 20,
+            "declaration": "uint32 ERROR = 4"
+          }
+        ]
+      },
+      {
+        "path": "robot/mc/motion/srv/SetMcPresetMotion.srv",
+        "sha256": "29df5508145be62d1c094d6335bf98d547374a52d3e5f7786c857f75038ae585",
+        "declarations": [
+          {
+            "line": 2,
+            "declaration": "RequestHeader header"
+          },
+          {
+            "line": 5,
+            "declaration": "McControlArea area"
+          },
+          {
+            "line": 8,
+            "declaration": "McPresetMotion motion"
+          },
+          {
+            "line": 11,
+            "declaration": "bool interrupt"
+          },
+          {
+            "line": 14,
+            "declaration": "string ani_path"
+          },
+          {
+            "line": 17,
+            "declaration": "uint64 play_timestamp"
+          },
+          {
+            "line": 19,
+            "declaration": "---"
+          },
+          {
+            "line": 21,
+            "declaration": "CommonTaskResponse response"
+          }
+        ]
+      }
+    ],
+    "missing_core_definitions": [],
+    "candidate_names_only": [
+      "robot/app_proxy/msg/RobotResource.msg",
+      "robot/app_proxy/msg/RobotResourceMapping.msg",
+      "robot/app_proxy/srv/ExecuteActionResource.srv",
+      "robot/app_proxy/srv/GetRobotResources.srv",
+      "robot/face_ui/srv/PlayEmoji.srv",
+      "robot/face_ui/srv/PlayVideo.srv",
+      "robot/face_ui/srv/PlayVideoGroup.srv",
+      "robot/hal/audio/msg/AudioCapture.msg",
+      "robot/hal/audio/msg/AudioData.msg",
+      "robot/hal/audio/msg/AudioFile.msg",
+      "robot/hal/audio/msg/AudioInfo.msg",
+      "robot/hal/audio/msg/AudioPlayback.msg",
+      "robot/hal/audio/msg/PlayStateChange.msg",
+      "robot/hal/audio/msg/PlayStateType.msg",
+      "robot/hal/audio/srv/AbandonAudioFocus.srv",
+      "robot/hal/audio/srv/PlayAudioFile.srv",
+      "robot/hal/audio/srv/RequestAudioFocus.srv",
+      "robot/interaction/msg/AudioVadStateType.msg",
+      "robot/interaction/msg/PlayMediaFileRequest.msg",
+      "robot/interaction/msg/PlayTtsRequest.msg",
+      "robot/interaction/msg/PlayTtsResponse.msg",
+      "robot/interaction/msg/ProcessedAudioOutput.msg",
+      "robot/interaction/srv/PlayMediaFile.srv",
+      "robot/interaction/srv/PlayTts.srv",
+      "robot/mc/data/msg/common/McMotionStatus.msg",
+      "robot/mc/motion/McLocomotionSpeedBounds.msg",
+      "robot/mc/motion/McLocomotionSpeedMode.msg",
+      "robot/mc/motion/McLocomotionSpeedStatus.msg",
+      "robot/mc/motion/msg/McLocomotionVelocity.msg",
+      "robot/mc/motion/msg/McMotionType.msg",
+      "robot/mc/motion/msg/McPlayerState.msg",
+      "robot/mc/motion/msg/McPresetMotion.msg",
+      "robot/mc/motion/srv/SetMcPresetMotion.srv"
+    ],
+    "note": "Names and field presence are evidence, not proof of pause/resume support."
+  },
+  "ros": null,
+  "limitations": [
+    "An offline SDK does not establish the running robot version.",
+    "Discovery success does not establish motion support or execution success.",
+    "No robot action, audio playback, configuration change, or service call is performed."
+  ]
+}
