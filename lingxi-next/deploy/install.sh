@@ -99,6 +99,10 @@ if ! deployment_health; then
   echo "New API health check failed." >&2
   exit 1
 fi
+if ! deployment_restore_active_services; then
+  echo "A previously active Lingxi Next service failed to restart." >&2
+  exit 1
+fi
 if [[ -n "$PREVIOUS" ]]; then deployment_link previous "$PREVIOUS"; fi
 deployment_commit
 PORT="$DEPLOYMENT_PORT"

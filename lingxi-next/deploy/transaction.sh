@@ -4,6 +4,7 @@ SERVICES=(lingxi-next-agent.service lingxi-next-api.service lingxi-next-aimdk.se
   lingxi-next-actions.service
   lingxi-next-independent-mapping.service lingxi-next-independent-slam.service
   lingxi-next-navigation.service)
+ACTIVE_SERVICES=()
 
 deployment_lock() {
   [[ ! -L "$ROOT" && ! -L "$ROOT/releases" && ! -L "$ROOT/backups" ]] || {
@@ -66,6 +67,11 @@ deployment_begin() {
   if [[ -n "$OLD_CURRENT" ]]; then (cd "$OLD_CURRENT" && sha256sum -c SHA256SUMS >/dev/null); fi
   OLD_API_ACTIVE=0
   OLD_API_ENABLED=0
+  ACTIVE_SERVICES=()
+  local service
+  for service in "${SERVICES[@]}"; do
+    if systemctl is-active --quiet "$service"; then ACTIVE_SERVICES+=("$service"); fi
+  done
   if [[ -n "$OLD_CURRENT" ]] && systemctl is-active --quiet lingxi-next-api.service; then OLD_API_ACTIVE=1; fi
   if systemctl is-enabled --quiet lingxi-next-api.service; then OLD_API_ENABLED=1; fi
   BACKUP="$(mktemp -d "$ROOT/backups/$1-$(date -u +%Y%m%dT%H%M%SZ)-XXXXXX")"
@@ -86,6 +92,22 @@ deployment_begin() {
 deployment_stop() {
   for service in "${SERVICES[@]}"; do
     if systemctl cat "$service" >/dev/null 2>&1; then systemctl stop "$service"; fi
+  done
+}
+
+deployment_restore_active_services() {
+  local service name was_active
+  local -a restore_order=(api aimdk actions independent-mapping independent-slam navigation agent)
+  for name in "${restore_order[@]}"; do
+    service="lingxi-next-${name}.service"
+    was_active=0
+    for active in "${ACTIVE_SERVICES[@]}"; do
+      if [[ "$active" == "$service" ]]; then was_active=1; break; fi
+    done
+    if [[ "$was_active" == 1 ]]; then
+      systemctl start "$service"
+      systemctl is-active --quiet "$service" || return 1
+    fi
   done
 }
 
