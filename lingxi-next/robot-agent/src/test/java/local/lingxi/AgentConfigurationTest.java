@@ -62,7 +62,7 @@ class AgentConfigurationTest {
     @Test void coreDefaultsAndExplicitLoopbackConfigurationRemainAvailable() throws Exception {
         var env = coreEnvironment(temporary);
         var config = AgentConfiguration.load(env);
-        assertEquals("https://127.0.0.1:3000", config.api().toString());
+        assertEquals("https://127.0.0.1:3445", config.api().toString());
         assertEquals(18180, config.playbackAddress().getPort());
         assertEquals(env.get("LINGXI_AGENT_INTERNAL_TOKEN"), config.token());
         assertEquals(Path.of(env.get("LINGXI_CREDENTIALS_FILE")), config.credentials());
@@ -161,7 +161,8 @@ class AgentConfigurationTest {
 
     @Test void coreCallbackCannotLeaveLocalHttpsOrigin() {
         var env = coreEnvironment(temporary);
-        for (String value : List.of("http://127.0.0.1:3000", "https://192.0.2.1:3000", "https://user@127.0.0.1:3000",
+        for (String value : List.of("http://127.0.0.1:3000", "https://127.0.0.1:3000", "https://localhost:3444",
+                "https://192.0.2.1:3000", "https://user@127.0.0.1:3000",
                 "https://127.0.0.1:3000/path", "https://127.0.0.1:3000?query", "https://127.0.0.1:3000#fragment")) {
             env.put("LINGXI_API_URL", value);
             assertThrows(Exception.class, () -> AgentConfiguration.load(env), value);

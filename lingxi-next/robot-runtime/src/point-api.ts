@@ -70,10 +70,13 @@ export async function startInheritedPointApi() {
   if (parentInput !== undefined && parentInput !== "1") throw new Error("explicit_point_parent_stdin_required");
   const demo = process.env.LINGXI_DEMO_MODE === "1";
   const key = process.env.LINGXI_TLS_KEY, certificate = process.env.LINGXI_TLS_CERT;
-  const portText = process.env.LINGXI_PORT ?? (demo ? "3010" : "3000");
+  const portText = process.env.LINGXI_PORT ?? (demo ? "3010" : "3445");
   if (!demo && (!key || !certificate)) throw new Error("production_tls_key_and_certificate_required");
   if (!/^(0|[1-9][0-9]{0,4})$/.test(portText) || Number(portText) > 65535) {
     throw new Error("valid_point_api_listen_port_required");
+  }
+  if (!demo && ["3000", "3444"].includes(portText)) {
+    throw new Error("management_api_port_reserved");
   }
   const app = await buildInheritedPointApi(process.env, {
     tlsKey: key ? readFileSync(key) : undefined,

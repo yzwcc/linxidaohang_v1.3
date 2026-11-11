@@ -29,7 +29,7 @@ def launch(args):
                 or file.is_relative_to(root) or file.is_relative_to(output)):
             raise ValueError("external_direct_mapping_tls_file_required")
     port = os.environ.get("LINGXI_PORT", "")
-    if not port.isascii() or not port.isdecimal() or not 1 <= int(port) <= 65535 or int(port) == 3000:
+    if not port.isascii() or not port.isdecimal() or not 1 <= int(port) <= 65535 or int(port) in (3000, 3444, 3445):
         raise ValueError("explicit_isolated_mapping_port_required")
     web = str(root / "web")
     if (os.environ.get("LINGXI_WEB_ROOT", web) != web

@@ -15,10 +15,11 @@ export async function startLocalizationApi() {
   const demo = process.env.LINGXI_DEMO_MODE === "1";
   const key = process.env.LINGXI_TLS_KEY, certificate = process.env.LINGXI_TLS_CERT;
   if (!demo && (!key || !certificate)) throw new Error("production_tls_key_and_certificate_required");
-  const port = process.env.LINGXI_PORT ?? (demo ? "3010" : "3000");
+  const port = process.env.LINGXI_PORT ?? (demo ? "3010" : "3446");
   if (!/^(0|[1-9][0-9]{0,4})$/.test(port) || Number(port) > 65535) {
     throw new Error("valid_localization_api_listen_port_required");
   }
+  if (!demo && ["3000", "3444", "3445"].includes(port)) throw new Error("management_api_port_reserved");
   const app = await buildServer({
     localizationConsole: true,
     tlsKey: key ? readFileSync(key) : undefined,

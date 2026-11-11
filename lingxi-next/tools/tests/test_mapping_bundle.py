@@ -140,7 +140,7 @@ class MappingBundleContracts(unittest.TestCase):
     def test_launcher_rejects_default_port_web_data_tls_and_output_overlap_before_owner(self):
         root, environment = self.launch_fixture()
         self.arm64(root)
-        changes = [{"LINGXI_PORT": value} for value in ("", "0", "3000", "65536", "-1", "abc")]
+        changes = [{"LINGXI_PORT": value} for value in ("", "0", "3000", "3444", "3445", "65536", "-1", "abc")]
         changes += [{"LINGXI_WEB_ROOT": "/other"}, {"LINGXI_DATA_DIR": "/existing"},
                     {"LINGXI_POINT_READ_ONLY": "0"}, {"LINGXI_TLS_KEY": str(root / "api/main.mjs")}]
         with patch.object(launcher.managed_mapping, "run") as run:

@@ -11,7 +11,7 @@ It is not a mapping, localization, navigation, voice or Android acceptance.
 
 - Release `0.1.26-independent-commissioning-20261106` is installed at
   `/opt/lingxi-next/current`; `lingxi-next-api.service` serves HTTPS on port
-  `3001`. The existing vendor console on port `3000` remains installed and
+  `3001`. An unrelated project listener on port `3000` remains installed and
   running.
 - The console returned HTTP 200 over the robot LAN using the robot CA.
 - `lingxi-next-aimdk.service` is active. Its read-only sensor subscription uses

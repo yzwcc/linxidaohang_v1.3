@@ -96,7 +96,7 @@ resolve from that source root, not the caller's working directory. Output
 cannot overlap the package or frozen native inputs.
 
 It requires a new private output, packaged web root, fresh trial data, a
-nonzero explicit port other than 3000, production TLS/pairing configuration
+nonzero explicit port other than the reserved 3000, 3444 and 3445 services, production TLS/pairing configuration
 and current onsite stationary/supervision/emergency-stop confirmation.
 Credentials are supplied privately outside source control and never included
 in the package or this command template:

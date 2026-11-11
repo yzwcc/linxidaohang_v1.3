@@ -33,7 +33,7 @@ final class AgentConfiguration {
         boolean selected = !env.getOrDefault("LINGXI_PRODUCT_CONFIG", "").isEmpty() ||
                 !env.getOrDefault("LINGXI_PRODUCT_CONFIG_SHA256", "").isEmpty();
         if (!selected) {
-            return new AgentConfiguration(localApi(env.getOrDefault("LINGXI_API_URL", "https://127.0.0.1:3000")),
+            return new AgentConfiguration(localApi(env.getOrDefault("LINGXI_API_URL", "https://127.0.0.1:3445")),
                     required(env, "LINGXI_AGENT_INTERNAL_TOKEN"), Path.of(required(env, "LINGXI_CREDENTIALS_FILE")),
                     ca, agentId, playback(env.getOrDefault("LINGXI_AGENT_URL", "http://127.0.0.1:18180")));
         }
@@ -104,7 +104,8 @@ final class AgentConfiguration {
         URI uri = URI.create(text);
         if (!"https".equals(uri.getScheme()) || !Set.of("127.0.0.1", "localhost", "[::1]").contains(uri.getHost()) ||
                 uri.getRawUserInfo() != null || uri.getRawQuery() != null || uri.getRawFragment() != null ||
-                !(uri.getRawPath().isEmpty() || "/".equals(uri.getRawPath())) || uri.getPort() == 0 || uri.getPort() > 65535) throw invalid();
+                !(uri.getRawPath().isEmpty() || "/".equals(uri.getRawPath())) || uri.getPort() == 0 || uri.getPort() > 65535 ||
+                uri.getPort() == 3000 || uri.getPort() == 3444) throw invalid();
         return uri;
     }
 

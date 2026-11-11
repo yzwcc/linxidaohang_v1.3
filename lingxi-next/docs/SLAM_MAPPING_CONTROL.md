@@ -216,7 +216,7 @@ export LINGXI_TLS_KEY=/private/tls/server.key
 export LINGXI_TLS_CERT=/private/tls/server.crt
 export LINGXI_PAIRING_CODE_SHA256=REPLACE_WITH_PAIRING_CODE_SHA256
 export LINGXI_HOST=127.0.0.1
-export LINGXI_PORT=3000
+export LINGXI_PORT=3443
 export LINGXI_WEB_ROOT=/private/runtime/web
 python3 -B /private/runtime/robot-runtime/python/managed_mapping.py \
   --config /private/config/mapping.json \

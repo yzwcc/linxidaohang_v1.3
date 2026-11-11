@@ -7,7 +7,7 @@ vi.mock("../../web/src/api", async (original) => ({
   api: vi.fn(), openEvents: vi.fn(),
 }));
 
-const connection: Connection = { baseUrl: "https://192.168.0.128:3000", token: "synthetic-session", demo: false };
+const connection: Connection = { baseUrl: "https://192.168.0.128:3445", token: "synthetic-session", demo: false };
 const snapshot = (seconds = 1) => ({
   connected: true, updatedAt: new Date(seconds * 1000).toISOString(),
 }) as RobotState;

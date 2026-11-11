@@ -1079,7 +1079,10 @@ export async function startServer(): Promise<void> {
     tlsCert: certPath ? readFileSync(certPath) : undefined,
   });
   const host = isDemo ? "127.0.0.1" : process.env.LINGXI_HOST ?? "0.0.0.0";
-  const port = Number(process.env.LINGXI_PORT ?? (isDemo ? "3010" : "3000"));
+  const port = Number(process.env.LINGXI_PORT ?? (isDemo ? "3010" : "3445"));
+  if (!Number.isInteger(port) || port < 1 || port > 65535 || (!isDemo && [3000, 3444].includes(port))) {
+    throw new Error("unrelated_or_reserved_project_port");
+  }
   await app.listen({ host, port });
 }
 

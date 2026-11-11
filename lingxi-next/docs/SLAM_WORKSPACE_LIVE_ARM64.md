@@ -53,7 +53,7 @@ including its version guard; r8 is not a rerun of that recorded-input contract.
 9. Both management owners and their API/service children exited with code 0,
    no forced termination and no remaining children. An independent final SSH
    observation found zero trial processes, closed test ports and the original
-   port-3000 console still listening. No service unit or release was switched.
+   unrelated service on port 3000 still listening. No service unit or release was switched.
 
 ## Repeating the Check
 

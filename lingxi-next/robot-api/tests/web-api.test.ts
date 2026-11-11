@@ -33,7 +33,7 @@ class FakeWebSocket {
 }
 
 const connection: Connection = {
-  baseUrl: "https://192.168.1.20:3000",
+  baseUrl: "https://192.168.1.20:3445",
   token: "a".repeat(43),
   demo: false,
 };
@@ -167,7 +167,7 @@ describe("state WebSocket subscription", () => {
     const onError = vi.fn();
     const subscription = openEvents(connection, onState, onError);
     expect(FakeWebSocket.instances).toHaveLength(1);
-    expect(FakeWebSocket.instances[0].url.href).toBe("wss://192.168.1.20:3000/api/v1/events");
+    expect(FakeWebSocket.instances[0].url.href).toBe("wss://192.168.1.20:3445/api/v1/events");
     FakeWebSocket.instances[0].emit("close");
     expect(onError).toHaveBeenCalledTimes(1);
     await vi.advanceTimersByTimeAsync(499);

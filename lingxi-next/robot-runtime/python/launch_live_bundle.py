@@ -20,7 +20,7 @@ def launch(args):
         raise ValueError("read_only_live_trial_required")
     web, data = str(root / "web"), str(output / "data")
     if (os.environ.get("LINGXI_WEB_ROOT", web) != web or os.environ.get("LINGXI_DATA_DIR", data) != data
-            or not os.environ.get("LINGXI_PORT") or os.environ["LINGXI_PORT"] in ("0", "3000")):
+            or not os.environ.get("LINGXI_PORT") or os.environ["LINGXI_PORT"] in ("0", "3000", "3444", "3445")):
         raise ValueError("isolated_trial_port_web_and_private_data_required")
     args.node, args.api_bundle = root / "node/bin/node", root / "api/main.mjs"
     args.node_sha256 = manifest["nodeBinarySha256"]

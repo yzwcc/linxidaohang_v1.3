@@ -98,7 +98,7 @@ SIGINT、SIGTERM 同样触发关闭。不要用 `nohup` 或断开 stdin 的方�
 | `LINGXI_PAIRING_CODE_SHA256` | 私有配对码的 SHA256；生产启动必须提供 |
 | `LINGXI_TLS_KEY` / `LINGXI_TLS_CERT` | 生产 HTTPS 私钥及证书文件 |
 | `LINGXI_WEB_ROOT` | 可选，已编译网页目录；未指定时沿用 API 默认目录 |
-| `LINGXI_HOST` / `LINGXI_PORT` | 生产默认 `0.0.0.0:3000`，端口须为 0–65535 整数 |
+| `LINGXI_HOST` / `LINGXI_PORT` | 生产默认 `0.0.0.0:3446`，端口须为 1–65535 整数；不得占用控制台 `3444` 或管理 API `3445` |
 
 不能同时设置 `LINGXI_MAPPING_SOCKET` 或 `LINGXI_SLAM_POINT_FD`。
 缺少父进程所有权、相对路径、非法端口或生产 TLS 均在监听前拒绝。

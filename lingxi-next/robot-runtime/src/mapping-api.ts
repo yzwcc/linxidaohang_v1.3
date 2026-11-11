@@ -32,11 +32,13 @@ export async function startManagedMappingApi(options: { slamConsole?: true } = {
     ...(key ? [key] : []), ...(certificate ? [certificate] : []),
   ]) : undefined;
   if (!demo && (!key || !certificate)) throw new Error("production_tls_key_and_certificate_required");
-  const port = process.env.LINGXI_PORT ?? (demo ? "3010" : options.slamConsole ? "3443" : "3000");
+  const port = process.env.LINGXI_PORT ?? (demo ? "3010" : options.slamConsole ? "3444" : "3443");
   if (!/^(0|[1-9][0-9]{0,4})$/.test(port) || Number(port) > 65535) {
     throw new Error("valid_mapping_api_listen_port_required");
   }
-  if (options.slamConsole && port === "3000") throw new Error("existing_console_port_reserved");
+  if (!demo && ["3000", "3445"].includes(port)) throw new Error("management_api_port_reserved");
+  if (options.slamConsole && port === "3443") throw new Error("mapping_api_port_reserved");
+  if (!demo && !options.slamConsole && port === "3444") throw new Error("navigation_console_port_reserved");
   const { navigationSocket, actionsBridgeEndpoint, ...productOptions } = product ?? {};
   const actionToken = actionsBridgeEndpoint ? process.env.LINGXI_AIMDK_BRIDGE_TOKEN : undefined;
   if (actionsBridgeEndpoint && !actionToken) throw new Error("private_aimdk_action_bridge_token_required");

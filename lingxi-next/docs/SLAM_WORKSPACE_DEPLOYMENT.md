@@ -3,7 +3,7 @@
 Date: 2026-10-31. This commissioning package combines the existing independent
 point-cloud mapping and on-demand saved-map localization workspace. It does not
 install vendor SLAM, change AIMDK, provide walking commands, or replace the
-existing port-3000 console. It is not a final product release or APK update.
+unrelated service on port 3000. It is not a final product release or APK update.
 
 A separate [r8 live package check](SLAM_WORKSPACE_LIVE_ARM64.md) now verifies
 the packaged live API, persistent catalog and unseeded localization with the

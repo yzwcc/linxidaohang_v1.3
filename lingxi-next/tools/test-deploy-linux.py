@@ -131,7 +131,9 @@ class DeploymentLifecycle(unittest.TestCase):
             self.assertTrue(Path("/etc/lingxi-next/pairing-code.txt").is_file())
             Path("/test-state/health-fail").unlink()
         with self.subTest("initial install, permissions and certificate"):
-            self.command()
+            installed = self.command()
+            self.assertIn("Navigation console: https://192.0.2.10:3444", installed.stdout)
+            self.assertIn("Local management API health: https://127.0.0.1:3445/health", installed.stdout)
             self.assertEqual("/opt/lingxi-next/releases/test-1", os.readlink("/opt/lingxi-next/current"))
             self.assertEqual(0o600, Path("/etc/lingxi-next/robot.env").stat().st_mode & 0o777)
             self.assertEqual(0o600, Path("/etc/lingxi-next/pairing-code.txt").stat().st_mode & 0o777)
@@ -147,6 +149,8 @@ class DeploymentLifecycle(unittest.TestCase):
             self.assertIn("DNS:localhost", certificate)
             health = Path("/test-state/health.log").read_text()
             self.assertIn("--cacert /etc/lingxi-next/tls/ca.crt", health)
+            self.assertIn("https://127.0.0.1:3445/health", health)
+            self.assertNotIn("127.0.0.1:3000", health)
             self.assertNotIn("--insecure", health)
         selected_python = Path('/var/lib/lingxi-next/python-runtimes/version-1')
         selected_python.mkdir(parents=True)
@@ -265,10 +269,12 @@ class DeploymentLifecycle(unittest.TestCase):
             self.assertTrue(all("lingxi-next-" in line or line == "daemon-reload" for line in lines))
         with self.subTest("diagnostics honor configured port without exposing pairing credentials"):
             config_path = Path("/etc/lingxi-next/robot.env")
-            config_path.write_text(config_path.read_text().replace("LINGXI_PORT=3000", "LINGXI_PORT=3443"))
+            config_path.write_text(config_path.read_text().replace("LINGXI_PORT=3445", "LINGXI_PORT=3446"))
             diagnostic = run("bash", "/package-test-1/deploy/diagnose.sh").stdout
             health_requests = Path("/test-state/health.log").read_text()
-            self.assertIn("https://127.0.0.1:3443/health", health_requests)
+            self.assertIn("https://127.0.0.1:3444/health", health_requests)
+            self.assertIn("https://127.0.0.1:3446/health", health_requests)
+            self.assertNotIn("127.0.0.1:3000", health_requests)
             self.assertNotIn(Path("/etc/lingxi-next/pairing-code.txt").read_text().strip(), diagnostic)
 
     def test_z_independent_installed_entrypoints(self):

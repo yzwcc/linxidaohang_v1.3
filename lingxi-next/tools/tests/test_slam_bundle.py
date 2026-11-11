@@ -240,7 +240,7 @@ print(json.dumps({{'modules': len(modules), 'sourceFiles': len(hashes), 'nativeE
 
     def test_launcher_rejects_reserved_port_and_conflicting_runtime_overrides(self):
         root, environment, trial = self.fixture()
-        changes = [{"LINGXI_PORT": value} for value in ("0", "3000", "03443", "65536")]
+        changes = [{"LINGXI_PORT": value} for value in ("0", "3000", "3445", "03443", "65536")]
         changes += [{"LINGXI_WEB_ROOT": "/other"}, {"LINGXI_DATA_DIR": "/other"}]
         with patch.object(bundle, "ROOT", root / "source"), patch.object(launcher.platform, "machine", return_value="aarch64"), \
                 patch.object(launcher.sys, "version_info", (3, 10, 0)):

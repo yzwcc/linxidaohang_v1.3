@@ -48,8 +48,8 @@ npm run build:slam-runtime
 
 为进程提供受限权限的 `LINGXI_TLS_KEY`、`LINGXI_TLS_CERT`、
 `LINGXI_PAIRING_CODE_SHA256`，以及指向已构建网页的 `LINGXI_WEB_ROOT`。
-可设置 `LINGXI_HOST` 与 `LINGXI_PORT`；统一模式默认 HTTPS 3443，
-明确拒绝 3000，避免触碰原控制台。绑定失败就退出，不关闭或覆盖占用端口的进程。
+可设置 `LINGXI_HOST` 与 `LINGXI_PORT`；独立映射 API 使用 HTTPS 3443，建图/导航控制台使用 3444，核心管理 API 使用 3445。
+端口 3000 属于其他项目，本系统明确拒绝绑定、不探测；绑定失败就退出，不关闭或覆盖占用端口的进程。
 客户端需先信任当前证书，再配对；不向浏览器或 APK 分发私钥。
 
 ```sh

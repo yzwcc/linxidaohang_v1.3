@@ -255,7 +255,8 @@ class LiveBundleContracts(unittest.TestCase):
         args, report = self.prepared()
         trial = argparse.Namespace(operator_confirmed=True, bundle=args.output / "bundle",
                                    manifest_sha256=report["manifestSha256"], output=self.root / "trial")
-        for environment in ({"LINGXI_PORT": "3000"}, {"LINGXI_PORT": "0"},
+        for environment in ({"LINGXI_PORT": "3000"}, {"LINGXI_PORT": "3444"},
+                            {"LINGXI_PORT": "3445"}, {"LINGXI_PORT": "0"},
                             {"LINGXI_PORT": "3443", "LINGXI_POINT_READ_ONLY": "0"},
                             {"LINGXI_PORT": "3443", "LINGXI_DATA_DIR": str(self.root / "existing-data")}):
             with self.subTest(environment=environment), patch.dict(os.environ, environment, clear=True), \

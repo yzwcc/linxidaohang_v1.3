@@ -13,7 +13,8 @@ class DeploymentDefaultsTests(unittest.TestCase):
                 values[key] = value
         self.assertEqual("0", values["LINGXI_INDEPENDENT_PRODUCT"])
         self.assertEqual("", values["LINGXI_NAVIGATION_SOCKET"])
-        self.assertEqual("3000", values["LINGXI_PORT"])
+        self.assertEqual("3445", values["LINGXI_PORT"])
+        self.assertEqual("3444", values["LINGXI_SLAM_PORT"])
 
 
 if __name__ == "__main__":

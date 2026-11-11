@@ -8,6 +8,7 @@ CORE_FILES = frozenset((
     'web/index.html', 'api/index.mjs', 'bridge/aimdk_ros_bridge.py',
     'agent/lingxi-agent.jar', 'agent/lib/linksoul-agentsdk-1.5.0-SNAPSHOT.jar',
     'deploy/install.sh', 'deploy/rollback.sh', 'deploy/transaction.sh',
+    'deploy/diagnose.sh', 'deploy/diagnostic_config.py', 'deploy/migrate_robot_env.py',
     'deploy/release-scope.json', 'runtime/node/bin/node', 'runtime/java/bin/java',
 ))
 INCLUDED = ['web-console', 'management-api', 'aimdk-bridge', 'linksoul-agent', 'node-arm64', 'java-arm64']

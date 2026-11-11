@@ -10,7 +10,7 @@ class ManagedSlamOwner(ManagedMappingOwner):
     continuous = True
 
     def __init__(self, *args, maps, output, api_environment, **kwargs):
-        if (api_environment.get("LINGXI_PORT") == "3000"
+        if (api_environment.get("LINGXI_PORT") in ("3000", "3445")
                 or set(api_environment) & {"LINGXI_LOCALIZATION_SOCKET", "LINGXI_LOCALIZATION_SERVICE",
                                    "LINGXI_LOCALIZATION_PARENT_STDIN"}
                 or len(os.fsencode(Path(output) / "r" / ("a" * 32) / "localization.sock")) >= 100):

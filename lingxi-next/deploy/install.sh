@@ -90,6 +90,7 @@ if [[ -n "$LEGACY" ]]; then
   "$PACKAGE/runtime/node/bin/node" "$PACKAGE/tools/migrate-legacy.mjs" --source-dir "$LEGACY" --destination "$DATA" --apply
 fi
 chown -R lingxi-next:lingxi-next "$DATA"
+python3 "$PACKAGE/deploy/migrate_robot_env.py" "$CONFIG/robot.env"
 deployment_link current "$ROOT/releases/$VERSION"
 install -m 0644 deploy/lingxi-next-*.service /etc/systemd/system/
 systemctl daemon-reload
@@ -101,7 +102,8 @@ fi
 if [[ -n "$PREVIOUS" ]]; then deployment_link previous "$PREVIOUS"; fi
 deployment_commit
 PORT="$DEPLOYMENT_PORT"
-printf 'Installed commissioning build %s. Console: https://%s:%s\n' "$VERSION" "$ROBOT_IP" "$PORT"
+printf 'Installed commissioning build %s. Navigation console: https://%s:3444\n' "$VERSION" "$ROBOT_IP"
+printf 'Local management API health: https://127.0.0.1:%s/health\n' "$PORT"
 echo "Pairing code: /etc/lingxi-next/pairing-code.txt (root only). Import tls/ca.crt on each client."
 echo "Configure the existing ROS/AIMDK setup and actual topics in robot.env, then enable lingxi-next-aimdk."
 echo "Configure LinkSoul credentials in the console and LINKSOUL_AGENT_ID in robot.env, then enable lingxi-next-agent."

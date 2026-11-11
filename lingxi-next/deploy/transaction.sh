@@ -49,11 +49,14 @@ values = [line.partition('=')[2].strip() for line in pathlib.Path(sys.argv[1]).r
 if len(values) > 1 or (values and (not re.fullmatch('[0-9]{1,5}', values[0])
                                   or not 1 <= int(values[0]) <= 65535)):
     raise SystemExit('Invalid or duplicate LINGXI_PORT')
-print(int(values[0]) if values else 3000)
+port = int(values[0]) if values else 3445
+if port in (3000, 3444):
+    raise SystemExit('LINGXI_PORT conflicts with the separate navigation console or another project')
+print(port)
 PY
   )" || return 1
   DEPLOYMENT_PORT="$port"
-  curl --fail --silent --max-time 3 --retry 10 --retry-connrefused --retry-delay 1 \
+  curl --fail --noproxy '*' --silent --max-time 3 --retry 10 --retry-connrefused --retry-delay 1 \
     --cacert "$CONFIG/tls/ca.crt" "https://127.0.0.1:$port/health" >/dev/null
 }
 

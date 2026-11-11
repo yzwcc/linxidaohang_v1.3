@@ -235,7 +235,7 @@ def install(args):
         bundle.verify_bundle(source, release, project=source / "source", profile=bundle.SLAM)
         if source == root or source.is_relative_to(root) or root.is_relative_to(source):
             raise ValueError("separate_extracted_bundle_and_installation_required")
-        if type(args.port) is not int or not 1 <= args.port <= 65535 or args.port == 3000:
+        if type(args.port) is not int or not 1 <= args.port <= 65535 or args.port in (3000, 3445):
             raise ValueError("isolated_slam_deployment_port_required")
         if args.host not in ("127.0.0.1", "0.0.0.0"):
             raise ValueError("explicit_loopback_or_lan_listen_address_required")

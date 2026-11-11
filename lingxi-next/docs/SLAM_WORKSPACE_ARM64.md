@@ -47,7 +47,7 @@ command logs are not published or included in the archive.
 
 The final independent read-only audit found the service inactive, MainPID 0,
 an empty control group, no port-3443 listener and no remaining validation processes.
-The unit is linked, not enabled for boot. The existing port-3000 console still
+The unit is linked, not enabled for boot. An unrelated service on port 3000 still
 listens. AIMDK and vendor services were not changed; there were no live sensor
 subscriptions or robot motion commands in this check.
 

@@ -32,7 +32,7 @@ def launch(args):
             raise ValueError("external_direct_slam_tls_file_required")
     port = os.environ.get("LINGXI_PORT", "")
     if (not port.isascii() or not port.isdecimal() or str(int(port)) != port
-            or not 1 <= int(port) <= 65535 or int(port) == 3000):
+            or not 1 <= int(port) <= 65535 or int(port) in (3000, 3445)):
         raise ValueError("explicit_isolated_slam_port_required")
     web = str(root / "web")
     if (os.environ.get("LINGXI_WEB_ROOT", web) != web
