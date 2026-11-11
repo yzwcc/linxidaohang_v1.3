@@ -123,7 +123,12 @@ class LocalizationTracker:
                 self._lose("registration_completed_after_freshness_deadline")
             elif (not isinstance(estimate, RegistrationEstimate) or estimate.accepted is not True
                   or estimate.reasons):
-                self._lose("scan_map_registration_rejected")
+                if self.state == "tracking":
+                    # Never publish the old pose as current; require fresh matches to recover.
+                    self.state, self.reason, self.matches, self.pose = (
+                        "acquiring", "registration_retry_after_rejection", 0, None)
+                else:
+                    self._lose("scan_map_registration_rejected")
             else:
                 accepted = rigid_pose(estimate.map_from_sensor)
                 accepted.flags.writeable = False

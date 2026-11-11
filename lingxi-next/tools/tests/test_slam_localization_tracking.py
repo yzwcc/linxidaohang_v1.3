@@ -134,8 +134,8 @@ class TrackingTests(unittest.TestCase):
         self.now += .21
         self.assertEqual("lost", self.tracker.snapshot().state)
 
-    def test_gap_invalid_input_and_registration_failure_clear_previous_pose(self):
-        for kind in ("gap", "input", "rejected", "exception"):
+    def test_gap_invalid_input_and_registration_exception_clear_previous_pose(self):
+        for kind in ("gap", "input", "exception"):
             with self.subTest(kind=kind):
                 self.setUp()
                 generation, _ = self.tracking()
@@ -144,9 +144,6 @@ class TrackingTests(unittest.TestCase):
                     packet = replace(packet, algorithm_stamp=1002.)
                 elif kind == "input":
                     packet = replace(packet, points=np.full((100, 3), np.nan))
-                elif kind == "rejected":
-                    self.tracker.registrar = type("Reject", (), {
-                        "register": lambda *args: RegistrationEstimate(False, ("no_overlap",), None, {})})()
                 else:
                     def fail(*args):
                         raise RuntimeError("synthetic native error")
@@ -157,6 +154,39 @@ class TrackingTests(unittest.TestCase):
                 self.assertEqual("lost", result.state)
                 self.assertIsNone(result.map_from_sensor)
                 self.assertEqual(0, result.consecutive_matches)
+
+    def test_one_rejected_scan_withholds_pose_and_recovers_only_after_fresh_confirmations(self):
+        generation, _ = self.tracking()
+        calls = 0
+        def reject_once(scan, seed):
+            nonlocal calls
+            calls += 1
+            return (RegistrationEstimate(False, ("transient_nonconvergence",), None, {})
+                    if calls == 1 else RegistrationEstimate(True, (), seed, {}))
+        self.tracker.registrar = type("RejectOnce", (), {"register": staticmethod(reject_once)})()
+        degraded = self.observe(4, generation)
+        self.assertEqual("acquiring", degraded.state)
+        self.assertEqual("registration_retry_after_rejection", degraded.reason)
+        self.assertIsNone(degraded.map_from_sensor)
+        self.assertEqual(0, degraded.consecutive_matches)
+        self.assertEqual("acquiring", self.observe(5, generation).state)
+        self.assertEqual("acquiring", self.observe(6, generation).state)
+        recovered = self.observe(7, generation)
+        self.assertEqual("tracking", recovered.state)
+        self.assertEqual(3, recovered.consecutive_matches)
+        self.assertIsNotNone(recovered.map_from_sensor)
+
+    def test_second_consecutive_registration_rejection_loses_without_reusing_stale_pose(self):
+        generation, _ = self.tracking()
+        self.tracker.registrar = type("Reject", (), {
+            "register": lambda *args: RegistrationEstimate(False, ("no_convergence",), None, {})})()
+        first = self.observe(4, generation)
+        self.assertEqual("acquiring", first.state)
+        self.assertIsNone(first.map_from_sensor)
+        second = self.observe(5, generation)
+        self.assertEqual("lost", second.state)
+        self.assertIsNone(second.map_from_sensor)
+        self.assertEqual("lost", self.observe(6, generation).state)
 
     def test_result_finishing_after_deadline_cannot_publish_pose(self):
         generation, _ = self.tracking()

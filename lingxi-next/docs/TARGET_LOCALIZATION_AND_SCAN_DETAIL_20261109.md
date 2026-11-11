@@ -3,7 +3,7 @@
 ## Deployed result
 
 The robot at `192.168.0.128` runs the new release
-`/opt/lingxi-next/releases/0.1.30-clean-localization-20261109` through
+`/opt/lingxi-next/releases/0.1.30-isolated-registration-retry-20261111` through
 `/opt/lingxi-next/current`. The SLAM console is
 `https://192.168.0.128:3444`; `lingxi-next-independent-slam.service` is active.
 The previous `0.1.30-async-localization-20261109` release remains available
@@ -101,3 +101,55 @@ route and return. Record actual distance, sideways/turning motion, endpoint and
 heading. Compare the localization trace and base-frame orientation against those
 observations before admitting physical navigation. The initial nominal scale
 and a static TF lookup alone do not validate base calibration.
+
+## Follow-up: isolated registration and recovery, 2026-11-11
+
+The operator confirmed that the chassis had remained at the saved-map endpoint
+and retained the same heading, while some obstacles had changed. A 45-second
+passive trial after isolating native GICP in a spawned process kept the raw
+sensor worker within its original queue and processing deadlines, but one late
+registration did not converge. Metrics showed full scan/map overlap and small
+seed correction, but the native optimizer reached 79 iterations without
+convergence. The prior tracker immediately revoked the whole session on that one
+rejected scan. No map contents changed.
+
+The tracker now withholds its pose on the first rejected registration and
+returns to `acquiring`; it requires three fresh accepted matches before exposing
+a pose again. A second consecutive rejection still marks the track lost, and a
+stale pose is never reused. Synthetic lifecycle tests cover transient recovery,
+continued failure, expiry, and registration exceptions.
+
+The updated immutable release is
+`/opt/lingxi-next/releases/0.1.30-isolated-registration-retry-20261111`.
+Its health endpoint returned `ok` after activation. The robot ARM64 environment
+ran 138 localization, tracking, worker, control, and registration-process tests
+successfully. A second 45-second passive trial completed with these results:
+
+| Observation | Measured result |
+| --- | --- |
+| First tracking after seed submission | 0.443 seconds |
+| Observed tracking interval | 45.101 seconds |
+| Distinct frames observed through the API | 349 |
+| Registration attempts accepted / rejected | 456 / 0 |
+| Largest translation relative to first observed pose | 0.05378 raw units |
+| Largest rotation relative to first observed pose | 0.3144 degrees |
+| Observed frames with available base pose | 344 / 349 |
+| Registration lane offered / processed / replaced / discarded | 491 / 491 / 0 / 0 |
+| Maximum registration-lane processing duration | 0.105 seconds |
+| Maximum sensor queue age | 0.3734 seconds, below the existing 0.5-second limit |
+| Maximum IMU / cloud operation duration | 0.1034 / 0.1033 seconds |
+| Sensor callbacks rejected / discarded at shutdown | 0 / 4 |
+| Final sensor queues and in-flight work | Empty |
+| Worker, localization lane and child processes after cleanup | Stopped |
+| Saved map receipt and point digest after trial | Unchanged |
+
+This confirms sustained stationary localization at the confirmed starting pose,
+including after the transient-rejection recovery change. It remains a field
+localization check, not a moving accuracy, map-scale, base calibration, route,
+obstacle-avoidance, or navigation acceptance. No movement command was sent.
+
+The desktop can now reach TCP port 3444 at `192.168.0.128`; the earlier browser
+connection refusal occurred during service restart. Reload the console at
+`https://192.168.0.128:3444` to inspect the saved LiDAR map. The next field gate
+is still an externally controlled, measured short A-to-B-to-A route with its
+distance, turns/sideways movement, return position, and heading recorded.

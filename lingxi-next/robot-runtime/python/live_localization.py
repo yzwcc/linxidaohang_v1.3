@@ -124,7 +124,7 @@ def child(args, sink, platform):
     session = make_session(binding, points, base_metres_per_map_unit=(
         options["metresPerMapUnit"] if options is not None else None),
         base_navigation_from_raw=options.get("navigationFromRaw") if options is not None else None,
-        registration_diagnostics=registration_diagnostics)
+        registration_diagnostics=registration_diagnostics, isolated_registration=True)
     base_owner = None
     if options is not None:
         from live_base_pose import LiveBasePose
@@ -192,7 +192,9 @@ def child(args, sink, platform):
     worker = SensorWorker(
         factory, SensorProfile("lidar_chest_front", "lidar_imu_chest_front",
                                "frame_relative_nanoseconds_hypothesis"), platform.hypothesis,
-        on_frame=None)
+        # Spawn and map preprocessing finish before ROS admits sensor callbacks.
+        # Runtime queue, processing and sensor-silence limits remain unchanged.
+        on_frame=None, native_startup_seconds=10.)
     report = {"result": "failed", "session": binding.session, "inputMode": "live",
               "robotContacted": True, "motionCommandsSent": False,
               "localizationReady": False, "navigationReady": False,

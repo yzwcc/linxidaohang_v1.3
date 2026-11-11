@@ -285,6 +285,21 @@ class CallbackWorker(unittest.TestCase):
         worker.stop()
         self.assertEqual(["create", "close"], [call[0] for call in self.calls])
 
+    def test_native_startup_budget_does_not_extend_sensor_or_queue_deadlines(self):
+        gate = threading.Event()
+        worker = self.make(gate=gate, native_startup_seconds=.3,
+            stream_limits=Limits(initial_wait_seconds=.03),
+            limits=WorkerLimits(maximum_queue_age_seconds=.03))
+        time.sleep(.05)
+        self.assertEqual("starting", worker.snapshot()["state"])
+        self.assertEqual(.03, worker.stream_limits.initial_wait_seconds)
+        self.assertEqual(.75, worker.limits.maximum_processing_seconds)
+        self.assertTrue(worker.offer_imu(imu()))
+        time.sleep(.05)
+        self.assertEqual("callback_queue_age_exceeded", worker.snapshot()["failure"])
+        gate.set()
+        worker.stop()
+
     def test_callbacks_can_enqueue_while_native_frame_is_busy(self):
         entered, release = threading.Event(), threading.Event()
         worker = self.make(frame_gate=(entered, release))
@@ -294,6 +309,24 @@ class CallbackWorker(unittest.TestCase):
         self.assertEqual(1, worker.snapshot()["queuedMessages"])
         release.set()
         self.wait_for(lambda: worker.snapshot()["counts"]["completedMessages"] == 11)
+
+    def test_queue_fault_records_busy_operation_and_age_without_packet_values(self):
+        entered, release = threading.Event(), threading.Event()
+        worker = self.make(frame_gate=(entered, release), limits=WorkerLimits(maximum_queue_age_seconds=.03))
+        self.fill(worker)
+        self.assertTrue(entered.wait(1))
+        self.assertTrue(worker.offer_imu(imu(90)))
+        time.sleep(.05)
+        log = io.StringIO()
+        with patch.object(module.sys, "stderr", log):
+            state = worker.snapshot()
+        self.assertEqual("callback_queue_age_exceeded", state["failure"])
+        self.assertIn("sensor_worker_timing:operation=cloud:", log.getvalue())
+        self.assertIn(":queued=1:clouds=0:", log.getvalue())
+        self.assertNotIn("9.81", log.getvalue())
+        release.set()
+        self.wait_for(lambda: not worker.snapshot()["threadAlive"])
+        self.assertGreater(worker.snapshot()["maximumOperationSeconds"]["cloud"], .03)
 
     def test_shutdown_timeout_reports_live_thread_and_suppresses_its_late_result(self):
         entered, release = threading.Event(), threading.Event()
@@ -381,6 +414,10 @@ class CallbackWorker(unittest.TestCase):
         self.assertEqual(1, len([call for call in self.calls if call[0] == "close"]))
 
     def test_invalid_limits_and_implicit_configuration_are_rejected(self):
+        for value in (False, 0, -1, float("nan"), 10.1):
+            with self.assertRaisesRegex(ValueError, "bounded_native_startup"):
+                SensorWorker(lambda: None, self.profile, "header_is_scan_start",
+                             native_startup_seconds=value)
         for values in ({"maximum_messages": False}, {"maximum_queue_age_seconds": float("nan")},
                        {"shutdown_seconds": 0}, {"maximum_processing_seconds": .01}):
             with self.assertRaises(ValueError):

@@ -160,6 +160,8 @@ button:disabled { cursor: not-allowed; opacity: .48; }
 .localization-status .inline { flex-wrap: wrap; }
 .localization-controls .task-controls { flex-wrap: wrap; }
 .localization-controls .notice { overflow-wrap: anywhere; }
+.route-check { border-top: 1px solid #d7e0dc; padding-top: 14px; }
+.route-check p { margin: 0; }
 
 @media (max-width: 920px) {
   .app-shell { grid-template-columns: 64px minmax(0, 1fr); }

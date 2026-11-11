@@ -39,9 +39,15 @@ class SensorWorker:
     """Callbacks only snapshot/enqueue. A failed/stopped instance never restarts."""
 
     def __init__(self, native_factory, profile, hypothesis, *, limits=None, stream_limits=None,
-                 on_frame=None, clock=time.monotonic):
+                 on_frame=None, clock=time.monotonic, native_startup_seconds=None):
         self.limits = WorkerLimits() if limits is None else limits
         self.stream_limits = Limits() if stream_limits is None else stream_limits
+        self.native_startup_seconds = (self.stream_limits.initial_wait_seconds
+            if native_startup_seconds is None else native_startup_seconds)
+        if (type(self.native_startup_seconds) not in (int, float)
+                or not math.isfinite(self.native_startup_seconds)
+                or not 0 < self.native_startup_seconds <= 10.):
+            raise ValueError("bounded_native_startup_deadline_required")
         if (not isinstance(self.limits, WorkerLimits) or not isinstance(self.stream_limits, Limits)
                 or not isinstance(profile, SensorProfile) or not callable(native_factory)
                 or not callable(clock) or (on_frame is not None and not callable(on_frame))
@@ -56,6 +62,8 @@ class SensorWorker:
         self.started_at = self.progress_at = self.last_clock = None
         self.stream_summary = None
         self.maximum_queue_age = 0.
+        self.operation, self.operation_started = "idle", None
+        self.maximum_operation_seconds = dict.fromkeys(("imu", "cloud", "tick"), 0.)
         self.counts = dict.fromkeys((
             "acceptedImu", "acceptedClouds", "completedMessages", "discardedMessages", "rejectedMessages",
             "maximumQueuedMessages", "maximumQueuedClouds", "maximumQueuedPayloadBytes",
@@ -80,6 +88,14 @@ class SensorWorker:
         self.state, self.failure = "failed", reason
         # Fixed internal codes survive supervisor termination in the private log.
         print(f"sensor_worker_fault:{reason}", file=sys.stderr, flush=True)
+        age = (self.last_clock - self.queue[0][2]) if self.queue and self.last_clock is not None else 0.
+        elapsed = (self.last_clock - self.operation_started
+                   if self.operation_started is not None and self.last_clock is not None else 0.)
+        # Fixed codes and wall-clock durations only; no packet, pose or exception data.
+        print(f"sensor_worker_timing:operation={self.operation}:elapsed={elapsed:.6f}:"
+              f"queue_age={age:.6f}:queued={len(self.queue)}:clouds={self.pending_clouds}:"
+              f"max_imu={self.maximum_operation_seconds['imu']:.6f}:"
+              f"max_cloud={self.maximum_operation_seconds['cloud']:.6f}", file=sys.stderr, flush=True)
         self.counts["discardedMessages"] += len(self.queue)
         self.queue.clear()
         self.pending_bytes = self.pending_clouds = 0
@@ -88,7 +104,7 @@ class SensorWorker:
     def _health_locked(self, now):
         if now is None:
             return
-        if self.state == "starting" and now - self.started_at > self.stream_limits.initial_wait_seconds:
+        if self.state == "starting" and now - self.started_at > self.native_startup_seconds:
             self._fail_locked("native_startup_deadline_exceeded")
         elif (self.state == "running" and
               now - self.progress_at > self.limits.maximum_processing_seconds):
@@ -197,6 +213,8 @@ class SensorWorker:
                         self.maximum_queue_age = max(self.maximum_queue_age, now - arrival)
                     else:
                         packet = None
+                    self.operation = kind if packet is not None else "tick"
+                    self.operation_started = now
                 try:
                     if packet is None:
                         # Capture the tick under the queue lock so later arrivals cannot precede it.
@@ -217,8 +235,12 @@ class SensorWorker:
                         self.counts["completedMessages"] += 1
                         self.inflight = 0
                     now = self._now_locked()
+                    if now is not None and self.operation_started is not None:
+                        self.maximum_operation_seconds[self.operation] = max(
+                            self.maximum_operation_seconds[self.operation], now - self.operation_started)
                     self._health_locked(now)
                     self.progress_at = now
+                    self.operation, self.operation_started = "idle", None
                     self.stream_summary = stream.snapshot()
                 packet = None
         except BaseException as error:
@@ -261,6 +283,8 @@ class SensorWorker:
                 "queuedClouds": self.pending_clouds, "queuedPayloadBytes": self.pending_bytes,
                 "inFlightMessages": self.inflight, "maximumObservedQueueAgeSeconds": self.maximum_queue_age,
                 "limits": asdict(self.limits), "stream": deepcopy(self.stream_summary),
+                "nativeStartupSeconds": self.native_startup_seconds,
+                "maximumOperationSeconds": self.maximum_operation_seconds.copy(),
             }
 
     def stop(self):

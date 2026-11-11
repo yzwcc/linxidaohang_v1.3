@@ -8,6 +8,7 @@ import {
 } from "../../shared/localization";
 import { api, ApiError, jsonBody, type Connection } from "./api";
 import LidarCanvas from "./LidarCanvas";
+import RouteCheckPanel from "./RouteCheckPanel";
 import { emptySeedFields, planarLidarPose, planarSeedDraft, seedDraftReady, seedMatrix, seedReferenceFields,
   withPlanarSeed, type SeedFields } from "./localization-view";
 import type { PlanarLidarPose } from "./lidar-view";
@@ -380,6 +381,9 @@ export default function LocalizationPanel({ connection, maps, mappingActive = fa
           <button className="btn" disabled={busy || terminal || snapshot?.state === "paused"} onClick={() => void command("pause")}><Pause size={13} />暂停定位</button>
           <button className="btn danger" disabled={busy || terminal} onClick={() => void command("stop")}><Square size={13} />停止会话</button>
         </div>
+        <RouteCheckPanel state={pose ? snapshot : undefined} receivedAt={current.current?.at ?? NaN}
+          runtimeKey={runtime ? `${runtime.serviceId}:${runtime.runId}` : mode === "fixed" ? snapshot?.binding.session ?? "" : ""}
+          mapName={map?.name} connectionKey={connection} />
         {message && <div className="notice" role="status">{message}</div>}
         {error && <div className="notice error" role="alert">{error}</div>}
       </section>

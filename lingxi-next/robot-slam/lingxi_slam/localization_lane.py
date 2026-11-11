@@ -29,7 +29,7 @@ class LocalizationLane:
             raise RuntimeError("localization_lane_cannot_restart")
         self.thread = threading.Thread(target=self._run, name="lingxi-map-registration", daemon=True)
         self.thread.start()
-        if not self.ready.wait(1.5):
+        if not self.ready.wait(10.):
             self.stop()
             raise RuntimeError("localization_lane_startup_deadline")
         self.check()

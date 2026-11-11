@@ -442,7 +442,12 @@ class LocalizationControlServer(getattr(socketserver, "UnixStreamServer", socket
 
 
 def make_session(binding, points, *, base_metres_per_map_unit=None, base_navigation_from_raw=None,
-                 registration_diagnostics=None):
-    return LocalizationSession(binding, lambda: SeededMapRegistration(points, diagnostics=registration_diagnostics),
+                 registration_diagnostics=None, isolated_registration=False):
+    if isolated_registration:
+        from lingxi_slam.registration_process import ProcessMapRegistration
+        registration = ProcessMapRegistration
+    else:
+        registration = SeededMapRegistration
+    return LocalizationSession(binding, lambda: registration(points, diagnostics=registration_diagnostics),
                                base_metres_per_map_unit=base_metres_per_map_unit,
                                base_navigation_from_raw=base_navigation_from_raw)
