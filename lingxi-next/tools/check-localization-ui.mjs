@@ -220,6 +220,8 @@ try {
   const submitted = control("status");
   assert.deepEqual(submitted.commands, ["seed"]);
   assert.equal(submitted.seedSourceFrame, "lidar_chest_front");
+  assert.equal(submitted.seedReferenceFresh, true, "seed uses the just-read live reference frame");
+  assert.equal(submitted.seedReferenceFrameAdvanced, true, "seed refreshes beyond the session's initial scan frame");
   assert.deepEqual(submitted.seed.map(row => row[3]), [1.25, -0.5, 0.1, 1]);
   assert(Math.abs(submitted.seed[1][0] - Math.cos(Math.PI / 18)) < 1e-6);
   control("track");

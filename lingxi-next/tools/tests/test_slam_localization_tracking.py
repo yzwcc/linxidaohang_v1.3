@@ -252,7 +252,28 @@ class TrackingTests(unittest.TestCase):
         generation = self.seed()
         result = self.observe(10, generation)
         self.assertEqual("lost", result.state)
-        self.assertEqual("corrected_point_time_gap_or_reversal", result.reason)
+        self.assertEqual("corrected_point_algorithm_gap", result.reason)
+        self.assertIsNone(result.map_from_sensor)
+
+    def test_receipt_time_reversal_is_distinguished_from_algorithm_gap(self):
+        generation = self.seed()
+        self.observe(1, generation)
+        self.now += .1
+        result = self.tracker.observe(self.packet(2), session=SESSION, generation=generation,
+                                      received_at=self.now - .15)
+        self.assertEqual("lost", result.state)
+        self.assertEqual("corrected_point_receipt_time_reversed", result.reason)
+        self.assertIsNone(result.map_from_sensor)
+
+    def test_simultaneous_algorithm_gap_and_receipt_reversal_are_reported_together(self):
+        generation = self.seed()
+        self.observe(1, generation)
+        self.now += .1
+        packet = replace(self.packet(2), algorithm_stamp=1001.)
+        result = self.tracker.observe(packet, session=SESSION, generation=generation,
+                                      received_at=self.now - .15)
+        self.assertEqual("lost", result.state)
+        self.assertEqual("corrected_point_algorithm_gap_and_receipt_time_reversed", result.reason)
         self.assertIsNone(result.map_from_sensor)
 
     def test_old_registration_exception_cannot_revoke_replacement_seed(self):

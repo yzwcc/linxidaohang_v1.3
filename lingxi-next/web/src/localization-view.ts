@@ -1,10 +1,21 @@
 import type { SavedSlamPointPreview } from "../../shared/contracts";
-import { rigidMatrixSchema, sameLocalizationBinding, type LocalizationState, type RigidMatrix } from "../../shared/localization";
+import { localizationStateSchema, rigidMatrixSchema, sameLocalizationBinding, type LocalizationState, type RigidMatrix } from "../../shared/localization";
 import type { PlanarLidarPose } from "./lidar-view";
 import { savedSlamReferencesSchema } from "../../shared/slam-reference";
 
 export type SeedFields = Record<"x" | "y" | "z" | "roll" | "pitch" | "yaw", string>;
 export const emptySeedFields = (): SeedFields => ({ x: "", y: "", z: "", roll: "", pitch: "", yaw: "" });
+
+/** Resolve the scan at submission time; the display poll can outlive the 0.5 s scan-gap limit. */
+export async function freshSeedReference(expected: LocalizationState, read: () => Promise<unknown>): Promise<number> {
+  const value = localizationStateSchema.parse(await read());
+  if (!sameLocalizationBinding(value.binding, expected.binding) || value.generation !== expected.generation ||
+      !value.workerReady || value.workerClosed || value.cleanupComplete || value.requestPending ||
+      value.referenceFrame === null || ["stopped", "failed"].includes(value.state)) {
+    throw new Error("定位会话或参考帧已变化，请重新确认初始位姿");
+  }
+  return value.referenceFrame;
+}
 
 export function seedFieldsFromMatrix(value: RigidMatrix): SeedFields {
   const matrix = rigidMatrixSchema.parse(value);

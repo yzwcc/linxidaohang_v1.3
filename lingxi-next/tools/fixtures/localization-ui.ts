@@ -13,8 +13,6 @@ import { savedSlamFixture } from "../../robot-api/tests/fixtures/saved-slam-map"
 import { sameLocalizationBinding, type RigidMatrix } from "../../shared/localization";
 
 async function main() {
-  assert.equal(process.platform, "linux");
-  assert.notEqual(process.geteuid!(), 0);
   assert([5, 6].includes(process.argv.length));
   const serviceMode = process.argv[5] === "service";
   if (process.argv.length === 6) assert(serviceMode);
@@ -24,7 +22,9 @@ async function main() {
   assert.equal(path.dirname(root), await realpath(path.join(os.homedir(), ".cache/lingxi-next")));
   await mkdir(root, { mode: 0o700 });
   const key = path.join(root, "synthetic-key.pem"), certificate = path.join(root, "synthetic-cert.pem");
-  const generated = spawnSync("/usr/bin/openssl", ["req", "-x509", "-newkey", "rsa:2048", "-nodes",
+  const openssl = process.env.LINGXI_OPENSSL_BIN ?? (process.platform === "win32"
+    ? "C:/Program Files/Git/usr/bin/openssl.exe" : "/usr/bin/openssl");
+  const generated = spawnSync(openssl, ["req", "-x509", "-newkey", "rsa:2048", "-nodes",
     "-keyout", key, "-out", certificate, "-days", "1", "-subj", "/CN=Lingxi synthetic localization UI",
     "-addext", "subjectAltName=DNS:localhost,IP:127.0.0.1"], { stdio: "ignore", timeout: 15_000 });
   assert.ifError(generated.error);
@@ -49,7 +49,10 @@ async function main() {
   const commands: string[] = [];
   const lifecycleCommands: string[] = [];
   let runtime = localizationRuntimeFixture(), conflictServiceNext = false;
-  let rejected = 0, reads = 0, seed: RigidMatrix | undefined, seedSourceFrame: string | undefined;
+  const initialReferenceFrame = state.referenceFrame!;
+  let rejected = 0, reads = 0, latestReferenceFrame = initialReferenceFrame, seedReferenceFrame: number | undefined;
+  let seedReferenceFresh = false, seedReferenceFrameAdvanced = false;
+  let seed: RigidMatrix | undefined, seedSourceFrame: string | undefined;
   const conflict = () => Object.assign(new Error("Synthetic generation conflict"), { statusCode: 409 });
   const backend: LocalizationBackend = {
     ...(serviceMode ? {
@@ -77,7 +80,8 @@ async function main() {
     state: async () => {
       reads++;
       if (outage || (serviceMode && runtime.phase !== "running")) throw Object.assign(new Error("Synthetic offline"), { statusCode: 503 });
-      return structuredClone(state);
+      latestReferenceFrame++;
+      return structuredClone({ ...state, referenceFrame: latestReferenceFrame });
     },
     command: async (value) => {
       commands.push(value.action);
@@ -85,6 +89,9 @@ async function main() {
       if (outage || value.expectedGeneration !== state.generation ||
           !sameLocalizationBinding(value.binding, state.binding) || state.state === "stopped") throw conflict();
       if (value.action === "seed") {
+        seedReferenceFrame = value.referenceFrame;
+        seedReferenceFresh = seedReferenceFrame === latestReferenceFrame;
+        seedReferenceFrameAdvanced = seedReferenceFrame > initialReferenceFrame;
         seed = acceptedPose = structuredClone(value.mapFromSensor);
         seedSourceFrame = value.sourceFrame;
       }
@@ -126,7 +133,8 @@ async function main() {
         mapFromSensor: acceptedPose, reason: "matching_confirmed" };
     } else if (action === "ack") state = { ...state, requestPending: false };
     else if (action !== "status") return reply.code(404).send();
-    return { classification: "isolated_synthetic_ui_fixture", commands, rejected, reads, seed, seedSourceFrame,
+    return { classification: "isolated_synthetic_ui_fixture", commands, rejected, reads, seed,
+      seedReferenceFrame, seedReferenceFresh, seedReferenceFrameAdvanced, seedSourceFrame,
       state: state.state, generation: state.generation, serviceMode, lifecycleCommands, runtime };
   });
   const url = await app.listen({ host: "127.0.0.1", port: 0 });

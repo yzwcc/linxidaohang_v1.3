@@ -108,9 +108,15 @@ class LocalizationTracker:
             # Duplicate/late callbacks cannot refresh the freshness deadline.
             return self._snapshot()
         previous_stamp = self.minimum_stamp if self.stamp is None else self.stamp
-        if (packet.algorithm_stamp - previous_stamp > self.maximum_gap
-                or self.last_received is not None and received_at < self.last_received):
-            self._lose("corrected_point_time_gap_or_reversal")
+        algorithm_gap = packet.algorithm_stamp - previous_stamp > self.maximum_gap
+        receipt_reversal = self.last_received is not None and received_at < self.last_received
+        if algorithm_gap or receipt_reversal:
+            reason = {
+                (True, False): "corrected_point_algorithm_gap",
+                (False, True): "corrected_point_receipt_time_reversed",
+                (True, True): "corrected_point_algorithm_gap_and_receipt_time_reversed",
+            }[(algorithm_gap, receipt_reversal)]
+            self._lose(reason)
             return self._snapshot()
         try:
             scan = sensor_scan_from_world(world, odom_from_sensor)

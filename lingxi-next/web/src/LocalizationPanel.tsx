@@ -9,7 +9,7 @@ import {
 import { api, ApiError, jsonBody, type Connection } from "./api";
 import LidarCanvas from "./LidarCanvas";
 import RouteCheckPanel from "./RouteCheckPanel";
-import { emptySeedFields, planarLidarPose, planarSeedDraft, seedDraftReady, seedMatrix, seedReferenceFields,
+import { emptySeedFields, freshSeedReference, planarLidarPose, planarSeedDraft, seedDraftReady, seedMatrix, seedReferenceFields,
   withPlanarSeed, type SeedFields } from "./localization-view";
 import type { PlanarLidarPose } from "./lidar-view";
 
@@ -25,6 +25,11 @@ const reasons: Record<string, string> = {
   explicit_stop: "本次定位已停止",
   runtime_stopping: "定位进程正在停止",
   seed_application_failed: "初始位姿应用失败",
+  corrected_point_time_gap_or_reversal: "扫描帧时间不连续，请重新确认初始位姿",
+  corrected_point_algorithm_gap: "扫描算法帧间隔过长，请检查点云输出频率",
+  corrected_point_receipt_time_reversed: "扫描帧接收顺序异常，请检查定位数据队列",
+  corrected_point_algorithm_gap_and_receipt_time_reversed: "扫描帧间隔过长且接收顺序异常，请检查定位数据队列",
+  scan_map_registration_rejected: "扫描与地图未能匹配，请检查初始位置和朝向",
 };
 const initial = emptySeedFields();
 const runtimeLabels: Record<LocalizationRuntime["phase"], string> = {
@@ -201,8 +206,15 @@ export default function LocalizationPanel({ connection, maps, mappingActive = fa
     const epoch = connectionEpoch.current, controller = new AbortController();
     commandRequest.current = controller;
     try {
+      const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(2000)]);
+      if (action === "seed") {
+        const referenceFrame = await freshSeedReference(state, () => api(connection,
+          "/api/v1/slam/localization", { signal, cache: "no-store" }));
+        if (epoch !== connectionEpoch.current) return;
+        body = { ...body, referenceFrame } as Omit<LocalizationCommand, "action">;
+      }
       const result = localizationStateSchema.parse(await api(connection, `/api/v1/slam/localization/${action}`, {
-        method: "POST", body: jsonBody(body), signal: AbortSignal.any([controller.signal, AbortSignal.timeout(2000)]),
+        method: "POST", body: jsonBody(body), signal,
       }));
       if (epoch !== connectionEpoch.current) return;
       if (!sameLocalizationBinding(result.binding, state.binding) || result.generation !== state.generation + 1 ||

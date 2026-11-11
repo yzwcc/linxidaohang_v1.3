@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { emptySeedFields, planarLidarPose, planarSeedDraft, seedDraftReady, seedMatrix, seedFieldsFromMatrix, seedReferenceFields,
+import { describe, expect, it, vi } from "vitest";
+import { emptySeedFields, freshSeedReference, planarLidarPose, planarSeedDraft, seedDraftReady, seedMatrix, seedFieldsFromMatrix, seedReferenceFields,
   withPlanarSeed, type SeedFields } from "../web/src/localization-view";
 import { rigidMatrixSchema } from "../shared/localization";
 import type { SavedSlamPointPreview } from "../shared/contracts";
@@ -7,6 +7,29 @@ import { localizationFixture } from "../robot-api/tests/fixtures/localization-st
 import type { SavedSlamReferences } from "../shared/slam-reference";
 
 const zero: SeedFields = { x: "0", y: "0", z: "0", roll: "0", pitch: "0", yaw: "0" };
+describe("reference scan refresh before seed submission", () => {
+  it("uses the latest scan rather than the older display poll", async () => {
+    const displayed = localizationFixture();
+    const read = vi.fn(async () => ({ ...displayed, referenceFrame: displayed.referenceFrame! + 8 }));
+    expect(await freshSeedReference(displayed, read)).toBe(displayed.referenceFrame! + 8);
+    expect(read).toHaveBeenCalledOnce();
+  });
+
+  it.each([
+    { generation: 8 }, { binding: { ...localizationFixture().binding, session: "f".repeat(32) } },
+    { workerReady: false }, { workerClosed: true, workerReady: false }, { requestPending: true },
+    { referenceFrame: null }, { state: "stopped" }, { state: "failed" }, { referenceFrame: 0 },
+  ])("rejects a replaced or inadmissible session during refresh: %j", async (changed) => {
+    const displayed = localizationFixture();
+    await expect(freshSeedReference(displayed, async () => ({ ...displayed, ...changed }))).rejects.toThrow();
+  });
+
+  it("propagates an interrupted read without retrying", async () => {
+    const read = vi.fn().mockRejectedValue(new DOMException("Disconnected", "AbortError"));
+    await expect(freshSeedReference(localizationFixture(), read)).rejects.toThrow("Disconnected");
+    expect(read).toHaveBeenCalledOnce();
+  });
+});
 describe("explicit chest lidar seed convention", () => {
   it("places translation in the map frame and yaw about positive Z", () => {
     const matrix = seedMatrix({ ...zero, x: "2.5", y: "-3", z: "1", yaw: "90" });
