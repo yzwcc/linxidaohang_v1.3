@@ -153,3 +153,29 @@ connection refusal occurred during service restart. Reload the console at
 `https://192.168.0.128:3444` to inspect the saved LiDAR map. The next field gate
 is still an externally controlled, measured short A-to-B-to-A route with its
 distance, turns/sideways movement, return position, and heading recorded.
+
+## Follow-up: remote seed frame retention, 2026-11-11
+
+The browser could select a live reference scan and submit its map pose, but the
+localization worker might process a newer LiDAR frame before consuming that
+request. The worker then rejected the seed because it no longer retained the
+exact advertised frame. The session now keeps a bounded cache of the latest 16
+owned corrected frames, expires entries at the existing one-second freshness
+limit, and initializes from the exact frame requested by the client. Invalid,
+paused, stopped, or stale references remain inadmissible.
+
+The ARM64 robot environment passed 141 localization, worker, process, and sensor
+regression tests. Updated mapping and localization web assets were built with
+source and asset hashes verified, and deployed as
+`0.1.30-seed-reference-fix-20261111`; the service health endpoint returned
+`ok`. The saved map files were not changed.
+
+In the paired browser, the operator-confirmed saved map rendered 80,000 points,
+with the configured 0.1–1.4 raw Z band showing 60,000. After selecting the saved
+last-frame pose at the confirmed starting location, the live tracker reported
+three consecutive matches. The operator then moved the robot to B before the
+route panel captured A; tracking was lost during that movement, so the A button
+became unavailable and no route measurements were produced. The short initial
+match is not evidence of moving localization accuracy. Restore the robot to A
+and recover a stable track before repeating the route; do not reuse this
+interrupted attempt as scale or closure evidence.

@@ -309,6 +309,43 @@ class SessionTests(unittest.TestCase):
                 finally:
                     session.close_worker()
 
+    def test_remote_seed_uses_exact_recent_frame_after_new_scans_arrive(self):
+        self.session.open_worker()
+        self.observe(1)
+        advertised = self.session.state()
+        self.observe(2)
+        self.observe(3)
+        self.command("seed", referenceFrame=advertised["referenceFrame"])
+        for frame in (4, 5, 6):
+            state = self.observe(frame)
+        self.assertEqual("tracking", state["state"])
+        # Using the latest frame instead of the client's frame shifts this pose.
+        np.testing.assert_allclose(state["mapFromSensor"], self.packet(6).world_lidar_pose,
+                                   atol=.005, rtol=0)
+
+    def test_cached_seed_reference_expires_even_when_newer_scans_are_fresh(self):
+        self.session.open_worker()
+        self.observe(1)
+        self.now += 1.01
+        self.observe(2)
+        self.command("seed", referenceFrame=1)
+        self.tick()
+        self.assertEqual("lost", self.session.state()["state"])
+        self.assertEqual([], self.calls)
+
+    def test_pause_retires_cached_seed_references_and_cache_is_bounded(self):
+        self.session.open_worker()
+        for frame in range(1, 21):
+            self.session.observe(self.packet(frame), session=SESSION, input_mode="synthetic", received_at=self.now)
+        self.assertLessEqual(len(self.session.references), 16)
+        self.command("pause")
+        self.tick()
+        self.observe(21)
+        self.command("seed", referenceFrame=20)
+        self.tick()
+        self.assertEqual("lost", self.session.state()["state"])
+        self.assertEqual([], self.calls)
+
     def test_pause_during_actual_native_call_revokes_immediately_and_cannot_auto_resume(self):
         self.tracking(threaded=True)
         self.block = True

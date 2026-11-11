@@ -1,5 +1,6 @@
 """Thread-safe localization requests; native work remains on the point worker."""
 from copy import deepcopy
+from collections import deque
 from dataclasses import asdict, dataclass, replace
 import math
 import re
@@ -83,6 +84,9 @@ class LocalizationSession:
         self.pending, self.last_clock, self.freshness_at = None, None, None
         self.phase, self.reason = "unseeded", "explicit_seed_required"
         self.pose, self.matches, self.last_frame, self.reference = None, 0, 0, None
+        # HTTP clients can submit a frame advertised just before the next scan.
+        # Retain only owned, recent references; this is not a registration queue.
+        self.references = deque(maxlen=16)
 
     def _revoke_locked(self, state, reason):
         self._clear_base_locked("localization_not_tracking")
@@ -205,6 +209,7 @@ class LocalizationSession:
                 self.accepting = False
                 self._revoke_locked("stopped", "runtime_stopping")
                 self.reference = None
+                self.references.clear()
 
     def request(self, action, binding, generation, *, seed=None, reference_frame=None):
         # Validate malformed requests before touching the current session.
@@ -232,11 +237,15 @@ class LocalizationSession:
                 raise LocalizationControlError("localization_session_closed")
             if action == "seed" and not self.worker_ready:
                 raise LocalizationControlError("localization_worker_not_ready", 503)
+            while self.references and now - self.references[0][1] > self.maximum_age:
+                self.references.popleft()
+            reference = next((item for item in self.references
+                              if item[0].native_frame_id == reference_frame), None) if action == "seed" else None
             self._revoke_locked(
                 {"seed": "seed_requested", "pause": "paused", "stop": "stopped"}[action],
                 {"seed": "worker_seed_confirmation_required", "pause": "explicit_seed_required",
                  "stop": "explicit_stop"}[action])
-            self.pending = (self.generation, action, (seed, reference_frame), now)
+            self.pending = (self.generation, action, (seed, reference_frame, reference), now)
             if action == "stop":
                 self.accepting = False
             return self._state_locked(now)
@@ -289,8 +298,7 @@ class LocalizationSession:
             self.tracker.stop()
             self.active_generation = self.tracking_generation = None
             if action == "seed":
-                seed, reference_frame = payload
-                reference = self.latest
+                seed, reference_frame, reference = payload
                 if (reference is None or reference[0].native_frame_id != reference_frame
                         or not 0 <= now - reference[1] <= self.maximum_age
                         or not 0 <= now - requested_at <= self.maximum_age):
@@ -312,6 +320,7 @@ class LocalizationSession:
                 with self.lock:
                     # A newer command may already be waiting; only clear the old reference.
                     self.reference = None
+                    self.references.clear()
         if self.active_generation is not None:
             self._publish(self.active_generation, self.tracker.snapshot())
 
@@ -337,7 +346,8 @@ class LocalizationSession:
                 if (type(received_at) not in (float, int) or not math.isfinite(received_at)
                         or not 0 <= now - received_at <= self.maximum_age):
                     raise ValueError("fresh_corrected_point_required")
-            # Keep one owned seed reference, never a backlog of old commands or scans.
+            # The latest frame still drives registration. The small reference
+            # cache only preserves the exact frame selected by a remote client.
             if self.latest is None or (
                     packet.native_frame_id > self.latest[0].native_frame_id
                     and packet.algorithm_stamp > self.latest[0].algorithm_stamp):
@@ -348,10 +358,14 @@ class LocalizationSession:
                         return self._state_locked(self._now_locked())
                     self.latest = (replace(packet, points=xyz, world_lidar_pose=pose), received_at)
                     self.reference = (packet.native_frame_id, received_at)
+                    while self.references and now - self.references[0][1] > self.maximum_age:
+                        self.references.popleft()
+                    self.references.append(self.latest)
         except (ValueError, AttributeError, TypeError):
             self.latest = None
             with self.lock:
                 self.reference = None
+                self.references.clear()
                 if (processing_generation == self.generation
                         and self.phase in ("seed_requested", "acquiring", "tracking")):
                     self._revoke_locked("lost", "invalid_or_stale_corrected_point_input")
@@ -408,6 +422,7 @@ class LocalizationSession:
             self._revoke_locked("failed" if failed else "stopped",
                                 "localization_worker_failed" if failed else "worker_closed")
             self.pending = self.reference = None
+            self.references.clear()
         # Drop native resources on their owner thread, including failed initialization.
         self.latest = None
         tracker, self.tracker = self.tracker, None
