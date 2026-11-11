@@ -144,6 +144,15 @@ describe("isolated paired localization console", () => {
       .toBe(mode === "outage" ? 500 : 503);
   });
 
+  it("reports an unavailable child as an expected 503 without leaking backend errors", async () => {
+    vi.mocked(backend.state).mockRejectedValue(Object.assign(
+      new Error("private-child-path-and-diagnostics"), { statusCode: 503 }));
+    const response = await app.inject({ url: "/api/v1/slam/localization", headers: headers() });
+    expect(response.statusCode).toBe(503);
+    expect(response.json()).toEqual({ message: "定位进程尚未就绪，请检查定位进程状态" });
+    expect(backend.command).not.toHaveBeenCalled();
+  });
+
   it("rejects business writes, mapping and agent callbacks", async () => {
     for (const [method, url] of [
       ["POST", "/api/v1/navigation/point"], ["POST", "/api/v1/navigation/control"],

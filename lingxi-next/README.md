@@ -237,9 +237,10 @@ See [activity ownership and its limits](docs/SLAM_ACTIVITY_OWNERSHIP.md).
 A shared SLAM workspace now composes mapping and on-demand localization under
 one paired HTTPS API and one parent-linked service. It reuses the existing
 process owner, keeps the saved-map catalog across runs and exposes both modes
-in the same desktop/landscape web session. Its default port is 3443; port 3000
-is reserved. Native session limits and false navigation/localization readiness
-remain unchanged. A dedicated commissioning archive and ordinary-user service
+in the same desktop/landscape web session. The current independent navigation
+console is served on HTTPS port 3444; port 3000 is not its client entry point.
+The older mapping-only mode defaults to 3443. Native session limits and false
+navigation/localization readiness remain unchanged. A dedicated commissioning archive and ordinary-user service
 installer now package this workspace; they do not replace the product installer
 or update the APK. The r7 package passed the actual ARM64 recorded-input lifecycle,
 including native map save/reload, restart persistence and complete localization
@@ -298,7 +299,9 @@ were not rebuilt.
 
 ## Runtime shape
 
-- The robot hosts the HTTPS console and API on port `3000`.
+- The independently rebuilt navigation console is served from the robot at
+  `https://ROBOT_IP:3444`; the connection screen and Android app use this port.
+- Port `3000` is not the client entry point for this new navigation product.
 - A typed ROS 2 adapter runs on the robot and talks only to configured AIMDK
   interfaces. The browser never receives a general-purpose ROS publish/service
   endpoint.

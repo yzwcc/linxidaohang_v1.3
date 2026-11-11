@@ -175,7 +175,7 @@ function ConnectScreen({ onConnected }: { onConnected: (connection: Connection) 
                 id="robot-address"
                 value={address}
                 onChange={(event) => setAddress(event.target.value)}
-                placeholder="https://192.168.1.20:3000"
+                placeholder="https://192.168.1.20:3444"
                 autoCapitalize="off"
                 autoCorrect="off"
                 required

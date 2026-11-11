@@ -3,6 +3,8 @@
 独立开源建图/导航联调包请先看 [独立安装说明](INDEPENDENT_INSTALL_20261103.md)。
 `release:commissioning` 仍是核心服务包；`release:independent-commissioning` 才包含独立运行时与适配源码。
 两者都不是已通过实机验收的完整交付包，安装后都只自动启动 3000 端口的核心 API。
+重新开发的导航页面属于独立运行时：启动 `lingxi-next-independent-slam.service` 后从
+`https://机器人IP:3444` 访问。端口 3000 是核心 API，不是新导航页面入口。
 
 本版只生成联调包。先阅读 ACCEPTANCE.md 的未完成项，现场安排原系统备份与端口切换；不覆盖厂商 AIMDK，也不替换旧版服务。
 

@@ -523,9 +523,15 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
     if (!parsed.success || parsed.data.survey.binding.mapId !== request.params.id) throw deny(400, "审核记录或候选身份无效");
     return calibration.review(parsed.data.survey, parsed.data.candidateSha256, parsed.data.reviewer);
   });
-  app.get("/api/v1/slam/localization", async () => {
+  app.get("/api/v1/slam/localization", async (_request, reply) => {
     if (!localizationBackend) throw deny(503, "独立定位控制台尚未启动");
-    return validatedLocalizationState(await localizationBackend.state());
+    try {
+      return validatedLocalizationState(await localizationBackend.state());
+    } catch (error) {
+      if ((error as { statusCode?: unknown })?.statusCode !== 503) throw error;
+      // Expected when the on-demand child is stopped; do not expose backend diagnostics.
+      return reply.code(503).send({ message: "定位进程尚未就绪，请检查定位进程状态" });
+    }
   });
   app.get("/api/v1/slam/localization/runtime", async () => {
     if (!localizationBackend) throw deny(503, "独立定位控制台尚未启动");
