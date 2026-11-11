@@ -2,6 +2,7 @@
 import argparse
 from dataclasses import asdict, dataclass, replace
 import json
+import math
 import os
 from pathlib import Path
 import re
@@ -13,6 +14,7 @@ import stat
 import struct
 import sys
 import threading
+import time
 import uuid
 
 from controlled_localization import verified_configuration
@@ -23,6 +25,8 @@ from lingxi_slam.localization_session import LocalizationBinding, LOCALIZATION_S
 from lingxi_slam.map_provenance import sensor_provenance
 from lingxi_slam.process_supervisor import ProcessLimits, ProcessSupervisor
 from lingxi_slam.activity_lease import ActivityBusy, ActivityGate, OperationGate
+
+LIVE_CHILD_STOP_MARGIN_SECONDS = 10.
 
 
 def selection(map_id, receipt_sha256):
@@ -100,7 +104,7 @@ class LocalizationManager:
 
     def __init__(self, runs, resolve_map, command_factory, environment, *, input_mode,
                  owner_factory=ProcessSupervisor, exchange=None, activity_gate=None, operation_gate=None,
-                 process_limits=None, owned_ros_inputs=False):
+                 process_limits=None, owned_ros_inputs=False, maximum_run_seconds=None):
         self.runs = Path(runs)
         parent = direct(self.runs, directory=True)
         if (sys.platform != "linux" or os.geteuid() == 0 or parent.st_uid != os.geteuid()
@@ -109,6 +113,9 @@ class LocalizationManager:
                 or input_mode not in ("recorded", "live") or type(owned_ros_inputs) is not bool
                 or owned_ros_inputs and input_mode != 'live'
                 or process_limits is not None and type(process_limits) is not ProcessLimits
+                or maximum_run_seconds is not None and (
+                    input_mode != 'live' or type(maximum_run_seconds) not in (int, float)
+                    or not math.isfinite(maximum_run_seconds) or not 0 < maximum_run_seconds <= 300.)
                 or len(os.fsencode(self.runs / ("a" * 32) / "localization.sock")) >= 100):
             raise ValueError("explicit_localization_service_configuration_required")
         self.resolve_map, self.command_factory = resolve_map, command_factory
@@ -119,6 +126,7 @@ class LocalizationManager:
         self.activity_gate = activity_gate
         self.operation_gate = operation_gate
         self.owned_ros_inputs = owned_ros_inputs
+        self.maximum_run_seconds, self.clock = maximum_run_seconds, time.monotonic
         self.lock, self.closed, self.generation, self.current = threading.RLock(), False, 0, None
 
     def runtime(self):
@@ -216,6 +224,7 @@ class LocalizationManager:
                 current.update(owner=owner, binding=replace(chosen.binding, session=owner.session), output=output)
             if current["stop"].is_set():
                 return
+            launched_at = self.clock()
             owner.start()
             while not current["stop"].is_set():
                 state = owner.snapshot()
@@ -223,6 +232,16 @@ class LocalizationManager:
                     failure = state.get("failure") if state.get("failure") in PUBLIC_FAILURES else "localization_process_failed"
                     break
                 with self.lock:
+                    # The parent requests an ordinary stop before the child's bounded
+                    # sensor session expires. Include loading/startup in this budget;
+                    # never renew it on polls, seed, pause, or tracking recovery.
+                    if (self.maximum_run_seconds is not None
+                            and self.clock() - launched_at >= self.maximum_run_seconds):
+                        if not current["stop"].is_set():
+                            self.generation += 1
+                            current.update(phase="stopping")
+                            current["stop"].set()
+                        break
                     if current["phase"] == "starting" and state["state"] == "running":
                         current["phase"] = "running"
                 current["stop"].wait(.025)
@@ -475,6 +494,8 @@ def create_manager(config_file, maps, runs, *, acquisition_settings=None, acquis
         return result
 
     return LocalizationManager(runs, resolver, command, environment, input_mode=config["inputMode"],
+        maximum_run_seconds=(config['maxSeconds'] - LIVE_CHILD_STOP_MARGIN_SECONDS
+                             if config['inputMode'] == 'live' else None),
         owned_ros_inputs=bool(config['inputMode'] == 'live' and acquisition is not None and acquisition.saved_map_terrain),
         activity_gate=ActivityGate(maps / ".slam-activity.lock"),
         operation_gate=OperationGate(maps, shared=True),

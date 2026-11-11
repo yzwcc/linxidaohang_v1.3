@@ -587,6 +587,63 @@ class ManagerTests(unittest.TestCase):
             self.assertFalse(owner["processAlive"] or owner["monitorAlive"] or owner["forcedTermination"])
         self.assertNotEqual(bindings[0]["session"], bindings[1]["session"])
 
+    def test_lifetime_expiry_revokes_proxy_and_holds_locks_until_cleanup(self):
+        mapping = self.shared_mapping()
+        self.manager.maximum_run_seconds = 1.
+        now = [10.]
+        self.manager.clock = lambda: now[0]
+        self.start()
+        generation = self.manager.generation
+        self.stop_release.clear()
+        now[0] = 11.
+        self.wait(lambda: self.manager.runtime()['phase'] == 'stopping')
+        self.assertEqual(generation + 1, self.manager.generation)
+        self.assertFalse(self.manager.runtime()['cleanupComplete'])
+        with self.assertRaises(service.ControlError):
+            self.manager.proxy({'action': 'state'})
+        self.assert_activity_busy(mapping.start)
+        self.stop_release.set()
+        self.wait(lambda: self.manager.runtime()['cleanupComplete'])
+        self.assertEqual('stopped', self.manager.runtime()['phase'])
+        self.assertNotIn('failureCode', self.manager.runtime())
+        self.assertEqual('running', mapping.start()['phase'])
+
+    def test_expiry_does_not_hide_failed_cleanup(self):
+        self.manager.maximum_run_seconds = 1.
+        now = [10.]
+        self.manager.clock = lambda: now[0]
+        self.start()
+        self.unclean = True
+        now[0] = 11.
+        self.wait(lambda: not self.manager.current['thread'].is_alive())
+        self.assertEqual('failed', self.manager.runtime()['phase'])
+        self.assertFalse(self.manager.runtime()['cleanupComplete'])
+
+    def test_lifetime_requires_bounded_live_duration(self):
+        for seconds in (True, 0, -1, float('nan'), float('inf'), 301):
+            with self.subTest(seconds=seconds), self.assertRaises(ValueError):
+                service.LocalizationManager(self.runs, self.manager.resolve_map,
+                    self.manager.command_factory, {}, input_mode='live', maximum_run_seconds=seconds)
+        with self.assertRaises(ValueError):
+            service.LocalizationManager(self.runs, self.manager.resolve_map,
+                self.manager.command_factory, {}, input_mode='recorded', maximum_run_seconds=1.)
+
+    def test_real_child_expiry_uses_stop_pipe_without_forced_termination(self):
+        self.manager.close()
+        fixture = ROOT / 'tools/tests/fixtures/managed_localization_child.py'
+        self.manager = service.LocalizationManager(self.runs,
+            lambda *_: service.SelectedMap(self.root, self.now_binding),
+            lambda chosen, output: [sys.executable, '-B', str(fixture), 'native', '--output', str(output),
+                                    '--scenario', 'live-normal'],
+            {'PATH': '/usr/bin:/bin', 'LANG': 'C.UTF-8', 'PYTHONDONTWRITEBYTECODE': '1'},
+            input_mode='live', maximum_run_seconds=.5)
+        self.manager.start(MAP, RECEIPT, 0, self.manager.instance)
+        self.wait(lambda: self.manager.runtime()['cleanupComplete'])
+        self.assertEqual('stopped', self.manager.runtime()['phase'])
+        terminal = self.manager.current['owner'].snapshot()
+        self.assertEqual(0, terminal['exitCode'])
+        self.assertFalse(terminal['processAlive'] or terminal['monitorAlive'] or terminal['forcedTermination'])
+
     def test_real_service_socket_requires_exact_contract_and_closes_owned_session(self):
         endpoint = self.root / "s"
         server = service.LocalizationServiceServer(endpoint, self.manager)

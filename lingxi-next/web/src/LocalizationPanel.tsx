@@ -356,6 +356,7 @@ export default function LocalizationPanel({ connection, maps, mappingActive = fa
               runtime.cleanupComplete || runtime.phase === "stopping"}
               onClick={() => void lifecycle("shutdown")}><Power size={13} />关闭定位进程</button>
           </div>
+          {inputMode === "live" && <p className="helper">验证会话单次最长约 5 分钟，包含启动时间；结束前会自动关闭定位进程。请先记录 A 点再移动，到期后需重新启动并确认初始位姿。</p>}
           {runtime?.failureCode && <div className="notice error" role="alert">
             {runtime.failureCode === "map_selection_unavailable" ? "地图不可选择或与当前传感器配置不匹配" : "定位进程异常，请检查诊断记录"}
           </div>}
