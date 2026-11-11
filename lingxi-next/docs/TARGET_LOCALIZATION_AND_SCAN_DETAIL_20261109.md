@@ -179,3 +179,22 @@ became unavailable and no route measurements were produced. The short initial
 match is not evidence of moving localization accuracy. Restore the robot to A
 and recover a stable track before repeating the route; do not reuse this
 interrupted attempt as scale or closure evidence.
+
+## 11.11 stationary tracking check — 2026-11-11
+
+On the saved `11.11` map (`slam-9bc7397f0bc14760924f12d23ead7496`), the passive
+stationary run tracked for 45.09 seconds after a 0.419-second first fix. It
+observed 344 distinct frames; all 455 native registration attempts were
+accepted. Maximum pose variation was 0.02365 raw units and 0.3704 degrees.
+Base pose was available on 336 frames. The map receipt and point digest were
+unchanged, the localization process stopped cleanly, and no motion command was
+sent. The private run report remains on the robot under
+`/var/lib/lingxi-next/diagnostics/field-localization-1111-fresh-seed-121720`.
+
+A separate short run against the same map recorded one accepted and one rejected
+registration before stopping; the current runtime is stopped with cleanup
+complete. The successful 45-second sample demonstrates stationary tracking
+stability only. Moving accuracy, physical scale/base calibration, obstacle
+avoidance and navigation remain unaccepted. The next field gate is a live seeded
+localization trace during the externally controlled A-to-B-to-A route; the new
+console is `https://192.168.0.128:3444`.

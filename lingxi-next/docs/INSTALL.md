@@ -1,10 +1,9 @@
 # 安装、升级与回滚
 
 独立开源建图/导航联调包请先看 [独立安装说明](INDEPENDENT_INSTALL_20261103.md)。
-`release:commissioning` 仍是核心服务包；`release:independent-commissioning` 才包含独立运行时与适配源码。
-两者都不是已通过实机验收的完整交付包，安装后都只自动启动 3000 端口的核心 API。
-重新开发的导航页面属于独立运行时：启动 `lingxi-next-independent-slam.service` 后从
-`https://机器人IP:3444` 访问。端口 3000 是核心 API，不是新导航页面入口。
+`release:commissioning` 是基础联调包；`release:independent-commissioning` 包含独立建图/导航运行时与适配源码。
+两者都不是已通过实机验收的完整交付包。重新开发的导航页面由独立 SLAM 服务提供，启动
+`lingxi-next-independent-slam.service` 后，电脑浏览器和 Android APK 均连接 `https://机器人IP:3444`。
 
 本版只生成联调包。先阅读 ACCEPTANCE.md 的未完成项，现场安排原系统备份与端口切换；不覆盖厂商 AIMDK，也不替换旧版服务。
 
@@ -66,7 +65,7 @@ sudo systemctl enable --now lingxi-next-aimdk.service
 动作输入源注册和机器人姿态；灵创资源只接受来自 AIMDK 当前资源清单的 ID。
 当前 SDK 不提供灵创动作完成状态，含灵创资源的讲解必须为单轮且将资源设在最后一步。
 
-将 `/etc/lingxi-next/tls/ca.crt` 导入电脑/Android 的受信任 CA，浏览器访问 `https://机器人IP:3000`，输入配对码。APK 在同局域网输入相同 IP/端口。若机器人 IP 更改，应重新签发包含新 IP SAN 的服务证书；不能关闭证书校验。
+将 `/etc/lingxi-next/tls/ca.crt` 导入电脑/Android 的受信任 CA，访问 `https://机器人IP:3444` 并输入配对码。APK 在同一局域网输入机器人 IP，连接端口使用 `3444`。若机器人 IP 更改，应重新签发包含新 IP SAN 的服务证书；不能关闭证书校验。
 
 设置页写入灵心三项应用凭据、Agent Code、模型凭据；在环境文件设置绑定的 `LINKSOUL_AGENT_ID` 后：
 

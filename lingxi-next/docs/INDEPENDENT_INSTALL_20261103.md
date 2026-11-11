@@ -19,8 +19,9 @@ sudo bash deploy/install.sh --commissioning --robot-ip 192.168.0.128
 
 Use the actual archive filename. The adjacent SHA256 and verification report
 must match it. Existing stage/archive names are rejected; use a new version.
-Installation starts only the core management API on HTTPS port 3000.
-It does not start SLAM, navigation, AgentSDK or any robot motion.
+Installation does not start the independent SLAM, navigation, AgentSDK or any
+robot motion. Start the shared SLAM service when the new mapping/navigation
+console is needed.
 For an independent package, installation reads the pinned DDS profile hash
 from its verified live-input evidence and copies those exact bytes to
 `/etc/lingxi-next/dds/ros_dds_configuration.xml` as root:`lingxi-next`
@@ -76,9 +77,9 @@ sudo systemctl start lingxi-next-independent-mapping.service
 sudo systemctl start lingxi-next-independent-slam.service
 ```
 
-Default HTTPS ports are 3443 for mapping-only and 3444 for shared SLAM.
-Import the installed robot CA into the client, then pair at that port.
-Port 3000 is a separate core console, not an alias of the independent owner.
+The new desktop and Android navigation console uses HTTPS port 3444.
+Import the installed robot CA into the client, then open
+`https://ROBOT_IP:3444` and pair.
 Mapping remains externally remote-controlled; no Web/APK walking control is
 added. Point-cloud Z defaults remain 0.1 to 1.4 metres.
 
@@ -120,7 +121,7 @@ callback origin as `https://127.0.0.1:LINGXI_SLAM_PORT` (default 3444), reads
 binds playback at the configuration's `agentUrl`. It ignores the unrelated core
 `LINGXI_API_URL`, `LINGXI_CREDENTIALS_FILE`, `LINGXI_AGENT_INTERNAL_TOKEN` and
 `LINGXI_AGENT_URL`. Custom SLAM ports must be set consistently in `robot.env`;
-port 3000 and a playback/API port collision are rejected. The robot CA still
+ console and Agent playback/API port collisions are rejected. The robot CA still
 comes from `LINGXI_TLS_CA`, and `LINKSOUL_AGENT_ID` is still required.
 
 After configuring cloud credentials through the paired independent console,
