@@ -24,7 +24,7 @@ class TrackingSnapshot:
 
 
 class LocalizationTracker:
-    """One input session and map; a lost track requires an explicit new seed.
+    """One input session and map, with bounded recovery after a tracking rejection.
 
     Tracking is a local diagnostic status. It does not certify calibration,
     unique/global localization, base alignment, or robot navigation readiness.
@@ -32,23 +32,28 @@ class LocalizationTracker:
     """
 
     def __init__(self, registrar, *, session, input_mode, clock=time.monotonic,
-                 confirmations=3, maximum_age_seconds=1., maximum_gap_seconds=.5):
+                 confirmations=3, maximum_age_seconds=1., maximum_gap_seconds=.5,
+                 maximum_recovery_seconds=.75):
         self.session = session_id(session)
         if (not callable(getattr(registrar, "register", None)) or not callable(clock)
                 or input_mode not in ("live", "recorded", "synthetic")
                 or type(confirmations) is not int or not 2 <= confirmations <= 20
                 or any(type(value) not in (float, int) or not math.isfinite(value) or not 0 < value <= 5
-                       for value in (maximum_age_seconds, maximum_gap_seconds))):
+                       for value in (maximum_age_seconds, maximum_gap_seconds,
+                                     maximum_recovery_seconds))):
             raise ValueError("bounded_explicit_localization_tracking_configuration_required")
         self.registrar, self.input_mode, self.clock = registrar, input_mode, clock
         self.confirmations = confirmations
         self.maximum_age, self.maximum_gap = maximum_age_seconds, maximum_gap_seconds
+        self.maximum_recovery = min(maximum_recovery_seconds, maximum_age_seconds)
         self.owner, self.generation = threading.get_ident(), 0
         self.state, self.reason, self.matches = "unseeded", "explicit_seed_required", 0
         self.frame, self.stamp = 0, None
         self.minimum_frame, self.minimum_stamp = 0, 0.
         self.map_from_odom, self.pose = None, None
         self.last_received, self.last_clock = None, None
+        self.observed_frame, self.observed_stamp, self.observed_received = 0, None, None
+        self.recovery_started = None
 
     def _now(self):
         if threading.get_ident() != self.owner:
@@ -64,6 +69,7 @@ class LocalizationTracker:
     def _lose(self, reason):
         self.state, self.reason, self.matches = "lost", reason, 0
         self.map_from_odom, self.pose = None, None
+        self.recovery_started = None
 
     def begin(self, map_from_sensor, reference_packet, *, received_at):
         now = self._now()
@@ -80,6 +86,7 @@ class LocalizationTracker:
         self.minimum_frame, self.minimum_stamp = (
             reference_packet.native_frame_id, reference_packet.algorithm_stamp)
         self.last_received = received_at
+        self.observed_frame, self.observed_stamp, self.observed_received = 0, None, received_at
         return self.generation
 
     def _fresh(self, received_at, now):
@@ -103,13 +110,13 @@ class LocalizationTracker:
         if not self._fresh(received_at, now):
             self._lose("stale_corrected_point_input")
             return self._snapshot()
-        if packet.native_frame_id <= self.frame or (
-                self.stamp is not None and packet.algorithm_stamp <= self.stamp):
+        if packet.native_frame_id <= self.observed_frame or (
+                self.observed_stamp is not None and packet.algorithm_stamp <= self.observed_stamp):
             # Duplicate/late callbacks cannot refresh the freshness deadline.
             return self._snapshot()
-        previous_stamp = self.minimum_stamp if self.stamp is None else self.stamp
+        previous_stamp = self.minimum_stamp if self.observed_stamp is None else self.observed_stamp
         algorithm_gap = packet.algorithm_stamp - previous_stamp > self.maximum_gap
-        receipt_reversal = self.last_received is not None and received_at < self.last_received
+        receipt_reversal = self.observed_received is not None and received_at < self.observed_received
         if algorithm_gap or receipt_reversal:
             reason = {
                 (True, False): "corrected_point_algorithm_gap",
@@ -118,6 +125,10 @@ class LocalizationTracker:
             }[(algorithm_gap, receipt_reversal)]
             self._lose(reason)
             return self._snapshot()
+        # Rejected frames advance only the input cursor, never the accepted pose
+        # or its freshness. Replaying a rejected frame cannot earn confirmations.
+        self.observed_frame, self.observed_stamp = packet.native_frame_id, packet.algorithm_stamp
+        self.observed_received = received_at
         try:
             scan = sensor_scan_from_world(world, odom_from_sensor)
             seed = self.map_from_odom @ odom_from_sensor
@@ -127,10 +138,15 @@ class LocalizationTracker:
                 return self._snapshot()
             if not self._fresh(received_at, finished):
                 self._lose("registration_completed_after_freshness_deadline")
+            elif (self.recovery_started is not None
+                  and finished - self.recovery_started >= self.maximum_recovery):
+                self._lose("scan_map_recovery_deadline_exceeded")
             elif (not isinstance(estimate, RegistrationEstimate) or estimate.accepted is not True
                   or estimate.reasons):
-                if self.state == "tracking":
+                if self.state == "tracking" or self.recovery_started is not None:
                     # Never publish the old pose as current; require fresh matches to recover.
+                    if self.recovery_started is None:
+                        self.recovery_started = now
                     self.state, self.reason, self.matches, self.pose = (
                         "acquiring", "registration_retry_after_rejection", 0, None)
                 else:
@@ -143,6 +159,7 @@ class LocalizationTracker:
                 self.last_received, self.matches = received_at, min(self.confirmations, self.matches + 1)
                 if self.matches >= self.confirmations:
                     self.state, self.reason, self.pose = "tracking", "diagnostic_quality_only", accepted
+                    self.recovery_started = None
                 else:
                     self.state, self.reason, self.pose = "acquiring", "confirmation_required", None
         except Exception:
@@ -151,7 +168,10 @@ class LocalizationTracker:
         return self._snapshot()
 
     def _expire(self, now):
-        if (self.state in ("acquiring", "tracking") and self.last_received is not None
+        if (self.state in ("acquiring", "tracking") and self.recovery_started is not None
+                and now - self.recovery_started >= self.maximum_recovery):
+            self._lose("scan_map_recovery_deadline_exceeded")
+        elif (self.state in ("acquiring", "tracking") and self.last_received is not None
                 and now - self.last_received > self.maximum_age):
             self._lose("corrected_point_stream_expired")
 
@@ -172,4 +192,5 @@ class LocalizationTracker:
         self.generation += 1
         self.state, self.reason, self.matches = "stopped", "explicit_stop", 0
         self.map_from_odom, self.pose = None, None
+        self.recovery_started = None
         return self._snapshot()

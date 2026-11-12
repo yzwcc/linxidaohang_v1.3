@@ -193,6 +193,48 @@ class SessionTests(unittest.TestCase):
         self.assertNotEqual(999, self.session.state()["basePose"]["mapFromBase"][0][3])
         self.assertIsNone(self.observe(5)["basePose"]["mapFromBase"])
 
+    def test_turn_recovery_withdraws_sensor_and_base_pose_until_native_confirmations(self):
+        from lingxi_slam.seeded_localization import RegistrationEstimate
+        timing, projector = self.base_projection()
+        self.session.project_base(timing, projector, algorithm_stamp=1000.4)
+        before = self.session.state()
+        native = self.session.registrar.register
+        calls = 0
+        def transient(scan, seed):
+            nonlocal calls
+            calls += 1
+            if calls <= 2:
+                return RegistrationEstimate(False, ("excessive_scan_map_residual",), None, {})
+            return native(scan, seed)
+        with patch.object(self.session.registrar, "register", side_effect=transient):
+            for frame in range(5, 9):
+                state = self.observe(frame)
+                self.assertEqual("acquiring", state["state"])
+                self.assertIsNone(state["mapFromSensor"])
+                self.assertIsNone(state["basePose"]["mapFromBase"])
+                self.assertEqual(before["generation"], state["generation"])
+                self.assertFalse(state["navigationReady"])
+            restored = self.observe(9)
+        self.assertEqual("tracking", restored["state"])
+        self.assertEqual(3, restored["consecutiveMatches"])
+        np.testing.assert_allclose(restored["mapFromSensor"], self.packet(9).world_lidar_pose,
+                                   atol=.005, rtol=0)
+        self.assertIsNone(restored["basePose"]["mapFromBase"])
+
+    def test_manual_pause_during_recovery_cannot_auto_resume(self):
+        from lingxi_slam.seeded_localization import RegistrationEstimate
+        self.tracking()
+        with patch.object(self.session.registrar, "register", return_value=
+                          RegistrationEstimate(False, ("excessive_scan_map_residual",), None, {})):
+            self.assertEqual("acquiring", self.observe(5)["state"])
+        self.command("pause")
+        call_count = len(self.calls)
+        for frame in (6, 7, 8):
+            state = self.observe(frame)
+            self.assertEqual("paused", state["state"])
+            self.assertIsNone(state["mapFromSensor"])
+        self.assertEqual(call_count, len(self.calls))
+
     def test_base_projection_missing_tf_does_not_cancel_lidar_tracking_or_enable_navigation(self):
         from lingxi_slam.base_pose import BasePoseProjector
         timing, _ = self.base_projection()

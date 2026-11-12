@@ -176,17 +176,111 @@ class TrackingTests(unittest.TestCase):
         self.assertEqual(3, recovered.consecutive_matches)
         self.assertIsNotNone(recovered.map_from_sensor)
 
-    def test_second_consecutive_registration_rejection_loses_without_reusing_stale_pose(self):
+    def test_consecutive_rejections_recover_only_after_three_fresh_matches(self):
+        generation, _ = self.tracking()
+        calls = 0
+        def register(scan, seed):
+            nonlocal calls
+            calls += 1
+            return (RegistrationEstimate(False, ("excessive_scan_map_residual",), None, {})
+                    if calls <= 2 else RegistrationEstimate(True, (), seed, {}))
+        self.tracker.registrar = type("Transient", (), {"register": staticmethod(register)})()
+        for frame in range(4, 8):
+            pending = self.observe(frame, generation)
+            self.assertEqual("acquiring", pending.state)
+            self.assertIsNone(pending.map_from_sensor)
+            self.assertFalse(pending.navigation_ready)
+        recovered = self.observe(8, generation)
+        self.assertEqual("tracking", recovered.state)
+        self.assertEqual(generation, recovered.generation)
+        np.testing.assert_allclose(recovered.map_from_sensor,
+                                   self.packet(8).world_lidar_pose, atol=.005, rtol=0)
+
+    def test_persistent_rejection_expires_without_reusing_stale_pose(self):
         generation, _ = self.tracking()
         self.tracker.registrar = type("Reject", (), {
             "register": lambda *args: RegistrationEstimate(False, ("no_convergence",), None, {})})()
-        first = self.observe(4, generation)
-        self.assertEqual("acquiring", first.state)
-        self.assertIsNone(first.map_from_sensor)
-        second = self.observe(5, generation)
-        self.assertEqual("lost", second.state)
-        self.assertIsNone(second.map_from_sensor)
-        self.assertEqual("lost", self.observe(6, generation).state)
+        for frame in range(4, 12):
+            pending = self.observe(frame, generation)
+            self.assertEqual("acquiring", pending.state)
+            self.assertIsNone(pending.map_from_sensor)
+        expired = self.observe(12, generation)
+        self.assertEqual("lost", expired.state)
+        self.assertEqual("scan_map_recovery_deadline_exceeded", expired.reason)
+        self.assertIsNone(expired.map_from_sensor)
+        self.assertEqual("lost", self.observe(13, generation).state)
+
+    def test_rejected_duplicate_and_older_frame_do_not_earn_confirmations(self):
+        generation, _ = self.tracking()
+        self.tracker.registrar = type("Reject", (), {
+            "register": lambda *args: RegistrationEstimate(False, ("no_convergence",), None, {})})()
+        self.observe(4, generation)
+        calls = []
+        def accept(scan, seed):
+            calls.append(True)
+            return RegistrationEstimate(True, (), seed, {})
+        self.tracker.registrar = type("Accept", (), {"register": staticmethod(accept)})()
+        for frame in (4, 3, 4):
+            duplicate = self.observe(frame, generation)
+            self.assertEqual(0, duplicate.consecutive_matches)
+            self.assertIsNone(duplicate.map_from_sensor)
+        self.assertEqual([], calls)
+        self.assertEqual(1, self.observe(5, generation).consecutive_matches)
+
+    def test_partial_matches_do_not_extend_recovery_deadline(self):
+        generation, _ = self.tracking()
+        calls = 0
+        def alternate(scan, seed):
+            nonlocal calls
+            calls += 1
+            return (RegistrationEstimate(False, ("excessive_scan_map_residual",), None, {})
+                    if calls % 2 else RegistrationEstimate(True, (), seed, {}))
+        self.tracker.registrar = type("Alternate", (), {"register": staticmethod(alternate)})()
+        for frame in range(4, 12):
+            result = self.observe(frame, generation)
+            self.assertEqual("acquiring", result.state)
+            self.assertIsNone(result.map_from_sensor)
+        expired = self.observe(12, generation)
+        self.assertEqual("scan_map_recovery_deadline_exceeded", expired.reason)
+        self.assertEqual("lost", expired.state)
+
+    def test_recovery_deadline_applies_to_snapshot_and_native_completion(self):
+        for during_registration in (False, True):
+            with self.subTest(during_registration=during_registration):
+                self.setUp()
+                generation, _ = self.tracking()
+                self.tracker.registrar = type("Reject", (), {
+                    "register": lambda *args: RegistrationEstimate(False, ("no_convergence",), None, {})})()
+                self.observe(4, generation)
+                if during_registration:
+                    def slow_accept(scan, seed):
+                        self.now += .66
+                        return RegistrationEstimate(True, (), seed, {})
+                    self.tracker.registrar = type("Slow", (), {"register": staticmethod(slow_accept)})()
+                    expired = self.observe(5, generation)
+                else:
+                    self.now += .76
+                    expired = self.tracker.snapshot()
+                self.assertEqual("lost", expired.state)
+                self.assertEqual("scan_map_recovery_deadline_exceeded", expired.reason)
+                self.assertIsNone(expired.map_from_sensor)
+
+    def test_initial_seed_rejection_is_still_terminal(self):
+        generation = self.seed()
+        self.tracker.registrar = type("Reject", (), {
+            "register": lambda *args: RegistrationEstimate(False, ("no_convergence",), None, {})})()
+        result = self.observe(1, generation)
+        self.assertEqual("lost", result.state)
+        self.assertEqual("scan_map_registration_rejected", result.reason)
+
+    def test_stream_gap_during_recovery_is_still_terminal(self):
+        generation, _ = self.tracking()
+        self.tracker.registrar = type("Reject", (), {
+            "register": lambda *args: RegistrationEstimate(False, ("no_convergence",), None, {})})()
+        self.observe(4, generation)
+        result = self.observe(10, generation)
+        self.assertEqual("lost", result.state)
+        self.assertEqual("corrected_point_algorithm_gap", result.reason)
 
     def test_result_finishing_after_deadline_cannot_publish_pose(self):
         generation, _ = self.tracking()
