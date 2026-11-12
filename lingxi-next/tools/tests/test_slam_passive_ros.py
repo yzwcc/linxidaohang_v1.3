@@ -172,7 +172,7 @@ class PassiveHumble(unittest.TestCase):
         self.assertEqual("new", self.worker.snapshot()["state"])
 
     def test_duration_invalid_topics_and_reused_workers_are_rejected(self):
-        for seconds in (True, 0, float("nan"), 301):
+        for seconds in (True, 0, float("nan"), 3601):
             with self.assertRaises(ValueError):
                 run_passive(self.worker, self.topics, seconds)
         for cloud, imu in (("relative", "/imu"), ("/cloud", "/cloud"), ("/cloud/", "/imu")):
@@ -189,6 +189,12 @@ class PassiveHumble(unittest.TestCase):
         self.assertNotIn("native_create", self.calls)
         self.assertEqual("requested_stop", report["stopReason"])
         self.assertEqual(0, report["worker"]["counts"]["completedMessages"])
+
+    def test_hour_subscription_still_obeys_immediate_operator_stop(self):
+        report = run_passive(self.worker, self.topics, 3600, stop_event=self.stop)
+        self.assertEqual('requested_stop', report['stopReason'])
+        self.assertFalse(report['worker']['threadAlive'])
+        self.assertEqual(1, self.calls.count('native_close'))
 
     def test_stop_retires_native_before_ros_teardown(self):
         self.run_session()

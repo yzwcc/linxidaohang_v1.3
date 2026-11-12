@@ -18,7 +18,7 @@ from run_glim_supervised_replay import StopPipe
 def serve(worker, topics, sink, *, runner, session, control_fd=0, writer_failed=lambda: False,
           seconds=300., on_stopping=lambda: None):
     """The control thread observes counters only; native methods stay on the worker."""
-    if (type(seconds) not in (int, float) or not math.isfinite(seconds) or not 0 < seconds <= 300.
+    if (type(seconds) not in (int, float) or not math.isfinite(seconds) or not 0 < seconds <= 3600.
             or not callable(on_stopping)):
         raise ValueError("bounded_live_duration_and_stop_callback_required")
     emitter = HealthEmitter(sink, session)

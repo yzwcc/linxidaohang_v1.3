@@ -13,6 +13,7 @@ from controlled_localization import (
     FIELDS, ROOT, MappingPlatform, digest, direct, load_map, source_hashes,
     strict_json, verified_configuration, verify_completion)
 from live_points import digest_file
+from mapping_platform import localization_duration
 from localization_owner import ManagedLocalizationOwner
 from managed_mapping import validate_output
 from lingxi_slam.process_supervisor import ProcessLimits
@@ -46,7 +47,7 @@ def run(args):
     config, environment = verified_configuration(args.config, allow_live=True)
     mode = config.get("inputMode", "recorded")
     # Native/ROS startup precedes API admission; the child must outlive the parent interval.
-    if mode == "live" and config["maxSeconds"] < args.seconds + 45.:
+    if mode == "live" and localization_duration(config) < args.seconds + 45.:
         raise ValueError("live_child_duration_must_cover_startup_and_parent_interval")
     platform = MappingPlatform(config)
     acquisition = None

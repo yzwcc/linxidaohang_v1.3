@@ -58,11 +58,16 @@ def configuration(file):
         from glim_point_target_probe import digest
         if mode == "live" and "basePose" in value:
             fields.add("basePose")
+        if mode == "live" and "localizationMaxSeconds" in value:
+            fields.add("localizationMaxSeconds")
         valid = (mode in ("recorded", "live") and set(value) == fields | full_fields
                  and digest(value.get("pointManifestSha256")))
         if mode == "live":
             seconds = value.get("maxSeconds")
             valid = valid and type(seconds) in (int, float) and math.isfinite(seconds) and 5 <= seconds <= 300
+            localization_seconds = value.get("localizationMaxSeconds", seconds)
+            valid = (valid and type(localization_seconds) in (int, float)
+                     and math.isfinite(localization_seconds) and 5 <= localization_seconds <= 3600)
             if "basePose" in value:
                 options = value["basePose"]
                 scale = options.get("metresPerMapUnit") if type(options) is dict else None
@@ -106,6 +111,11 @@ def configuration(file):
         from run_glim_supervised_replay import child_environment
         child_env = child_environment(Path(value["work"]))
     return value, child_env
+
+
+def localization_duration(config):
+    """Use the independently reviewed live limit; legacy configurations keep their limit."""
+    return config.get("localizationMaxSeconds", config["maxSeconds"])
 
 
 class MappingPlatform:

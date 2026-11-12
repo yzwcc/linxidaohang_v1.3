@@ -19,7 +19,7 @@ import uuid
 
 from controlled_localization import verified_configuration
 from localization_control import direct, digest, strict_json
-from mapping_platform import MappingPlatform
+from mapping_platform import MappingPlatform, localization_duration
 from mapping_service import ControlError, PUBLIC_FAILURES
 from lingxi_slam.localization_session import LocalizationBinding, LOCALIZATION_SOURCE_FRAME
 from lingxi_slam.map_provenance import sensor_provenance
@@ -115,7 +115,7 @@ class LocalizationManager:
                 or process_limits is not None and type(process_limits) is not ProcessLimits
                 or maximum_run_seconds is not None and (
                     input_mode != 'live' or type(maximum_run_seconds) not in (int, float)
-                    or not math.isfinite(maximum_run_seconds) or not 0 < maximum_run_seconds <= 300.)
+                    or not math.isfinite(maximum_run_seconds) or not 0 < maximum_run_seconds <= 3600.)
                 or len(os.fsencode(self.runs / ("a" * 32) / "localization.sock")) >= 100):
             raise ValueError("explicit_localization_service_configuration_required")
         self.resolve_map, self.command_factory = resolve_map, command_factory
@@ -494,7 +494,7 @@ def create_manager(config_file, maps, runs, *, acquisition_settings=None, acquis
         return result
 
     return LocalizationManager(runs, resolver, command, environment, input_mode=config["inputMode"],
-        maximum_run_seconds=(config['maxSeconds'] - LIVE_CHILD_STOP_MARGIN_SECONDS
+        maximum_run_seconds=(localization_duration(config) - LIVE_CHILD_STOP_MARGIN_SECONDS
                              if config['inputMode'] == 'live' else None),
         owned_ros_inputs=bool(config['inputMode'] == 'live' and acquisition is not None and acquisition.saved_map_terrain),
         activity_gate=ActivityGate(maps / ".slam-activity.lock"),

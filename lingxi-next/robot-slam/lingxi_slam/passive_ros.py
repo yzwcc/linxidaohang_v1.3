@@ -49,7 +49,7 @@ def run_passive(worker, topics, seconds, *, stop_event=None, admission=None, on_
         # Minimal passive-only diagnostic bundles do not use the mapping lifecycle.
         from .sensor_admission import SensorAdmission
     if (not isinstance(worker, SensorWorker) or not isinstance(topics, Topics)
-            or type(seconds) not in (int, float) or not math.isfinite(seconds) or not 0 < seconds <= 300
+            or type(seconds) not in (int, float) or not math.isfinite(seconds) or not 0 < seconds <= 3600
             or worker.snapshot()["state"] != "new"
             or (stop_event is not None and not isinstance(stop_event, threading.Event))
             or setup is not None and not callable(setup)

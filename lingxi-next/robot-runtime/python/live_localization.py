@@ -9,7 +9,7 @@ import threading
 from controlled_localization import native_library_inventory, source_hashes
 from localization_control import (
     LocalizationControlServer, LocalizedNative, digest, load_map, make_session, map_input_fingerprint)
-from mapping_platform import verify_loaded_libraries
+from mapping_platform import localization_duration, verify_loaded_libraries
 from mapping_service import private_json
 from live_child import serve, verified_child_session
 
@@ -218,7 +218,7 @@ def child(args, sink, platform):
                     options['on_sensor'] = base_owner.sensor
                 return run_passive(*args, **kwargs, **options)
             live = serve(worker, Topics(CLOUD, IMU), sink, runner=runner,
-                         session=binding.session, seconds=platform.value["maxSeconds"], on_stopping=revoke,
+                         session=binding.session, seconds=localization_duration(platform.value), on_stopping=revoke,
                          writer_failed=acquisition.unavailable if acquisition is not None else lambda: False)
             report.update(live)
     except Exception as error:

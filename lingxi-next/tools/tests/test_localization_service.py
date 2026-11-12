@@ -11,7 +11,7 @@ import tempfile
 import threading
 import time
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(ROOT / "robot-runtime/python"), str(ROOT / "robot-slam")]
@@ -620,13 +620,26 @@ class ManagerTests(unittest.TestCase):
         self.assertFalse(self.manager.runtime()['cleanupComplete'])
 
     def test_lifetime_requires_bounded_live_duration(self):
-        for seconds in (True, 0, -1, float('nan'), float('inf'), 301):
+        for seconds in (True, 0, -1, float('nan'), float('inf'), 3601):
             with self.subTest(seconds=seconds), self.assertRaises(ValueError):
                 service.LocalizationManager(self.runs, self.manager.resolve_map,
                     self.manager.command_factory, {}, input_mode='live', maximum_run_seconds=seconds)
         with self.assertRaises(ValueError):
             service.LocalizationManager(self.runs, self.manager.resolve_map,
                 self.manager.command_factory, {}, input_mode='recorded', maximum_run_seconds=1.)
+
+    def test_hour_session_survives_old_limit_and_expires_with_clean_retirement(self):
+        self.manager.maximum_run_seconds = 3590.
+        now = [10.]
+        self.manager.clock = lambda: now[0]
+        self.start()
+        now[0] = 311.
+        self.assertEqual('running', self.manager.runtime()['phase'])
+        self.assertEqual('unseeded', self.manager.proxy({'action': 'state'})['state'])
+        now[0] = 3600.
+        self.wait(lambda: self.manager.runtime()['cleanupComplete'])
+        self.assertEqual('stopped', self.manager.runtime()['phase'])
+        self.assertNotIn('failureCode', self.manager.runtime())
 
     def test_real_child_expiry_uses_stop_pipe_without_forced_termination(self):
         self.manager.close()
@@ -747,6 +760,27 @@ class ResolverTests(unittest.TestCase):
         payload = json.dumps(self.receipt).encode()
         (self.folder / "map-ready.json").write_bytes(payload)
         return service.digest(payload)
+
+    def test_factory_uses_independent_live_limit_and_preserves_legacy_limit(self):
+        profile = self.root / 'profile.json'
+        profile.write_bytes(b'{}')
+        provenance = {**self.provenance, 'profileSha256': service.digest(b'{}')}
+        platform = Mock(profile=profile)
+        platform.sensor_provenance.return_value = provenance
+        maps, runs = self.root / 'maps', self.root / 'runs'
+        maps.mkdir(mode=0o700)
+        runs.mkdir(mode=0o700)
+        for extra, expected in (({}, 290.), ({'localizationMaxSeconds': 3600.}, 3590.)):
+            config = {'inputMode': 'live', 'maxSeconds': 300., **extra}
+            with self.subTest(config=config), patch.object(service, 'verified_configuration',
+                    return_value=(config, {})), patch.object(service, 'MappingPlatform', return_value=platform):
+                manager = service.create_manager(self.root / 'config.json', maps, runs)
+                try:
+                    self.assertEqual(expected, manager.maximum_run_seconds)
+                    self.assertEqual(300., config['maxSeconds'])
+                    self.assertEqual(2., manager.process_limits.progress_seconds)
+                finally:
+                    manager.close()
 
     def test_selection_resolves_receipt_identity_not_directory_name(self):
         result = self.resolver(MAP, self.write())

@@ -10,7 +10,7 @@ from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(ROOT / "robot-runtime/python"), str(ROOT / "tools")]
-from mapping_platform import MappingPlatform, configuration, verify_loaded_libraries
+from mapping_platform import MappingPlatform, configuration, localization_duration, verify_loaded_libraries
 
 
 class PlatformConfiguration(unittest.TestCase):
@@ -70,6 +70,21 @@ class PlatformConfiguration(unittest.TestCase):
         for value in ([], None, {**self.arm(), "unexpected": True}):
             with self.subTest(value=value), self.assertRaises(ValueError):
                 self.read(value)
+
+    def test_localization_duration_is_independent_and_legacy_limit_is_preserved(self):
+        with patch("live_points.environment", return_value={}):
+            legacy = self.read(self.arm())[0]
+            self.assertEqual(120, localization_duration(legacy))
+            value = self.read({**self.arm(), "localizationMaxSeconds": 3600})[0]
+            self.assertEqual(120, value["maxSeconds"])
+            self.assertEqual(3600, localization_duration(value))
+            with self.assertRaises(ValueError):
+                self.read({**value, "maxSeconds": 301})
+        for seconds in (True, 0, 4, 3601, "3600", None, float("inf"), float("nan")):
+            with self.subTest(seconds=seconds), self.assertRaises(ValueError):
+                self.read({**self.arm(), "localizationMaxSeconds": seconds})
+        with self.assertRaises(ValueError):
+            self.read({**self.arm("recorded"), "localizationMaxSeconds": 3600})
 
     def test_nonregular_or_oversized_config_is_rejected(self):
         with self.assertRaises(ValueError):

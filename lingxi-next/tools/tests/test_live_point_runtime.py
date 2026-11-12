@@ -331,12 +331,24 @@ class LiveChildControl(unittest.TestCase):
         self.assertNotIn("PRIVATE_MARKER", json.dumps(report))
 
     def test_invalid_duration_rejects_before_worker_or_runner(self):
-        for value in (True, 0, -1, float("nan"), float("inf"), 301):
+        for value in (True, 0, -1, float("nan"), float("inf"), 3601):
             with self.subTest(value=value), patch.object(self, "runner") as runner:
                 with self.assertRaises(ValueError):
                     self.serve(seconds=value)
                 runner.assert_not_called()
         self.assertEqual(0, self.worker.stops)
+
+    def test_hour_duration_keeps_parent_stop_and_cleanup_protocol(self):
+        def runner(worker, topics, seconds, *, stop_event):
+            self.assertEqual(3600., seconds)
+            worker.state = 'running'
+            os.write(self.write_fd, b'stop\n')
+            self.assertTrue(stop_event.wait(2.))
+        with patch.object(self, 'runner', runner):
+            report = self.serve(seconds=3600.)
+        self.assertEqual('live_sensor_session_closed', report['result'])
+        self.assertTrue(report['stopReceived'])
+        self.assertFalse(report['controlThreadAlive'])
 
 
 @unittest.skipUnless(sys.platform == "linux", "target artifact verification imports POSIX tooling")
