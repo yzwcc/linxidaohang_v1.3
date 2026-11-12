@@ -123,7 +123,7 @@ def verified_inputs(args):
 def verified_child_session(args):
     import glim_live_session as live
     session = session_id(os.environ.get("LINGXI_SLAM_SESSION"))
-    live.validate_environment(args.root, args.core_root)
+    live.validate_environment(args.root, args.core_root, blas_threads=1)
     return session
 
 

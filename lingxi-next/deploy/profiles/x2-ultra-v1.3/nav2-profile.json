@@ -1,0 +1,14 @@
+{
+  "schema": 1,
+  "footprintSha256": "b453aa13708ab310dd376b8ee91cc82ec802896ff35a7a40ead807b115518705",
+  "clearanceRadiusMetres": 0.45,
+  "stoppingMarginMetres": 0.15,
+  "forward": 0.1,
+  "lateral": 0.0,
+  "angular": 0.2,
+  "acceleration": 0.1,
+  "deceleration": 0.2,
+  "angularAcceleration": 0.4,
+  "commandAge": 0.15,
+  "firstCommandTimeout": 0.75
+}

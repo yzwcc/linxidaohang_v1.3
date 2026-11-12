@@ -200,6 +200,15 @@ class LiveContracts(unittest.TestCase):
                 }, clear=True):
             live.validate_environment(root, core)
             with self.assertRaises(ValueError):
+                live.validate_environment(root, core, blas_threads=1)
+            with patch.dict(os.environ, {"OPENBLAS_NUM_THREADS": "1"}):
+                live.validate_environment(root, core, blas_threads=1)
+                with self.assertRaises(ValueError):
+                    live.validate_environment(root, core)
+            for budget in (True, 0, 3, "1"):
+                with self.subTest(budget=budget), self.assertRaises(ValueError):
+                    live.validate_environment(root, core, blas_threads=budget)
+            with self.assertRaises(ValueError):
                 offline(root, core)
             with patch.dict(os.environ, {"LD_PRELOAD": "synthetic"}):
                 with self.assertRaises(ValueError):

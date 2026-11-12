@@ -40,7 +40,9 @@ def environment(root, core):
         "ROS_DISTRO": "humble", "ROS_DOMAIN_ID": "0", "RMW_IMPLEMENTATION": "rmw_fastrtps_cpp",
         "FASTRTPS_DEFAULT_PROFILES_FILE": profile,
         **({"LINGXI_DDS_PROFILE": profile} if "LINGXI_DDS_PROFILE" in os.environ else {}),
-        "AMENT_PREFIX_PATH": "/opt/ros/humble", "OMP_NUM_THREADS": "2", "OPENBLAS_NUM_THREADS": "2",
+        # NumPy pose checks use tiny matrices. A second BLAS worker spins and
+        # competes with the GLIM sensor owner on ARM64; keep GLIM's OMP budget.
+        "AMENT_PREFIX_PATH": "/opt/ros/humble", "OMP_NUM_THREADS": "2", "OPENBLAS_NUM_THREADS": "1",
         "PYTHONPATH": ("/opt/ros/humble/local/lib/python3.10/dist-packages:"
                        "/opt/ros/humble/lib/python3.10/site-packages"),
         "LD_LIBRARY_PATH": ":".join(map(str, (

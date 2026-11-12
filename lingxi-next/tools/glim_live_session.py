@@ -56,12 +56,16 @@ def duration(value):
     return float(value)
 
 
-def validate_environment(root, core):
+def validate_environment(root, core, *, blas_threads=2):
     from lingxi_slam.dds_profile import selected_profile
+    # Preserve the historical two-thread diagnostic contract. The managed
+    # live owner explicitly selects one BLAS thread for its tiny pose matrices.
+    if type(blas_threads) is not int or blas_threads not in (1, 2):
+        raise ValueError("explicit_live_blas_thread_budget_required")
     wanted = {
         "ROS_DISTRO": "humble", "ROS_DOMAIN_ID": "0", "RMW_IMPLEMENTATION": "rmw_fastrtps_cpp",
         "FASTRTPS_DEFAULT_PROFILES_FILE": str(selected_profile(DDS_PROFILE)), "AMENT_PREFIX_PATH": "/opt/ros/humble",
-        "OMP_NUM_THREADS": "2", "OPENBLAS_NUM_THREADS": "2",
+        "OMP_NUM_THREADS": "2", "OPENBLAS_NUM_THREADS": str(blas_threads),
         "LD_LIBRARY_PATH": ":".join((str(root / "lib"), str(core / "lib"),
                                    "/opt/ros/humble/lib/aarch64-linux-gnu", "/opt/ros/humble/lib")),
     }

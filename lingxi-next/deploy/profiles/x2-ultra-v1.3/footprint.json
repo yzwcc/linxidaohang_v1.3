@@ -1,0 +1,73 @@
+{
+  "schema": 1,
+  "model": "X2 Ultra v1.3 (nominal zero joint angles)",
+  "baseFrame": "base_link",
+  "source": {
+    "repository": "https://github.com/AgibotTech/agibot_x2_urdf",
+    "commit": "575cc6b988f976c23550e0db85aa1e5475d3652d",
+    "urdf": "X2_URDF-v1.3.0/x2_ultra.urdf",
+    "urdfSha256": "f628a969aaf3d5785b8c8901611a85f358d7eb62a8b06b1216dc42291a72944e",
+    "collisionMeshesSha256": {
+      "X2_URDF-v1.3.0/meshes/head_pitch_link.STL": "765cd7690f861bba7bae520e7ba7be04234bc9ef423fa6679ef9fbf17de646ca",
+      "X2_URDF-v1.3.0/meshes/head_yaw_link.STL": "65fa0bb64c61e57de2f263f800500870094fec58b715f92eb89fa35c77acb578",
+      "X2_URDF-v1.3.0/meshes/left_ankle_pitch_link.STL": "74b49844186ddf6480a6688e1b8e86ec403c5ab954ca364516c4ebb10ea62e29",
+      "X2_URDF-v1.3.0/meshes/left_ankle_roll_link.STL": "47a3b755fc7c3bd4c61f7b26fd75bff2046601d64491709f6f5f62334ee310f8",
+      "X2_URDF-v1.3.0/meshes/left_elbow_link.STL": "e82bfa1184c8b769895cdd433b48a5df0e064ffce62646fee3e6f66e4cb50dd5",
+      "X2_URDF-v1.3.0/meshes/left_hip_pitch_link.STL": "579f9223f575779b697379655052ce6c9864fe976b11652844fd4a6d31be370b",
+      "X2_URDF-v1.3.0/meshes/left_hip_roll_link.STL": "02ae153f4e2e1bac9916a332b1188efe42f8aabf67de923902469422978d097c",
+      "X2_URDF-v1.3.0/meshes/left_hip_yaw_link.STL": "0734abbe510959d2dfa0616d0fa8f7d713cc572204bdf9413cddde8445b43a4f",
+      "X2_URDF-v1.3.0/meshes/left_knee_link.STL": "3bbe9bfcb7a26948748f5875f6aa79b6984f12f20eb1f76b8129de7d0ed52fc2",
+      "X2_URDF-v1.3.0/meshes/left_shoulder_pitch_link.STL": "491259031bc2894f7bc2eeea47dcff57158ddba28261ca2ec28eede34f83042f",
+      "X2_URDF-v1.3.0/meshes/left_shoulder_roll_link.STL": "656348cd02ae0dafd683aabe443c23a7a5af807c28518519150fca3959380c26",
+      "X2_URDF-v1.3.0/meshes/left_shoulder_yaw_link.STL": "980ce837e785a49df41cb470351ae6124329b309fb0f05da03b992f443687fef",
+      "X2_URDF-v1.3.0/meshes/left_wrist_pitch_link.STL": "732f2881aa05e9cef01e451193d7094ccf74cf730ec18864711b8bf8c77e8a43",
+      "X2_URDF-v1.3.0/meshes/left_wrist_roll_link.STL": "dcf18915b8874853de1086b90ffa2680582e22f84ec25820bef48d8d25290678",
+      "X2_URDF-v1.3.0/meshes/left_wrist_yaw_link.STL": "1fb206c94806f813fe26dcef7238dc458d049cd86767d11f52542ea11e09844e",
+      "X2_URDF-v1.3.0/meshes/pelvis.STL": "a068b0024f2e2db4f743369184d868db5273ce37c26bdc8f44344dabb36a3595",
+      "X2_URDF-v1.3.0/meshes/right_ankle_pitch_link.STL": "6a31d4adb16a1fb7e4bb2de1f8ffa962e9d8cc74337ff8a56f8c7fd97d8c9e37",
+      "X2_URDF-v1.3.0/meshes/right_ankle_roll_link.STL": "8f5d26addecdbd6fff8bef111a9f50d1c220421096a97e9f217fa7d00c8582e3",
+      "X2_URDF-v1.3.0/meshes/right_elbow_link.STL": "07f9fac6dcd14bd349e803a266153639543d0f68c5a6d6652d5b0c093de57ac8",
+      "X2_URDF-v1.3.0/meshes/right_hip_pitch_link.STL": "5d9a7be650e73899e312c7b3e34bf65c6064bfc94e85422eb3e513c011970379",
+      "X2_URDF-v1.3.0/meshes/right_hip_roll_link.STL": "f34d70535a16aa02280dde697fdff4ad9901a57e9a1ff21f47ffb374e319b3e4",
+      "X2_URDF-v1.3.0/meshes/right_hip_yaw_link.STL": "9cde24c04b2262b77efb52a887d2991234bbef12b704026ed46b6c661b0ee0fe",
+      "X2_URDF-v1.3.0/meshes/right_knee_link.STL": "d9839e23940315f91d41f8b91e28dc979901678560ea178d153867d7dac0680e",
+      "X2_URDF-v1.3.0/meshes/right_shoulder_pitch_link.STL": "0931e176158a408171d13def0b3779f366fcf658ab9066fb6cc65061aa8bfa47",
+      "X2_URDF-v1.3.0/meshes/right_shoulder_roll_link.STL": "948f9625cc09aded578f2f29a33d4e1fedbe8db2f7cd89e5c9d45c1028a8ad18",
+      "X2_URDF-v1.3.0/meshes/right_shoulder_yaw_link.STL": "e144ca3d076753122b0b27dc2d81d06fdb28294fd898f7b82fd71552bb9988f3",
+      "X2_URDF-v1.3.0/meshes/right_wrist_pitch_link.STL": "35ec085c532cbb5e8e761625bb3efb9b121089c16fe2519933038925984ad24a",
+      "X2_URDF-v1.3.0/meshes/right_wrist_roll_link.STL": "86ff42a11fd2bb4c00f8bd652ee030042cd1ed3e35651c5e9d91dec44f2f83e6",
+      "X2_URDF-v1.3.0/meshes/right_wrist_yaw_link.STL": "3be4f79da120a73d8ecc9d1cd6d41d667024a9f8a1664765ecc424a01bcd1a01",
+      "X2_URDF-v1.3.0/meshes/torso_plus_link.STL": "af1c9f2e57bb9f3e54e895ff309d8990ed54c0a6a77c5617d319304267cec0d0"
+    }
+  },
+  "boundsMetres": {
+    "x": [
+      -0.18030066788196564,
+      0.1285486213974537
+    ],
+    "y": [
+      -0.33960339974608633,
+      0.33949826289519264
+    ],
+    "z": [
+      -0.6753201437712296,
+      0.6392680233628801
+    ]
+  },
+  "extentsMetres": {
+    "x": 0.30884928927941935,
+    "y": 0.6791016626412789,
+    "z": 1.3145881671341098
+  },
+  "nominalAabbCenterInBaseMetres": [
+    -0.025876023242255963,
+    -5.2568425446847256e-05,
+    -0.018026060204174743
+  ],
+  "horizontalEnvelopeRadiusMetres": 0.34499223418801606,
+  "clearanceRadiusMetres": 0.45,
+  "status": "provisional_commissioning_only",
+  "dynamicEnvelopeValidated": false,
+  "sensorExtrinsicsValidated": false,
+  "physicalScaleValidated": false
+}

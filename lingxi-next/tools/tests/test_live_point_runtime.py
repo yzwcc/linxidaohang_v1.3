@@ -52,7 +52,7 @@ class LiveConfiguration(unittest.TestCase):
         self.assertEqual("0", environment["ROS_DOMAIN_ID"])
         self.assertEqual("rmw_fastrtps_cpp", environment["RMW_IMPLEMENTATION"])
         self.assertEqual("2", environment["OMP_NUM_THREADS"])
-        self.assertEqual("2", environment["OPENBLAS_NUM_THREADS"])
+        self.assertEqual("1", environment["OPENBLAS_NUM_THREADS"])
         import pwd
         self.assertEqual(pwd.getpwuid(os.geteuid()).pw_dir, environment["HOME"])
         self.assertNotIn("ROS_ARGS", environment)
@@ -389,7 +389,7 @@ class FrozenInputContract(unittest.TestCase):
     def test_child_keeps_strict_ros_environment_validation(self):
         with patch.dict(os.environ, {"LINGXI_SLAM_SESSION": "a" * 32}):
             self.assertEqual("a" * 32, live_child.verified_child_session(self.args))
-            self.live.validate_environment.assert_called_once_with(self.args.root, self.args.core_root)
+            self.live.validate_environment.assert_called_once_with(self.args.root, self.args.core_root, blas_threads=1)
             self.live.validate_environment.side_effect = ValueError("synthetic_bad_ros_environment")
             with self.assertRaisesRegex(ValueError, "bad_ros_environment"):
                 live_child.verified_child_session(self.args)
