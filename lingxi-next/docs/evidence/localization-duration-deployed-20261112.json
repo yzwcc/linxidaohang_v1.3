@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-11-12",
+  "result": "duration_deployed_live_tracking_and_recorder_ready_not_distance_acceptance",
+  "version": "0.1.37-independent-commissioning-20261112",
+  "nativeManifestSha256": "9a5dfa6dafa05036acd80f9d2bb4a4300b0cf406466e48251f4167fff4435aa7",
+  "fullMapperManifestSha256": "a2c8975cb1376518466c2351c79743a3218447994845829aa2ac8ec106106cd6",
+  "refreshToolSha256": "0d358b4a79f5a219d40e5e24b71bcc74727e97b19bbfd48ff59411e2bcad07ab",
+  "mappingMaxSeconds": 300.0,
+  "localizationMaxSeconds": 3600.0,
+  "parentLocalizationSeconds": 3590,
+  "oldConfigurationBytesPreserved": true,
+  "unseededMapLoadAtBVerified": true,
+  "confirmedASeeded": true,
+  "firstTrackingSeconds": 0.4611067699997875,
+  "stationaryTracking": {
+    "distinctFrames": 145,
+    "seconds": 20.091802489000656,
+    "maxTranslationRaw": 0.009164429054182178,
+    "maxRotationDegrees": 0.07881664872749002,
+    "basePoseAvailableFrames": 145
+  },
+  "runId": "f8a9db8bc0d940919bf0627c3cd383fe",
+  "poseGeneration": 1,
+  "continuousRecorderReady": true,
+  "freshRecordedPoseAgeSeconds": 0.34786057472229004,
+  "map": {
+    "name": "11.12",
+    "id": "slam-0d94bff784fa4662bdaf4fb86d58292f",
+    "receiptSha256": "1e2108550fff7b33f30171a0def42a813a1b7e0ee9341862bfee41b4b8322e70",
+    "pointsSha256": "d59005cbbda67984ebb1b57410e78ff5327f7097c5a0fff0e56c8130f059fd89"
+  },
+  "https3444AuthenticatedReadPassed": true,
+  "motionCommandsSent": false,
+  "distanceAccuracyAccepted": false,
+  "navigationAccepted": false,
+  "oneHourTargetRunAccepted": false
+}

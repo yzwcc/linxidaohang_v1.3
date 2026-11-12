@@ -2,6 +2,11 @@
   "schemaVersion": 1,
   "purpose": "immutable_historical_evidence_not_current_target_acceptance",
   "entries": {
+    "docs/installed-native-inputs-offline-evidence.json": {
+      "revision": "ed9744ad0b9f884f735d79d8e07c873698c158fb",
+      "reportCanonicalSha256": "6fdc445fa899f794891c8b038516f8675cad931a8114d44752cd14145e16257b",
+      "sourceByteTransforms": {}
+    },
     "docs/evidence/acquisition-arm64-emulation-20261104.json": {
       "revision": "a8229c3331fd4d2f6bd4030c01d4f27b06f30cb8",
       "reportCanonicalSha256": "f518d2f77437faea5752ca819f4d266f723c1476be630349989efa9c461a3263",

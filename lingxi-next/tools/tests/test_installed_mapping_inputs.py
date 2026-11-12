@@ -170,7 +170,8 @@ class NativeInputPreparationTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             inputs.members(self.value, manifests)
 
-    def test_published_file_only_summary_binds_current_helpers_and_no_acceptance(self):
+    def test_published_file_only_summary_binds_historical_helpers_and_no_acceptance(self):
+        import audit_historical_evidence as historical
         report = inputs.read_json(ROOT / 'docs/installed-native-inputs-offline-evidence.json')
         self.assertEqual(142, report['preparedFileCount'])
         self.assertTrue(report['freshProcessReverificationPassed'])
@@ -179,8 +180,11 @@ class NativeInputPreparationTests(unittest.TestCase):
         self.assertTrue(report['childCreationForbiddenDuringReverification'])
         self.assertEqual(inputs.BOUNDARIES, report['boundaries'])
         self.assertTrue(all(value is False for value in report['boundaries'].values()))
-        for name, identity in report['sourceSha256'].items():
-            self.assertEqual(identity, inputs.sha256(ROOT / name))
+        verified = historical.verify('docs/installed-native-inputs-offline-evidence.json')
+        self.assertTrue(verified['historicalSourcesVerified'])
+        # The November 4 receipt must not be rewritten when the launcher changes.
+        self.assertEqual(report['sourceSha256']['tools/prepare_installed_mapping_inputs.py'],
+                         inputs.sha256(ROOT / 'tools/prepare_installed_mapping_inputs.py'))
         self.assertTrue(inputs.digest(report['preparedManifestSha256']))
         self.assertTrue(inputs.digest(report['observedMapperManifestSha256']))
 
