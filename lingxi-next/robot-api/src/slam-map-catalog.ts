@@ -1,5 +1,4 @@
 import { createHash } from "node:crypto";
-import { createReadStream } from "node:fs";
 import { lstat, open, readFile, readdir, realpath } from "node:fs/promises";
 import { isDeepStrictEqual } from "node:util";
 import path from "node:path";
@@ -8,6 +7,7 @@ import type { SavedSlamMap, SavedSlamPointPreview } from "../../shared/contracts
 import type { SavedSlamReferences } from "../../shared/slam-reference";
 import { mappingEndpointPoses, MAX_TRAJECTORY_BYTES } from "./slam-map-references";
 import { readSavedScanPreview } from "./saved-scan-preview";
+import { ArtifactDigests } from "./artifact-digests";
 
 const positive = z.number().int().positive().safe();
 const sha256 = z.string().regex(/^[a-f0-9]{64}$/);
@@ -83,13 +83,8 @@ async function direct(directory: string, file: boolean) {
   return info;
 }
 
-async function digest(file: string) {
-  const hash = createHash("sha256");
-  for await (const chunk of createReadStream(file)) hash.update(chunk);
-  return hash.digest("hex");
-}
-
-async function verifyObservations(directory: string, receipt: z.infer<typeof receiptSchema>, receiptBytes: Buffer) {
+async function verifyObservations(directory: string, receipt: z.infer<typeof receiptSchema>, receiptBytes: Buffer,
+                                  digests: ArtifactDigests) {
   if (receipt.schemaVersion !== 3 || !receipt.observationImplementationSha256) return;
   const file = path.join(directory, "observations-ready.json");
   if ((await direct(file, true)).size > 32768) throw new Error("bounded_slam_observation_binding_required");
@@ -115,7 +110,7 @@ async function verifyObservations(directory: string, receipt: z.infer<typeof rec
   if (header.subarray(0, 8).toString("ascii") !== "LXOBS002" ||
       [observation.submaps, observation.scans, observation.returns, observation.revision]
         .some((value, index) => header.readBigUInt64LE(8 + index * 8) !== BigInt(value)) ||
-      await digest(archive) !== observation.archiveSha256 ||
+      await digests.digest(archive) !== observation.archiveSha256 ||
       !(await readFile(file)).equals(bytes) || !(await readFile(path.join(directory, "map-ready.json"))).equals(receiptBytes)) {
     throw new Error("unchanged_slam_observation_archive_required");
   }
@@ -126,6 +121,7 @@ async function verifyObservations(directory: string, receipt: z.infer<typeof rec
 export class SavedSlamMapCatalog {
   private readonly root: string;
   private listing?: Promise<SavedSlamMap[]>;
+  private readonly digests = new ArtifactDigests();
 
   constructor(directory: string) {
     if (!path.isAbsolute(directory)) throw new Error("absolute_saved_slam_directory_required");
@@ -151,7 +147,7 @@ export class SavedSlamMapCatalog {
         counts.savedFrames !== inventory.num_all_frames || counts.submaps !== inventory.num_submaps) {
       throw new Error("consistent_saved_slam_counts_required");
     }
-    const observation = await verifyObservations(directory, receipt, receiptBytes);
+    const observation = await verifyObservations(directory, receipt, receiptBytes, this.digests);
     const pointsFile = path.join(directory, "private-saved-points.f64");
     if ((await direct(pointsFile, true)).size !== counts.points * 24) {
       throw new Error("complete_saved_slam_points_required");
@@ -172,7 +168,7 @@ export class SavedSlamMapCatalog {
         }
         total += stat.size;
         if (entries.length >= 4096 || total > 64 * 1024 * 1024) throw new Error("bounded_saved_slam_map_required");
-        entries.push([path.relative(mapRoot, file).split(path.sep).join("/"), stat.size, await digest(file)]);
+        entries.push([path.relative(mapRoot, file).split(path.sep).join("/"), stat.size, await this.digests.digest(file)]);
       }
     };
     await walk(mapRoot, 0);
@@ -181,7 +177,7 @@ export class SavedSlamMapCatalog {
     if (required.some((file) => !files.has(file)) ||
         entries.length !== inventory.fileCount || total !== inventory.totalBytes ||
         createHash("sha256").update(JSON.stringify(entries)).digest("hex") !== inventory.artifactInventorySha256 ||
-        await digest(pointsFile) !== receipt.savedPointsSha256) {
+        await this.digests.digest(pointsFile) !== receipt.savedPointsSha256) {
       throw new Error("unchanged_saved_slam_artifacts_required");
     }
     if (receipt.schemaVersion === 3) {

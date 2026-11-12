@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createHash } from "node:crypto";
-import { cp, mkdir, mkdtemp, readFile, rename, rm, symlink, writeFile } from "node:fs/promises";
+import { cp, lstat, mkdir, mkdtemp, readFile, rename, rm, symlink, utimes, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import type { FastifyInstance } from "fastify";
@@ -10,6 +10,7 @@ import { buildServer } from "../src/server";
 import { pairingCodeHash } from "../src/auth";
 import { DemoAdapter } from "../src/adapters/demo";
 import { JsonStateStore } from "../src/store";
+import { ArtifactDigests } from "../src/artifact-digests";
 
 async function observedFixture(root: string) {
   const fixture = await savedSlamFixture(root, { fullMapping: true, sensorProvenance: {
@@ -337,5 +338,47 @@ describe("saved SLAM receipt catalog", () => {
     expect(state.savedSlamCatalogStatus).toBe("unavailable");
     expect(state.maps).toHaveLength(2);
     expect((await app.inject({ url: "/api/v1/slam/maps", headers })).statusCode).toBe(500);
+  });
+});
+
+describe("saved artifact digest cache", () => {
+  it("reuses verified bytes and invalidates a same-size file change", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "lingxi-artifact-digest-"));
+    try {
+      const file = path.join(root, "artifact.bin");
+      const original = Buffer.alloc(2 * 1024 * 1024, 0x31);
+      await writeFile(file, original);
+      const digest = new ArtifactDigests();
+      const first = await digest.digest(file);
+      const oldTime = (await lstat(file)).mtime;
+      expect(await digest.digest(file)).toBe(first);
+      const changed = Buffer.from(original);
+      changed[changed.length - 1] ^= 1;
+      await writeFile(file, changed);
+      await utimes(file, oldTime, oldTime);
+      expect(await digest.digest(file)).toBe(createHash("sha256").update(changed).digest("hex"));
+      expect(await digest.digest(file)).not.toBe(first);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("shares an in-flight digest for a bounded immutable identity", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "lingxi-artifact-digest-flight-"));
+    try {
+      const file = path.join(root, "artifact.bin");
+      await writeFile(file, "same bytes");
+      let calls = 0;
+      const digest = new ArtifactDigests(async (name) => {
+        calls += 1;
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        return createHash("sha256").update(await readFile(name)).digest("hex");
+      });
+      const [first, second] = await Promise.all([digest.digest(file), digest.digest(file)]);
+      expect(first).toBe(second);
+      expect(calls).toBe(1);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
   });
 });
