@@ -340,7 +340,7 @@ export default function LocalizationPanel({ connection, maps, mappingActive = fa
           </div>
           <div className="field"><label htmlFor="localization-map">定位地图</label>
             <select id="localization-map" value={choosing ? selectedMapId : selection?.mapId ?? ""}
-              disabled={busy || !choosing} onChange={(event) => { setSelectedMapId(event.target.value); setPreview(undefined); }}>
+              disabled={busy || !choosing} onChange={(event) => setSelectedMapId(event.target.value)}>
               <option value="">选择已保存地图</option>
               {maps?.map((item) => <option key={item.id} value={item.id}
                 disabled={!item.sensorProvenance || item.inputMode === "synthetic"}>

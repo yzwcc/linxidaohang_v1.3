@@ -40,9 +40,15 @@ const run = (...args) => {
 const evaluate = (source) => run("eval", "-b", Buffer.from(source).toString("base64")).result;
 const wait = (source) => run("wait", "--fn", source);
 const click = (name) => run("find", "role", "button", "click", "--name", name, "--exact");
+const fillNumber = (key, value) => {
+  run("focus", `#seed-${key}`);
+  run("press", "Control+a");
+  run("keyboard", "inserttext", value);
+  assert.equal(evaluate(`document.querySelector('#seed-${key}').value`), value);
+};
 const fillSeed = () => {
   for (const [key, value] of Object.entries({ x: "1.25", y: "-0.5", z: "0.1", roll: "5", pitch: "-10", yaw: "90" })) {
-    run("fill", `#seed-${key}`, value);
+    fillNumber(key, value);
   }
 };
 const control = (command) => {
@@ -178,7 +184,7 @@ try {
     run("mouse", "move", String(Math.round(point.x + dx)), String(Math.round(point.y + dy)));
   };
   run("snapshot", "-i");
-  for (const [key, value] of Object.entries({ z: "0.4", roll: "7", pitch: "-3" })) run("fill", `#seed-${key}`, value);
+  for (const [key, value] of Object.entries({ z: "0.4", roll: "7", pitch: "-3" })) fillNumber(key, value);
   click("设置初始位置与朝向");
   const beforePicking = control("status").commands.length;
   beginDrag(0, -50); run("mouse", "up", "left");
@@ -204,7 +210,7 @@ try {
   run("mouse", "up", "left");
   assert(Object.values(draftFields()).every(value => value === ""));
   assert.equal(control("status").commands.length, beforePicking);
-  for (const [key, value] of Object.entries({ z: "0.4", roll: "7", pitch: "-3" })) run("fill", `#seed-${key}`, value);
+  for (const [key, value] of Object.entries({ z: "0.4", roll: "7", pitch: "-3" })) fillNumber(key, value);
   click("设置初始位置与朝向"); beginDrag(40, 0); run("mouse", "up", "left");
   await capture("seed-draft", false);
   run("set", "viewport", "844", "390");
@@ -308,6 +314,23 @@ try {
     control("cleaned");
     wait("!window.__localizationMetric().startDisabled");
     await capture("service-cleaned", false);
+    const lifecycleBeforeReselect = control("status").lifecycleCommands.length;
+    run("select", "#localization-map", `slam-${"b".repeat(32)}`);
+    wait("!window.__localizationMetric().startDisabled && window.__localizationMetric().nonBackground > 100");
+    assert.equal(control("status").lifecycleCommands.length, lifecycleBeforeReselect);
+    await capture("service-same-map-reselected", false);
+    report.sameMapReselectionPreservesPreview = true;
+    click("地图管理");
+    run("wait", "--text", "合成测试地图 / Synthetic");
+    click("定位验证");
+    wait("window.__localizationMetric().runtime?.includes('已关闭') && window.__localizationMetric().nonBackground > 100");
+    assert.equal(evaluate("document.querySelector('#localization-map').value"), "");
+    assert.equal(evaluate("window.__localizationMetric().startDisabled"), true);
+    run("select", "#localization-map", `slam-${"b".repeat(32)}`);
+    wait("!window.__localizationMetric().startDisabled && window.__localizationMetric().nonBackground > 100");
+    assert.equal(control("status").lifecycleCommands.length, lifecycleBeforeReselect);
+    await capture("service-same-map-after-remount", false);
+    report.sameMapSelectionAfterRemountPreservesPreview = true;
     control("conflict-service-next");
     const commandsBefore = control("status").lifecycleCommands.length;
     click("启动定位进程");
