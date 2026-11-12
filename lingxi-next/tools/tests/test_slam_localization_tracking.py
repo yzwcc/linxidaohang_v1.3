@@ -29,7 +29,7 @@ class TrackingTests(unittest.TestCase):
         self.truth = pose()
         self.registrar = SeededMapRegistration(self.world)
         self.tracker = LocalizationTracker(self.registrar, session=SESSION, input_mode="synthetic",
-                                           clock=lambda: self.now)
+                                           clock=lambda: self.now, maximum_recovery_seconds=.75)
 
     def packet(self, frame):
         odom = self.truth.copy()
@@ -195,6 +195,67 @@ class TrackingTests(unittest.TestCase):
         self.assertEqual(generation, recovered.generation)
         np.testing.assert_allclose(recovered.map_from_sensor,
                                    self.packet(8).world_lidar_pose, atol=.005, rtol=0)
+
+    def default_tracker(self):
+        self.tracker = LocalizationTracker(self.registrar, session=SESSION, input_mode="synthetic",
+                                           clock=lambda: self.now)
+        return self.tracking()[0]
+
+    def test_default_recovery_allows_interleaved_turn_rejections_before_native_confirmation(self):
+        generation = self.default_tracker()
+        native = self.registrar
+        outcomes = iter((False, True, False, False, True, False, False, True, True, True))
+        def register(scan, seed):
+            return (native.register(scan, seed) if next(outcomes) else
+                    RegistrationEstimate(False, ("excessive_scan_map_residual",), None, {}))
+        self.tracker.registrar = type("Turn", (), {"register": staticmethod(register)})()
+        started = self.now + .1
+        for frame in range(4, 14):
+            result = self.observe(frame, generation)
+            if frame < 13:
+                self.assertEqual("acquiring", result.state)
+                self.assertIsNone(result.map_from_sensor)
+            else:
+                self.assertEqual("tracking", result.state)
+                self.assertEqual(3, result.consecutive_matches)
+                self.assertGreater(self.now - started, .75)
+                np.testing.assert_allclose(result.map_from_sensor,
+                                           self.packet(frame).world_lidar_pose, atol=.005, rtol=0)
+            self.assertFalse(result.navigation_ready)
+
+    def test_default_recovery_still_expires_stale_accepted_pose_with_fresh_rejected_inputs(self):
+        generation = self.default_tracker()
+        self.tracker.registrar = type("Reject", (), {
+            "register": lambda *args: RegistrationEstimate(False, ("excessive_scan_map_residual",), None, {})})()
+        for frame in range(4, 13):
+            result = self.observe(frame, generation)
+            self.assertEqual("acquiring", result.state)
+            self.assertIsNone(result.map_from_sensor)
+        self.now += .11
+        result = self.tracker.snapshot()
+        self.assertEqual("lost", result.state)
+        self.assertEqual("corrected_point_stream_expired", result.reason)
+        self.assertIsNone(result.map_from_sensor)
+
+    def test_default_recovery_has_fixed_two_second_deadline_despite_fresh_partial_matches(self):
+        generation = self.default_tracker()
+        calls = 0
+        def alternate(scan, seed):
+            nonlocal calls
+            calls += 1
+            return (RegistrationEstimate(False, ("excessive_scan_map_residual",), None, {})
+                    if calls % 2 else RegistrationEstimate(True, (), seed, {}))
+        self.tracker.registrar = type("Alternate", (), {"register": staticmethod(alternate)})()
+        started = self.now + .1
+        for frame in range(4, 24):
+            result = self.observe(frame, generation)
+            self.assertEqual("acquiring", result.state)
+            self.assertIsNone(result.map_from_sensor)
+        self.now = started + 2.001
+        result = self.tracker.snapshot()
+        self.assertEqual("lost", result.state)
+        self.assertEqual("scan_map_recovery_deadline_exceeded", result.reason)
+        self.assertIsNone(result.map_from_sensor)
 
     def test_persistent_rejection_expires_without_reusing_stale_pose(self):
         generation, _ = self.tracking()

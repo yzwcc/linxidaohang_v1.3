@@ -1,7 +1,7 @@
 {
   "name": "lingxi-next",
-  "version": "0.1.38",
-  "androidVersionCode": 38,
+  "version": "0.1.39",
+  "androidVersionCode": 39,
   "private": true,
   "type": "module",
   "scripts": {

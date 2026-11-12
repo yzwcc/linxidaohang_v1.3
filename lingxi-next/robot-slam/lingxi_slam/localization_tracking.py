@@ -33,7 +33,7 @@ class LocalizationTracker:
 
     def __init__(self, registrar, *, session, input_mode, clock=time.monotonic,
                  confirmations=3, maximum_age_seconds=1., maximum_gap_seconds=.5,
-                 maximum_recovery_seconds=.75):
+                 maximum_recovery_seconds=2.):
         self.session = session_id(session)
         if (not callable(getattr(registrar, "register", None)) or not callable(clock)
                 or input_mode not in ("live", "recorded", "synthetic")
@@ -45,7 +45,10 @@ class LocalizationTracker:
         self.registrar, self.input_mode, self.clock = registrar, input_mode, clock
         self.confirmations = confirmations
         self.maximum_age, self.maximum_gap = maximum_age_seconds, maximum_gap_seconds
-        self.maximum_recovery = min(maximum_recovery_seconds, maximum_age_seconds)
+        # Recovery spans several fresh registration results. Its fixed deadline
+        # is independent of the age limit on any one accepted input; otherwise
+        # interleaved rejected scans can exhaust the window before confirmation.
+        self.maximum_recovery = maximum_recovery_seconds
         self.owner, self.generation = threading.get_ident(), 0
         self.state, self.reason, self.matches = "unseeded", "explicit_seed_required", 0
         self.frame, self.stamp = 0, None
