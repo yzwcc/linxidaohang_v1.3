@@ -1,4 +1,5 @@
 """Original-scan passive ROS observations, not physical calibration or admission."""
+from array import array
 from dataclasses import dataclass
 import secrets
 import threading
@@ -245,7 +246,9 @@ class LiveLocalizationRosOutput:
                         for index, name in enumerate(('x', 'y', 'z'))]
         cloud.point_step, cloud.row_step = 24, 24 * cloud.width
         cloud.is_bigendian, cloud.is_dense = False, True
-        cloud.data = np.asarray(sample.sensor_points, dtype='<f8').tobytes()
+        # Humble accepts uint8 arrays directly; bytes invokes two Python loops
+        # over the whole scan while holding the sensor executor's GIL.
+        cloud.data = array('B', np.asarray(sample.sensor_points, dtype='<f8').tobytes())
         # Recheck after serialization; no old scan is restamped to the timer time.
         if self.snapshot() is not sample or not 0 <= self.node.get_clock().now().nanoseconds - sample.stamp_ns <= 300_000_000:
             return

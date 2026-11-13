@@ -108,6 +108,22 @@ class HumbleOutputTests(SavedMapTerrainFixture, SyntheticLiveFixture, unittest.T
         self.assertEqual([self.node], self.executor.get_nodes())
         self.assertFalse(self.output.summary()['failed'])
 
+    def test_full_size_cloud_keeps_every_byte_and_original_time_over_actual_ros(self):
+        import numpy as np
+        self.points = np.linspace(-12., 12., 65536 * 3).reshape(-1, 3)
+        expected_stamp = self.send()
+        cloud = self.samples['points'][-1]
+        self.assertEqual((1, 65536, 24, 65536 * 24),
+            (cloud.height, cloud.width, cloud.point_step, cloud.row_step))
+        source = self.output.snapshot().sensor_points
+        self.assertEqual(source.astype('<f8').tobytes(), bytes(cloud.data))
+        np.testing.assert_allclose(self.points, np.frombuffer(cloud.data, dtype='<f8').reshape(-1, 3), atol=1e-12)
+        self.assertEqual(expected_stamp,
+            cloud.header.stamp.sec * 10**9 + cloud.header.stamp.nanosec)
+        self.assertEqual('lidar_chest_front', cloud.header.frame_id)
+        self.assertFalse(cloud.is_bigendian)
+        self.assertTrue(cloud.is_dense)
+
     def test_last_return_transport_keeps_original_time_and_measured_pose(self):
         import numpy as np
         stamp = self.node.get_clock().now().nanoseconds - 120_000_000
