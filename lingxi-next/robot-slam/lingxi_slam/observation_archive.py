@@ -31,6 +31,22 @@ def rigid(matrix):
     return matrix
 
 
+def acquisition_rotations(trajectory, times):
+    """Shortest-arc SLERP via public SciPy APIs, with batched matrix composition.
+
+    The caller validates finite, ordered, bracketed times before this operation.
+    Compose only the few trajectory keys as Rotation objects; per-return
+    composition uses NumPy rather than thousands of quaternion products.
+    """
+    keys = Rotation.from_quat(trajectory[:, 4:])
+    relative = (keys[:-1].inv() * keys[1:]).as_rotvec()
+    index = np.maximum(np.searchsorted(trajectory[:, 0], times) - 1, 0)
+    alpha = ((times - trajectory[index, 0])
+             / (trajectory[index + 1, 0] - trajectory[index, 0]))
+    delta = Rotation.from_rotvec(relative[index] * alpha[:, None]).as_matrix()
+    return np.einsum('nij,njk->nik', keys.as_matrix()[index], delta)
+
+
 @dataclass(frozen=True)
 class SourceObservation:
     ordinal: int
@@ -72,12 +88,13 @@ class ObservationArchive:
             raise ValueError("bounded_complete_observation_header_required")
 
     @classmethod
-    def from_bytes(cls, data):
+    def from_bytes(cls, data, *, batched_rotations=False):
         """Parse an immutable native window with the same geometry checks, without file IO."""
         if type(data) is not bytes or not 40 <= len(data) <= 16 * 1024**2:
             raise ValueError("bounded_immutable_observation_bytes_required")
         result = cls.__new__(cls)
         result.path, result._bytes = None, data
+        result._batched_rotations = batched_rotations
         result.sha256 = hashlib.sha256(data).hexdigest()
         with result._open() as stream:
             result._header(stream)
@@ -139,12 +156,19 @@ class ObservationArchive:
                         raise ValueError("every_return_needs_bracketed_acquisition_time")
                     source_digest = hashlib.sha256(header + reference_bytes + extrinsic_bytes +
                                                   trajectory_bytes + points_bytes).hexdigest()
-                    rotations = Slerp(trajectory[:, 0], Rotation.from_quat(trajectory[:, 4:]))(times)
                     translations = np.column_stack([np.interp(times, trajectory[:, 0], trajectory[:, i])
                                                     for i in (1, 2, 3)])
                     imu_lidar = np.linalg.inv(extrinsic)
-                    origins = rotations.apply(np.broadcast_to(imu_lidar[:3, 3], (points, 3))) + translations
-                    ends = rotations.apply(source[:, 1:] @ imu_lidar[:3, :3].T + imu_lidar[:3, 3]) + translations
+                    vectors = source[:, 1:] @ imu_lidar[:3, :3].T + imu_lidar[:3, 3]
+                    if getattr(self, '_batched_rotations', False):
+                        rotations = acquisition_rotations(trajectory, times)
+                        origins = np.einsum('nij,j->ni', rotations, imu_lidar[:3, 3]) + translations
+                        ends = np.einsum('nij,nj->ni', rotations, vectors) + translations
+                    else:
+                        # Keep saved-archive geometry hashes on the original path.
+                        rotations = Slerp(trajectory[:, 0], Rotation.from_quat(trajectory[:, 4:]))(times)
+                        origins = rotations.apply(np.broadcast_to(imu_lidar[:3, 3], (points, 3))) + translations
+                        ends = rotations.apply(vectors) + translations
                     correction = global_pose @ local_pose @ np.linalg.inv(reference)
                     origins = origins @ correction[:3, :3].T + correction[:3, 3]
                     ends = ends @ correction[:3, :3].T + correction[:3, 3]

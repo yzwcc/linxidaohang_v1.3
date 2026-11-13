@@ -302,7 +302,8 @@ class LocalizedNative:
             result = self.native.frame(stamp, scan.points, scan.offsets)
             packet = None
             if self.acquisition_output is not None:
-                packet = self.acquisition_output.take(stamp, result[0])
+                packet = self.acquisition_output.take(stamp, result[0],
+                    defer_decode=self.registration_lane is not None)
                 if (packet is None) != (self.current_points is None):
                     raise RuntimeError("same_frame_point_and_acquisition_delivery_required")
                 if packet is not None and self.registration_lane is None:

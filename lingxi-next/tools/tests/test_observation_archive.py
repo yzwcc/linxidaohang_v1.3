@@ -93,6 +93,39 @@ class ObservationArchiveTests(unittest.TestCase):
             with self.subTest(source=source), self.assertRaises(ValueError):
                 list(self.read(source=source))
 
+    def test_batched_live_geometry_matches_slerp_with_full_3d_motion_and_quaternion_signs(self):
+        rng = np.random.default_rng(44)
+        from scipy.spatial.transform import Slerp
+        for stamp in (10., 1794546000.):
+            times = stamp + np.linspace(0, .1, 24)
+            rotations = Rotation.random(24, random_state=rng)
+            quaternions = rotations.as_quat()
+            quaternions[::2] *= -1
+            trajectory = np.column_stack((times, rng.normal(size=(24, 3)), quaternions))
+            from lingxi_slam.observation_archive import acquisition_rotations
+            # Include every key, repeated first/last returns and interior samples.
+            returns = np.sort(np.r_[times, times[0], times[-1], rng.uniform(times[0], times[-1], 7100)])
+            actual = acquisition_rotations(trajectory, returns)
+            expected = Slerp(times, rotations)(returns).as_matrix()
+            np.testing.assert_allclose(actual, expected, rtol=0, atol=3e-15)
+        trajectory[:, 0] = np.linspace(10, 11, 24)
+        reference = pose()
+        reference[:3, :3] = rotations[0].as_matrix()
+        reference[:3, 3] = trajectory[0, 1:4]
+        source = np.column_stack((np.linspace(0, 1, 7100), rng.normal(size=(7100, 3))))
+        extrinsic = pose(.3, 29)
+        data = archive_bytes(trajectory=trajectory, reference_pose=reference, source=source,
+                             extrinsic_pose=extrinsic, global_pose=pose(2, 67), local_pose=pose(-1, 14))
+        original, = ObservationArchive.from_bytes(data)
+        batched, = ObservationArchive.from_bytes(data, batched_rotations=True)
+        self.assertEqual(original.source_sha256, batched.source_sha256)
+        for name in ('origins_raw', 'endpoints_raw'):
+            np.testing.assert_allclose(getattr(original, name), getattr(batched, name), rtol=0, atol=1e-12)
+        # Bounds and immutable-source verification are shared by both paths.
+        with self.assertRaises(ValueError):
+            list(ObservationArchive.from_bytes(archive_bytes(source=np.array([[1.01, 1, 0, 0]])),
+                                               batched_rotations=True))
+
     def test_nonfinite_unordered_and_nonrigid_geometry_is_rejected(self):
         for changes in ({"global_pose": np.zeros((4, 4))}, {"local_pose": np.full((4, 4), np.nan)},
                         {"source": np.array([[.5, 1, 0, 0], [.1, 1, 0, 0]])},

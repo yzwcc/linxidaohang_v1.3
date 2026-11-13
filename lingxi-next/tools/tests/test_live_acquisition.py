@@ -659,11 +659,13 @@ class EntryPointTests(SettingsFixture, unittest.TestCase):
         runs.mkdir(mode=0o700)
         chosen = SimpleNamespace(directory=maps / 'synthetic',
             binding=SimpleNamespace(map_id='slam-' + 'a' * 32, receipt_sha256='b' * 64))
-        with patch.object(service, 'verified_configuration', return_value=({'inputMode': 'live'}, {})), patch.object(
+        with patch.object(service, 'verified_configuration', return_value=({'inputMode': 'live',
+                'maxSeconds': 300, 'localizationMaxSeconds': 3600}, {})), patch.object(
                 service, 'MappingPlatform', return_value=self.platform), patch.object(
                 service, 'SavedMapResolver'), patch.object(service, 'LocalizationManager') as manager:
             service.create_manager(self.odometry, maps, runs, acquisition_settings=self.path)
             self.assertIsNone(manager.call_args.kwargs['process_limits'])
+            self.assertEqual(3590, manager.call_args.kwargs['maximum_run_seconds'])
             command = manager.call_args.args[2]
             selected = self.settings()
             self.assertEqual(selected.child_arguments(), command(chosen, runs / 'new')[-4:])
@@ -677,7 +679,8 @@ class EntryPointTests(SettingsFixture, unittest.TestCase):
         maps, runs = self.root / 'maps', self.root / 'runs'
         maps.mkdir(mode=0o700)
         runs.mkdir(mode=0o700)
-        with patch.object(service, 'verified_configuration', return_value=({'inputMode': 'live'}, {})), patch.object(
+        with patch.object(service, 'verified_configuration', return_value=({'inputMode': 'live',
+                'maxSeconds': 300, 'localizationMaxSeconds': 3600}, {})), patch.object(
                 service, 'MappingPlatform', return_value=self.platform), patch.object(
                 service, 'SavedMapResolver'), patch.object(service, 'LocalizationManager') as manager:
             service.create_manager(self.odometry, maps, runs, acquisition_settings=self.path)

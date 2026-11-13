@@ -20,6 +20,8 @@ class RegisteredAcquisition:
     origins: np.ndarray
     endpoints: np.ndarray
     map_lidar_pose: np.ndarray
+    last_return_offset_ns: int = None
+    map_lidar_last_return_pose: np.ndarray = None
     coordinate_frame: str = field(default="lingxi_saved_map", init=False)
     units: str = field(default="native-raw", init=False)
     navigation_ready: bool = field(default=False, init=False)
@@ -54,6 +56,14 @@ def register_acquisition(packet, points, *, binding, generation, received_at, ma
         raise ValueError("same_frame_corrected_lidar_pose_required")
     map_pose = rigid(np.asarray(map_from_lidar)).copy()
     map_from_odom = rigid(map_pose @ np.linalg.inv(odom_from_lidar))
+    last_pose = None
+    if packet.last_return_offset_ns is not None or packet.world_lidar_last_return_pose is not None:
+        if (type(packet.last_return_offset_ns) is not int or packet.last_return_offset_ns < 0
+                or type(packet.world_lidar_last_return_pose) is not np.ndarray
+                or packet.world_lidar_last_return_pose.flags.writeable):
+            raise ValueError('paired_original_last_return_time_and_pose_required')
+        last_pose = rigid(map_from_odom @ rigid(packet.world_lidar_last_return_pose))
+        last_pose.flags.writeable = False
     registered = [value @ map_from_odom[:3, :3].T + map_from_odom[:3, 3]
                   for value in (origins, endpoints)]
     if any(not np.isfinite(value).all() for value in registered):
@@ -61,4 +71,5 @@ def register_acquisition(packet, points, *, binding, generation, received_at, ma
     for value in (*registered, map_pose):
         value.flags.writeable = False
     return RegisteredAcquisition(binding, generation, packet.native_frame_id, packet.algorithm_stamp,
-                                 received_at, packet.source_sha256, *registered, map_pose)
+                                 received_at, packet.source_sha256, *registered, map_pose,
+                                 packet.last_return_offset_ns, last_pose)

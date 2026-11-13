@@ -6,6 +6,7 @@ import sys
 import threading
 import time
 import unittest
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(ROOT / "robot-slam"), str(ROOT / "robot-runtime/python"), str(ROOT / "tools")]
@@ -17,6 +18,8 @@ if AVAILABLE:
     from lingxi_slam.point_output import PointPacket
     from lingxi_slam.seeded_localization import RegistrationEstimate
     from lingxi_slam.stream import Scan
+    from lingxi_slam.acquisition_output import EncodedAcquisition, NativeAcquisitionOutput
+    from test_acquisition_output import Library, packet_bytes
 
 
 @unittest.skipUnless(AVAILABLE, "requires isolated numerical dependencies")
@@ -81,6 +84,9 @@ class AsyncLocalization(unittest.TestCase):
     def send(self):
         self.number += 1
         stamp = 1000. + self.number * .02
+        if hasattr(self, 'acquisition_library'):
+            self.acquisition_library.data = packet_bytes(self.number, stamp)
+            self.acquisition_library.metadata = (self.number, 3, 2, 840)
         self.native.imu(stamp, (0., 0., 9.8), (0., 0., 0.))
         self.native.frame_received(stamp, Scan(self.number * 20_000_000,
             np.ones((100, 3)), np.zeros(100), 100., 2400))
@@ -96,6 +102,56 @@ class AsyncLocalization(unittest.TestCase):
         self.wait_for(lambda: self.session.state()["referenceFrame"] == 1)
         self.command("seed")
         self.wait_for(lambda: self.session.state()["state"] == "acquiring")
+
+    def acquisitions(self):
+        self.acquisition_library = Library()
+        loader = patch('lingxi_slam.acquisition_output.ctypes.CDLL',
+                       return_value=self.acquisition_library)
+        loader.start()
+        self.addCleanup(loader.stop)
+        self.native.acquisition_output = NativeAcquisitionOutput('synthetic.so')
+        self.registered = []
+        self.lane.on_acquisition = self.registered.append
+
+    def test_acquisition_decode_runs_off_sensor_thread_and_pause_revokes_blocked_packet(self):
+        self.acquisitions()
+        self.seed()
+        for frame in (2, 3, 4):
+            self.send()
+            self.wait_for(lambda: self.session.state()['lastFrame'] == frame)
+        self.assertEqual('tracking', self.session.state()['state'])
+        self.wait_for(lambda: len(self.registered) == 1)
+        decode, owners = EncodedAcquisition.decode, []
+        def slow_decode(packet):
+            owners.append(threading.get_ident())
+            self.entered.set()
+            if not self.release.wait(2):
+                raise RuntimeError('test_decode_deadline')
+            return decode(packet)
+        with patch.object(EncodedAcquisition, 'decode', slow_decode):
+            self.send()
+            self.assertTrue(self.entered.wait(2))
+            # Raw IMU ingestion remains available while interpolation is blocked.
+            self.native.imu(1001., (0., 0., 9.8), (0., 0., 0.))
+            self.command('pause')
+            self.release.set()
+            self.wait_for(lambda: self.lane.summary()['processed'] == 5)
+        self.assertEqual([self.session.owner], owners)
+        self.assertEqual(1, len(self.registered))
+        self.assertIsNone(self.session.state()['mapFromSensor'])
+        self.assertEqual('paused', self.session.state()['state'])
+        self.assertEqual(5, self.lane.summary()['recentStageTimings']['decodeAcquisition']['count'])
+
+    def test_invalid_deferred_geometry_retires_lane_without_delivering_frame(self):
+        self.acquisitions()
+        with patch.object(EncodedAcquisition, 'decode', side_effect=ValueError('invalid_geometry')):
+            self.send()
+            self.wait_for(lambda: self.lane.summary()['failed'])
+        self.assertEqual([], self.frames)
+        self.assertEqual([], self.registered)
+        self.assertFalse(self.session.accepting)
+        with self.assertRaisesRegex(RuntimeError, 'localization_lane_failed'):
+            self.native.close()
 
     def test_slow_registration_coalesces_only_corrected_frames_and_owns_copies(self):
         self.seed()

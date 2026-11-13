@@ -67,6 +67,25 @@ class SeededRegistrationTests(unittest.TestCase):
         self.assertTrue(result.accepted, (result.reasons, result.metrics))
         np.testing.assert_allclose(result.map_from_sensor, self.truth, atol=.012, rtol=0)
 
+    def test_bounded_parallelism_preserves_pose_and_rejection_decisions(self):
+        seed_far = self.seed.copy()
+        seed_far[:3, 3] += 100
+        noise = np.random.default_rng(3).normal(0, .008, self.scan[::2].shape)
+        scans = ((self.scan, self.seed), (self.scan[::2] + noise, self.seed),
+                 (self.scan, seed_far),
+                 (np.concatenate((self.scan, self.scan + 100)), self.seed))
+        baseline = SeededMapRegistration(self.points, replace(RegistrationConfig(), num_threads=1))
+        parallel = SeededMapRegistration(self.points)
+        self.assertEqual(2, parallel.config.num_threads)
+        for scan, seed in scans:
+            expected, actual = baseline.register(scan, seed), parallel.register(scan, seed)
+            self.assertEqual(expected.accepted, actual.accepted)
+            self.assertEqual(expected.reasons, actual.reasons)
+            if expected.accepted:
+                np.testing.assert_allclose(actual.map_from_sensor, expected.map_from_sensor, atol=.001, rtol=0)
+            else:
+                self.assertIsNone(actual.map_from_sensor)
+
     def test_private_diagnostics_preserve_quality_decisions_and_omit_coordinates(self):
         diagnostics = RegistrationDiagnostics()
         registration = SeededMapRegistration(self.points, diagnostics=diagnostics)
@@ -178,6 +197,8 @@ class SeededRegistrationTests(unittest.TestCase):
     def test_configuration_version_and_downsampled_capacity(self):
         for args in ({"voxel_raw": 0}, {"minimum_overlap": 1.1}, {"maximum_iterations": True},
                      {"maximum_iterations": 101}, {"minimum_points": 2},
+                     {"num_threads": 0}, {"num_threads": 5}, {"num_threads": True},
+                     {"num_threads": 1.5},
                      {"maximum_scan_points": 31}, {"maximum_seed_rotation_radians": 4},
                      {"minimum_geometry_ratio": float("nan")},
                      {"maximum_inlier_rms_raw": 2}, {"minimum_points": 100, "maximum_scan_points": 64}):

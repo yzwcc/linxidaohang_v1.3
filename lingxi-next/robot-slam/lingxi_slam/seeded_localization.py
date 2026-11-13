@@ -29,6 +29,9 @@ class RegistrationConfig:
     maximum_map_points: int = 2_000_000
     maximum_scan_points: int = 100_000
     maximum_iterations: int = 80
+    # Bound parallel native work inside the isolated registration process.
+    # Keep sensor ingestion and LIO separate; never change quality or age limits.
+    num_threads: int = 2
 
     def __post_init__(self):
         for name in (
@@ -47,7 +50,8 @@ class RegistrationConfig:
             raise ValueError("consistent_registration_limits_required")
         for name, low, high in (
                 ("minimum_points", 32, 100_000), ("maximum_map_points", 32, 2_000_000),
-                ("maximum_scan_points", 32, 100_000), ("maximum_iterations", 1, 100)):
+                ("maximum_scan_points", 32, 100_000), ("maximum_iterations", 1, 100),
+                ("num_threads", 1, 4)):
             if type(getattr(self, name)) is not int or not low <= getattr(self, name) <= high:
                 raise ValueError("bounded_integer_registration_limits_required")
         if self.minimum_points > min(self.maximum_map_points, self.maximum_scan_points):
@@ -177,7 +181,8 @@ class SeededMapRegistration:
 
     def _preprocess(self, points):
         cloud, tree = self.native.preprocess_points(
-            points, downsampling_resolution=self.config.voxel_raw, num_neighbors=20, num_threads=1)
+            points, downsampling_resolution=self.config.voxel_raw, num_neighbors=20,
+            num_threads=self.config.num_threads)
         if len(cloud) < self.config.minimum_points:
             raise ValueError("insufficient_points_after_registration_downsampling")
         return cloud, tree
@@ -192,7 +197,7 @@ class SeededMapRegistration:
         result = self.native.align(
             self.target, source, self.target_tree, init_T_target_source=seed,
             registration_type="GICP", max_correspondence_distance=c.correspondence_raw,
-            num_threads=1, max_iterations=c.maximum_iterations)
+            num_threads=c.num_threads, max_iterations=c.maximum_iterations)
         metrics = {
             "scanPoints": len(scan), "mapPoints": len(self.map_points),
             "downsampledScanPoints": len(source), "downsampledMapPoints": len(self.target),
@@ -205,7 +210,7 @@ class SeededMapRegistration:
             metrics["milliseconds"] = (time.perf_counter() - started) * 1000
             return self._finish(RegistrationEstimate(False, ("invalid_native_transform",), None, metrics))
         transformed = scan @ pose[:3, :3].T + pose[:3, 3]
-        distances, _ = self.map_tree.query(transformed, workers=1)
+        distances, _ = self.map_tree.query(transformed, workers=c.num_threads)
         inliers = distances <= c.correspondence_raw
         selected = distances[inliers]
         overlap = float(np.mean(inliers))
@@ -246,7 +251,7 @@ class SeededMapRegistration:
 
     def _geometry_ratio(self, source, pose):
         points = np.asarray(source.points())[:, :3] @ pose[:3, :3].T + pose[:3, 3]
-        distances, indices = self.geometry_tree.query(points, workers=1)
+        distances, indices = self.geometry_tree.query(points, workers=self.config.num_threads)
         mask = distances <= self.config.correspondence_raw
         points, normals = points[mask], self.target_normals[indices[mask]]
         if len(points) < self.config.minimum_points or not np.isfinite(normals).all():

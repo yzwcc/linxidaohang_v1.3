@@ -1,10 +1,12 @@
 """One registration owner with a replaceable frame slot, separate from LIO input."""
+from collections import deque
 from dataclasses import replace
 from copy import deepcopy
 import threading
 import time
 
 from .point_data import arrays
+from .acquisition_output import EncodedAcquisition
 
 
 class LocalizationLane:
@@ -23,6 +25,9 @@ class LocalizationLane:
         self.closed, self.failed = False, False
         self.offered = self.processed = self.replaced = self.discarded = 0
         self.maximum_seconds = 0.
+        self.timings = {name: deque(maxlen=512) for name in (
+            'ingressToLane', 'decodeAcquisition', 'registration', 'projection', 'ingressToCapture',
+            'nativePreprocess', 'nativeOdometry')}
 
     def start(self):
         if self.thread is not None:
@@ -72,11 +77,18 @@ class LocalizationLane:
                     continue
                 packet, received_at, generation, acquisition, metadata = task
                 started = time.monotonic()
+                marks = {'ingressToLane': started - received_at}
                 self.session.tick()
                 if packet is not None:
+                    if type(acquisition) is EncodedAcquisition:
+                        acquisition = acquisition.decode()
+                    decoded = time.monotonic()
+                    marks['decodeAcquisition'] = decoded - started
                     self.session.observe(packet, session=self.session.binding.session,
                         input_mode=self.session.binding.input_mode, received_at=received_at,
                         expected_generation=generation)
+                    registered_at = time.monotonic()
+                    marks['registration'] = registered_at - decoded
                     if acquisition is not None:
                         registered = self.session.register_acquisition(acquisition, packet,
                             received_at=received_at, expected_generation=generation)
@@ -84,9 +96,19 @@ class LocalizationLane:
                             self.on_acquisition(registered)
                 if self.on_frame is not None:
                     self.on_frame(*metadata)
+                completed = time.monotonic()
+                marks['ingressToCapture'] = completed - received_at
+                if packet is not None:
+                    marks['projection'] = completed - registered_at
+                statistics = metadata[3]
+                if getattr(statistics, 'shape', None) == (4,):
+                    marks.update(nativePreprocess=float(statistics[0]) / 1000.,
+                                 nativeOdometry=float(statistics[1]) / 1000.)
                 with self.condition:
                     self.processed += 1
-                    self.maximum_seconds = max(self.maximum_seconds, time.monotonic() - started)
+                    self.maximum_seconds = max(self.maximum_seconds, completed - started)
+                    for name, duration in marks.items():
+                        self.timings[name].append(duration)
                 task = packet = acquisition = metadata = None
         except BaseException:
             with self.condition:
@@ -119,8 +141,14 @@ class LocalizationLane:
 
     def summary(self):
         with self.condition:
+            def quantiles(values):
+                ordered = sorted(values)
+                return {'count': len(ordered), 'p50Seconds': ordered[(len(ordered) - 1) // 2],
+                    'p95Seconds': ordered[min(len(ordered) - 1, int(len(ordered) * .95))],
+                    'maximumSeconds': ordered[-1]} if ordered else {'count': 0}
             return dict(offered=self.offered, processed=self.processed, replaced=self.replaced,
                 discarded=self.discarded, pending=int(self.pending is not None),
                 closed=self.closed, failed=self.failed,
                 threadAlive=self.thread is not None and self.thread.is_alive(),
-                maximumProcessingSeconds=self.maximum_seconds)
+                maximumProcessingSeconds=self.maximum_seconds,
+                recentStageTimings={name: quantiles(values) for name, values in self.timings.items()})

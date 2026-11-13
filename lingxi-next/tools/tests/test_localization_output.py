@@ -61,6 +61,22 @@ class SyntheticLiveFixture:
             self.output.capture(timing.header_ns, timing.algorithm_stamp)
         return packet, timing, base
 
+    def offer_last_return(self, frame=1, stamp=1_000_000_000, x=0., *, lookup=None, offset=10_000_000):
+        packet, timing, start = self.offer(frame, stamp, x, capture=False)
+        # A measured intra-scan translation and rotation, deliberately unlike start.
+        end = start.copy()
+        end[:3, :3] = Rotation.from_euler('z', .2).as_matrix()
+        end[0, 3] += .03
+        raw = np.linalg.inv(self.session.base_navigation_from_raw) @ end @ self.extrinsic
+        raw[:3, 3] /= self.session.base_scale
+        raw.flags.writeable = False
+        packet = replace(packet, last_return_offset_ns=offset, map_lidar_last_return_pose=raw)
+        projector = BasePoseProjector(lookup or (lambda ns: BaseLidarTransform(ns, self.extrinsic)),
+            metres_per_map_unit=self.session.base_scale, navigation_from_raw=self.session.base_navigation_from_raw)
+        self.output.offer(packet)
+        self.output.capture(timing.header_ns, timing.algorithm_stamp, timing=timing, projector=projector)
+        return packet, timing, end
+
 
 @unittest.skipUnless(AVAILABLE, 'requires isolated numerical Python runtime')
 class ObservationTests(SyntheticLiveFixture, unittest.TestCase):
@@ -83,6 +99,43 @@ class ObservationTests(SyntheticLiveFixture, unittest.TestCase):
         np.testing.assert_allclose((0., 0., 0.), value.angular, atol=1e-12)
         self.assertFalse(value.sensor_points.flags.writeable)
         self.assertFalse(self.session.state()['basePose']['physicalScaleValidated'])
+
+    def test_last_return_is_measured_pose_at_original_integer_time_with_identical_map_points(self):
+        epoch = 1_700_000_000_123_456_789
+        self.extrinsic[:3, :3] = Rotation.from_euler('xyz', (.3, -.2, .4)).as_matrix()
+        self.offer_last_return(stamp=epoch)
+        packet, timing, end = self.offer_last_return(2, epoch + 100_000_000, .1)
+        value = self.output.snapshot()
+        self.assertEqual(epoch + 110_000_000, value.stamp_ns)
+        self.assertNotEqual(timing.header_ns, value.stamp_ns)
+        np.testing.assert_allclose(end, value.map_from_base, atol=1e-12)
+        np.testing.assert_allclose(self.extrinsic, value.base_from_sensor, atol=1e-12)
+        sensor = value.map_from_base @ value.base_from_sensor
+        expected = packet.endpoints * self.session.base_scale
+        np.testing.assert_allclose(value.sensor_points @ sensor[:3, :3].T + sensor[:3, 3], expected, atol=1e-12)
+        self.assertFalse(np.allclose(self.points, value.sensor_points))
+        np.testing.assert_allclose((np.cos(.2), -np.sin(.2), 0.), value.linear, atol=1e-12)
+
+    def test_last_return_requires_exact_tf_and_bounded_offset_then_two_new_poses(self):
+        for lookup, offset in ((lambda ns: None, 10_000_000), (None, 0), (None, 20_000_001)):
+            with self.subTest(offset=offset, lookup=lookup):
+                self.prepare()
+                self.offer_last_return()
+                self.offer_last_return(2, 1_100_000_000, lookup=lookup, offset=offset)
+                self.assertIsNone(self.output.snapshot())
+                self.offer_last_return(3, 1_200_000_000)
+                self.assertIsNone(self.output.snapshot())
+                self.offer_last_return(4, 1_300_000_000)
+                self.assertIsNotNone(self.output.snapshot())
+        with self.assertRaisesRegex(ValueError, 'matching_last_return'):
+            self.offer_last_return(5, 1_400_000_000, lookup=lambda ns: BaseLidarTransform(ns+1, self.extrinsic))
+
+    def test_runtime_missing_timing_cannot_fall_back_to_scan_start(self):
+        self.offer_last_return()
+        _, timing, _ = self.offer(2, 1_100_000_000, capture=False)
+        projector = BasePoseProjector(lambda ns: BaseLidarTransform(ns, self.extrinsic), metres_per_map_unit=2.)
+        self.output.capture(timing.header_ns, timing.algorithm_stamp, projector=projector)
+        self.assertIsNone(self.output.snapshot())
 
     def test_finite_difference_twist_is_in_current_body_frame(self):
         self.offer(yaw=.1)
@@ -161,6 +214,60 @@ class ObservationTests(SyntheticLiveFixture, unittest.TestCase):
                 self.session.phase, self.session.pending = phase, pending
                 self.assertIsNone(self.output.snapshot())
                 self.session.phase, self.session.pending = 'tracking', None
+                self.assertIsNone(self.output.snapshot())
+
+    def test_same_generation_recovery_withdraws_then_requires_two_new_poses(self):
+        for read_during_recovery in (False, True):
+            with self.subTest(reader=read_during_recovery):
+                self.prepare()
+                self.offer()
+                self.offer(2, 1_100_000_000)
+                self.assertIsNotNone(self.output.snapshot())
+                self.session.phase = 'acquiring'
+                self.session.reason = 'registration_retry_after_rejection'
+                if read_during_recovery:
+                    self.assertIsNone(self.output.snapshot())
+                else:
+                    self.output.capture(1_220_000_000, 0.)
+                self.assertFalse(self.output.revoked)
+                self.session.reason = 'confirmation_required'
+                self.assertIsNone(self.output.snapshot())
+                self.session.phase = 'tracking'
+                self.now += .1
+                self.offer(3, 1_200_000_000, .1)
+                self.assertIsNone(self.output.snapshot())
+                self.now += .1
+                self.offer(4, 1_300_000_000, .15)
+                value = self.output.snapshot()
+                self.assertIsNotNone(value)
+                self.assertEqual(4, value.frame)
+                np.testing.assert_allclose((.5, 0., 0.), value.linear, atol=1e-12)
+
+    def test_recovery_cannot_cross_generation_pending_request_or_closed_worker(self):
+        for change in ('generation', 'pending', 'worker', 'not_ready', 'reason'):
+            with self.subTest(change=change):
+                self.prepare()
+                self.offer()
+                self.offer(2, 1_100_000_000)
+                self.session.phase = 'acquiring'
+                self.session.reason = 'confirmation_required'
+                if change == 'generation':
+                    self.session.generation += 1
+                elif change == 'pending':
+                    self.session.pending = (1, 'seed', None, None)
+                elif change == 'worker':
+                    self.session.worker_closed = True
+                elif change == 'not_ready':
+                    self.session.worker_ready = False
+                else:
+                    self.session.reason = 'unrecognized_recovery'
+                self.assertIsNone(self.output.snapshot())
+                self.assertTrue(self.output.revoked)
+                self.session.phase, self.session.pending = 'tracking', None
+                self.session.worker_closed = False
+                self.session.worker_ready = True
+                self.offer(3, 1_200_000_000)
+                self.offer(4, 1_300_000_000)
                 self.assertIsNone(self.output.snapshot())
 
     def test_stale_original_receipt_and_long_pose_gap_do_not_invent_velocity(self):

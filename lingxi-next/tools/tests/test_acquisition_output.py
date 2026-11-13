@@ -120,6 +120,34 @@ class DecoderTests(unittest.TestCase):
             self.assertFalse(value.flags.writeable)
         self.assertFalse(hasattr(packet, "received_at"))
 
+    def test_last_return_pose_uses_original_trajectory_reference_and_extrinsic(self):
+        from lingxi_slam.observation_archive import ObservationArchive
+        reference, corrected, extrinsic = pose(3, 25), pose(-2, -40), pose(.3, 15)
+        data = bytearray(packet_bytes(corrected=corrected, extrinsic=extrinsic))
+        trajectory = np.array([[10., 0, 0, 0, 0, 0, 0, 1],
+                               [11., 2, 0, 0, *Rotation.from_euler('z', 90, degrees=True).as_quat()]])
+        for row in trajectory:
+            original = pose()
+            original[:3, :3] = Rotation.from_quat(row[4:]).as_matrix()
+            original[:3, 3] = row[1:4]
+            transformed = reference @ original
+            row[1:4] = transformed[:3, 3]
+            row[4:] = Rotation.from_matrix(transformed[:3, :3]).as_quat()
+        data[232:360] = reference.astype('<f8').tobytes()
+        data[616:744] = trajectory.astype('<f8').tobytes()
+        # Last return precedes the trajectory end, requiring interpolation.
+        struct.pack_into('<d', data, 808, .75)
+        data = bytes(data)
+        packet = self.decode(data, expected=corrected @ np.linalg.inv(extrinsic))
+        expected = corrected @ pose(1.5, 67.5) @ np.linalg.inv(extrinsic)
+        self.assertEqual(750_000_000, packet.last_return_offset_ns)
+        np.testing.assert_allclose(expected, packet.world_lidar_last_return_pose, atol=1e-12)
+        np.testing.assert_allclose(packet.origins[-1], expected[:3, 3], atol=1e-12)
+        self.assertFalse(packet.world_lidar_last_return_pose.flags.writeable)
+        source, = ObservationArchive.from_bytes(data)
+        self.assertEqual(source.source_sha256, packet.source_sha256)
+        np.testing.assert_allclose(source.endpoints_raw, packet.endpoints, rtol=0, atol=1e-12)
+
     def test_nonzero_extrinsic_and_correction_transform_both_ends(self):
         extrinsic, corrected = pose(.2, 30), pose(4, -40)
         packet = self.decode(packet_bytes(corrected=corrected, extrinsic=extrinsic),
@@ -190,6 +218,30 @@ class NativeOutputTests(unittest.TestCase):
         self.assertEqual(["open", ("take", 0), ("take", 840)], self.library.calls)
         self.assertIsNone(self.output.take(10., None))
         self.assertEqual(1, self.output.counts()["copies"])
+
+    def test_deferred_decode_owns_bytes_and_pose_and_preserves_geometry(self):
+        self.library.data = packet_bytes()
+        expected = pose()
+        with patch('lingxi_slam.acquisition_output.decode_acquisition',
+                   side_effect=AssertionError('sensor_owner_must_not_interpolate')):
+            encoded = self.output.take(10., expected, defer_decode=True)
+        expected[:] = np.nan
+        self.library.data = b'overwritten_native_storage'
+        delivered = []
+        self.assertEqual([], other_thread(lambda: delivered.append(encoded.decode())))
+        decoded, = delivered
+        reference = decode_acquisition(packet_bytes(), (1, 3, 2, 840), 10., pose())
+        self.assertEqual(reference.source_sha256, decoded.source_sha256)
+        for name in ('origins', 'endpoints', 'world_lidar_pose'):
+            np.testing.assert_array_equal(getattr(reference, name), getattr(decoded, name))
+        self.library.data = None
+        self.assertIsNone(self.output.take(10., None))
+
+    def test_deferred_decode_still_rejects_invalid_source_geometry(self):
+        self.library.data = changed(packet_bytes(), 752, '<d', float('inf'))
+        encoded = self.output.take(10., pose(), defer_decode=True)
+        with self.assertRaises(ValueError):
+            encoded.decode()
 
     def test_initialization_has_no_packet(self):
         self.assertIsNone(self.output.take(9., None))

@@ -91,6 +91,7 @@ class LiveBasePose:
                 self.session.revoke_base("timestamped_projection_unavailable")
             else:
                 self.session.project_base(timing, self.projector, algorithm_stamp=algorithm)
+        return timing
 
     def close(self):
         self.closed.set()

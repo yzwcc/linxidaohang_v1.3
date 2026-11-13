@@ -6,6 +6,7 @@ import struct
 import threading
 
 import numpy as np
+from scipy.spatial.transform import Rotation, Slerp
 
 from .observation_archive import ObservationArchive, rigid
 
@@ -22,6 +23,21 @@ class AcquisitionPacket:
     world_lidar_pose: np.ndarray
     coordinate_frame: str = "lingxi_glim_odom"
     kind: str = "native_per_return_original_lio_acquisition"
+    last_return_offset_ns: int = None
+    world_lidar_last_return_pose: np.ndarray = None
+
+
+@dataclass(frozen=True)
+class EncodedAcquisition:
+    """Owned native bytes; interpolation belongs to the registration lane."""
+    data: bytes
+    metadata: tuple
+    algorithm_stamp: float
+    expected_pose_bytes: bytes
+
+    def decode(self):
+        return decode_acquisition(self.data, self.metadata, self.algorithm_stamp,
+            np.frombuffer(self.expected_pose_bytes, dtype='<f8').reshape(4, 4))
 
 
 def decode_acquisition(data, metadata, stamp, expected_lidar_pose):
@@ -40,7 +56,7 @@ def decode_acquisition(data, metadata, stamp, expected_lidar_pose):
             or struct.unpack_from("<Q", data, 176)[0] != 1
             or (frame_id, frame_stamp, points, samples, kind) != (metadata[0], stamp, metadata[1], metadata[2], 2)):
         raise ValueError("single_current_odometry_acquisition_envelope_required")
-    archive = ObservationArchive.from_bytes(data)
+    archive = ObservationArchive.from_bytes(data, batched_rotations=True)
     sources = list(archive)
     source = sources[0]
     extrinsic = rigid(np.frombuffer(data, "<f8", 16, 360).reshape(4, 4))
@@ -50,9 +66,21 @@ def decode_acquisition(data, metadata, stamp, expected_lidar_pose):
     if (source.frame_id != metadata[0] or source.stamp != stamp or expected.shape != (4, 4)
             or not np.isfinite(expected).all() or not np.allclose(pose, expected, rtol=0, atol=1e-8)):
         raise ValueError("matching_corrected_frame_acquisition_required")
-    pose.flags.writeable = False
+    # This is an observed pose inside this scan's original IMU trajectory, not
+    # prediction or a replacement timestamp for the scan-start pose.
+    trajectory = np.frombuffer(data, '<f8', samples * 8, 616).reshape(samples, 8)
+    returns = np.frombuffer(data, '<f8', points * 4, 616 + samples * 64).reshape(points, 4)
+    offset_ns = int(round(float(returns[-1, 0]) * 1e9))
+    last_time = stamp + float(returns[-1, 0])
+    last_imu = np.eye(4)
+    last_imu[:3, :3] = Slerp(trajectory[:, 0], Rotation.from_quat(trajectory[:, 4:]))([last_time]).as_matrix()[0]
+    last_imu[:3, 3] = [np.interp(last_time, trajectory[:, 0], trajectory[:, i]) for i in (1, 2, 3)]
+    reference = rigid(np.frombuffer(data, '<f8', 16, 232).reshape(4, 4))
+    last_pose = rigid(corrected_imu @ np.linalg.inv(reference) @ last_imu @ np.linalg.inv(extrinsic))
+    pose.flags.writeable = last_pose.flags.writeable = False
     return AcquisitionPacket(source.frame_id, stamp, source.source_sha256,
-                             source.origins_raw, source.endpoints_raw, pose)
+                             source.origins_raw, source.endpoints_raw, pose,
+                             last_return_offset_ns=offset_ns, world_lidar_last_return_pose=last_pose)
 
 
 class NativeAcquisitionOutput:
@@ -82,7 +110,7 @@ class NativeAcquisitionOutput:
         if self.closed or threading.get_ident() != self.owner:
             raise RuntimeError("active_same_thread_acquisition_output_required")
 
-    def take(self, stamp, expected_lidar_pose):
+    def take(self, stamp, expected_lidar_pose, *, defer_decode=False):
         self.active()
         metadata = (ctypes.c_uint64 * 4)()
         status = self.check(self.library.lingxi_acquisition_take(0, None, metadata))
@@ -98,8 +126,12 @@ class NativeAcquisitionOutput:
         status = self.check(self.library.lingxi_acquisition_take(len(buffer), buffer, metadata))
         if status != 1 or tuple(metadata) != first:
             raise ValueError("unchanged_single_acquisition_copy_required")
-        packet = decode_acquisition(bytes(buffer), first, stamp, expected_lidar_pose)
-        self.previous_id, self.previous_stamp = packet.native_frame_id, stamp
+        if defer_decode:
+            expected = rigid(np.asarray(expected_lidar_pose)).astype('<f8').tobytes()
+            packet = EncodedAcquisition(bytes(buffer), first, stamp, expected)
+        else:
+            packet = decode_acquisition(bytes(buffer), first, stamp, expected_lidar_pose)
+        self.previous_id, self.previous_stamp = first[0], stamp
         return packet
 
     def counts(self):

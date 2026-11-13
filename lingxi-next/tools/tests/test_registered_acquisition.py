@@ -47,6 +47,10 @@ class Geometry(unittest.TestCase):
     def test_both_measured_ends_use_noncommuting_same_frame_registration(self):
         result = self.register()
         transform = self.map_pose @ np.linalg.inv(self.odom)
+        self.assertEqual(self.packet.last_return_offset_ns, result.last_return_offset_ns)
+        np.testing.assert_allclose(result.map_lidar_last_return_pose,
+            transform @ self.packet.world_lidar_last_return_pose, atol=1e-12)
+        self.assertFalse(result.map_lidar_last_return_pose.flags.writeable)
         for raw, registered in ((self.packet.origins, result.origins), (self.packet.endpoints, result.endpoints)):
             expected = np.array([(transform @ [*value, 1])[:3] for value in raw])
             np.testing.assert_allclose(registered, expected, rtol=0, atol=1e-12)
@@ -59,6 +63,13 @@ class Geometry(unittest.TestCase):
         self.map_pose[0, 3] = 999
         self.assertEqual(-3, result.map_lidar_pose[0, 3])
         self.assertFalse(result.map_lidar_pose.flags.writeable)
+
+    def test_last_return_time_and_pose_must_be_paired_and_immutable(self):
+        for changes in ({'last_return_offset_ns': None}, {'last_return_offset_ns': -1},
+                {'last_return_offset_ns': True}, {'world_lidar_last_return_pose': None},
+                {'world_lidar_last_return_pose': self.packet.world_lidar_last_return_pose.copy()}):
+            with self.subTest(changes=changes), self.assertRaisesRegex(ValueError, 'paired_original'):
+                self.register(packet=replace(self.packet, **changes))
 
     def test_wrong_frame_stamp_pose_kind_or_source_rejected(self):
         for changed in (replace(self.packet, native_frame_id=2), replace(self.packet, algorithm_stamp=11.),

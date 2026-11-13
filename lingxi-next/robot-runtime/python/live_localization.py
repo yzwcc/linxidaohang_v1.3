@@ -4,6 +4,7 @@ from importlib.metadata import version
 from pathlib import Path
 import os
 import platform as host_platform
+import sys
 import threading
 
 from controlled_localization import native_library_inventory, source_hashes
@@ -98,6 +99,17 @@ def verify_completion(report, final, *, frozen, binding, sources, config_hash, b
 
 
 def child(args, sink, platform):
+    # NumPy/SciPy release and reacquire the GIL repeatedly per scan. Keep ROS,
+    # acquisition and registration responsive within this dedicated live child.
+    previous = sys.getswitchinterval()
+    try:
+        sys.setswitchinterval(min(previous, .001))
+        return _child(args, sink, platform)
+    finally:
+        sys.setswitchinterval(previous)
+
+
+def _child(args, sink, platform):
     import small_gicp
     from lingxi_slam.messages import SensorProfile
     from lingxi_slam.passive_ros import Topics, run_passive
@@ -182,10 +194,12 @@ def child(args, sink, platform):
     observation_owner = acquisition.localization_ros_output if acquisition is not None else None
 
     def frame(header, algorithm, pose, statistics):
+        timing = None
         if base_owner is not None:
-            base_owner.frame(header, algorithm, pose, statistics)
+            timing = base_owner.frame(header, algorithm, pose, statistics)
         if observation_owner is not None:
-            observation_owner.capture(header, algorithm)
+            observation_owner.capture(header, algorithm, timing=timing,
+                projector=base_owner.projector if base_owner is not None else None)
         if acquisition is not None:
             acquisition.capture_terrain(header, algorithm)
 
@@ -200,6 +214,7 @@ def child(args, sink, platform):
               "localizationReady": False, "navigationReady": False,
               "mapProfileAssociationVerified": False, "inputIntegrity": frozen,
               "machine": host_platform.machine(),
+              "pythonThreadSwitchIntervalSeconds": sys.getswitchinterval(),
               "versions": {**{name: version(name) for name in ("numpy", "scipy", "small-gicp")},
                            "python": host_platform.python_version(), "input": "installed_humble_rclpy"}}
     try:

@@ -6,7 +6,7 @@ import threading
 import numpy as np
 from scipy.spatial.transform import Rotation
 
-from lingxi_slam.base_pose import timestamp, metric_map_pose
+from lingxi_slam.base_pose import timestamp, metric_map_pose, ScanTime, BasePoseProjector, BaseLidarTransform
 from lingxi_slam.localization_session import LocalizationSession
 from lingxi_slam.registered_acquisition import RegisteredAcquisition
 from lingxi_slam.seeded_localization import rigid_pose
@@ -58,6 +58,18 @@ class LiveLocalizationRosOutput:
             and state['workerReady'] and not state['workerClosed']
             and (self.generation is None or self.generation == state['generation']))
 
+    def _withdraw_locked(self, state):
+        # A bounded registration retry keeps this session/generation. Withdraw
+        # immediately, then require two newly projected poses after tracking
+        # recovers. Explicit control, expiry and worker failure still retire it.
+        recovering = (state['state'] == 'acquiring'
+            and state['reason'] in ('registration_retry_after_rejection', 'confirmation_required')
+            and not state['requestPending'] and state['workerReady'] and not state['workerClosed']
+            and self.generation == state['generation'])
+        self.pending = self.previous = self.sample = None
+        if self.generation is not None and not recovering:
+            self.revoked = True
+
     def offer(self, packet):
         self._producer()
         if type(packet) is not RegisteredAcquisition or packet.binding != self.session.binding:
@@ -66,7 +78,7 @@ class LiveLocalizationRosOutput:
             if not self.closed and not self.revoked:
                 self.pending = packet
 
-    def capture(self, header, algorithm):
+    def capture(self, header, algorithm, *, timing=None, projector=None):
         self._producer()
         state = self.session.state()
         with self.lock:
@@ -75,9 +87,7 @@ class LiveLocalizationRosOutput:
                 return
             self.sample = None
             if not self._tracking(state):
-                self.previous = None
-                if self.generation is not None:
-                    self.revoked = True
+                self._withdraw_locked(state)
                 return
             base = state.get('basePose', {})
             if (packet is None or packet.generation != state['generation']
@@ -98,6 +108,29 @@ class LiveLocalizationRosOutput:
             if not np.allclose(raw_pose, state['mapFromSensor'], rtol=0, atol=1e-8):
                 raise ValueError('same_frame_map_sensor_pose_required')
             map_base = rigid_pose(np.asarray(base['mapFromBase'], dtype=np.float64))
+            if timing is not None or projector is not None:
+                # Use the last actual return's measured IMU pose and the TF at
+                # that same original time. Never relabel the start pose as new.
+                if (type(timing) is not ScanTime or not isinstance(projector, BasePoseProjector)
+                        or timing.header_ns != header or timing.algorithm_stamp != algorithm
+                        or timing.effective_ns != stamp or projector.scale != self.session.base_scale
+                        or not np.array_equal(projector.navigation_from_raw, self.session.base_navigation_from_raw)
+                        or type(packet.last_return_offset_ns) is not int
+                        or not 0 < packet.last_return_offset_ns <= timing.maximum_offset_ns
+                        or type(packet.map_lidar_last_return_pose) is not np.ndarray
+                        or packet.map_lidar_last_return_pose.flags.writeable):
+                    self.previous = None
+                    return
+                stamp = timestamp(stamp + packet.last_return_offset_ns)
+                transform = projector.lookup(stamp)
+                if transform is None:
+                    self.previous = None
+                    return
+                if type(transform) is not BaseLidarTransform or transform.stamp_ns != stamp:
+                    raise ValueError('matching_last_return_base_lidar_transform_required')
+                raw_pose = rigid_pose(packet.map_lidar_last_return_pose)
+                map_base = rigid_pose(metric_map_pose(raw_pose, self.session.base_scale,
+                    self.session.base_navigation_from_raw) @ np.linalg.inv(transform.base_from_lidar))
             map_sensor = metric_map_pose(raw_pose, self.session.base_scale, self.session.base_navigation_from_raw)
             base_sensor = rigid_pose(np.linalg.inv(map_base) @ map_sensor)
             points = (packet.endpoints - raw_pose[:3, 3]) @ raw_pose[:3, :3] * self.session.base_scale
@@ -127,8 +160,9 @@ class LiveLocalizationRosOutput:
         with self.lock:
             if self.closed or self.revoked:
                 return None
-            if self.generation is not None and not self._tracking(state):
-                self.revoked = True
+            if not self._tracking(state):
+                self._withdraw_locked(state)
+                return None
             if self.revoked or self.sample is None or not 0 <= now - self.sample.received_at <= .3:
                 self.sample = None
             return self.sample

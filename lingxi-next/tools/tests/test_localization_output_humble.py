@@ -108,6 +108,23 @@ class HumbleOutputTests(SavedMapTerrainFixture, SyntheticLiveFixture, unittest.T
         self.assertEqual([self.node], self.executor.get_nodes())
         self.assertFalse(self.output.summary()['failed'])
 
+    def test_last_return_transport_keeps_original_time_and_measured_pose(self):
+        import numpy as np
+        stamp = self.node.get_clock().now().nanoseconds - 120_000_000
+        self.offer_last_return(stamp=stamp)
+        packet, _, end = self.offer_last_return(2, stamp + 100_000_000, .1)
+        self.spin(.08)
+        self.assertTrue(all(self.samples.values()))
+        odom, cloud, transforms = (self.samples[name][-1] for name in ('odometry', 'points', 'tf'))
+        for value in (odom, cloud, *transforms.transforms):
+            self.assertEqual(stamp + 110_000_000, value.header.stamp.sec * 10**9 + value.header.stamp.nanosec)
+        self.assertAlmostEqual(end[0, 3], odom.pose.pose.position.x)
+        sensor = end @ self.extrinsic
+        points = np.frombuffer(cloud.data, dtype='<f8').reshape(-1, 3)
+        frame = self.session.base_navigation_from_raw
+        expected = packet.endpoints * self.session.base_scale @ frame[:3, :3].T + frame[:3, 3]
+        np.testing.assert_allclose(points @ sensor[:3, :3].T + sensor[:3, 3], expected, atol=1e-12)
+
     def test_expired_or_future_sensor_time_is_not_replaced_by_current_ros_time(self):
         now = self.node.get_clock().now().nanoseconds
         self.offer(stamp=now - 600_000_000)
@@ -119,6 +136,33 @@ class HumbleOutputTests(SavedMapTerrainFixture, SyntheticLiveFixture, unittest.T
         self.spin(.1)
         self.assertFalse(any(self.samples.values()))
         self.assertEqual(0, self.output.publications)
+
+    def test_temporary_recovery_withdraws_ros_then_publishes_only_new_confirmed_scans(self):
+        self.send()
+        count = self.output.publications
+        self.session.phase, self.session.reason = 'acquiring', 'registration_retry_after_rejection'
+        self.spin(.06)
+        self.assertIsNone(self.output.snapshot())
+        self.assertFalse(self.output.revoked)
+        self.assertEqual(count, self.output.publications)
+        self.session.reason = 'confirmation_required'
+        self.spin(.04)
+        self.assertEqual(count, self.output.publications)
+        self.session.phase = 'tracking'
+        self.now = time.monotonic()
+        stamp = self.node.get_clock().now().nanoseconds - 20_000_000
+        self.offer(3, stamp, .06)
+        self.spin(.04)
+        self.assertEqual(count, self.output.publications)
+        self.now = time.monotonic()
+        stamp = self.node.get_clock().now().nanoseconds - 10_000_000
+        self.offer(4, stamp, .07)
+        self.spin(.08)
+        self.assertEqual(count + 1, self.output.publications)
+        for kind in ('odometry', 'points', 'tf'):
+            message = self.samples[kind][-1]
+            header = message.transforms[0].header if kind == 'tf' else message.header
+            self.assertEqual(stamp, header.stamp.sec * 10**9 + header.stamp.nanosec)
 
     def test_missing_executor_and_partial_startup_leave_no_publishers_or_nodes(self):
         from types import SimpleNamespace

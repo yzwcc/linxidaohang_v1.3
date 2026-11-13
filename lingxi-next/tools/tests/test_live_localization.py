@@ -5,17 +5,41 @@ import importlib.util
 from pathlib import Path
 import sys
 import unittest
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(ROOT / "robot-runtime/python"), str(ROOT / "robot-slam")]
 AVAILABLE = sys.platform == "linux" and importlib.util.find_spec("numpy") is not None
 if AVAILABLE:
+    import live_localization
     from live_localization import verify_completion
     from lingxi_slam.localization_session import LocalizationBinding
 
 
 @unittest.skipUnless(AVAILABLE, "requires Linux runtime dependencies")
 class LiveCompletion(unittest.TestCase):
+    def test_live_scheduling_is_scoped_and_restored_on_runtime_failure(self):
+        original = sys.getswitchinterval()
+        try:
+            for interval in (.005, .0005):
+                for failure in (None, RuntimeError('worker_failed'), KeyboardInterrupt()):
+                    with self.subTest(interval=interval, failure=type(failure).__name__):
+                        sys.setswitchinterval(interval)
+                        def run(*args):
+                            self.assertLessEqual(sys.getswitchinterval(), .001)
+                            if failure is not None:
+                                raise failure
+                            return 7
+                        with patch.object(live_localization, '_child', side_effect=run):
+                            if failure is None:
+                                self.assertEqual(live_localization.child(None, None, None), 7)
+                            else:
+                                with self.assertRaises(type(failure)):
+                                    live_localization.child(None, None, None)
+                        self.assertAlmostEqual(sys.getswitchinterval(), interval)
+        finally:
+            sys.setswitchinterval(original)
+
     def setUp(self):
         self.binding = LocalizationBinding(
             "1" * 32, "live", "slam-" + "2" * 32, "3" * 64, "4" * 64, "5" * 64)
