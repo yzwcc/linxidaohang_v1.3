@@ -1,6 +1,8 @@
 """Actual session/window/lane composition, with explicit synthetic geometry."""
 from dataclasses import asdict, replace
+from contextlib import redirect_stderr
 import importlib.util
+import io
 import json
 import os
 from pathlib import Path
@@ -311,6 +313,34 @@ class SourceTests(unittest.TestCase):
         self.assertFalse(self.source(old))
         self.assertTrue(self.source.retired)
         self.assertIsNone(self.source.snapshot().grid)
+
+    def test_input_failure_has_private_location_and_still_revokes_source(self):
+        output = io.StringIO()
+        with redirect_stderr(output), patch.object(RegisteredRayWindow, 'offer',
+                side_effect=ValueError('synthetic_window_failure')):
+            with self.assertRaisesRegex(ValueError, 'synthetic_window_failure'):
+                self.source(self.registered())
+        self.assertTrue(self.source.retired)
+        self.assertIsNone(self.source.snapshot().grid)
+        self.assertEqual('registered_terrain_input_failed', self.source.snapshot().failure)
+        records = [json.loads(line) for line in output.getvalue().splitlines()]
+        self.assertEqual('registered_terrain_input', records[0]['phase'])
+        self.assertEqual('registered_terrain_input_failed', records[0]['code'])
+        self.assertEqual('registered_terrain_retire', records[1]['phase'])
+
+    def test_snapshot_failure_preserves_exception_and_revokes_previous_grid(self):
+        self.accepted()
+        output = io.StringIO()
+        with redirect_stderr(output), patch.object(self.session, 'state',
+                side_effect=RuntimeError('synthetic_snapshot_failure')):
+            with self.assertRaisesRegex(RuntimeError, 'synthetic_snapshot_failure'):
+                self.source.snapshot()
+        self.assertTrue(self.source.retired)
+        self.assertIsNone(self.source.snapshot().grid)
+        self.assertEqual('registered_localization_unavailable', self.source.snapshot().failure)
+        record = json.loads(output.getvalue().splitlines()[0])
+        self.assertEqual('registered_terrain_snapshot', record['phase'])
+        self.assertEqual('registered_localization_unavailable', record['code'])
 
     def test_wrong_owner_retires_and_replay_cannot_renew_grid(self):
         self.accepted()

@@ -3,12 +3,13 @@ import { mkdtemp, mkdir, readFile, rm, symlink, writeFile } from "node:fs/promis
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 import { copySourceTree, sourceMemberAllowed } from "./release-sources.mjs";
 
 test("release source filter retains native verification inputs and excludes generated/private material", () => {
   for (const name of ["glim-full-mapping/full_mapping.cpp", "glim-full-mapping/submapping-eof.patch",
     "glim-observations/CMakeLists.txt", "native-point-output/exports.map", "runtime-arm64-cp310.lock.json",
-    "python/managed_slam.py", "python/product_configuration.py", "check_ground_native.py",
+    "python/managed_slam.py", "python/product_configuration.py", "lingxi_navigation/runtime_fault.py", "check_ground_native.py",
     "check_installed_slam_python.py", "arm64_python_runtime.py", "prepare_installed_mapping_inputs.py",
     "prepare_installed_acquisition_inputs.py",
     "offline_nav2_worker.py", "nav2-offline-service-isolated.sh",
@@ -21,6 +22,19 @@ test("release source filter retains native verification inputs and excludes gene
     "robot.env", "robot.key", "state.sqlite3", "recording.db3"]) {
     assert.equal(sourceMemberAllowed(name, false), false, name);
   }
+});
+
+test("copied navigation sources import their shipped fault recorder", async () => {
+  const work = await mkdtemp(path.join(os.tmpdir(), "lingxi-release-navigation-"));
+  try {
+    const source = new URL("../robot-navigation/lingxi_navigation/", import.meta.url);
+    await copySourceTree(fileURLToPath(source), work);
+    const recorder = await readFile(path.join(work, "runtime_fault.py"), "utf8");
+    assert.match(recorder, /def record_fault\(/);
+    for (const name of ["terrain_lane.py", "terrain_process.py"]) {
+      assert.match(await readFile(path.join(work, name), "utf8"), /from \.runtime_fault import record_fault/);
+    }
+  } finally { await rm(work, { recursive: true, force: true }); }
 });
 
 test("source copy applies filters during recursion", async () => {

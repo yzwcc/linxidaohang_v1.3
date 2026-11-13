@@ -9,6 +9,7 @@ import time
 
 from .navfn import finite
 from .occupancy import DeclaredObservationBatch
+from .runtime_fault import record_fault
 from .terrain_process import TerrainGrid
 
 
@@ -75,11 +76,13 @@ class TerrainLane:
 
     def _run(self):
         service = None
+        phase, started = 'terrain_lane_factory', time.monotonic()
         try:
             service = self.factory()
             with self.condition:
                 if self.stopping:
                     return
+            phase, started = 'terrain_lane_start', time.monotonic()
             service.start()
             with self.condition:
                 if self.stopping:
@@ -93,6 +96,7 @@ class TerrainLane:
                     pending, self.pending = self.pending, None
                 if pending is not None:
                     observations, sequence, received_at = pending
+                    phase, started = 'terrain_lane_update', time.monotonic()
                     grid = service.update(observations, sequence=sequence, received_at=received_at)
                     if type(grid) is not TerrainGrid:
                         raise ValueError('complete_native_terrain_grid_required')
@@ -100,6 +104,7 @@ class TerrainLane:
                         if self.stopping:
                             return
                         self._set(state='ready', grid=grid, failure=None)
+                phase, started = 'terrain_lane_current', time.monotonic()
                 grid = service.current()
                 with self.condition:
                     if self.stopping:
@@ -111,15 +116,18 @@ class TerrainLane:
                     # submit() may have raced with the health check.
                     if self.pending is None:
                         self.condition.wait(self.poll_seconds)
-        except BaseException:
+        except BaseException as error:
+            record_fault(phase, error, started_at=started)
             with self.condition:
                 if not self.stopping:
                     self._set(state='failed', grid=None, failure='terrain_lane_failed')
                     self.stopping, self.pending = True, None
         finally:
             if service is not None:
+                started = time.monotonic()
                 try:
                     service.close()
-                except BaseException:
+                except BaseException as error:
+                    record_fault('terrain_lane_cleanup', error, started_at=started)
                     with self.condition:
                         self._set(state='failed', grid=None, failure='terrain_cleanup_failed')

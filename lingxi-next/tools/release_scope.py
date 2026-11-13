@@ -49,6 +49,7 @@ INDEPENDENT_FILES = frozenset((
     'independent/source/robot-navigation/lingxi_navigation/physical_maps.py',
     'independent/source/robot-navigation/lingxi_navigation/localization_guard.py',
     'independent/source/robot-navigation/lingxi_navigation/owned_inputs.py',
+    'independent/source/robot-navigation/lingxi_navigation/runtime_fault.py',
     'independent/source/robot-runtime/python/live_localization_ros.py',
     'independent/source/robot-navigation/nav2_physical.launch.py',
     'independent/source/robot-navigation/native-ground/CMakeLists.txt',

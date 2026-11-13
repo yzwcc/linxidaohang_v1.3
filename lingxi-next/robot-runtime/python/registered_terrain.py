@@ -4,6 +4,7 @@ import hashlib
 from pathlib import Path
 import sys
 import threading
+import time
 
 import numpy as np
 
@@ -17,6 +18,7 @@ from lingxi_navigation.occupancy import ClearanceProjection, canonical
 from lingxi_navigation.registered_window import RegisteredRayWindow
 from lingxi_navigation.terrain import TerrainBudget
 from lingxi_navigation.terrain_lane import TerrainLane
+from lingxi_navigation.runtime_fault import record_fault
 
 
 class RegisteredTerrainSource:
@@ -59,6 +61,7 @@ class RegisteredTerrainSource:
 
     def _retire(self, reason):
         if not self.retired:
+            record_fault('registered_terrain_retire', code=reason)
             self.retired = True
             self.submitted = None
             self.scan_stamps.clear()
@@ -72,6 +75,7 @@ class RegisteredTerrainSource:
             self._retire(reason)
 
     def __call__(self, packet, *, scan_header_ns=None):
+        started = time.monotonic()
         with self.lock:
             if self.retired:
                 return False
@@ -128,11 +132,13 @@ class RegisteredTerrainSource:
                     self.submitted_epoch_sha256 = hashlib.sha256(canonical([batch.map_id,
                         batch.receipt_sha256, batch.binding_sha256, batch.geometry_declaration_sha256])).hexdigest()
                 return accepted
-            except BaseException:
+            except BaseException as error:
+                record_fault('registered_terrain_input', error, started_at=started, code='registered_terrain_input_failed')
                 self._retire('registered_terrain_input_failed')
                 raise
 
     def snapshot(self):
+        started = time.monotonic()
         with self.lock:
             try:
                 state = self.session.state()
@@ -165,7 +171,8 @@ class RegisteredTerrainSource:
                             self.raw_grid = grid
                         return replace(result, grid=self.annotated_grid)
                 return replace(result, grid=None) if self.retired else result
-            except BaseException:
+            except BaseException as error:
+                record_fault('registered_terrain_snapshot', error, started_at=started, code='registered_localization_unavailable')
                 self._retire('registered_localization_unavailable')
                 raise
 

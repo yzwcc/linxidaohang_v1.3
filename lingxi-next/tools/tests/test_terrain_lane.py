@@ -1,6 +1,9 @@
 """Thread ownership, nonblocking reads, idle health and terminal retirement."""
 from dataclasses import replace
+from contextlib import redirect_stderr
 import hashlib
+import io
+import json
 from pathlib import Path
 import sys
 import threading
@@ -130,6 +133,61 @@ class LaneTests(unittest.TestCase):
         wait_for(lambda: lane.snapshot().state == 'failed')
         self.assertEqual([1], calls)
         self.assertIsNone(lane.snapshot().grid)
+
+    def test_faults_record_actual_stage_and_still_retire_and_cleanup(self):
+        for stage in ('factory', 'start', 'update', 'current', 'cleanup'):
+            with self.subTest(stage=stage):
+                output, calls, created = io.StringIO(), [], []
+                release = threading.Event()
+                release.set()
+                class FailingProcess(FakeProcess):
+                    def start(self):
+                        super().start()
+                        if stage == 'start':
+                            raise RuntimeError('synthetic_start_failure')
+
+                    def update(self, *args, **kwargs):
+                        raise TimeoutError('synthetic_update_timeout')
+
+                    def current(self):
+                        if stage == 'current':
+                            raise RuntimeError('synthetic_current_failure')
+                        return super().current()
+
+                    def close(self):
+                        super().close()
+                        if stage == 'cleanup':
+                            raise RuntimeError('synthetic_cleanup_failure')
+
+                def factory():
+                    calls.append('factory')
+                    if stage == 'factory':
+                        raise RuntimeError('synthetic_factory_failure')
+                    service = FailingProcess(release, calls)
+                    created.append(service)
+                    return service
+
+                with redirect_stderr(output):
+                    lane = TerrainLane(factory, poll_seconds=.005)
+                    try:
+                        if stage in ('update', 'cleanup'):
+                            wait_for(lambda: lane.snapshot().state == 'ready')
+                            if stage == 'update':
+                                lane.submit(observations(), sequence=0, received_at=time.monotonic())
+                            else:
+                                lane.retire('test_finished')
+                        wait_for(lambda: not lane.thread.is_alive())
+                        self.assertEqual('failed', lane.snapshot().state)
+                        self.assertIsNone(lane.snapshot().grid)
+                        self.assertFalse(lane.submit(observations(), sequence=1, received_at=time.monotonic()))
+                        records = [json.loads(line) for line in output.getvalue().splitlines()]
+                        self.assertEqual(['terrain_lane_' + stage], [entry['phase'] for entry in records])
+                        self.assertEqual(1, calls.count('factory'))
+                        self.assertEqual(0 if stage == 'factory' else 1, calls.count('close'))
+                        if created:
+                            self.assertTrue(created[0].closed)
+                    finally:
+                        lane.close()
 
 
 if __name__ == '__main__':

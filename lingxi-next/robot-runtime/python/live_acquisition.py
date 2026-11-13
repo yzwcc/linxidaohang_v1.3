@@ -16,6 +16,7 @@ from lingxi_navigation.recorded_occupancy import OfflineGeometry
 from lingxi_navigation.terrain_lane import TerrainLane, LaneSnapshot
 from lingxi_navigation.terrain_process import TerrainProcess
 from lingxi_navigation.terrain import TerrainBudget
+from lingxi_navigation.runtime_fault import record_fault
 
 PURPOSE = 'passive_acquisition_and_declared_terrain_not_navigation'
 SOURCES = ('robot-runtime/python/live_acquisition.py', 'robot-runtime/python/acquisition_bundle.py',
@@ -23,6 +24,7 @@ SOURCES = ('robot-runtime/python/live_acquisition.py', 'robot-runtime/python/acq
     'robot-navigation/lingxi_navigation/terrain_lane.py', 'robot-navigation/lingxi_navigation/terrain_process.py',
     'robot-navigation/lingxi_navigation/terrain.py', 'robot-navigation/lingxi_navigation/terrain_protocol.py',
     'robot-navigation/lingxi_navigation/terrain_worker.py', 'robot-navigation/lingxi_navigation/ground.py',
+    'robot-navigation/lingxi_navigation/runtime_fault.py',
     'robot-navigation/lingxi_navigation/occupancy.py', 'robot-navigation/lingxi_navigation/recorded_occupancy.py',
     'tools/check_ground_native.py', 'robot-runtime/python/terrain_bundle.py', 'tools/terrain_target_probe.py')
 ROS_SOURCES = ('robot-runtime/python/live_terrain_ros.py',
@@ -269,7 +271,8 @@ class AcquisitionComposition:
                 result.close()
                 raise RuntimeError('acquisition_start_revoked')
             return result
-        except BaseException:
+        except BaseException as error:
+            record_fault('acquisition_native_start', error)
             self.failed = True
             self.session.stop_admission()
             try:
@@ -316,6 +319,7 @@ class AcquisitionComposition:
         if snapshot is None:
             return
         with self.lock:
+            was_failed = self.failed
             if self.service is not None and self.service.state == 'failed':
                 self.failed = True
                 self.failure_reason = self.failure_reason or self.service.failure or 'terrain_process_failed'
@@ -327,6 +331,8 @@ class AcquisitionComposition:
                 self.failure_reason = self.failure_reason or snapshot.failure or 'terrain_failed'
             if snapshot.state in ('failed', 'retired'):
                 self.retirement_reason = self.retirement_reason or snapshot.failure
+            if self.failed and not was_failed:
+                record_fault('acquisition_health', code=self.failure_reason)
 
     def revoke(self):
         self._health()
@@ -350,7 +356,8 @@ class AcquisitionComposition:
                 self.source.close()
             elif self.lane is not None:
                 self.lane.close()
-        except BaseException:
+        except BaseException as error:
+            record_fault('acquisition_finish', error)
             self.failed = True
             raise
         finally:

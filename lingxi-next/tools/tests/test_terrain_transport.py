@@ -1,5 +1,6 @@
 """Private persistent native transport and expiring full-replacement feed."""
 from dataclasses import replace
+from contextlib import redirect_stderr
 import io
 import json
 import os
@@ -125,8 +126,13 @@ class ProcessFaultTests(unittest.TestCase):
 
     def test_actual_child_bad_hash_never_readies(self):
         service = self.service()
-        with self.assertRaises(RuntimeError):
+        output = io.StringIO()
+        with redirect_stderr(output), self.assertRaises(RuntimeError):
             service.start()
+        record = json.loads(output.getvalue())
+        self.assertEqual('terrain_process_start', record['phase'])
+        self.assertEqual('terrain_process_start_failed', record['code'])
+        self.assertTrue(record['frames'])
         self.assertEqual('failed', service.state)
         self.assertTrue(service.cleanup_complete)
         self.assertIsNotNone(service.process.poll())
@@ -170,8 +176,13 @@ class ProcessFaultTests(unittest.TestCase):
         self.fake(service, program)
         data = observations(((1., .01, 0.),) * 4096)
         started = time.monotonic()
-        with self.assertRaises(TimeoutError):
+        output = io.StringIO()
+        with redirect_stderr(output), self.assertRaises(TimeoutError):
             service.update(data, sequence=0, received_at=started)
+        record = json.loads(output.getvalue())
+        self.assertEqual('terrain_process_exchange', record['phase'])
+        self.assertEqual('TimeoutError', record['exception'])
+        self.assertGreaterEqual(record['elapsedMs'], 100.)
         self.assertLess(time.monotonic() - started, 2.)
         self.assertIsNone(service.current())
         self.assertEqual('failed', service.state)

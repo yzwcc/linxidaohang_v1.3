@@ -20,6 +20,7 @@ import uuid
 from .ground import GroundDeclaration
 from .navfn import finite
 from .occupancy import ClearanceProjection, DEPENDENCIES, canonical, digest_value
+from .runtime_fault import record_fault
 from .terrain import TerrainBudget
 from .terrain_protocol import MAXIMUM_MESSAGE_BYTES, decode, encode_observations, frame
 
@@ -127,7 +128,7 @@ class TerrainProcess:
                             return reply
 
     def start(self):
-        self._now()
+        started = self._now()
         if self.state != 'new':
             raise RuntimeError('terrain_process_cannot_restart')
         try:
@@ -151,12 +152,14 @@ class TerrainProcess:
                 raise ValueError('native_terrain_ready_required')
             self.state = 'ready'
             return self
-        except BaseException:
+        except BaseException as error:
+            record_fault('terrain_process_start', error, started_at=started, code='terrain_process_start_failed')
             self._fault('terrain_process_start_failed')
             raise
 
     def update(self, observations, *, sequence, received_at):
         now = self._now()
+        phase = 'terrain_process_encode'
         self.grid = self.summary = None
         try:
             if (self.state != 'ready' or type(sequence) is not int or not self.sequence < sequence < 2**53
@@ -168,8 +171,10 @@ class TerrainProcess:
             self.capture, self.capture_received, self.sequence = capture, effective, sequence
             expires = effective + self.budget.maximum_age_seconds
             deadline = min(now + self.budget.maximum_processing_seconds, expires)
+            phase = 'terrain_process_exchange'
             reply = self._exchange(dict(version=1, kind='update', session=self.session,
                 observations=data, sequence=sequence, receivedAt=received_at), deadline)
+            phase = 'terrain_process_validate'
             summary = reply.get('summary', {})
             costs = base64.b64decode(reply['costs'], validate=True)
             if (set(reply) != {'version', 'kind', 'session', 'summary', 'costs', 'receivedAt', 'expiresAt'}
@@ -192,13 +197,15 @@ class TerrainProcess:
                 raise TimeoutError('terrain_reply_expired_before_publication')
             self.grid, self.summary = result, summary
             return result
-        except BaseException:
+        except BaseException as error:
+            record_fault(phase, error, started_at=now, code='terrain_process_update_failed')
             self._fault('terrain_process_update_failed')
             raise
 
     def current(self):
         now = self._now()
         if self.process is not None and self.state == 'ready' and self.process.poll() is not None:
+            record_fault('terrain_process_current', code='terrain_process_exited')
             self._fault('terrain_process_exited')
         if self.grid is not None and now >= self.grid.expires_at:
             self.grid = None
