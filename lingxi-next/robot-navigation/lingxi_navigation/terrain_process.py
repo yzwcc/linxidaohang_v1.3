@@ -135,6 +135,9 @@ class TerrainProcess:
             environment = {key: value for key, value in os.environ.items()
                            if key not in ('LD_PRELOAD', 'PYTHONINSPECT', 'PYTHONSTARTUP', 'PYTHONPATH')}
             environment.update(PYTHONPATH=str(root), PYTHONDONTWRITEBYTECODE='1', OPENBLAS_NUM_THREADS='1', OMP_NUM_THREADS='1')
+            # ROS exports a different OctoMap with the same SONAME. This child
+            # uses no ROS: select only its source-verified bundled dependencies.
+            environment['LD_LIBRARY_PATH'] = str(Path(self.configuration['octomapLibrary']).parent / 'lib')
             descriptor = os.open(self.log, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
             with os.fdopen(descriptor, 'wb', buffering=0) as log:
                 self.process = subprocess.Popen([sys.executable, '-B', '-m', 'lingxi_navigation.terrain_worker', str(os.getpid())],

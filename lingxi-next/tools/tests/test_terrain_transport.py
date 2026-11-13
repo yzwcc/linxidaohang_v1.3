@@ -103,7 +103,9 @@ class FeedTests(unittest.TestCase):
 @unittest.skipUnless(sys.platform == 'linux', 'Linux native process ownership required')
 class ProcessFaultTests(unittest.TestCase):
     def setUp(self):
-        self.directory = Path(self.enterContext(tempfile.TemporaryDirectory())).resolve()
+        directory = tempfile.TemporaryDirectory()
+        self.addCleanup(directory.cleanup)
+        self.directory = Path(directory.name).resolve()
         self.library = self.directory / 'placeholder.so'
         self.library.write_bytes(b'not-a-native-library')
 
@@ -129,6 +131,25 @@ class ProcessFaultTests(unittest.TestCase):
         self.assertTrue(service.cleanup_complete)
         self.assertIsNotNone(service.process.poll())
         self.assertEqual(0o600, service.log.stat().st_mode & 0o777)
+
+    def test_child_isolates_dependencies_from_inherited_ros_loader_paths(self):
+        service = self.service()
+        program = ("from lingxi_navigation.terrain_protocol import *; import os,sys,time; "
+                   "r=read_message(sys.stdin.buffer); "
+                   "expected=os.path.join(os.path.dirname(r['configuration']['octomapLibrary']),'lib'); "
+                   "assert os.environ['LD_LIBRARY_PATH']==expected; "
+                   "sys.stdout.buffer.write(frame(dict(version=1,kind='ready',session=r['session']))); "
+                   "sys.stdout.buffer.flush(); time.sleep(20)")
+        inherited = '/opt/ros/humble/lib/aarch64-linux-gnu:/unrelated/vendor/lib'
+        try:
+            with patch.dict(os.environ, {'LD_LIBRARY_PATH': inherited}):
+                self.fake(service, program)
+                self.assertEqual('ready', service.state)
+                self.assertEqual(inherited, os.environ['LD_LIBRARY_PATH'])
+        finally:
+            service.close()
+        self.assertTrue(service.cleanup_complete)
+        self.assertIsNotNone(service.process.poll())
 
     def test_startup_hang_partial_and_oversized_reply_are_bounded_and_reaped(self):
         for program in ('import time; time.sleep(20)',
@@ -191,7 +212,7 @@ class ProcessFaultTests(unittest.TestCase):
         def running():
             try:
                 return Path('/proc/' + str(child_pid) + '/stat').read_text().split(') ', 1)[1][0] != 'Z'
-            except FileNotFoundError:
+            except (FileNotFoundError, ProcessLookupError):
                 return False
         try:
             import selectors
@@ -221,7 +242,9 @@ class ProcessFaultTests(unittest.TestCase):
 class NativeProcessTests(unittest.TestCase):
     def setUp(self):
         from terrain_nav2_fixture import acquisition, projection
-        self.directory = Path(self.enterContext(tempfile.TemporaryDirectory())).resolve()
+        directory = tempfile.TemporaryDirectory()
+        self.addCleanup(directory.cleanup)
+        self.directory = Path(directory.name).resolve()
         self.data, self.projection = acquisition('open'), projection()
         self.service = TerrainProcess(ground_library=Path(os.environ['LINGXI_TEST_GROUND_LIBRARY']),
             ground_sha256=os.environ['LINGXI_TEST_GROUND_SHA256'],
