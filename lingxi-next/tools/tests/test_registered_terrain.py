@@ -199,9 +199,11 @@ class WindowTests(unittest.TestCase):
 class SourceTests(unittest.TestCase):
     def setUp(self):
         self.now = time.monotonic()
+        self.reject = False
+        case = self
         class Registrar:
             def register(self, scan, seed):
-                return RegistrationEstimate(True, (), seed, {})
+                return RegistrationEstimate(not case.reject, (), seed, {})
         self.session = LocalizationSession(BINDING, Registrar, clock=lambda: self.now)
         self.session.open_worker()
         self.addCleanup(self.session.close_worker)
@@ -262,6 +264,88 @@ class SourceTests(unittest.TestCase):
         self.assertTrue(self.source.retired)
         self.assertEqual([], self.source.window.frames)
         self.assertEqual('retired', self.lane.snapshot().state)
+
+    def test_real_registration_retry_withdraws_then_rebuilds_from_only_recovered_scans(self):
+        old = self.accepted()
+        generation = self.session.state()['generation']
+        self.reject = True
+        self.assertIsNone(self.observe())
+        self.assertEqual('registration_retry_after_rejection', self.session.state()['reason'])
+        self.assertIsNone(self.source.snapshot().grid)
+        self.assertFalse(self.source.retired)
+        self.assertEqual([], self.source.window.frames)
+        self.reject = False
+        for _ in range(3):
+            recovered = self.observe()
+            if recovered is None:
+                self.assertIsNone(self.source.snapshot().grid)
+        self.assertIsNotNone(recovered)
+        self.assertEqual(generation, self.session.state()['generation'])
+        # Tracking by itself cannot make a pre-recovery grid current again.
+        self.assertIsNone(self.source.snapshot().grid)
+        self.assertTrue(self.source(recovered))
+        wait_for(lambda: self.source.snapshot().grid is not None)
+        grid = self.source.snapshot().grid
+        self.assertGreater(grid.sequence, old.sequence)
+        self.assertEqual([recovered.native_frame_id], [frame.native_frame_id for frame in self.source.window.frames])
+        self.assertEqual(recovered.received_at, grid.received_at)
+        self.assertEqual(1, len(self.created))
+
+    def test_retry_discards_late_native_result_without_closing_or_replaying_child(self):
+        self.release.clear()
+        self.assertTrue(self.source(self.registered()))
+        wait_for(lambda: 'update' in self.calls)
+        self.reject = True
+        self.observe()
+        self.assertIsNone(self.source.snapshot().grid)
+        self.assertFalse(self.source.retired)
+        self.release.set()
+        wait_for(lambda: self.lane.snapshot().state == 'ready')
+        self.assertIsNone(self.source.snapshot().grid)
+        self.reject = False
+        for _ in range(3):
+            recovered = self.observe()
+        self.assertIsNotNone(recovered)
+        self.assertIsNone(self.source.snapshot().grid)
+        self.assertTrue(self.source(recovered))
+        wait_for(lambda: self.source.snapshot().grid is not None)
+        self.assertEqual(recovered.native_frame_id, self.source.snapshot().grid.sequence)
+        self.assertEqual(2, self.calls.count('update'))
+        self.assertEqual(1, len(self.created))
+
+    def test_retry_cannot_cross_explicit_control_worker_failure_or_generation(self):
+        self.accepted()
+        self.reject = True
+        self.observe()
+        self.source.snapshot()
+        self.command('seed')
+        self.assertIsNone(self.source.snapshot().grid)
+        self.assertTrue(self.source.retired)
+        self.reject = False
+        for _ in range(3):
+            self.observe()
+        self.assertFalse(self.source(self.registered()))
+        self.assertIsNone(self.source.snapshot().grid)
+
+    def test_retry_timeout_is_terminal_without_further_sensor_callbacks(self):
+        self.accepted()
+        self.reject = True
+        self.observe()
+        self.assertIsNone(self.source.snapshot().grid)
+        self.assertFalse(self.source.retired)
+        self.now += 1.01
+        self.assertIsNone(self.source.snapshot().grid)
+        self.assertTrue(self.source.retired)
+
+    def test_retry_cannot_hide_native_child_failure(self):
+        self.accepted()
+        self.reject = True
+        self.observe()
+        self.source.snapshot()
+        self.created[0].dead = True
+        wait_for(lambda: self.lane.snapshot().state == 'failed')
+        self.assertIsNone(self.source.snapshot().grid)
+        self.assertTrue(self.source.retired)
 
     def test_expiry_without_new_packet_retires_published_grid(self):
         self.accepted()

@@ -105,6 +105,27 @@ class SavedMapTerrainTests(SavedMapTerrainFixture, SyntheticLiveFixture, unittes
         self.assertIsNone(self.source.snapshot().grid)
         self.assertTrue(self.source.retired)
 
+    def test_retry_clears_old_scan_window_and_preserves_original_timestamp_watermark(self):
+        self.terrain()
+        _, first, _ = self.scan()
+        self.result()
+        self.session.phase, self.session.reason = 'acquiring', 'registration_retry_after_rejection'
+        self.assertIsNone(self.source.snapshot().grid)
+        self.assertFalse(self.source.retired)
+        self.session.phase, self.session.reason = 'tracking', 'diagnostic_quality_only'
+        _, second, _ = self.scan(2, first.effective_ns + 100_000_000)
+        grid = self.result()
+        self.assertEqual(second.effective_ns, grid.oldest_scan_ns)
+        self.assertEqual(second.effective_ns, grid.latest_scan_ns)
+        self.assertEqual(1, len(self.source.submitted.observations.scans))
+        self.session.phase, self.session.reason = 'acquiring', 'confirmation_required'
+        self.assertIsNone(self.source.snapshot().grid)
+        self.session.phase, self.session.reason = 'tracking', 'diagnostic_quality_only'
+        packet, timing, _ = self.offer(3, second.effective_ns, capture=False)
+        with self.assertRaisesRegex(ValueError, 'increasing_original_terrain'):
+            self.source(packet, scan_header_ns=timing.header_ns)
+        self.assertTrue(self.source.retired)
+
     def test_missing_or_mismatched_original_base_time_retires_source(self):
         self.terrain()
         packet, timing, _ = self.offer()

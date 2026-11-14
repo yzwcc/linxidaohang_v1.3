@@ -403,6 +403,10 @@ class CompositionTests(SettingsFixture, unittest.TestCase):
         source = Mock()
         source.snapshot.return_value = live.LaneSnapshot(0, 'ready')
         composition.source = source
+        # A rejected frame has no packet, but must still withdraw stale terrain
+        # before another tracking scan or ROS timer callback arrives.
+        composition.capture_terrain(1, 0.)
+        source.snapshot.assert_called_once_with()
         packet, timing, _ = fixture.offer(capture=False)
         composition.accept(packet)
         source.assert_not_called()

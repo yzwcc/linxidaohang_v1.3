@@ -53,11 +53,34 @@ class RegisteredTerrainSource:
         self.generation, self.submitted, self.retired = None, None, False
         self.submitted_sha256 = None
         self.submitted_epoch_sha256 = None
+        self.recovering, self.last_scan_stamp = False, None
 
     def _valid(self, state):
         return (state['state'] == 'tracking' and not state['requestPending']
                 and state['workerReady'] and not state['workerClosed']
                 and (self.generation is None or state['generation'] == self.generation))
+
+    def _check_localization(self, state):
+        if self.retired:
+            return False
+        if self._valid(state):
+            self.recovering = False
+            return True
+        recovering = (self.generation is not None and state['generation'] == self.generation
+            and state['state'] == 'acquiring'
+            and state['reason'] in ('registration_retry_after_rejection', 'confirmation_required')
+            and not state['requestPending'] and state['workerReady'] and not state['workerClosed'])
+        if recovering:
+            if not self.recovering:
+                self.recovering = True
+                self.submitted = self.submitted_sha256 = self.submitted_epoch_sha256 = None
+                self.scan_stamps.clear()
+                self.submitted_stamps = self.annotated_grid = self.raw_grid = None
+                self.window.clear()
+                self.lane.withdraw('registered_localization_recovering')
+        else:
+            self._retire('registered_localization_revoked')
+        return False
 
     def _retire(self, reason):
         if not self.retired:
@@ -86,8 +109,12 @@ class RegisteredTerrainSource:
                 raise RuntimeError('localization_owner_registered_terrain_consumer_required')
             try:
                 state = self.session.state()
-                if (type(packet) is not RegisteredAcquisition or packet.binding != self.session.binding
-                        or not self._valid(state) or state['generation'] != packet.generation
+                if type(packet) is not RegisteredAcquisition or packet.binding != self.session.binding:
+                    self._retire('registered_localization_revoked')
+                    return False
+                if not self._check_localization(state):
+                    return False
+                if (state['generation'] != packet.generation
                         or state['lastFrame'] != packet.native_frame_id
                         or state['referenceFrame'] != packet.native_frame_id):
                     self._retire('registered_localization_revoked')
@@ -103,8 +130,9 @@ class RegisteredTerrainSource:
                             or not np.allclose(packet.map_lidar_pose, state['mapFromSensor'], rtol=0, atol=1e-8)):
                         raise ValueError('same_frame_original_scan_base_projection_required')
                     stamp = timestamp(int(base['effectiveScanNs']))
-                    if self.scan_stamps and stamp <= max(self.scan_stamps.values()):
+                    if self.last_scan_stamp is not None and stamp <= self.last_scan_stamp:
                         raise ValueError('increasing_original_terrain_scan_time_required')
+                    self.last_scan_stamp = stamp
                     self.scan_stamps[packet.native_frame_id] = stamp
                 if self.window is None:
                     self.generation = packet.generation
@@ -115,8 +143,7 @@ class RegisteredTerrainSource:
                 if self.saved_map:
                     self.scan_stamps = {frame.native_frame_id: self.scan_stamps[frame.native_frame_id]
                                         for frame in self.window.frames}
-                if not self._valid(self.session.state()):
-                    self._retire('registered_localization_revoked')
+                if not self._check_localization(self.session.state()):
                     return False
                 if value is None:
                     return False
@@ -142,8 +169,8 @@ class RegisteredTerrainSource:
         with self.lock:
             try:
                 state = self.session.state()
-                if self.generation is not None and not self._valid(state):
-                    self._retire('registered_localization_revoked')
+                if self.generation is not None:
+                    self._check_localization(state)
                 result = self.lane.snapshot()
                 if result.state in ('failed', 'retired'):
                     self._retire(result.failure or 'registered_terrain_unavailable')
@@ -159,9 +186,7 @@ class RegisteredTerrainSource:
                             or grid.received_at != value.received_at
                             or grid.expires_at > value.received_at + self.budget.maximum_age_seconds):
                         self._retire('mismatched_registered_terrain_result')
-                    if not self._valid(self.session.state()):
-                        self._retire('registered_localization_revoked')
-                    if self.retired:
+                    if not self._check_localization(self.session.state()):
                         return self.lane.snapshot()
                     if self.saved_map:
                         if grid is not self.raw_grid:

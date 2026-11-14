@@ -31,6 +31,7 @@ class TerrainLane:
         self.condition = threading.Condition()
         self.value = LaneSnapshot(0, 'starting')
         self.pending, self.stopping, self.last_sequence = None, False, -1
+        self.withdrawn_through = -1
         self.thread = threading.Thread(target=self._run, name='lingxi-terrain-owner', daemon=True)
         self.thread.start()
 
@@ -65,6 +66,19 @@ class TerrainLane:
         with self.condition:
             self.stopping, self.pending = True, None
             self._set(state='retired', grid=None, failure=reason)
+
+    def withdraw(self, reason):
+        """Hide current/queued work without restarting the healthy native owner.
+
+        An in-flight request still completes under its original deadline. Its
+        result is discarded; the next submission must use a newer sequence.
+        """
+        if type(reason) is not str or not reason or len(reason) > 128:
+            raise ValueError('bounded_terrain_withdrawal_reason_required')
+        with self.condition:
+            if not self.stopping:
+                self.withdrawn_through = self.last_sequence
+                self._set(grid=None, failure=reason)
 
     def close(self, timeout=23.):
         if not finite(timeout) or not 0 < timeout <= 45.:
@@ -103,7 +117,10 @@ class TerrainLane:
                     with self.condition:
                         if self.stopping:
                             return
-                        self._set(state='ready', grid=grid, failure=None)
+                        if sequence <= self.withdrawn_through:
+                            self._set(state='ready', grid=None)
+                        else:
+                            self._set(state='ready', grid=grid, failure=None)
                 phase, started = 'terrain_lane_current', time.monotonic()
                 grid = service.current()
                 with self.condition:

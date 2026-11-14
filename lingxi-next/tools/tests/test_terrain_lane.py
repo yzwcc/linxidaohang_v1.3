@@ -101,6 +101,27 @@ class LaneTests(unittest.TestCase):
         self.assertIsNone(lane.snapshot().grid)
         self.assertFalse(lane.submit(observations(), sequence=1, received_at=time.monotonic()))
 
+    def test_withdraw_during_work_discards_late_grid_and_accepts_only_new_sequence(self):
+        lane = self.lane()
+        lane.submit(observations(), sequence=0, received_at=time.monotonic())
+        wait_for(lambda: 'update' in self.calls)
+        lane.withdraw('registration_recovering')
+        self.assertEqual('busy', lane.snapshot().state)
+        self.assertIsNone(lane.snapshot().grid)
+        self.release.set()
+        wait_for(lambda: lane.snapshot().state == 'ready')
+        self.assertIsNone(lane.snapshot().grid)
+        self.assertEqual('registration_recovering', lane.snapshot().failure)
+        self.assertTrue(lane.submit(observations(), sequence=1, received_at=time.monotonic()))
+        wait_for(lambda: lane.snapshot().grid is not None)
+        self.assertEqual(1, lane.snapshot().grid.sequence)
+        self.assertEqual(1, len(self.created))
+        lane.withdraw('registration_recovering')
+        self.assertIsNone(lane.snapshot().grid)
+        self.created[0].dead = True
+        wait_for(lambda: lane.snapshot().state == 'failed')
+        self.assertIsNone(lane.snapshot().grid)
+
     def test_idle_expiry_and_child_death_without_more_submissions(self):
         lane = self.lane()
         self.release.set()

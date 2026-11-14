@@ -296,7 +296,12 @@ class AcquisitionComposition:
     def capture_terrain(self, header, algorithm):
         """Join after LiveBasePose.frame on the same native owner, never latest-TF."""
         packet, self.pending_terrain = self.pending_terrain, None
-        if packet is None or self.source is None or self.closed:
+        if self.source is None or self.closed:
+            return
+        # Rejected frames have no acquisition packet. Still withdraw old terrain
+        # on every native frame, even if ROS readers miss the brief recovery.
+        if packet is None:
+            self.source.snapshot()
             return
         base = self.session.state().get('basePose', {})
         if (packet.algorithm_stamp != algorithm or base.get('status') != 'available'
