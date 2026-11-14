@@ -2,6 +2,7 @@
 import copy
 import hashlib
 import io
+import os
 import pathlib
 import posixpath
 import re
@@ -41,6 +42,15 @@ def validate_name(name):
     names.add(name)
 
 
+def host_path(path):
+    value = str(path.absolute())
+    if sys.platform == "win32" and not value.startswith("\\\\?\\"):
+        if value.startswith("\\\\"):
+            return "\\\\?\\UNC\\" + value[2:]
+        return "\\\\?\\" + value
+    return value
+
+
 def permissions(info):
     relative = info.name.removeprefix(stage.name + "/")
     validate_name(info.name)
@@ -61,7 +71,7 @@ def permissions(info):
     return info
 
 
-with tarfile.open(output, "w:gz", format=tarfile.PAX_FORMAT) as archive:
+with tarfile.open(output, "w:gz", format=tarfile.PAX_FORMAT, compresslevel=1) as archive:
     # Windows cannot reliably extract Linux symlinks. Never extract these runtimes
     # on the build workstation; stream the original entries into the final tar.
     for item in sorted(stage.rglob("*")):
@@ -72,10 +82,10 @@ with tarfile.open(output, "w:gz", format=tarfile.PAX_FORMAT) as archive:
             continue
         if relative == "runtime" or relative.startswith("runtime/"):
             raise ValueError("Staging must not contain partially extracted runtimes")
-        if item.is_file():
-            with item.open("rb") as stream:
+        if os.path.isfile(host_path(item)):
+            with open(host_path(item), "rb") as stream:
                 checksums[relative] = hashlib.file_digest(stream, "sha256").hexdigest()
-        archive.add(item, arcname=f"{stage.name}/{relative}", recursive=False, filter=permissions)
+        archive.add(host_path(item), arcname=f"{stage.name}/{relative}", recursive=False, filter=permissions)
     for prefix, filename in zip(("runtime/node", "runtime/java"), sys.argv[3:5]):
         with tarfile.open(filename, "r|gz") as runtime:
             runtime_root = None
