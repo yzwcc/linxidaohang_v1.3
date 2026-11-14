@@ -43,6 +43,20 @@ class PrivateFaultTests(unittest.TestCase):
             self.assertNotIn(forbidden, output.getvalue())
         self.assertEqual(1, len(output.getvalue().splitlines()))
 
+    def test_diagnostics_keep_only_bounded_allowlisted_numeric_metrics(self):
+        output = io.StringIO()
+        with redirect_stderr(output):
+            record_fault('terrain_process_exchange', TimeoutError('private text'), diagnostics={
+                'scan_count': 4, 'ray_count': 1200, 'window_span_ms': 95.25,
+                'request_bytes': 8192, 'unknown': 'secret', 'ray_count_raw': 900000,
+                'exchange_elapsed_ms': float('nan'),
+            })
+        value = json.loads(output.getvalue())
+        self.assertEqual(dict(scan_count=4, ray_count=1200, window_span_ms=95.25, request_bytes=8192),
+                         value['diagnostics'])
+        for forbidden in ('private text', 'secret', 'ray_count_raw'):
+            self.assertNotIn(forbidden, output.getvalue())
+
     def test_simple_lowercase_secret_is_not_mistaken_for_error_code(self):
         output = io.StringIO()
         with redirect_stderr(output):

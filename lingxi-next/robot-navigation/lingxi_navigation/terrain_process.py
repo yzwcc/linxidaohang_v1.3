@@ -94,38 +94,59 @@ class TerrainProcess:
         self.last_clock = now
         return now
 
-    def _exchange(self, message, deadline):
+    def _exchange(self, message, deadline, *, diagnostics=None, age_deadline=None, processing_deadline=None,
+                  effective_received_at=None, received_at=None):
         payload, sent, buffer, size = frame(message), 0, bytearray(), None
-        with selectors.DefaultSelector() as selector:
-            selector.register(self.process.stdin, selectors.EVENT_WRITE)
-            selector.register(self.process.stdout, selectors.EVENT_READ)
-            while True:
-                remaining = deadline - self._now()
-                if remaining <= 0:
-                    raise TimeoutError('terrain_process_deadline_exceeded')
-                for key, _ in selector.select(min(.05, remaining)):
-                    if key.fileobj is self.process.stdin:
-                        sent += os.write(key.fd, payload[sent:sent + 65536])
-                        if sent == len(payload):
-                            selector.unregister(self.process.stdin)
-                    else:
-                        chunk = os.read(key.fd, min(65536, (size + 4 if size else 4) - len(buffer)))
-                        if not chunk:
-                            raise RuntimeError('terrain_worker_pipe_closed')
-                        buffer.extend(chunk)
-                        if size is None and len(buffer) == 4:
-                            size, = struct.unpack('!I', buffer)
-                            if not 1 <= size <= MAXIMUM_MESSAGE_BYTES:
-                                raise ValueError('bounded_terrain_worker_reply_required')
-                        if size is not None and len(buffer) == size + 4:
-                            reply = decode(bytes(buffer[4:]))
-                            if reply.get('session') != self.session or reply.get('version') != 1:
-                                raise ValueError('current_terrain_worker_session_required')
-                            if reply.get('kind') == 'failed':
-                                raise RuntimeError('native_terrain_worker_failed_see_private_log')
-                            if sent != len(payload) or self._now() >= deadline:
-                                raise TimeoutError('late_or_unsolicited_terrain_reply')
-                            return reply
+        started = time.monotonic()
+        if diagnostics is not None:
+            diagnostics['request_bytes'] = len(payload)
+            if age_deadline is not None:
+                diagnostics['age_deadline_remaining_ms_at_exchange_start'] = (age_deadline - started) * 1000
+            if processing_deadline is not None:
+                diagnostics['processing_deadline_remaining_ms_at_exchange_start'] = (processing_deadline - started) * 1000
+            if effective_received_at is not None:
+                diagnostics['input_age_ms_at_exchange_start'] = (started - effective_received_at) * 1000
+            if received_at is not None:
+                diagnostics['received_age_ms_at_exchange_start'] = (started - received_at) * 1000
+        try:
+            with selectors.DefaultSelector() as selector:
+                selector.register(self.process.stdin, selectors.EVENT_WRITE)
+                selector.register(self.process.stdout, selectors.EVENT_READ)
+                while True:
+                    remaining = deadline - self._now()
+                    if remaining <= 0:
+                        raise TimeoutError('terrain_process_deadline_exceeded')
+                    for key, _ in selector.select(min(.05, remaining)):
+                        if key.fileobj is self.process.stdin:
+                            sent += os.write(key.fd, payload[sent:sent + 65536])
+                            if sent == len(payload):
+                                selector.unregister(self.process.stdin)
+                        else:
+                            chunk = os.read(key.fd, min(65536, (size + 4 if size else 4) - len(buffer)))
+                            if not chunk:
+                                raise RuntimeError('terrain_worker_pipe_closed')
+                            buffer.extend(chunk)
+                            if size is None and len(buffer) == 4:
+                                size, = struct.unpack('!I', buffer)
+                                if not 1 <= size <= MAXIMUM_MESSAGE_BYTES:
+                                    raise ValueError('bounded_terrain_worker_reply_required')
+                            if size is not None and len(buffer) == size + 4:
+                                reply = decode(bytes(buffer[4:]))
+                                if reply.get('session') != self.session or reply.get('version') != 1:
+                                    raise ValueError('current_terrain_worker_session_required')
+                                if reply.get('kind') == 'failed':
+                                    raise RuntimeError('native_terrain_worker_failed_see_private_log')
+                                if sent != len(payload) or self._now() >= deadline:
+                                    raise TimeoutError('late_or_unsolicited_terrain_reply')
+                                return reply
+        finally:
+            if diagnostics is not None:
+                ended = time.monotonic()
+                diagnostics['exchange_elapsed_ms'] = (ended - started) * 1000
+                if age_deadline is not None:
+                    diagnostics['age_deadline_remaining_ms_after_exchange'] = (age_deadline - ended) * 1000
+                if processing_deadline is not None:
+                    diagnostics['processing_deadline_remaining_ms_after_exchange'] = (processing_deadline - ended) * 1000
 
     def start(self):
         started = self._now()
@@ -160,6 +181,7 @@ class TerrainProcess:
     def update(self, observations, *, sequence, received_at):
         now = self._now()
         phase = 'terrain_process_encode'
+        diagnostics = {}
         self.grid = self.summary = None
         try:
             if (self.state != 'ready' or type(sequence) is not int or not self.sequence < sequence < 2**53
@@ -170,10 +192,18 @@ class TerrainProcess:
             effective = min(received_at, self.capture_received) if capture == self.capture else received_at
             self.capture, self.capture_received, self.sequence = capture, effective, sequence
             expires = effective + self.budget.maximum_age_seconds
-            deadline = min(now + self.budget.maximum_processing_seconds, expires)
+            processing_deadline = now + self.budget.maximum_processing_seconds
+            deadline = min(processing_deadline, expires)
+            diagnostics.update(
+                scan_count=len(observations.scans),
+                ray_count=sum(len(scan.returns) for scan in observations.scans),
+                window_span_ms=max(0., (observations.scans[-1].stamp - observations.scans[0].stamp) * 1000),
+            )
             phase = 'terrain_process_exchange'
             reply = self._exchange(dict(version=1, kind='update', session=self.session,
-                observations=data, sequence=sequence, receivedAt=received_at), deadline)
+                observations=data, sequence=sequence, receivedAt=received_at), deadline,
+                diagnostics=diagnostics, age_deadline=expires, processing_deadline=processing_deadline,
+                effective_received_at=effective, received_at=received_at)
             phase = 'terrain_process_validate'
             summary = reply.get('summary', {})
             costs = base64.b64decode(reply['costs'], validate=True)
@@ -198,7 +228,7 @@ class TerrainProcess:
             self.grid, self.summary = result, summary
             return result
         except BaseException as error:
-            record_fault(phase, error, started_at=now, code='terrain_process_update_failed')
+            record_fault(phase, error, started_at=now, code='terrain_process_update_failed', diagnostics=diagnostics)
             self._fault('terrain_process_update_failed')
             raise
 
