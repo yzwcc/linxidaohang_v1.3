@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { cp, mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
-import { spawn } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import path from "node:path";
 import { downloadVerified } from "./download.mjs";
 import { copySourceTree } from "./release-sources.mjs";
@@ -11,7 +11,8 @@ const commissioning = process.argv.includes("--commissioning");
 if (independent && commissioning) throw new Error("Choose one release profile");
 if (!independent && !commissioning) throw new Error("Target acceptance is pending; only commissioning packages are currently permitted.");
 const pkg = JSON.parse(await readFile("package.json", "utf8"));
-const version = `${pkg.version}-${independent ? "independent" : "core"}-commissioning-${new Date().toISOString().slice(0, 10).replaceAll("-", "")}`;
+const revision = execFileSync("git", ["rev-parse", "--short=12", "HEAD"], { encoding: "utf8" }).trim();
+const version = `${pkg.version}-${independent ? "independent" : "core"}-commissioning-${new Date().toISOString().slice(0, 10).replaceAll("-", "")}-g${revision}`;
 const stage = path.resolve("artifacts", `lingxi-next-${version}-linux-arm64`);
 const archive = `${stage}.tar.gz`;
 if (existsSync(stage) || existsSync(archive)) throw new Error("Release already exists; choose a new version before rebuilding.");
