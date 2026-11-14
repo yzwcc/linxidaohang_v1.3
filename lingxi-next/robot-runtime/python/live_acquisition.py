@@ -12,7 +12,7 @@ from registered_terrain import RegisteredTerrainSource
 from lingxi_slam.acquisition_output import NativeAcquisitionOutput
 from lingxi_navigation.ground import GroundDeclaration
 from lingxi_navigation.occupancy import ClearanceProjection, DEPENDENCIES, canonical, digest_value
-from lingxi_navigation.recorded_occupancy import OfflineGeometry
+from lingxi_navigation.recorded_occupancy import OfflineGeometry, RaySelection
 from lingxi_navigation.terrain_lane import TerrainLane, LaneSnapshot
 from lingxi_navigation.terrain_process import TerrainProcess
 from lingxi_navigation.terrain import TerrainBudget
@@ -203,6 +203,7 @@ class AcquisitionComposition:
         self.pending_terrain = None
         self.terrain_budget = (TerrainBudget(maximum_span_seconds=.2, maximum_processing_seconds=.2,
             maximum_age_seconds=.3) if settings.saved_map_terrain else TerrainBudget())
+        self.terrain_selection = RaySelection(maximum_per_scan=4096) if settings.saved_map_terrain else RaySelection()
         self.localization_ros_output = None
         if settings.localization_ros_output:
             from live_localization_ros import LiveLocalizationRosOutput
@@ -260,7 +261,8 @@ class AcquisitionComposition:
                     return self.service
                 self.lane = TerrainLane(native_terrain)
                 self.source = RegisteredTerrainSource(self.session, self.lane, geometry, projection=projection,
-                    budget=self.terrain_budget, saved_map=self.settings.saved_map_terrain)
+                    budget=self.terrain_budget, selection=self.terrain_selection,
+                    saved_map=self.settings.saved_map_terrain)
             self.rays = NativeAcquisitionOutput(self.settings.library)
             verify_loaded_libraries({self.settings.library: self.settings.library_sha256}, Path('/proc/self/maps').read_text())
             result = AcquiringNative(self.session, point_factory, acquisition_output=self.rays,

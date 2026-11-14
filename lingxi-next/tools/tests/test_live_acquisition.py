@@ -427,6 +427,40 @@ class CompositionTests(SettingsFixture, unittest.TestCase):
         self.assertIsNone(composition.pending_terrain)
         self.assertEqual(1, source.call_count)
 
+    def test_saved_map_terrain_uses_uniformly_bounded_per_scan_returns(self):
+        scale = 1.
+        terrain = self.terrain()
+        terrain['geometry']['metres_per_raw_unit'] = scale
+        self.platform.value = dict(basePose=dict(metresPerMapUnit=scale))
+        self.value['rosOutput'] = {'mode': 'private_saved_map_terrain'}
+        self.value['localizationRosOutput'] = {'mode': 'private_saved_map_observations'}
+        self.write()
+        self.binding = replace(self.binding, input_mode='live')
+        self.session = LocalizationSession(self.binding, self.session.factory,
+            clock=lambda: self.now, base_metres_per_map_unit=scale)
+        case = self
+        class Process(FakeProcess):
+            failure = 'synthetic_terrain_failure'
+            @property
+            def cleanup_complete(self):
+                return self.closed
+        def process(**kwargs):
+            case.process = Process(case.release, case.terrain_calls)
+            return case.process
+        with patch.object(live, 'TerrainProcess', side_effect=process):
+            composition = live.AcquisitionComposition(self.settings(), self.session, self.root)
+            self.addCleanup(composition.finish)
+            self.addCleanup(self.release.set)
+            native = composition.factory(self.Native)
+            self.addCleanup(native.close)
+            wait_for(lambda: composition.lane.snapshot().state == 'ready')
+        selection = composition.source.selection
+        indices = selection.indices(7201, 1)
+        self.assertEqual(4096, selection.maximum_per_scan)
+        self.assertEqual(4096, len(indices))
+        self.assertEqual((0, 7200), (int(indices[0]), int(indices[-1])))
+        self.assertLessEqual(int(np.diff(indices).max()), 2)
+
     def test_navigation_discovery_requires_actual_paired_live_owners_and_current_observation(self):
         from test_localization_output import SyntheticLiveFixture
         fixture = SyntheticLiveFixture()
