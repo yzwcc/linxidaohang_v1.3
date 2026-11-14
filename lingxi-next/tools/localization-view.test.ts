@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import { emptySeedFields, freshSeedReference, planarLidarPose, planarSeedDraft, seedDraftReady, seedMatrix, seedFieldsFromMatrix, seedReferenceFields,
+import { emptySeedFields, FACTORY_BASE_FROM_CHEST_LIDAR, freshSeedReference, mapBasePoseToSensor, mapSensorPoseToBase,
+  planarLidarPose, planarSeedDraft, seedDraftReady, seedMatrix, seedFieldsFromMatrix, seedReferenceFields,
   withPlanarSeed, type SeedFields } from "../web/src/localization-view";
 import { rigidMatrixSchema } from "../shared/localization";
 import type { SavedSlamPointPreview } from "../shared/contracts";
@@ -59,13 +60,35 @@ describe("explicit chest lidar seed convention", () => {
   });
 });
 
+describe("X2 factory chest LiDAR extrinsic", () => {
+  it("places the sensor using the factory translation and rotation", () => {
+    expect(mapBasePoseToSensor(seedMatrix(zero))).toEqual(FACTORY_BASE_FROM_CHEST_LIDAR);
+  });
+
+  it("rotates the factory lever arm with the selected map-frame chassis heading", () => {
+    const base = seedMatrix({ ...zero, x: "2", y: "3", yaw: "90" });
+    const sensor = mapBasePoseToSensor(base);
+    expect(sensor[0][3]).toBeCloseTo(2, 12);
+    expect(sensor[1][3]).toBeCloseTo(3.102633, 12);
+    expect(sensor[2][3]).toBeCloseTo(0.336658, 12);
+  });
+
+  it("converts saved sensor references to the chassis frame and back", () => {
+    const base = seedMatrix({ ...zero, x: "-4", y: "7", z: "0.02", yaw: "90" });
+    const sensor = mapBasePoseToSensor(base);
+    const recovered = mapSensorPoseToBase(sensor);
+    recovered.forEach((row, index) => row.forEach((value, column) =>
+      expect(value).toBeCloseTo(base[index][column], 12)));
+  });
+});
+
 describe("map-bound initial pose drafts", () => {
   const state = localizationFixture();
   const preview: SavedSlamPointPreview = { mapId: state.binding.map_id,
     receiptSha256: state.binding.receipt_sha256, pointsSha256: state.binding.points_sha256,
     inputMode: "recorded", coordinateUnits: "native-raw", totalPoints: 1, sampled: false, points: [0, 0, 0] };
 
-  it("starts blank and requires all six explicitly entered pose values", () => {
+  it("starts blank and requires a complete pose before submission", () => {
     expect(Object.values(emptySeedFields())).toEqual(["", "", "", "", "", ""]);
     expect(planarSeedDraft(emptySeedFields())).toBeUndefined();
     expect(seedDraftReady(emptySeedFields(), state.binding, state, preview)).toBe(false);
@@ -76,13 +99,14 @@ describe("map-bound initial pose drafts", () => {
     }
   });
 
-  it("picks XY and heading without assuming height, roll or pitch", () => {
+  it("picks XY and heading and defaults omitted planar tilt to zero", () => {
     const fields = withPlanarSeed({ ...emptySeedFields(), z: "1.37", roll: "7.5", pitch: "-12" },
       { x: 2.75, y: -1.25, yaw: Math.PI / 2 });
     expect(fields).toEqual({ x: "2.75", y: "-1.25", yaw: "90", z: "1.37", roll: "7.5", pitch: "-12" });
     expect(planarSeedDraft(fields)).toEqual({ x: 2.75, y: -1.25, yaw: Math.PI / 2 });
     const partial = withPlanarSeed(emptySeedFields(), { x: 0, y: 0, yaw: 0 });
-    expect(seedDraftReady(partial, state.binding, state, preview)).toBe(false);
+    expect(partial).toEqual({ x: "0", y: "0", z: "0", roll: "0", pitch: "0", yaw: "0" });
+    expect(seedDraftReady(partial, state.binding, state, preview)).toBe(true);
     expect(() => withPlanarSeed(zero, { x: NaN, y: 0, yaw: 0 })).toThrow();
   });
 
@@ -110,8 +134,9 @@ describe("map-bound initial pose drafts", () => {
       coordinateUnits: "native-raw", trajectorySha256: "a".repeat(64), profileSha256: state.binding.profile_sha256,
       frames: 2, first: { frameIndex: 1, mapFromSensor: first }, last: { frameIndex: 2, mapFromSensor: seedMatrix(zero) } };
     const value = { ...preview, seedReferences: references };
-    expect(seedReferenceFields(value, state.binding, "first")).toEqual(seedFieldsFromMatrix(first));
-    expect(seedReferenceFields(value, state.binding, "last")).toEqual(zero);
+    expect(seedReferenceFields(value, state.binding, "first")).toEqual(seedFieldsFromMatrix(mapSensorPoseToBase(first)));
+    expect(seedReferenceFields(value, state.binding, "last")).toEqual(seedFieldsFromMatrix(
+      mapSensorPoseToBase(seedMatrix(zero))));
     for (const key of ["mapId", "receiptSha256", "pointsSha256", "inputMode"] as const) {
       expect(seedReferenceFields({ ...value, [key]: "changed" }, state.binding, "first")).toBeUndefined();
     }

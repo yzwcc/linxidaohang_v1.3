@@ -9,7 +9,7 @@ import {
 import { api, ApiError, jsonBody, type Connection } from "./api";
 import LidarCanvas from "./LidarCanvas";
 import RouteCheckPanel from "./RouteCheckPanel";
-import { emptySeedFields, freshSeedReference, planarLidarPose, planarSeedDraft, seedDraftReady, seedMatrix, seedReferenceFields,
+import { emptySeedFields, freshSeedReference, mapBasePoseToSensor, planarLidarPose, planarSeedDraft, seedDraftReady, seedMatrix, seedReferenceFields,
   withPlanarSeed, type SeedFields } from "./localization-view";
 import type { PlanarLidarPose } from "./lidar-view";
 
@@ -192,12 +192,12 @@ export default function LocalizationPanel({ connection, maps, mappingActive = fa
     try {
       if (action === "seed" && (!seedDraftReady(fields, draftBinding, state, preview) ||
           selectedReference !== "" && !referenceConfirmed)) {
-        throw new Error("请完整填写当前地图与会话的初始雷达位姿");
+        throw new Error("请完整填写当前地图与会话的初始底盘位姿");
       }
       body = {
         binding: state.binding, expectedGeneration: state.generation,
         ...(action === "seed" ? { sourceFrame: state.sourceFrame,
-          referenceFrame: state.referenceFrame, mapFromSensor: seedMatrix(fields) } : {}),
+          referenceFrame: state.referenceFrame, mapFromSensor: mapBasePoseToSensor(seedMatrix(fields)) } : {}),
       } as Omit<LocalizationCommand, "action">;
       if (action === "seed" && state.referenceFrame === null) throw new Error("当前没有新鲜参考帧，请等待扫描数据");
     } catch (caught) { setError((caught as Error).message); return; }
@@ -278,6 +278,9 @@ export default function LocalizationPanel({ connection, maps, mappingActive = fa
     matchedPreview.receiptSha256 === snapshot.binding.receipt_sha256 &&
     matchedPreview.pointsSha256 === snapshot.binding.points_sha256
     ? planarLidarPose(snapshot.mapFromSensor) : undefined;
+  const basePoseMatrix = snapshot?.state === "tracking" && snapshot.basePose?.status === "available"
+    ? snapshot.basePose.mapFromBase : undefined;
+  const basePose = basePoseMatrix ? planarLidarPose(basePoseMatrix) : undefined;
   const pickEnabled = Boolean(!busy && !terminal && snapshot?.workerReady && !snapshot.requestPending &&
     snapshot.referenceFrame !== null && matchedPreview?.mapId === snapshot.binding.map_id &&
     matchedPreview?.receiptSha256 === snapshot.binding.receipt_sha256 &&
@@ -311,18 +314,23 @@ export default function LocalizationPanel({ connection, maps, mappingActive = fa
     <div className="page-heading"><div><h1>定位验证</h1><p>已保存点云地图 · {inputLabel}</p></div>
       <button className="btn icon" title="刷新定位状态" disabled={busy} onClick={() => setRevision((v) => v + 1)}><RefreshCw size={15} /></button>
     </div>
-    <div className="notice warn"><AlertTriangle size={15} />
-      <span>胸前雷达原始坐标，尚未标定为底盘坐标。定位与导航尚未验收。</span>
+    <div className={`notice${basePose ? "" : " warn"}`} role="status">
+      {basePose
+        ? "厂家胸前雷达外参已用于初始定位；当前底盘位姿按扫描时刻 TF 换算。"
+        : "初始底盘位姿将按 X2 厂家胸前雷达外参换算；定位后显示同帧 TF 底盘坐标。"}
     </div>
     <div className="content-grid two localization-layout">
       <section className="localization-cloud">
         <div className="inline localization-heading"><h2>{map?.name ?? "当前会话地图"}</h2>
           <span className="tag">{matchedPreview ? "已保存点云" : "点云暂不可用"}</span></div>
-        {matchedPreview ? <LidarCanvas key={bindingKey} preview={matchedPreview} overlayPose={pose}
+        {matchedPreview ? <LidarCanvas key={bindingKey} preview={matchedPreview} overlayPose={basePose ?? pose}
           seedSelection={{ enabled: pickEnabled, pose: draftPose, onSelect: pickSeed }} /> :
           <div className="empty">等待定位服务与地图点云</div>}
         {pose && <div className="helper mono" data-testid="localization-pose">
           雷达 · X {pose.x.toFixed(3)} / Y {pose.y.toFixed(3)} / Z {snapshot!.mapFromSensor![2][3].toFixed(3)} raw
+        </div>}
+        {basePose && <div className="helper mono" data-testid="localization-base-pose">
+          底盘 · X {basePose.x.toFixed(3)} / Y {basePose.y.toFixed(3)} / Z {basePoseMatrix![2][3].toFixed(3)} m（声明尺度）
         </div>}
       </section>
       <section className="localization-controls stack">
@@ -364,7 +372,7 @@ export default function LocalizationPanel({ connection, maps, mappingActive = fa
           </div>}
         </div>}
         <form className="stack" onSubmit={(event) => { event.preventDefault(); void command("seed"); }}>
-          <h2>初始雷达位姿</h2>
+          <h2>初始底盘位姿</h2>
           <div className="field"><label htmlFor="seed-reference">建图参考位姿</label>
             <select id="seed-reference" value={selectedReference} disabled={!pickEnabled || !referenceAvailable}
               onChange={(event) => loadReference(event.target.value)}>

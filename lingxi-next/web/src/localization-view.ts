@@ -6,6 +6,43 @@ import { savedSlamReferencesSchema } from "../../shared/slam-reference";
 export type SeedFields = Record<"x" | "y" | "z" | "roll" | "pitch" | "yaw", string>;
 export const emptySeedFields = (): SeedFields => ({ x: "", y: "", z: "", roll: "", pitch: "", yaw: "" });
 
+// X2 factory_calibration_params.yml: chest_lidar R_baselink_sensor and t_baselink_sensor.
+export const FACTORY_BASE_FROM_CHEST_LIDAR: RigidMatrix = [
+  [0.99943712156732, -0.0335295598176, -0.0010995237564000032, 0.102633],
+  [0.0013840293564000017, 0.008462923713500103, 0.9999634959831, 0],
+  [-0.0335190214176, -0.9994021600208999, 0.008504565849820067, 0.336658],
+  [0, 0, 0, 1],
+];
+
+function multiplyRigid(a: RigidMatrix, b: RigidMatrix): RigidMatrix {
+  return rigidMatrixSchema.parse(Array.from({ length: 4 }, (_, row) =>
+    Array.from({ length: 4 }, (_, column) => a[row][0] * b[0][column] + a[row][1] * b[1][column] +
+      a[row][2] * b[2][column] + a[row][3] * b[3][column])));
+}
+
+function inverseRigid(value: RigidMatrix): RigidMatrix {
+  const [[a, b, c], [d, e, f], [g, h, i]] = value;
+  const determinant = a * (e * i - f * h) - b * (d * i - f * g) + c * (d * h - e * g);
+  if (Math.abs(determinant) < 0.999) throw new Error("invalid_factory_extrinsic");
+  const rotation = [
+    [(e * i - f * h) / determinant, (c * h - b * i) / determinant, (b * f - c * e) / determinant],
+    [(f * g - d * i) / determinant, (a * i - c * g) / determinant, (c * d - a * f) / determinant],
+    [(d * h - e * g) / determinant, (b * g - a * h) / determinant, (a * e - b * d) / determinant],
+  ];
+  const translation = rotation.map((row) => -(row[0] * value[0][3] + row[1] * value[1][3] + row[2] * value[2][3]));
+  return rigidMatrixSchema.parse([
+    [...rotation[0], translation[0]], [...rotation[1], translation[1]], [...rotation[2], translation[2]], [0, 0, 0, 1],
+  ]);
+}
+
+export function mapBasePoseToSensor(mapFromBase: RigidMatrix): RigidMatrix {
+  return multiplyRigid(rigidMatrixSchema.parse(mapFromBase), FACTORY_BASE_FROM_CHEST_LIDAR);
+}
+
+export function mapSensorPoseToBase(mapFromSensor: RigidMatrix): RigidMatrix {
+  return multiplyRigid(rigidMatrixSchema.parse(mapFromSensor), inverseRigid(FACTORY_BASE_FROM_CHEST_LIDAR));
+}
+
 /** Resolve the scan at submission time; the display poll can outlive the 0.5 s scan-gap limit. */
 export async function freshSeedReference(expected: LocalizationState, read: () => Promise<unknown>): Promise<number> {
   const value = localizationStateSchema.parse(await read());
@@ -34,12 +71,13 @@ export function seedReferenceFields(preview: SavedSlamPointPreview | undefined,
   if (!binding || !preview || !references.success || preview.mapId !== binding.map_id ||
       preview.receiptSha256 !== binding.receipt_sha256 || preview.pointsSha256 !== binding.points_sha256 ||
       preview.inputMode !== binding.input_mode || references.data.profileSha256 !== binding.profile_sha256) return;
-  return seedFieldsFromMatrix(references.data[endpoint].mapFromSensor);
+  return seedFieldsFromMatrix(mapSensorPoseToBase(references.data[endpoint].mapFromSensor));
 }
 
 export function withPlanarSeed(fields: SeedFields, pose: PlanarLidarPose): SeedFields {
   if (![pose.x, pose.y, pose.yaw].every(Number.isFinite)) throw new Error("invalid_planar_seed");
-  return { ...fields, x: String(pose.x), y: String(pose.y), yaw: String(pose.yaw * 180 / Math.PI) };
+  return { ...fields, x: String(pose.x), y: String(pose.y), z: fields.z || "0",
+    roll: fields.roll || "0", pitch: fields.pitch || "0", yaw: String(pose.yaw * 180 / Math.PI) };
 }
 
 export function planarSeedDraft(fields: SeedFields): PlanarLidarPose | undefined {
@@ -57,7 +95,7 @@ export function seedDraftReady(fields: SeedFields, binding: LocalizationState["b
   try { seedMatrix(fields); return true; } catch { return false; }
 }
 
-/** Intrinsic ZYX: mapFromLidar = translation * Rz(yaw) * Ry(pitch) * Rx(roll). */
+/** Intrinsic ZYX planar base pose: translation * Rz(yaw) * Ry(pitch) * Rx(roll). */
 export function seedMatrix(fields: SeedFields): RigidMatrix {
   const value = Object.fromEntries(Object.entries(fields).map(([key, text]) => {
     if (!text.trim() || !Number.isFinite(Number(text))) throw new Error("请完整填写有限数值位姿");
