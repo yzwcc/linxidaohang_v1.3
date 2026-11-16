@@ -22,6 +22,21 @@ _DIAGNOSTIC_LIMITS = {
     'scan_count': (0, 128),
     'ray_count': (0, 131072),
     'request_bytes': (0, 40000000),
+    'oldest_scan_age_ms': (-300000, 300000),
+    'latest_scan_age_ms': (-300000, 300000),
+    'grid_remaining_ms': (-300000, 15000),
+    'free_cells': (0, 1048576),
+    'occupied_cells': (0, 1048576),
+    'unknown_cells': (0, 1048576),
+    'ground_returns': (0, 262144),
+    'nonground_returns': (0, 262144),
+    'unclassified_returns': (0, 262144),
+    'support_free_cells': (0, 1048576),
+    'support_occupied_cells': (0, 1048576),
+    'clearance_free_cells': (0, 1048576),
+    'clearance_occupied_cells': (0, 1048576),
+    'input_age_ms_at_completion': (0, 300000),
+    'processing_elapsed_ms': (0, 15000),
 }
 
 

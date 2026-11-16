@@ -16,7 +16,7 @@ from lingxi_slam.base_pose import timestamp
 from lingxi_navigation.recorded_occupancy import OfflineGeometry, RaySelection
 from lingxi_navigation.occupancy import ClearanceProjection, canonical
 from lingxi_navigation.registered_window import RegisteredInputExpired, RegisteredRayWindow
-from lingxi_navigation.terrain import TerrainBudget
+from lingxi_navigation.terrain import TerrainBudget, SAVED_MAP_TERRAIN_MAXIMUM_AGE_SECONDS
 from lingxi_navigation.terrain_lane import TerrainLane
 from lingxi_navigation.runtime_fault import record_fault
 
@@ -31,16 +31,18 @@ class RegisteredTerrainSource:
     """
 
     def __init__(self, session, lane, geometry, *, projection, budget=TerrainBudget(), selection=RaySelection(),
-                 saved_map=False):
+                 saved_map=False, minimum_submission_seconds=0.):
         if (type(session) is not LocalizationSession or type(lane) is not TerrainLane
                 or type(geometry) is not OfflineGeometry or type(projection) is not ClearanceProjection
                 or type(budget) is not TerrainBudget
-                or type(selection) is not RaySelection):
+                or type(selection) is not RaySelection
+                or type(minimum_submission_seconds) not in (int, float)
+                or not np.isfinite(minimum_submission_seconds) or not 0 <= minimum_submission_seconds <= .5):
             raise ValueError('explicit_localization_lane_and_offline_geometry_required')
         if type(saved_map) is not bool or saved_map and (session.binding.input_mode != 'live'
                 or session.base_scale is None or geometry.metres_per_raw_unit != session.base_scale
                 or not np.array_equal(np.array(geometry.declared_from_raw).reshape(4, 4), session.base_navigation_from_raw)
-                or budget.maximum_age_seconds > .3):
+                or budget.maximum_age_seconds > SAVED_MAP_TERRAIN_MAXIMUM_AGE_SECONDS):
             raise ValueError('same_saved_map_scale_frame_geometry_and_fresh_window_required')
         self.saved_map, self.scan_stamps = saved_map, {}
         self.submitted_stamps = self.annotated_grid = self.raw_grid = None
@@ -54,6 +56,7 @@ class RegisteredTerrainSource:
         self.submitted_sha256 = None
         self.submitted_epoch_sha256 = None
         self.recovering, self.last_scan_stamp = False, None
+        self.minimum_submission_seconds, self.last_submission = minimum_submission_seconds, None
 
     def _valid(self, state):
         return (state['state'] == 'tracking' and not state['requestPending']
@@ -154,7 +157,12 @@ class RegisteredTerrainSource:
                     self.window = RegisteredRayWindow(packet.binding, packet.generation, self.geometry,
                         projection=self.projection, budget=self.budget, selection=self.selection, clock=self.session.clock)
                 # Retain measured pairs while busy; only build a submission when the lane is ready.
-                value = self.window.offer(packet, materialize=self.lane.snapshot().state == 'ready')
+                # Leave a completed result observable between submissions. Every
+                # original scan still enters the bounded window while coalescing.
+                ready = (self.lane.snapshot().state == 'ready'
+                    and (self.last_submission is None
+                         or started - self.last_submission >= self.minimum_submission_seconds))
+                value = self.window.offer(packet, materialize=ready)
                 if self.saved_map:
                     self.scan_stamps = {frame.native_frame_id: self.scan_stamps[frame.native_frame_id]
                                         for frame in self.window.frames}
@@ -165,6 +173,7 @@ class RegisteredTerrainSource:
                 accepted = self.lane.submit(value.observations, sequence=packet.native_frame_id,
                                             received_at=value.received_at)
                 if accepted:
+                    self.last_submission = started
                     self.submitted = value
                     if self.saved_map:
                         self.submitted_stamps = (self.scan_stamps[self.window.frames[0].native_frame_id], stamp)

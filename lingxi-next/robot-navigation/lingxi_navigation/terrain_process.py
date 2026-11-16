@@ -83,6 +83,7 @@ class TerrainProcess:
         self.process, self.grid, self.summary = None, None, None
         self.state, self.failure, self.cleanup_complete = 'new', None, False
         self.capture, self.capture_received, self.sequence, self.last_clock = None, None, -1, None
+        self.last_expiry_diagnostic = None
 
     def _now(self):
         if threading.get_ident() != self.owner:
@@ -221,6 +222,9 @@ class TerrainProcess:
                     raise TimeoutError('terrain_processing_deadline_exceeded_before_publication')
                 if completed < expires:
                     raise ValueError('terrain_expiry_before_original_deadline')
+                if self.last_expiry_diagnostic is None or completed - self.last_expiry_diagnostic >= 5.:
+                    self.last_expiry_diagnostic = completed
+                    record_fault('terrain_process_expired', code='terrain_expired', diagnostics=diagnostics)
                 return None
             summary = reply.get('summary', {})
             costs = base64.b64decode(reply['costs'], validate=True)

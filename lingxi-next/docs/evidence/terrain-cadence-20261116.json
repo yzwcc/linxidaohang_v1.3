@@ -1,0 +1,421 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-11-16T07:23:32.426793+00:00",
+  "release": "0.1.50-terrain-cadence-20261116-gdc822e2-r",
+  "fieldAcceptance": {
+    "staticArrowPositionAndDirection": "accepted_by_user",
+    "movingLocalizationAccepted": false,
+    "automaticNavigationAccepted": false
+  },
+  "changes": {
+    "terrainMaximumAgeSeconds": 0.8,
+    "terrainProcessingBudgetSeconds": 0.4,
+    "minimumSubmissionSeconds": 0.2,
+    "terrainRaysPerScan": 1024,
+    "maximumScans": 2,
+    "freshnessOrigin": "oldest_original_callback_receipt",
+    "timestampRenewal": false
+  },
+  "sourceVerification": {
+    "localMatchesDeployment": true,
+    "sourceSha256": {
+      "robot-navigation/lingxi_navigation/runtime_fault.py": "6463c64cf897dc92d0541da32e7c1178a1b23d88c36c531b2f46492f1356f26d",
+      "robot-navigation/lingxi_navigation/terrain.py": "f12ee2b9e7789350697f48f04e0593b81e6e5c0da3d4d7db5b083626c83bcc03",
+      "robot-navigation/lingxi_navigation/terrain_process.py": "e4b981838216eddba7e06ffb7c620c90d87902d282ea4f5df721393acad411c9",
+      "robot-navigation/lingxi_navigation/terrain_ros.py": "584dc8487156340a2c273e31947a658d1ad9fb2794b0a208105e526655254d3e",
+      "robot-runtime/python/live_acquisition.py": "ccd0ca6956cc9ba41a91e20d38cc0b16a747a95e0e42f566b7ad2a189375732e",
+      "robot-runtime/python/registered_terrain.py": "e29db01ba43de7bf1f60a28aa066f1cf428689312fe0dbe22bdadd47f2d0e953"
+    }
+  },
+  "validation": {
+    "platform": "Linux ARM64",
+    "user": "lingxi-next",
+    "testsRun": 192,
+    "passed": 189,
+    "skipped": 3,
+    "seconds": 31.529,
+    "assetBuilds": {
+      "slam": {
+        "manifestSha256": "f88f38b2a9dba316d89c3dadb37aa8570d39604f2744c0388f58993f50d02e34",
+        "files": 6
+      },
+      "mapping": {
+        "manifestSha256": "60a935eec0a23b9d154296c1f2f5b1a18ecfa59e67007d8b24031ebb3ce3d073",
+        "files": 6
+      }
+    }
+  },
+  "field": {
+    "robotRebootLocalTime": "2026-11-16T15:08:29+08:00",
+    "restoredSampleCount": 62,
+    "restoredDistinctAvailableFrames": 62,
+    "restorationResult": "tracking_restored_with_preserved_current_pose",
+    "latestLocalization": {
+      "state": "tracking",
+      "lastFrame": 6239,
+      "referenceFrame": 6240,
+      "basePoseStatus": "available",
+      "localizationReady": false,
+      "navigationReady": false,
+      "runtimePhase": "running"
+    },
+    "serviceState": "active",
+    "terrainFailure": "GroundFrameMismatch",
+    "heightErrorMetres": 0.629162,
+    "productionSensorHeightMetres": 0.9845569899873013,
+    "measuredOriginHeightMetres": 0.35920684027521765,
+    "postureChangeConfirmed": false,
+    "terrainRecovered": false,
+    "rosProbe": {
+      "inputsAvailable": false,
+      "samples": 121,
+      "withFree": 0,
+      "withOccupied": 0,
+      "maximumFree": 0
+    }
+  },
+  "recordedDensityComparison": {
+    "measuredScans": 6,
+    "rows": [
+      {
+        "scan": 0,
+        "maximumPerScan": 1024,
+        "points": 1024,
+        "ground": 0,
+        "nonground": 1024,
+        "nearDeclaredFloor": 97
+      },
+      {
+        "scan": 0,
+        "maximumPerScan": 4096,
+        "points": 4096,
+        "ground": 36,
+        "nonground": 4060,
+        "nearDeclaredFloor": 385
+      },
+      {
+        "scan": 0,
+        "maximumPerScan": 8192,
+        "points": 4597,
+        "ground": 51,
+        "nonground": 4546,
+        "nearDeclaredFloor": 427
+      },
+      {
+        "scan": 1,
+        "maximumPerScan": 1024,
+        "points": 1024,
+        "ground": 0,
+        "nonground": 1024,
+        "nearDeclaredFloor": 97
+      },
+      {
+        "scan": 1,
+        "maximumPerScan": 4096,
+        "points": 4096,
+        "ground": 43,
+        "nonground": 4053,
+        "nearDeclaredFloor": 387
+      },
+      {
+        "scan": 1,
+        "maximumPerScan": 8192,
+        "points": 4677,
+        "ground": 87,
+        "nonground": 4590,
+        "nearDeclaredFloor": 449
+      },
+      {
+        "scan": 2,
+        "maximumPerScan": 1024,
+        "points": 1024,
+        "ground": 0,
+        "nonground": 1024,
+        "nearDeclaredFloor": 88
+      },
+      {
+        "scan": 2,
+        "maximumPerScan": 4096,
+        "points": 4096,
+        "ground": 25,
+        "nonground": 4071,
+        "nearDeclaredFloor": 388
+      },
+      {
+        "scan": 2,
+        "maximumPerScan": 8192,
+        "points": 4658,
+        "ground": 36,
+        "nonground": 4622,
+        "nearDeclaredFloor": 432
+      },
+      {
+        "scan": 3,
+        "maximumPerScan": 1024,
+        "points": 1024,
+        "ground": 0,
+        "nonground": 1024,
+        "nearDeclaredFloor": 97
+      },
+      {
+        "scan": 3,
+        "maximumPerScan": 4096,
+        "points": 4096,
+        "ground": 62,
+        "nonground": 4034,
+        "nearDeclaredFloor": 376
+      },
+      {
+        "scan": 3,
+        "maximumPerScan": 8192,
+        "points": 4663,
+        "ground": 80,
+        "nonground": 4583,
+        "nearDeclaredFloor": 436
+      },
+      {
+        "scan": 4,
+        "maximumPerScan": 1024,
+        "points": 1024,
+        "ground": 0,
+        "nonground": 1024,
+        "nearDeclaredFloor": 100
+      },
+      {
+        "scan": 4,
+        "maximumPerScan": 4096,
+        "points": 4096,
+        "ground": 52,
+        "nonground": 4044,
+        "nearDeclaredFloor": 385
+      },
+      {
+        "scan": 4,
+        "maximumPerScan": 8192,
+        "points": 4641,
+        "ground": 88,
+        "nonground": 4553,
+        "nearDeclaredFloor": 443
+      },
+      {
+        "scan": 5,
+        "maximumPerScan": 1024,
+        "points": 1024,
+        "ground": 0,
+        "nonground": 1024,
+        "nearDeclaredFloor": 98
+      },
+      {
+        "scan": 5,
+        "maximumPerScan": 4096,
+        "points": 4096,
+        "ground": 70,
+        "nonground": 4026,
+        "nearDeclaredFloor": 382
+      },
+      {
+        "scan": 5,
+        "maximumPerScan": 8192,
+        "points": 4618,
+        "ground": 87,
+        "nonground": 4531,
+        "nearDeclaredFloor": 435
+      }
+    ]
+  },
+  "recordedFullPipelineComparison": {
+    "recordedMeasuredScans": 6,
+    "comparisonOnly": true,
+    "originalPerReturnOriginsAvailable": false,
+    "originsReconstructedFromSynchronizedScanTransforms": true,
+    "diagnosticSensorHeight": 0.35920684027521765,
+    "productionSensorHeight": 0.9845569899873013,
+    "changedProductionSettings": false,
+    "publishedToROS": false,
+    "motionCommandsSent": false,
+    "rows": [
+      {
+        "density": 1024,
+        "pair": 0,
+        "rays": 2048,
+        "groundReturns": 0,
+        "nongroundReturns": 2048,
+        "unclassifiedReturns": 0,
+        "supportFree": 0,
+        "supportOccupied": 94,
+        "clearanceFree": 282,
+        "clearanceOccupied": 73,
+        "fusedFree": 0,
+        "fusedOccupied": 94,
+        "buildMs": 19.357766999974046,
+        "groundMs": 27.89275899999666,
+        "directComputationMs": 59.254759000054946,
+        "processMs": 70.40241699996841,
+        "processProducedGrid": true
+      },
+      {
+        "density": 1024,
+        "pair": 1,
+        "rays": 2048,
+        "groundReturns": 0,
+        "nongroundReturns": 2048,
+        "unclassifiedReturns": 0,
+        "supportFree": 0,
+        "supportOccupied": 93,
+        "clearanceFree": 269,
+        "clearanceOccupied": 79,
+        "fusedFree": 0,
+        "fusedOccupied": 93,
+        "buildMs": 13.981657999920571,
+        "groundMs": 17.601516000013362,
+        "directComputationMs": 51.5604690000373,
+        "processMs": 62.972245000082694,
+        "processProducedGrid": true
+      },
+      {
+        "density": 1024,
+        "pair": 2,
+        "rays": 2048,
+        "groundReturns": 0,
+        "nongroundReturns": 2048,
+        "unclassifiedReturns": 0,
+        "supportFree": 0,
+        "supportOccupied": 98,
+        "clearanceFree": 270,
+        "clearanceOccupied": 84,
+        "fusedFree": 0,
+        "fusedOccupied": 98,
+        "buildMs": 14.15096400000948,
+        "groundMs": 17.45873799995934,
+        "directComputationMs": 54.96513599996433,
+        "processMs": 75.79257299994424,
+        "processProducedGrid": true
+      },
+      {
+        "density": 4096,
+        "pair": 0,
+        "rays": 8192,
+        "groundReturns": 79,
+        "nongroundReturns": 8113,
+        "unclassifiedReturns": 0,
+        "supportFree": 7,
+        "supportOccupied": 148,
+        "clearanceFree": 502,
+        "clearanceOccupied": 120,
+        "fusedFree": 0,
+        "fusedOccupied": 148,
+        "buildMs": 67.76936799997202,
+        "groundMs": 67.48726700004681,
+        "directComputationMs": 123.34065599998212,
+        "processMs": 201.32322699998895,
+        "processProducedGrid": true
+      },
+      {
+        "density": 4096,
+        "pair": 1,
+        "rays": 8192,
+        "groundReturns": 87,
+        "nongroundReturns": 8105,
+        "unclassifiedReturns": 0,
+        "supportFree": 5,
+        "supportOccupied": 153,
+        "clearanceFree": 484,
+        "clearanceOccupied": 125,
+        "fusedFree": 0,
+        "fusedOccupied": 153,
+        "buildMs": 54.809804999990774,
+        "groundMs": 80.18566900000224,
+        "directComputationMs": 139.3124239999679,
+        "processMs": 215.98440600007507,
+        "processProducedGrid": true
+      },
+      {
+        "density": 4096,
+        "pair": 2,
+        "rays": 8192,
+        "groundReturns": 122,
+        "nongroundReturns": 8070,
+        "unclassifiedReturns": 0,
+        "supportFree": 7,
+        "supportOccupied": 157,
+        "clearanceFree": 496,
+        "clearanceOccupied": 129,
+        "fusedFree": 0,
+        "fusedOccupied": 157,
+        "buildMs": 43.94866600000569,
+        "groundMs": 67.82417200008695,
+        "directComputationMs": 124.40715600007479,
+        "processMs": 187.36236799998096,
+        "processProducedGrid": true
+      },
+      {
+        "density": 8192,
+        "pair": 0,
+        "rays": 9274,
+        "groundReturns": 138,
+        "nongroundReturns": 9136,
+        "unclassifiedReturns": 0,
+        "supportFree": 6,
+        "supportOccupied": 150,
+        "clearanceFree": 505,
+        "clearanceOccupied": 122,
+        "fusedFree": 1,
+        "fusedOccupied": 150,
+        "buildMs": 93.26353599999493,
+        "groundMs": 85.36016999994445,
+        "directComputationMs": 160.82009199999447,
+        "processMs": 194.31341999995766,
+        "processProducedGrid": true
+      },
+      {
+        "density": 8192,
+        "pair": 1,
+        "rays": 9321,
+        "groundReturns": 116,
+        "nongroundReturns": 9205,
+        "unclassifiedReturns": 0,
+        "supportFree": 7,
+        "supportOccupied": 156,
+        "clearanceFree": 492,
+        "clearanceOccupied": 128,
+        "fusedFree": 1,
+        "fusedOccupied": 156,
+        "buildMs": 70.46370300008675,
+        "groundMs": 89.26775899999484,
+        "directComputationMs": 155.10879800001476,
+        "processMs": 202.37498899996353,
+        "processProducedGrid": true
+      },
+      {
+        "density": 8192,
+        "pair": 2,
+        "rays": 9259,
+        "groundReturns": 175,
+        "nongroundReturns": 9084,
+        "unclassifiedReturns": 0,
+        "supportFree": 8,
+        "supportOccupied": 160,
+        "clearanceFree": 501,
+        "clearanceOccupied": 132,
+        "fusedFree": 0,
+        "fusedOccupied": 160,
+        "buildMs": 61.70881900004588,
+        "groundMs": 100.1777779999884,
+        "directComputationMs": 160.1851399999532,
+        "processMs": 196.01086399995893,
+        "processProducedGrid": true
+      }
+    ],
+    "usesOriginalIngressTiming": false,
+    "completeLiveEndToEndLatencyMeasured": false,
+    "productionInputEquivalentReplay": false
+  },
+  "unresolved": [
+    "post_reboot_ground_frame_height_mismatch",
+    "insufficient_contiguous_traversable_cells",
+    "cadence_requires_current_ros_field_confirmation",
+    "historical_corrected_point_stream_expired",
+    "moving_tracking_obstacle_avoidance_and_navigation_acceptance"
+  ],
+  "motionCommandsSent": false
+}

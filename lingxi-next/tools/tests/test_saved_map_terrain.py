@@ -22,22 +22,30 @@ if AVAILABLE:
     from live_terrain_ros import LiveTerrainRosOutput
 
 
+class SavedMapFakeProcess(FakeProcess):
+    def update(self, data, *, sequence, received_at):
+        grid = super().update(data, sequence=sequence, received_at=received_at)
+        self.grid = replace(grid, expires_at=received_at + .8)
+        return self.grid
+
+
 class SavedMapTerrainFixture:
-    def terrain(self, *, blocked=False):
+    def terrain(self, *, blocked=False, minimum_submission_seconds=0.):
         self.now = time.monotonic()
         self.release, self.calls = threading.Event(), []
         if not blocked:
             self.release.set()
-        self.lane = TerrainLane(lambda: FakeProcess(self.release, self.calls), poll_seconds=.005)
+        self.lane = TerrainLane(lambda: SavedMapFakeProcess(self.release, self.calls), poll_seconds=.005)
         self.addCleanup(self.lane.close)
         self.addCleanup(self.release.set)
         wait_for(lambda: self.lane.snapshot().state == 'ready')
         self.geometry = OfflineGeometry(self.session.base_scale,
             tuple(map(float, self.session.base_navigation_from_raw.ravel())))
-        self.budget = TerrainBudget(maximum_age_seconds=.3, maximum_span_seconds=.2,
+        self.budget = TerrainBudget(maximum_age_seconds=.8, maximum_span_seconds=.2,
                                    maximum_processing_seconds=.2)
         self.source = RegisteredTerrainSource(self.session, self.lane, self.geometry,
-            projection=spec(), budget=self.budget, saved_map=True)
+            projection=spec(), budget=self.budget, saved_map=True,
+            minimum_submission_seconds=minimum_submission_seconds)
         self.addCleanup(self.source.close)
 
     def scan(self, frame=1, stamp=1_700_000_000_123_456_789, **kwargs):
@@ -78,7 +86,21 @@ class SavedMapTerrainTests(SavedMapTerrainFixture, SyntheticLiveFixture, unittes
         grid = self.result()
         self.assertEqual((first.effective_ns, second.effective_ns), (grid.oldest_scan_ns, grid.latest_scan_ns))
         self.assertEqual(self.source.submitted.received_at, grid.received_at)
-        self.assertLessEqual(grid.expires_at, grid.received_at + .3)
+        self.assertLessEqual(grid.expires_at, grid.received_at + .8)
+
+    def test_measured_registration_delay_keeps_original_deadline_and_expired_input_withdraws(self):
+        self.terrain()
+        received = time.monotonic() - .55
+        packet, timing, _ = self.offer(received=received)
+        self.assertTrue(self.source(packet, scan_header_ns=timing.header_ns))
+        grid = self.result()
+        self.assertEqual(received, grid.received_at)
+        self.assertLessEqual(grid.expires_at, received + .8)
+        self.now = time.monotonic()
+        packet, timing, _ = self.offer(2, timing.effective_ns + 100_000_000, received=self.now - .81)
+        self.assertFalse(self.source(packet, scan_header_ns=timing.header_ns))
+        self.assertIsNone(self.source.snapshot().grid)
+        self.assertFalse(self.source.retired)
 
     def test_busy_native_result_keeps_its_submitted_scan_not_latest_base_time(self):
         self.terrain(blocked=True)
@@ -93,6 +115,22 @@ class SavedMapTerrainTests(SavedMapTerrainFixture, SyntheticLiveFixture, unittes
         self.assertEqual(1, grid.sequence)
         self.assertEqual(first.effective_ns, grid.latest_scan_ns)
         self.assertNotEqual(int(self.session.state()['basePose']['effectiveScanNs']), grid.latest_scan_ns)
+
+    def test_coalesced_scan_keeps_completed_grid_visible_and_next_request_uses_current_window(self):
+        self.terrain(minimum_submission_seconds=.2)
+        _, first, _ = self.scan()
+        grid = self.result()
+        _, second, accepted = self.scan(2, first.effective_ns + 100_000_000)
+        self.assertFalse(accepted)
+        self.assertIs(grid, self.source.snapshot().grid)
+        self.assertEqual([1, 2], [frame.native_frame_id for frame in self.source.window.frames])
+        time.sleep(.21)
+        _, third, accepted = self.scan(3, second.effective_ns + 100_000_000)
+        self.assertTrue(accepted)
+        current = self.result()
+        self.assertEqual(third.effective_ns, current.latest_scan_ns)
+        self.assertEqual(current.received_at, self.source.window.frames[0].received_at)
+        self.assertLessEqual(current.expires_at, current.received_at + .8)
 
     def test_loss_during_pending_result_cannot_revive_terrain(self):
         self.terrain(blocked=True)

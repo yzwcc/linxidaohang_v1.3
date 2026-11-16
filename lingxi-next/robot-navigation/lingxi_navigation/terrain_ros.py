@@ -4,10 +4,13 @@ No velocity interface and no metric admission. The independent command fence
 is still required: changing a ROS map is not an acknowledgement of a stop.
 """
 import threading
+import time
 
 from .navfn import finite
 from .occupancy import ClearanceProjection
 from .terrain_feed import ExpiringTerrainFeed
+from .runtime_fault import record_fault
+from .terrain import SAVED_MAP_TERRAIN_MAXIMUM_AGE_NS
 
 
 class TerrainRosPublisher:
@@ -27,6 +30,7 @@ class TerrainRosPublisher:
         self.saved_map = saved_map
         self.frame_id, self.feed, self.last_grid = 'lingxi_saved_map' if saved_map else namespace + '_map', None, None
         self.closed, self.publications, self.last_failure = False, 0, 'no_terrain'
+        self.last_diagnostic = None
         qos = QoSProfile(depth=1, reliability=ReliabilityPolicy.RELIABLE,
                          durability=DurabilityPolicy.TRANSIENT_LOCAL)
         self.publisher = node.create_publisher(OccupancyGrid, 'traversable_map', qos)
@@ -68,8 +72,8 @@ class TerrainRosPublisher:
             grid = snapshot.grid
             if (grid.coordinate_frame == self.frame_id
                     and type(grid.oldest_scan_ns) is int and type(grid.latest_scan_ns) is int
-                    and 0 <= now - grid.oldest_scan_ns <= 300_000_000
-                    and 0 <= now - grid.latest_scan_ns <= 300_000_000):
+                    and 0 <= now - grid.oldest_scan_ns <= SAVED_MAP_TERRAIN_MAXIMUM_AGE_NS
+                    and 0 <= now - grid.latest_scan_ns <= SAVED_MAP_TERRAIN_MAXIMUM_AGE_NS):
                 stamp = grid.latest_scan_ns
             else:
                 costs = (-1,) * (spec.width * spec.height)
@@ -81,6 +85,21 @@ class TerrainRosPublisher:
         msg.data = costs
         self.publisher.publish(msg)
         self.publications += 1
+        # Bounded private diagnostics distinguish missing/expired results from
+        # a current grid whose measured ground support remains unknown.
+        monotonic_now = time.monotonic()
+        if self.last_diagnostic is None or monotonic_now - self.last_diagnostic >= 5.:
+            self.last_diagnostic = monotonic_now
+            diagnostics = dict(free_cells=costs.count(0), occupied_cells=costs.count(100),
+                               unknown_cells=costs.count(-1))
+            if snapshot.grid is not None:
+                grid = snapshot.grid
+                diagnostics['grid_remaining_ms'] = (grid.expires_at - monotonic_now) * 1000
+                for key, scan_ns in (('oldest_scan_age_ms', grid.oldest_scan_ns),
+                                     ('latest_scan_age_ms', grid.latest_scan_ns)):
+                    if type(scan_ns) is int:
+                        diagnostics[key] = (now - scan_ns) / 1e6
+            record_fault('terrain_ros_output', code=self.last_failure or 'current_terrain', diagnostics=diagnostics)
 
     def close(self):
         self.lane.retire()

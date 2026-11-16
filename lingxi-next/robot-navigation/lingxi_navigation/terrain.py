@@ -11,8 +11,15 @@ import time
 from .ground import (GroundDeclaration, PatchworkSegmenter, DeclaredGroundCandidate,
                      DeclaredTraversability, declared_ground_candidates, fuse_declared)
 from .navfn import finite
+from .runtime_fault import record_fault
 from .occupancy import (ClearanceProjection, DeclaredObservationBatch, DeclaredClearanceResult, OctomapProjector,
                         MAXIMUM_RAYS, canonical)
+
+
+# Includes two measured scans, registration, transport and terrain computation.
+# Always measured from the oldest original receipt; publication never renews it.
+SAVED_MAP_TERRAIN_MAXIMUM_AGE_SECONDS = .8
+SAVED_MAP_TERRAIN_MAXIMUM_AGE_NS = int(SAVED_MAP_TERRAIN_MAXIMUM_AGE_SECONDS * 10**9)
 
 
 @dataclass(frozen=True)
@@ -82,6 +89,7 @@ class TerrainProducer:
         self.declaration, self.budget, self.clock = declaration, budget, clock
         self.owner, self.sequence, self.revision = threading.get_ident(), -1, -1
         self.epoch = self.capture = self.capture_received = self.snapshot = self.last_clock = None
+        self.last_diagnostic = None
 
     def _now(self):
         if threading.get_ident() != self.owner:
@@ -144,6 +152,17 @@ class TerrainProducer:
             raise ValueError('complete_current_terrain_clearance_required')
         fused = fuse_declared(clearance, support)
         completed = self._now()
+        if self.last_diagnostic is None or completed - self.last_diagnostic >= 5.:
+            self.last_diagnostic = completed
+            record_fault('terrain_candidates', code='measured_terrain_candidates', diagnostics=dict(
+                scan_count=len(scans), ray_count=sum(len(scan.returns) for scan in scans),
+                ground_returns=support.ground_returns, nonground_returns=support.nonground_returns,
+                unclassified_returns=support.unclassified_returns,
+                support_free_cells=support.costs.count(0), support_occupied_cells=support.costs.count(254),
+                clearance_free_cells=clearance.costs.count(0), clearance_occupied_cells=clearance.costs.count(254),
+                free_cells=fused.costs.count(0), occupied_cells=fused.costs.count(254),
+                input_age_ms_at_completion=(completed - received_at) * 1000,
+                processing_elapsed_ms=(completed - now) * 1000))
         if completed - now > self.budget.maximum_processing_seconds:
             raise TimeoutError('terrain_native_processing_deadline_exceeded')
         if completed >= expires:

@@ -15,7 +15,7 @@ from lingxi_navigation.occupancy import ClearanceProjection, DEPENDENCIES, canon
 from lingxi_navigation.recorded_occupancy import OfflineGeometry, RaySelection
 from lingxi_navigation.terrain_lane import TerrainLane, LaneSnapshot
 from lingxi_navigation.terrain_process import TerrainProcess
-from lingxi_navigation.terrain import TerrainBudget
+from lingxi_navigation.terrain import TerrainBudget, SAVED_MAP_TERRAIN_MAXIMUM_AGE_SECONDS
 from lingxi_navigation.runtime_fault import record_fault
 
 PURPOSE = 'passive_acquisition_and_declared_terrain_not_navigation'
@@ -202,10 +202,10 @@ class AcquisitionComposition:
         self.counts = None
         self.registered_packets = self.registered_returns = self.submissions = 0
         self.pending_terrain = None
-        self.terrain_budget = (TerrainBudget(maximum_scans=2, maximum_span_seconds=.2, maximum_processing_seconds=.2,
-            maximum_age_seconds=.3) if settings.saved_map_terrain else TerrainBudget())
+        self.terrain_budget = (TerrainBudget(maximum_scans=2, maximum_span_seconds=.2, maximum_processing_seconds=.4,
+            maximum_age_seconds=SAVED_MAP_TERRAIN_MAXIMUM_AGE_SECONDS) if settings.saved_map_terrain else TerrainBudget())
         # Keep the full scan for localization. Bound only terrain's uniformly
-        # sampled measured ray pairs so its child can finish within the .3 s age limit.
+        # sampled measured ray pairs within the bounded original-input age limit.
         # Retain two recent scans so the ground declaration's repeated-observation
         # requirement can be satisfied without restoring the larger ray workload.
         self.terrain_selection = RaySelection(maximum_per_scan=1024) if settings.saved_map_terrain else RaySelection()
@@ -267,7 +267,8 @@ class AcquisitionComposition:
                 self.lane = TerrainLane(native_terrain)
                 self.source = RegisteredTerrainSource(self.session, self.lane, geometry, projection=projection,
                     budget=self.terrain_budget, selection=self.terrain_selection,
-                    saved_map=self.settings.saved_map_terrain)
+                    saved_map=self.settings.saved_map_terrain,
+                    minimum_submission_seconds=.2 if self.settings.saved_map_terrain else 0.)
             self.rays = NativeAcquisitionOutput(self.settings.library)
             verify_loaded_libraries({self.settings.library: self.settings.library_sha256}, Path('/proc/self/maps').read_text())
             result = AcquiringNative(self.session, point_factory, acquisition_output=self.rays,
