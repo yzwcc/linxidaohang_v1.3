@@ -198,6 +198,7 @@ class AcquisitionComposition:
         self.source = self.lane = self.service = self.rays = None
         self.created = self.closed = self.failed = False
         self.failure_reason = self.retirement_reason = None
+        self.terrain_failed, self.terrain_failure_reason = False, None
         self.counts = None
         self.registered_packets = self.registered_returns = self.submissions = 0
         self.pending_terrain = None
@@ -329,11 +330,20 @@ class AcquisitionComposition:
             return
         with self.lock:
             was_failed = self.failed
+            was_terrain_failed = self.terrain_failed
             if self.service is not None and self.service.state == 'failed':
+                self.terrain_failed = True
+                self.terrain_failure_reason = self.terrain_failure_reason or self.service.failure or 'terrain_process_failed'
+            if snapshot.state == 'failed' or snapshot.failure in ('terrain_lane_failed', 'terrain_cleanup_failed'):
+                self.terrain_failed = True
+                self.terrain_failure_reason = self.terrain_failure_reason or snapshot.failure or 'terrain_failed'
+            # Saved-map localization owns its pose independently of terrain.
+            # A dead terrain child withdraws navigation inputs, while the
+            # sensor/localization owner continues without restarting that child.
+            if self.terrain_failed and not self.settings.saved_map_terrain:
                 self.failed = True
-                self.failure_reason = self.failure_reason or self.service.failure or 'terrain_process_failed'
-            if snapshot.state == 'failed' or snapshot.failure in (
-                    'terrain_lane_failed', 'terrain_cleanup_failed', 'mismatched_registered_terrain_result',
+                self.failure_reason = self.failure_reason or self.terrain_failure_reason
+            if snapshot.failure in ('mismatched_registered_terrain_result',
                     'wrong_registered_source_owner', 'registered_localization_unavailable',
                     'registered_terrain_input_failed'):
                 self.failed = True
@@ -342,6 +352,8 @@ class AcquisitionComposition:
                 self.retirement_reason = self.retirement_reason or snapshot.failure
             if self.failed and not was_failed:
                 record_fault('acquisition_health', code=self.failure_reason)
+            if self.terrain_failed and not was_terrain_failed:
+                record_fault('acquisition_terrain_health', code=self.terrain_failure_reason)
 
     def revoke(self):
         self._health()
@@ -376,9 +388,10 @@ class AcquisitionComposition:
         return self.summary()
 
     def navigation_inputs(self, state):
+        self._health()
         observations, terrain = self.localization_ros_output, self.ros_output
         with self.lock:
-            if (self.closed or self.failed or not self.settings.saved_map_terrain
+            if (self.closed or self.failed or self.terrain_failed or not self.settings.saved_map_terrain
                     or observations is None or terrain is None):
                 return None
         sample = observations.snapshot()
@@ -402,6 +415,7 @@ class AcquisitionComposition:
             terrainOwnerClosed=self.lane is None or not self.lane.thread.is_alive(),
             terrainChildCleaned=self.lane is None or self.service is not None and self.service.cleanup_complete,
             failed=self.failed, failureReason=self.failure_reason, retirementReason=self.retirement_reason,
+            terrainFailed=self.terrain_failed, terrainFailureReason=self.terrain_failure_reason,
             inputIntegrity=self.settings.frozen,
             **({'terrainRosOutput': self.ros_output.summary()} if self.ros_output is not None else {}),
             **({'localizationRosOutput': self.localization_ros_output.summary()}
@@ -445,6 +459,7 @@ def verify_terminal(value, expected, *, estimated_poses):
         raise ValueError('explicit_passive_localization_ros_selection_required')
     if (value.get('inputIntegrity') != expected
             or value.get('configured') is not True or value.get('nativeCreated') is not True
+            or value.get('terrainFailed') is True
             or type(value.get('terrainConfigured')) is not bool or value.get('failureReason') is not None
             or any(value.get(name) is not True for name in ('nativeClosed', 'sourceRetired', 'gridAbsent',
                 'terrainOwnerClosed', 'terrainChildCleaned'))

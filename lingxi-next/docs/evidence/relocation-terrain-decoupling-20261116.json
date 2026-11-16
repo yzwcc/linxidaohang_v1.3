@@ -1,0 +1,396 @@
+{
+  "release": "0.1.50-relocation-terrain-20261116-gf5f769c-c",
+  "mapName": "11.14.1",
+  "mapId": "slam-7b5d81c2b43946de974e2e01127f8dd5",
+  "runId": "879a50fe51984eb99a64e9375753b6e9",
+  "selectedPoseMeaning": "manually selected current base relocalization pose in the raw map view; not mapping start/end",
+  "selectedCurrentBasePose": [
+    0.1454930012047504,
+    1.8340926577663819,
+    52.59464098249762
+  ],
+  "motionCommandsSent": false,
+  "ninetySecondObservation": {
+    "samples": 203,
+    "trackingSamples": 202,
+    "baseAvailableSamples": 189,
+    "maxContinuousTrackingWithBaseSeconds": 19.49,
+    "result": "sustained_tracking_not_confirmed"
+  },
+  "followupBaseReasons": {
+    "diagnostic_quality_only": 46,
+    "awaiting_scan_time": 4
+  },
+  "followupSamples": [
+    {
+      "state": "tracking",
+      "frame": 1912,
+      "baseStatus": "available",
+      "baseReason": "diagnostic_quality_only"
+    },
+    {
+      "state": "tracking",
+      "frame": 1915,
+      "baseStatus": "available",
+      "baseReason": "diagnostic_quality_only"
+    },
+    {
+      "state": "tracking",
+      "frame": 1918,
+      "baseStatus": "unavailable",
+      "baseReason": "awaiting_scan_time"
+    },
+    {
+      "state": "tracking",
+      "frame": 1920,
+      "baseStatus": "available",
+      "baseReason": "diagnostic_quality_only"
+    },
+    {
+      "state": "tracking",
+      "frame": 1922,
+      "baseStatus": "available",
+      "baseReason": "diagnostic_quality_only"
+    },
+    {
+      "state": "tracking",
+      "frame": 1924,
+      "baseStatus": "available",
+      "baseReason": "diagnostic_quality_only"
+    },
+    {
+      "state": "tracking",
+      "frame": 1927,
+      "baseStatus": "available",
+      "baseReason": "diagnostic_quality_only"
+    },
+    {
+      "state": "tracking",
+      "frame": 1929,
+      "baseStatus": "available",
+      "baseReason": "diagnostic_quality_only"
+    },
+    {
+      "state": "tracking",
+      "frame": 1931,
+      "baseStatus": "available",
+      "baseReason": "diagnostic_quality_only"
+    },
+    {
+      "state": "tracking",
+      "frame": 1933,
+      "baseStatus": "available",
+      "baseReason": "diagnostic_quality_only"
+    },
+    {
+      "state": "tracking",
+      "frame": 1936,
+      "baseStatus": "available",
+      "baseReason": "diagnostic_quality_only"
+    },
+    {
+      "state": "tracking",
+      "frame": 1938,
+      "baseStatus": "available",
+      "baseReason": "diagnostic_quality_only"
+    },
+    {
+      "state": "tracking",
+      "frame": 1940,
+      "baseStatus": "available",
+      "baseReason": "diagnostic_quality_only"
+    },
+    {
+      "state": "tracking",
+      "frame": 1942,
+      "baseStatus": "available",
+      "baseReason": "diagnostic_quality_only"
+    },
+    {
+      "state": "tracking",
+      "frame": 1944,
+      "baseStatus": "available",
+      "baseReason": "diagnostic_quality_only"
+    },
+    {
+      "state": "tracking",
+      "frame": 1947,
+      "baseStatus": "available",
+      "baseReason": "diagnostic_quality_only"
+    },
+    {
+      "state": "tracking",
+      "frame": 1949,
+      "baseStatus": "available",
+      "baseReason": "diagnostic_quality_only"
+    },
+    {
+      "state": "tracking",
+      "frame": 1951,
+      "baseStatus": "available",
+      "baseReason": "diagnostic_quality_only"
+    },
+    {
+      "state": "tracking",
+      "frame": 1954,
+      "baseStatus": "available",
+      "baseReason": "diagnostic_quality_only"
+    },
+    {
+      "state": "tracking",
+      "frame": 1956,
+      "baseStatus": "available",
+      "baseReason": "diagnostic_quality_only"
+    },
+    {
+      "state": "tracking",
+      "frame": 1958,
+      "baseStatus": "available",
+      "baseReason": "diagnostic_quality_only"
+    },
+    {
+      "state": "tracking",
+      "frame": 1960,
+      "baseStatus": "available",
+      "baseReason": "diagnostic_quality_only"
+    },
+    {
+      "state": "tracking",
+      "frame": 1963,
+      "baseStatus": "available",
+      "baseReason": "diagnostic_quality_only"
+    },
+    {
+      "state": "tracking",
+      "frame": 1965,
+      "baseStatus": "available",
+      "baseReason": "diagnostic_quality_only"
+    },
+    {
+      "state": "tracking",
+      "frame": 1967,
+      "baseStatus": "available",
+      "baseReason": "diagnostic_quality_only"
+    },
+    {
+      "state": "tracking",
+      "frame": 1970,
+      "baseStatus": "available",
+      "baseReason": "diagnostic_quality_only"
+    },
+    {
+      "state": "tracking",
+      "frame": 1971,
+      "baseStatus": "available",
+      "baseReason": "diagnostic_quality_only"
+    },
+    {
+      "state": "tracking",
+      "frame": 1974,
+      "baseStatus": "available",
+      "baseReason": "diagnostic_quality_only"
+    },
+    {
+      "state": "tracking",
+      "frame": 1976,
+      "baseStatus": "available",
+      "baseReason": "diagnostic_quality_only"
+    },
+    {
+      "state": "tracking",
+      "frame": 1978,
+      "baseStatus": "available",
+      "baseReason": "diagnostic_quality_only"
+    },
+    {
+      "state": "tracking",
+      "frame": 1980,
+      "baseStatus": "available",
+      "baseReason": "diagnostic_quality_only"
+    },
+    {
+      "state": "tracking",
+      "frame": 1983,
+      "baseStatus": "unavailable",
+      "baseReason": "awaiting_scan_time"
+    },
+    {
+      "state": "tracking",
+      "frame": 1985,
+      "baseStatus": "available",
+      "baseReason": "diagnostic_quality_only"
+    },
+    {
+      "state": "tracking",
+      "frame": 1987,
+      "baseStatus": "available",
+      "baseReason": "diagnostic_quality_only"
+    },
+    {
+      "state": "tracking",
+      "frame": 1989,
+      "baseStatus": "available",
+      "baseReason": "diagnostic_quality_only"
+    },
+    {
+      "state": "tracking",
+      "frame": 1992,
+      "baseStatus": "unavailable",
+      "baseReason": "awaiting_scan_time"
+    },
+    {
+      "state": "tracking",
+      "frame": 1994,
+      "baseStatus": "available",
+      "baseReason": "diagnostic_quality_only"
+    },
+    {
+      "state": "tracking",
+      "frame": 1996,
+      "baseStatus": "available",
+      "baseReason": "diagnostic_quality_only"
+    },
+    {
+      "state": "tracking",
+      "frame": 1998,
+      "baseStatus": "available",
+      "baseReason": "diagnostic_quality_only"
+    },
+    {
+      "state": "tracking",
+      "frame": 2001,
+      "baseStatus": "available",
+      "baseReason": "diagnostic_quality_only"
+    },
+    {
+      "state": "tracking",
+      "frame": 2003,
+      "baseStatus": "available",
+      "baseReason": "diagnostic_quality_only"
+    },
+    {
+      "state": "tracking",
+      "frame": 2005,
+      "baseStatus": "available",
+      "baseReason": "diagnostic_quality_only"
+    },
+    {
+      "state": "tracking",
+      "frame": 2008,
+      "baseStatus": "available",
+      "baseReason": "diagnostic_quality_only"
+    },
+    {
+      "state": "tracking",
+      "frame": 2010,
+      "baseStatus": "available",
+      "baseReason": "diagnostic_quality_only"
+    },
+    {
+      "state": "tracking",
+      "frame": 2012,
+      "baseStatus": "available",
+      "baseReason": "diagnostic_quality_only"
+    },
+    {
+      "state": "tracking",
+      "frame": 2015,
+      "baseStatus": "unavailable",
+      "baseReason": "awaiting_scan_time"
+    },
+    {
+      "state": "tracking",
+      "frame": 2017,
+      "baseStatus": "available",
+      "baseReason": "diagnostic_quality_only"
+    },
+    {
+      "state": "tracking",
+      "frame": 2019,
+      "baseStatus": "available",
+      "baseReason": "diagnostic_quality_only"
+    },
+    {
+      "state": "tracking",
+      "frame": 2021,
+      "baseStatus": "available",
+      "baseReason": "diagnostic_quality_only"
+    },
+    {
+      "state": "tracking",
+      "frame": 2023,
+      "baseStatus": "available",
+      "baseReason": "diagnostic_quality_only"
+    }
+  ],
+  "runtimePhase": "running",
+  "localizationReady": false,
+  "navigationReady": false,
+  "faults": [
+    {
+      "event": "lingxi_private_fault",
+      "phase": "terrain_process_exchange",
+      "code": "terrain_process_update_failed",
+      "elapsedMs": 41.009,
+      "exception": "TimeoutError",
+      "frames": [
+        {
+          "file": "terrain_process.py",
+          "function": "update",
+          "line": 203
+        },
+        {
+          "file": "terrain_process.py",
+          "function": "_exchange",
+          "line": 118
+        }
+      ],
+      "diagnostics": {
+        "scan_count": 1,
+        "ray_count": 2048,
+        "window_span_ms": 0.0,
+        "request_bytes": 131770,
+        "age_deadline_remaining_ms_at_exchange_start": 29.005,
+        "processing_deadline_remaining_ms_at_exchange_start": 189.489,
+        "input_age_ms_at_exchange_start": 270.995,
+        "received_age_ms_at_exchange_start": 270.995,
+        "exchange_elapsed_ms": 30.172,
+        "age_deadline_remaining_ms_after_exchange": -1.167,
+        "processing_deadline_remaining_ms_after_exchange": 159.317
+      }
+    },
+    {
+      "event": "lingxi_private_fault",
+      "phase": "terrain_lane_update",
+      "elapsedMs": 48.156,
+      "exception": "TimeoutError",
+      "frames": [
+        {
+          "file": "terrain_lane.py",
+          "function": "_run",
+          "line": 114
+        },
+        {
+          "file": "terrain_process.py",
+          "function": "update",
+          "line": 203
+        },
+        {
+          "file": "terrain_process.py",
+          "function": "_exchange",
+          "line": 118
+        }
+      ]
+    },
+    {
+      "event": "lingxi_private_fault",
+      "phase": "acquisition_terrain_health",
+      "code": "terrain_process_update_failed"
+    },
+    {
+      "event": "lingxi_private_fault",
+      "phase": "registered_terrain_retire",
+      "code": "terrain_lane_failed"
+    }
+  ]
+}

@@ -487,6 +487,28 @@ class CompositionTests(SettingsFixture, unittest.TestCase):
         value = composition.navigation_inputs(state)
         self.assertEqual(fixture.output.namespace, value['namespace'])
         self.assertFalse(value['navigationReady'])
+        # A terrain child failure cannot close healthy localization. Its
+        # navigation descriptor disappears even while observations stay fresh.
+        process = SimpleNamespace(state='failed', failure='terrain_process_update_failed')
+        lane = Mock()
+        lane.snapshot.return_value = live.LaneSnapshot(1, 'failed', failure='terrain_lane_failed')
+        with patch.object(composition, 'service', process), patch.object(composition, 'lane', lane):
+            self.assertFalse(composition.unavailable())
+            self.assertFalse(composition.closed)
+            self.assertFalse(composition.failed)
+            self.assertTrue(composition.terrain_failed)
+            self.assertEqual('terrain_process_update_failed', composition.terrain_failure_reason)
+            self.assertEqual('tracking', fixture.session.state()['state'])
+            self.assertIsNotNone(fixture.output.snapshot())
+            self.assertIsNone(composition.navigation_inputs(state))
+            fixture.now += .1
+            fixture.offer(3, 1_200_000_000, .2)
+            self.assertEqual('tracking', fixture.session.state()['state'])
+            self.assertEqual(3, fixture.session.state()['lastFrame'])
+            self.assertIsNotNone(fixture.output.snapshot())
+        # The failure stays latched after the native child's cleanup.
+        self.assertIsNone(composition.navigation_inputs(state))
+        composition.terrain_failed = False
         self.assertIsNone(composition.navigation_inputs(dict(state, generation=99)))
         self.assertIsNone(composition.navigation_inputs(dict(state,
             binding=dict(state['binding'], session='f' * 32))))
@@ -624,7 +646,8 @@ class CompositionTests(SettingsFixture, unittest.TestCase):
         self.native.close()
         report = self.composition.finish()
         for key, value in (('nativeClosed', False), ('sourceRetired', False), ('navigationReady', True),
-                ('failed', True), ('inputIntegrity', {}), ('terrainSubmissions', 1), ('registeredPackets', 999)):
+                ('failed', True), ('terrainFailed', True), ('inputIntegrity', {}),
+                ('terrainSubmissions', 1), ('registeredPackets', 999)):
             changed = dict(report, **{key: value})
             with self.subTest(key=key), self.assertRaises(ValueError):
                 live.verify_terminal(changed, self.composition.settings.frozen, estimated_poses=self.frames)
