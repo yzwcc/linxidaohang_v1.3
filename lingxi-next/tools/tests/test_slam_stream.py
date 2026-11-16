@@ -117,6 +117,20 @@ class StreamSynchronization(unittest.TestCase):
         with self.assertRaisesRegex(StreamError, "deadline"):
             stream.tick(2.01)
 
+    def test_scan_wait_failure_preserves_sync_diagnostics_before_clearing_buffers(self):
+        stream, native = self.make(limits=Limits(maximum_sensor_silence_seconds=2.))
+        self.imu(stream, 0, 0.)
+        self.cloud(stream, received=.01)
+        with self.assertRaisesRegex(StreamError, "scan_wait_deadline_exceeded"):
+            self.imu(stream, 10, .8)
+        diagnostics = stream.failure_diagnostics
+        self.assertEqual(1, diagnostics['pendingClouds'])
+        self.assertEqual(1, diagnostics['pendingImu'])
+        self.assertAlmostEqual(.79, diagnostics['scanWaitSeconds'])
+        self.assertAlmostEqual(.06, diagnostics['imuBehindScanEndSeconds'])
+        self.assertEqual(0, stream.snapshot()['pendingClouds'])
+        self.assertEqual([], native.calls)
+
     def test_cloud_and_imu_count_limits_fail_without_silent_dropping(self):
         for kind in ("cloud", "imu"):
             with self.subTest(kind=kind):
@@ -141,13 +155,44 @@ class StreamSynchronization(unittest.TestCase):
         self.assertEqual([], native.calls)
 
     def test_gap_duplicate_clock_reset_and_noninteger_headers_latch_failure(self):
-        for stamp in (self.BASE, self.BASE - 1, self.BASE + 51_000_000, True, 1000.):
+        for stamp, violation, delta in (
+                (self.BASE, "duplicate", 0), (self.BASE - 1, "regression", -1),
+                (self.BASE + 51_000_000, "gap", 51_000_000),
+                (True, "noninteger", None), (1000., "noninteger", None),
+                (-1, "negative", -1 - self.BASE)):
             with self.subTest(stamp=stamp):
                 stream, _ = self.make()
                 self.imu(stream, 0, 0.)
                 with self.assertRaisesRegex(StreamError, "sensor_time"):
                     stream.push_imu(stamp, [0, 0, 9.81], [0, 0, 0], .01)
                 self.assertEqual("failed", stream.snapshot()["state"])
+                diagnostics = stream.failure_diagnostics
+                self.assertEqual(("imu", violation, delta),
+                                 (diagnostics["sensor"], diagnostics["violation"], diagnostics["sourceDeltaNs"]))
+                self.assertEqual(50_000_000, diagnostics["maximumSourceGapNs"])
+                self.assertAlmostEqual(.01, diagnostics["arrivalDeltaSeconds"])
+                self.assertEqual(1, diagnostics["receivedImu"])
+                self.assertEqual(0, stream.snapshot()["pendingImu"])
+
+    def test_cloud_time_failure_identifies_source_and_preserves_terminal_failure(self):
+        for milliseconds, violation, delta in (
+                (40, "duplicate", 0), (39, "regression", -1_000_000),
+                (541, "gap", 501_000_000)):
+            with self.subTest(violation=violation):
+                stream, native = self.make()
+                self.cloud(stream, received=0.)
+                with self.assertRaisesRegex(StreamError, "sensor_time"):
+                    self.cloud(stream, milliseconds=milliseconds, received=.1)
+                diagnostics = stream.failure_diagnostics
+                self.assertEqual(("cloud", violation, delta),
+                                 (diagnostics["sensor"], diagnostics["violation"], diagnostics["sourceDeltaNs"]))
+                self.assertEqual(500_000_000, diagnostics["maximumSourceGapNs"])
+                self.assertAlmostEqual(.1, diagnostics["arrivalDeltaSeconds"])
+                self.assertEqual(1, diagnostics["receivedClouds"])
+                self.assertEqual(0, stream.snapshot()["pendingClouds"])
+                with self.assertRaisesRegex(StreamError, "not_running"):
+                    stream.tick(.2)
+                self.assertEqual([], native.calls)
 
     def test_arrival_clock_rollback_or_nonfinite_time_is_rejected(self):
         for now in (-1., float("nan"), float("inf"), True):

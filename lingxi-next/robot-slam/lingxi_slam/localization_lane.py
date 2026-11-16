@@ -17,8 +17,9 @@ class LocalizationLane:
     The enclosing child-process supervisor owns hard native-call deadlines.
     """
 
-    def __init__(self, session, *, on_acquisition=None, on_frame=None):
+    def __init__(self, session, *, on_acquisition=None, on_frame=None, on_projection=None):
         self.session, self.on_acquisition, self.on_frame = session, on_acquisition, on_frame
+        self.on_projection = on_projection
         self.condition = threading.Condition()
         self.ready = threading.Event()
         self.pending, self.thread = None, None
@@ -79,6 +80,7 @@ class LocalizationLane:
                 started = time.monotonic()
                 marks = {'ingressToLane': started - received_at}
                 self.session.tick()
+                projection = self.on_projection(*metadata) if self.on_projection is not None else None
                 if packet is not None:
                     if type(acquisition) is EncodedAcquisition:
                         acquisition = acquisition.decode()
@@ -86,7 +88,7 @@ class LocalizationLane:
                     marks['decodeAcquisition'] = decoded - started
                     self.session.observe(packet, session=self.session.binding.session,
                         input_mode=self.session.binding.input_mode, received_at=received_at,
-                        expected_generation=generation)
+                        expected_generation=generation, base_projection=projection)
                     registered_at = time.monotonic()
                     marks['registration'] = registered_at - decoded
                     if acquisition is not None:

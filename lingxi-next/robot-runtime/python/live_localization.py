@@ -178,10 +178,12 @@ def _child(args, sink, platform):
                 wrapped.close()
                 raise
         if acquisition is not None:
-            wrapper = acquisition.factory(native, asynchronous=True, on_frame=frame)
+            wrapper = acquisition.factory(native, asynchronous=True, on_frame=frame,
+                                          on_projection=projection if base_owner is not None else None)
         else:
             wrapper = LocalizedNative(session, native, asynchronous=True,
-                                      on_frame=frame if base_owner is not None else None)
+                                      on_frame=frame if base_owner is not None else None,
+                                      on_projection=projection if base_owner is not None else None)
         registration_lanes.append(wrapper.registration_lane)
         return wrapper
 
@@ -192,11 +194,17 @@ def _child(args, sink, platform):
             acquisition.revoke()
 
     observation_owner = acquisition.localization_ros_output if acquisition is not None else None
+    prepared_timing = None
+
+    def projection(header, algorithm, pose, statistics):
+        nonlocal prepared_timing
+        prepared_timing = base_owner.prepare(header, algorithm, pose, statistics)
+        if base_owner.projector is not None:
+            return prepared_timing, base_owner.projector
 
     def frame(header, algorithm, pose, statistics):
-        timing = None
-        if base_owner is not None:
-            timing = base_owner.frame(header, algorithm, pose, statistics)
+        nonlocal prepared_timing
+        timing, prepared_timing = prepared_timing, None
         if observation_owner is not None:
             observation_owner.capture(header, algorithm, timing=timing,
                 projector=base_owner.projector if base_owner is not None else None)

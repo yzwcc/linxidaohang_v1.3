@@ -2,6 +2,7 @@
 from collections import deque
 from copy import deepcopy
 from dataclasses import asdict, dataclass
+import json
 import math
 from pathlib import Path
 import sys
@@ -250,6 +251,9 @@ class SensorWorker:
                   f"{Path(origin.filename).name}:{origin.lineno}", file=sys.stderr, flush=True)
             if stream is not None:
                 print(f"sensor_stream_failure:{stream.failure}", file=sys.stderr, flush=True)
+                if stream.failure_diagnostics is not None:
+                    print("sensor_stream_timing:" + json.dumps(stream.failure_diagnostics),
+                          file=sys.stderr, flush=True)
             with self.condition:
                 self._fail_locked("sensor_stream_or_native_failed")
         finally:
@@ -272,6 +276,12 @@ class SensorWorker:
                 if self.state not in ("failed", "stopped"):
                     self.state = "stopped"
                 self.condition.notify_all()
+
+    def health_state(self):
+        """Check the same watchdogs without copying diagnostics per ROS callback."""
+        with self.condition:
+            self._health_locked(self._now_locked())
+            return self.state
 
     def snapshot(self):
         with self.condition:

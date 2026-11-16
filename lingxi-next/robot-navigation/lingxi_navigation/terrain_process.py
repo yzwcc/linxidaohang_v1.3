@@ -193,7 +193,10 @@ class TerrainProcess:
             self.capture, self.capture_received, self.sequence = capture, effective, sequence
             expires = effective + self.budget.maximum_age_seconds
             processing_deadline = now + self.budget.maximum_processing_seconds
-            deadline = min(processing_deadline, expires)
+            # Consume the reply even if its acquisition expires during IO. The
+            # processing deadline still bounds this request; stale data never
+            # publishes, and the same healthy child can take the next scan.
+            deadline = processing_deadline
             diagnostics.update(
                 scan_count=len(observations.scans),
                 ray_count=sum(len(scan.returns) for scan in observations.scans),
@@ -205,6 +208,20 @@ class TerrainProcess:
                 diagnostics=diagnostics, age_deadline=expires, processing_deadline=processing_deadline,
                 effective_received_at=effective, received_at=received_at)
             phase = 'terrain_process_validate'
+            if reply.get('kind') == 'expired':
+                if (set(reply) != {'version', 'kind', 'session', 'sequence', 'mapRevision',
+                                   'observationsSha256', 'receivedAt', 'expiresAt'}
+                        or type(reply['sequence']) is not int or reply['sequence'] != sequence
+                        or type(reply['mapRevision']) is not int or reply['mapRevision'] != observations.revision
+                        or reply['observationsSha256'] != observations.sha256
+                        or reply['receivedAt'] != effective or reply['expiresAt'] != expires):
+                    raise ValueError('current_source_bound_expired_terrain_reply_required')
+                completed = self._now()
+                if completed >= processing_deadline:
+                    raise TimeoutError('terrain_processing_deadline_exceeded_before_publication')
+                if completed < expires:
+                    raise ValueError('terrain_expiry_before_original_deadline')
+                return None
             summary = reply.get('summary', {})
             costs = base64.b64decode(reply['costs'], validate=True)
             if (set(reply) != {'version', 'kind', 'session', 'summary', 'costs', 'receivedAt', 'expiresAt'}
@@ -223,8 +240,11 @@ class TerrainProcess:
                 observations.binding_sha256, observations.geometry_declaration_sha256])).hexdigest()
             result = TerrainGrid(self.session, sequence, observations.sha256, observations.revision, epoch,
                                  self.projection, costs, effective, expires)
-            if self._now() >= deadline:
-                raise TimeoutError('terrain_reply_expired_before_publication')
+            completed = self._now()
+            if completed >= processing_deadline:
+                raise TimeoutError('terrain_processing_deadline_exceeded_before_publication')
+            if completed >= expires:
+                return None
             self.grid, self.summary = result, summary
             return result
         except BaseException as error:

@@ -71,6 +71,7 @@ class SensorStream:
             "maximumPendingImu", "maximumPendingClouds", "maximumPendingBytes",
         ), 0)
         self.maximum_wait = 0.
+        self.failure_diagnostics = None
 
     def _active(self):
         if threading.get_ident() != self.owner:
@@ -79,6 +80,20 @@ class SensorStream:
             raise StreamError("stream_not_running")
 
     def _fail(self, reason):
+        if reason == "scan_wait_deadline_exceeded":
+            scan = self.clouds[0]
+            end = (None if self.origin_ns is None else
+                   (scan.header_ns - self.origin_ns) / 1e9 + 1000.)
+            if end is not None and self.hypothesis == "header_is_scan_start":
+                end += float(scan.offsets.max())
+            self.failure_diagnostics = {
+                "pendingClouds": len(self.clouds), "pendingImu": len(self.imu),
+                "scanWaitSeconds": self.last_received - scan.received_at,
+                "imuBehindScanEndSeconds": (None if end is None else end - self.latest_imu_time),
+                "lastCloudArrivalAgeSeconds": self.last_received - self.last_cloud_received,
+                "lastImuArrivalAgeSeconds": self.last_received - self.last_imu_received,
+                "processedScans": self.counts["processedScans"],
+            }
         self.state, self.failure = "failed", reason
         self.counts["discardedOnFailure"] += len(self.clouds)
         self.clouds.clear()
@@ -106,9 +121,23 @@ class SensorStream:
             if received_at - self.clouds[0].received_at > limit:
                 self._fail("scan_wait_deadline_exceeded")
 
-    def _stamp(self, stamp, previous, maximum_gap):
+    def _stamp(self, stamp, previous, maximum_gap, *, sensor, previous_received_at):
         if (type(stamp) is not int or stamp < 0 or
                 (previous is not None and (stamp <= previous or stamp - previous > maximum_gap))):
+            delta = stamp - previous if type(stamp) is int and previous is not None else None
+            violation = ("noninteger" if type(stamp) is not int else
+                         "negative" if stamp < 0 else
+                         "duplicate" if delta == 0 else
+                         "regression" if delta is not None and delta < 0 else "gap")
+            self.failure_diagnostics = {
+                "sensor": sensor, "violation": violation,
+                "sourceDeltaNs": delta, "maximumSourceGapNs": maximum_gap,
+                "arrivalDeltaSeconds": (None if previous_received_at is None else
+                                        self.last_received - previous_received_at),
+                "receivedImu": self.counts["receivedImu"],
+                "receivedClouds": self.counts["receivedClouds"],
+                "processedScans": self.counts["processedScans"],
+            }
             self._fail("ordered_continuous_integer_sensor_time_required")
 
     def _measure_buffers(self):
@@ -119,7 +148,8 @@ class SensorStream:
 
     def push_imu(self, stamp_ns, acceleration, angular, received_at):
         self._advance(received_at)
-        self._stamp(stamp_ns, self.last_imu_ns, self.limits.maximum_imu_gap_ns)
+        self._stamp(stamp_ns, self.last_imu_ns, self.limits.maximum_imu_gap_ns,
+                    sensor="imu", previous_received_at=self.last_imu_received)
         try:
             acceleration, angular = (np.asarray(value, dtype=np.float64) for value in (acceleration, angular))
         except (TypeError, ValueError, OverflowError):
@@ -140,7 +170,8 @@ class SensorStream:
 
     def push_cloud(self, header_ns, points, offsets, received_at):
         self._advance(received_at)
-        self._stamp(header_ns, self.last_cloud_ns, self.limits.maximum_cloud_gap_ns)
+        self._stamp(header_ns, self.last_cloud_ns, self.limits.maximum_cloud_gap_ns,
+                    sensor="cloud", previous_received_at=self.last_cloud_received)
         try:
             points, offsets = (np.asarray(value, dtype=np.float64) for value in (points, offsets))
         except (TypeError, ValueError, OverflowError):

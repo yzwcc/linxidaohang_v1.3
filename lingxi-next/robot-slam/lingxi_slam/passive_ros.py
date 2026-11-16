@@ -1,8 +1,10 @@
 """Opt-in Humble subscription session; no motion, TF or map publishers."""
 from dataclasses import dataclass
+import json
 import math
 import os
 import re
+import sys
 import threading
 import time
 
@@ -21,6 +23,45 @@ class Topics:
                 raise ValueError("explicit_absolute_sensor_topics_required")
         if self.cloud == self.imu:
             raise ValueError("distinct_cloud_and_imu_topics_required")
+
+
+class IngressTiming:
+    """Constant-space private timing; never retain sensor packets or absolute stamps."""
+    def __init__(self):
+        self.values = {kind: dict(count=0, first=None, last=None, sourceFirst=None,
+            sourceLast=None, healthSeconds=0., metadataSeconds=0., offerSeconds=0.,
+            maximumCallbackSeconds=0.) for kind in ('imu', 'cloud')}
+
+    def record(self, kind, message, started, checked, observed, completed):
+        value = self.values[kind]
+        value['count'] += 1
+        if value['first'] is None:
+            value['first'] = started
+        value['last'] = started
+        try:
+            stamp = message.header.stamp
+            if type(stamp.sec) is int and type(stamp.nanosec) is int:
+                source = stamp.sec * 10**9 + stamp.nanosec
+                if value['sourceFirst'] is None:
+                    value['sourceFirst'] = source
+                value['sourceLast'] = source
+        except AttributeError:
+            pass
+        for name, duration in (('healthSeconds', checked - started),
+                ('metadataSeconds', observed - checked), ('offerSeconds', completed - observed)):
+            value[name] += duration
+        value['maximumCallbackSeconds'] = max(value['maximumCallbackSeconds'], completed - started)
+
+    def summary(self):
+        result = {}
+        for kind, value in self.values.items():
+            result[kind] = {key: value[key] for key in ('count', 'healthSeconds',
+                'metadataSeconds', 'offerSeconds', 'maximumCallbackSeconds')}
+            result[kind]['arrivalSpanSeconds'] = (None if value['first'] is None
+                else value['last'] - value['first'])
+            result[kind]['sourceSpanSeconds'] = (None if value['sourceFirst'] is None
+                else (value['sourceLast'] - value['sourceFirst']) / 1e9)
+        return result
 
 
 def wait_for_publishers(node, topics, deadline, stop_event):
@@ -74,6 +115,8 @@ def run_passive(worker, topics, seconds, *, stop_event=None, admission=None, on_
     reason, input_completed, finalization = "duration_reached", False, None
     discovery_seconds = 0.
     receiver = worker if admission is None else admission
+    ingress = IngressTiming()
+    next_diagnostic = started + 10.
     try:
         rclpy.init(args=[], context=context)
         node = rclpy.create_node(
@@ -84,11 +127,17 @@ def run_passive(worker, topics, seconds, *, stop_event=None, admission=None, on_
         executor.add_node(node)
         def receive(kind, callback, message):
             # Discard cold-start callbacks, not a queue of stale work behind native loading.
-            if worker.snapshot()["state"] != "running":
+            began = time.monotonic()
+            if worker.health_state() != "running":
                 return False
+            checked = time.monotonic()
             if on_sensor is not None:
                 on_sensor(kind, message)
-            return callback(message)
+            observed = time.monotonic()
+            try:
+                return callback(message)
+            finally:
+                ingress.record(kind, message, began, checked, observed, time.monotonic())
 
         for message_type, topic, callback, depth, kind in (
             (PointCloud2, topics.cloud, receiver.offer_cloud, 8, "cloud"),
@@ -116,14 +165,19 @@ def run_passive(worker, topics, seconds, *, stop_event=None, admission=None, on_
             if not context.ok():
                 reason = "ros_context_stopped"
                 break
-            state = worker.snapshot()["state"]
+            state = worker.health_state()
             if state not in ("starting", "running"):
                 reason = "worker_failed" if state == "failed" else "worker_stopped"
                 break
             executor.spin_once(timeout_sec=min(worker.limits.tick_seconds,
                                               max(0., seconds - (time.monotonic() - started))))
+            if time.monotonic() >= next_diagnostic:
+                print('sensor_ingress_timing:' + json.dumps(ingress.summary()), file=sys.stderr, flush=True)
+                next_diagnostic = time.monotonic() + 10.
         input_completed = True
     finally:
+        if any(value['count'] for value in ingress.values.values()):
+            print('sensor_ingress_timing:' + json.dumps(ingress.summary()), file=sys.stderr, flush=True)
         # Attempt every cleanup even if an earlier ROS teardown fails.
         cleanup_failed = False
         if extra_cleanup is not None:
@@ -167,6 +221,7 @@ def run_passive(worker, topics, seconds, *, stop_event=None, admission=None, on_
         "publisherDiscoverySeconds": discovery_seconds,
         "elapsedWallSecondsIncludingCleanup": time.monotonic() - started,
         "worker": summary,
+        "sensorIngressTiming": ingress.summary(),
         **({} if admission is None else {"inputFinalization": finalization}),
         "boundaries": {**{name: False for name in (
             "motionCommandsSent", "tfPublished", "mapSaved", "mapActivated",

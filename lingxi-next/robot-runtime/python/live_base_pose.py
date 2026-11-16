@@ -68,7 +68,8 @@ class LiveBasePose:
             self.times.invalidate()
             self.session.revoke_base("invalid_scan_time")
 
-    def frame(self, header, algorithm, pose, statistics):
+    def prepare(self, header, algorithm, pose, statistics):
+        """Consume original timing before registration publishes a complete pose pair."""
         if self.closed.is_set():
             return
         try:
@@ -86,6 +87,12 @@ class LiveBasePose:
             except Exception:
                 self.count("lookupErrors")
                 self.session.revoke_base("timestamped_projection_unavailable")
+        return timing
+
+    def frame(self, header, algorithm, pose, statistics):
+        timing = self.prepare(header, algorithm, pose, statistics)
+        if timing is None:
+            return
         if pose is not None:
             if self.projector is None:
                 self.session.revoke_base("timestamped_projection_unavailable")

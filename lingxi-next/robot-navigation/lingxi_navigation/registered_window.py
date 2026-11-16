@@ -15,6 +15,10 @@ from .recorded_occupancy import OfflineGeometry, RaySelection
 from .terrain import TerrainBudget
 
 
+class RegisteredInputExpired(ValueError):
+    """A valid acquisition aged out before entering the terrain window."""
+
+
 @dataclass(frozen=True)
 class RegisteredTerrainInput:
     observations: DeclaredObservationBatch
@@ -87,10 +91,13 @@ class RegisteredRayWindow:
                 or type(packet.native_frame_id) is not int or not self.previous_id < packet.native_frame_id < 2**53
                 or not finite(packet.algorithm_stamp) or packet.algorithm_stamp <= self.previous_stamp
                 or not finite(packet.received_at) or packet.received_at < self.previous_receipt
-                or not 0 <= now - packet.received_at < self.budget.maximum_age_seconds
+                or packet.received_at > now
                 or not digest_value(packet.source_sha256)):
             self.clear()
             raise ValueError('current_ordered_same_generation_registered_acquisition_required')
+        if now - packet.received_at >= self.budget.maximum_age_seconds:
+            self.clear()
+            raise RegisteredInputExpired('registered_input_expired')
         origins, endpoints = packet.origins, packet.endpoints
         if (any(type(value) is not np.ndarray or value.dtype != np.float64 or value.ndim != 2
                 or value.shape[1] != 3 or value.flags.writeable or not np.isfinite(value).all()

@@ -225,6 +225,33 @@ class AsyncLocalization(unittest.TestCase):
             self.native.close()
         self.assertFalse(self.lane.summary()["threadAlive"])
 
+    def test_original_projection_is_published_before_acquisition_and_frame_callbacks(self):
+        from lingxi_slam.base_pose import BaseLidarTransform, BasePoseProjector, ScanTime
+        self.session.base_scale = 1.
+        projector = BasePoseProjector(lambda ns: BaseLidarTransform(ns, np.eye(4)),
+                                     metres_per_map_unit=1.)
+        projected, captured = [], []
+        def prepare(header, algorithm, *_):
+            projected.append((header, threading.get_ident()))
+            return ScanTime(header + 1_000_000_000, 1_000_000, 1_000_000_000,
+                            'header_is_scan_start'), projector
+        def capture(*_):
+            state = self.session.state()
+            if state['state'] == 'tracking':
+                captured.append(state)
+        self.lane.on_projection = prepare
+        self.lane.on_frame = capture
+        self.seed()
+        for frame in (2, 3, 4, 5):
+            self.send()
+            self.wait_for(lambda: self.lane.summary()['processed'] == frame)
+        self.assertEqual(2, len(captured))
+        for state in captured:
+            self.assertEqual('available', state['basePose']['status'])
+            self.assertEqual(state['lastFrame'], state['basePose']['lastFrame'])
+        self.assertEqual(5, len(projected))
+        self.assertEqual({self.session.owner}, {owner for _, owner in projected})
+
 
 if __name__ == "__main__":
     unittest.main()

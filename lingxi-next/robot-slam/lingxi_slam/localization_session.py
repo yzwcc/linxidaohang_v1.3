@@ -157,14 +157,21 @@ class LocalizationSession:
         with self.lock:
             self._clear_base_locked(reason)
 
-    def project_base(self, timing, projector, *, algorithm_stamp):
-        """Original-time callback on the point owner; never perform TF work under the state lock."""
+    def _base_projection_record(self, pose, frame, timing, projector, algorithm_stamp):
         from .base_pose import BasePoseProjector
-        self._owner()
         if (self.base_scale is None or not isinstance(projector, BasePoseProjector)
                 or projector.scale != self.base_scale
                 or not np.array_equal(projector.navigation_from_raw, self.base_navigation_from_raw)):
             raise ValueError("same_explicit_base_projection_scale_and_frame_required")
+        try:
+            value = projector.project(pose, timing, algorithm_stamp=algorithm_stamp)
+            return (value.tolist(), frame, timing.header_ns, timing.effective_ns), "diagnostic_quality_only"
+        except Exception:
+            return None, "timestamped_projection_unavailable"
+
+    def project_base(self, timing, projector, *, algorithm_stamp):
+        """Original-time callback on the point owner; never perform TF work under the state lock."""
+        self._owner()
         with self.lock:
             now = self._now_locked()
             self._expire_locked(now)
@@ -176,12 +183,7 @@ class LocalizationSession:
                 return
             generation, revision, frame = self.generation, self.base_revision, self.last_frame
             pose = np.array(self.pose, dtype=np.float64)
-        try:
-            value = projector.project(pose, timing, algorithm_stamp=algorithm_stamp)
-            record = (value.tolist(), frame, timing.header_ns, timing.effective_ns)
-            reason = "diagnostic_quality_only"
-        except Exception:
-            record, reason = None, "timestamped_projection_unavailable"
+        record, reason = self._base_projection_record(pose, frame, timing, projector, algorithm_stamp)
         with self.lock:
             self._expire_locked(self._now_locked())
             if (generation == self.generation and revision == self.base_revision
@@ -272,11 +274,24 @@ class LocalizationSession:
         if threading.get_ident() != self.owner or self.worker_closed:
             raise RuntimeError("active_localization_worker_owner_required")
 
-    def _publish(self, generation, result):
+    def _publish(self, generation, result, *, base_projection=None, algorithm_stamp=None):
+        # Keep the preceding complete frame visible while exact-time TF is read.
+        # Readers still expire it normally, and pause/TF revocation remains immediate.
+        projected = None
+        if base_projection is not None and result.map_from_sensor is not None:
+            with self.lock:
+                if generation != self.generation or self.pending is not None:
+                    return
+                revision = self.base_revision
+            timing, projector = base_projection
+            record, reason = self._base_projection_record(
+                result.map_from_sensor, result.last_frame, timing, projector, algorithm_stamp)
+            projected = (revision, record, reason)
         with self.lock:
             now = self._now_locked()
             if generation != self.generation or self.pending is not None:
                 return
+            projection_current = projected is not None and projected[0] == self.base_revision
             if self.last_frame != result.last_frame or result.map_from_sensor is None:
                 self._clear_base_locked("awaiting_scan_time" if result.map_from_sensor is not None
                                         else "localization_not_tracking")
@@ -284,6 +299,8 @@ class LocalizationSession:
             self.matches, self.last_frame = result.consecutive_matches, result.last_frame
             self.pose = None if result.map_from_sensor is None else result.map_from_sensor.tolist()
             self.freshness_at = self.tracker.last_received
+            if projection_current:
+                self.base_record, self.base_reason = projected[1:]
             self._expire_locked(now)
 
     def tick(self):
@@ -324,7 +341,8 @@ class LocalizationSession:
         if self.active_generation is not None:
             self._publish(self.active_generation, self.tracker.snapshot())
 
-    def observe(self, packet, *, session, input_mode, received_at, expected_generation=None):
+    def observe(self, packet, *, session, input_mode, received_at, expected_generation=None,
+                base_projection=None):
         self._owner()
         if expected_generation is not None and (
                 type(expected_generation) is not int or expected_generation < 0):
@@ -376,7 +394,8 @@ class LocalizationSession:
         if active:
             result = self.tracker.observe(
                 packet, session=session, generation=self.tracking_generation, received_at=received_at)
-            self._publish(generation, result)
+            self._publish(generation, result, base_projection=base_projection,
+                          algorithm_stamp=packet.algorithm_stamp)
         return self.state()
 
     def register_acquisition(self, packet, points, *, received_at, expected_generation):

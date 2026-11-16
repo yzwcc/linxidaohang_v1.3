@@ -221,6 +221,82 @@ class SessionTests(unittest.TestCase):
                                    atol=.005, rtol=0)
         self.assertIsNone(restored["basePose"]["mapFromBase"])
 
+    def test_next_sensor_and_base_frame_publish_together_without_holding_tf_lock(self):
+        from lingxi_slam.base_pose import BasePoseProjector
+        timing, projector = self.base_projection(threaded=True)
+        self.harness.call(lambda: self.session.project_base(
+            timing, projector, algorithm_stamp=1000.4)).result(10)
+        next_time = replace(timing, header_ns=timing.header_ns + 100_000_000)
+        def lookup(stamp):
+            self.entered.set()
+            if not self.release.wait(5):
+                raise RuntimeError("projection test deadline")
+            return projector.lookup(stamp)
+        blocked = BasePoseProjector(lookup, metres_per_map_unit=1.)
+        self.now += .1
+        pending = self.harness.call(lambda: self.session.observe(
+            self.packet(5), session=SESSION, input_mode="synthetic", received_at=self.now,
+            base_projection=(next_time, blocked)))
+        self.assertTrue(self.entered.wait(5))
+        state = self.session.state()
+        self.assertEqual(4, state["lastFrame"])
+        self.assertEqual(4, state["basePose"]["lastFrame"])
+        self.assertEqual("available", state["basePose"]["status"])
+        self.release.set()
+        state = pending.result(10)
+        self.assertEqual(5, state["lastFrame"])
+        self.assertEqual(5, state["basePose"]["lastFrame"])
+        self.assertEqual(str(next_time.effective_ns), state["basePose"]["effectiveScanNs"])
+        self.assertFalse(state["navigationReady"])
+
+    def test_atomic_projection_cannot_restore_pose_after_pause_tf_revoke_or_expiry(self):
+        from lingxi_slam.base_pose import BasePoseProjector
+        for action in ("pause", "tf_revoke", "expire"):
+            if self.harness is not None:
+                self.harness.close()
+                self.harness = None
+            self.entered.clear()
+            self.release.clear()
+            self.calls.clear()
+            timing, projector = self.base_projection(threaded=True)
+            next_time = replace(timing, header_ns=timing.header_ns + 100_000_000)
+            def lookup(stamp):
+                self.entered.set()
+                if not self.release.wait(5):
+                    raise RuntimeError("projection test deadline")
+                return projector.lookup(stamp)
+            blocked = BasePoseProjector(lookup, metres_per_map_unit=1.)
+            self.now += .1
+            received = self.now
+            pending = self.harness.call(lambda: self.session.observe(
+                self.packet(5), session=SESSION, input_mode="synthetic", received_at=received,
+                base_projection=(next_time, blocked)))
+            self.assertTrue(self.entered.wait(5))
+            if action == "pause":
+                self.command("pause")
+            elif action == "tf_revoke":
+                self.session.revoke_base("invalid_kinematic_tf")
+            else:
+                self.now += 2.
+                self.assertEqual("lost", self.session.state()["state"])
+            self.release.set()
+            state = pending.result(10)
+            self.assertIsNone(state["basePose"]["mapFromBase"])
+            self.assertEqual({"pause": "paused", "tf_revoke": "tracking", "expire": "lost"}[action],
+                             state["state"])
+
+    def test_atomic_projection_missing_tf_withdraws_previous_base_on_new_frame(self):
+        from lingxi_slam.base_pose import BasePoseProjector
+        timing, projector = self.base_projection()
+        self.session.project_base(timing, projector, algorithm_stamp=1000.4)
+        next_time = replace(timing, header_ns=timing.header_ns + 100_000_000)
+        state = self.observe(5, base_projection=(next_time,
+            BasePoseProjector(lambda _: None, metres_per_map_unit=1.)))
+        self.assertEqual("tracking", state["state"])
+        self.assertEqual(5, state["lastFrame"])
+        self.assertIsNone(state["basePose"]["mapFromBase"])
+        self.assertEqual("timestamped_projection_unavailable", state["basePose"]["reason"])
+
     def test_manual_pause_during_recovery_cannot_auto_resume(self):
         from lingxi_slam.seeded_localization import RegistrationEstimate
         self.tracking()

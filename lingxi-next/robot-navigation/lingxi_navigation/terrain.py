@@ -70,6 +70,7 @@ class TerrainProducer:
     and air from that window, never union old coordinates after loop correction.
     Caller receipt time must refer to acquisition ingress, not worker completion.
     A corrected copy of the same final capture cannot renew its freshness.
+    Expired work returns None; invalid input and processing failures still raise.
     """
 
     def __init__(self, projector, segmenter, projection, declaration, budget=TerrainBudget(), *, clock=time.monotonic):
@@ -126,10 +127,12 @@ class TerrainProducer:
         self.capture, self.capture_received = capture, received_at
         expires = received_at + self.budget.maximum_age_seconds
         if now >= expires:
-            raise TimeoutError('terrain_input_expired')
+            return None
         support = declared_ground_candidates(observations, self.projection, self.declaration, self.segmenter)
-        if self._now() - now > self.budget.maximum_processing_seconds or self.last_clock >= expires:
+        if self._now() - now > self.budget.maximum_processing_seconds:
             raise TimeoutError('terrain_native_processing_deadline_exceeded')
+        if self.last_clock >= expires:
+            return None
         clearance = self.projector.project_declared(observations, self.projection,
             maximum_work_units=self.budget.maximum_work_units)
         statistics = clearance.statistics
@@ -141,8 +144,10 @@ class TerrainProducer:
             raise ValueError('complete_current_terrain_clearance_required')
         fused = fuse_declared(clearance, support)
         completed = self._now()
-        if completed - now > self.budget.maximum_processing_seconds or completed >= expires:
+        if completed - now > self.budget.maximum_processing_seconds:
             raise TimeoutError('terrain_native_processing_deadline_exceeded')
+        if completed >= expires:
+            return None
         self.snapshot = TerrainSnapshot(sequence, observations, clearance, support, fused, received_at, now, completed, expires)
         return self.snapshot
 

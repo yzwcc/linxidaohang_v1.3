@@ -226,7 +226,7 @@ class AcquisitionComposition:
             return source.snapshot()
         return LaneSnapshot(0, 'starting', failure='terrain_starting')
 
-    def factory(self, point_factory, *, asynchronous=False, on_frame=None):
+    def factory(self, point_factory, *, asynchronous=False, on_frame=None, on_projection=None):
         with self.lock:
             if self.created or self.closed:
                 raise RuntimeError('single_acquisition_localization_composition_required')
@@ -269,7 +269,8 @@ class AcquisitionComposition:
             self.rays = NativeAcquisitionOutput(self.settings.library)
             verify_loaded_libraries({self.settings.library: self.settings.library_sha256}, Path('/proc/self/maps').read_text())
             result = AcquiringNative(self.session, point_factory, acquisition_output=self.rays,
-                on_acquisition=self.accept, asynchronous=asynchronous, on_frame=on_frame)
+                on_acquisition=self.accept, asynchronous=asynchronous, on_frame=on_frame,
+                on_projection=on_projection)
             with self.lock:
                 revoked = self.closed
             if revoked:

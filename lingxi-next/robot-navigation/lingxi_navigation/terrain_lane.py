@@ -112,13 +112,15 @@ class TerrainLane:
                     observations, sequence, received_at = pending
                     phase, started = 'terrain_lane_update', time.monotonic()
                     grid = service.update(observations, sequence=sequence, received_at=received_at)
-                    if type(grid) is not TerrainGrid:
+                    if service.state != 'ready' or grid is not None and type(grid) is not TerrainGrid:
                         raise ValueError('complete_native_terrain_grid_required')
                     with self.condition:
                         if self.stopping:
                             return
                         if sequence <= self.withdrawn_through:
                             self._set(state='ready', grid=None)
+                        elif grid is None:
+                            self._set(state='ready', grid=None, failure='terrain_expired')
                         else:
                             self._set(state='ready', grid=grid, failure=None)
                 phase, started = 'terrain_lane_current', time.monotonic()

@@ -40,8 +40,11 @@ class TerrainTests(unittest.TestCase):
             costs = bytes(projection.width * projection.height)
             return DeclaredClearanceResult(data.sha256, projection, costs,
                 (sum(len(scan.returns) for scan in data.scans), len(data.scans), 1, len(costs), 0, 0, 1))
-        self.segment = self.enterContext(patch.object(PatchworkSegmenter, 'segment', side_effect=segment))
-        self.project = self.enterContext(patch.object(OctomapProjector, 'project_declared', side_effect=project))
+        segment_patch = patch.object(PatchworkSegmenter, 'segment', side_effect=segment)
+        project_patch = patch.object(OctomapProjector, 'project_declared', side_effect=project)
+        self.segment, self.project = segment_patch.start(), project_patch.start()
+        self.addCleanup(segment_patch.stop)
+        self.addCleanup(project_patch.stop)
         self.producer = TerrainProducer(self.projector, self.segmenter, self.projection, self.declaration, clock=self.clock)
 
     def update(self, data=None, sequence=0, received_at=None):
@@ -93,9 +96,13 @@ class TerrainTests(unittest.TestCase):
         result = self.update(replace(observations(), revision=2), sequence=1)
         self.assertEqual(first.expires_at, result.expires_at)
         self.clock.value = 13.
-        with self.assertRaisesRegex(TimeoutError, 'expired'):
-            self.update(replace(observations(), revision=3), sequence=2)
+        self.assertIsNone(self.update(replace(observations(), revision=3), sequence=2))
         self.assertIsNone(self.producer.current())
+        with self.assertRaises(ValueError):
+            self.update(replace(observations(), revision=3), sequence=2)
+        data = replace(observations(), revision=3, scans=tuple(
+            replace(scan, stamp=scan.stamp + 1) for scan in observations().scans))
+        self.assertIsNotNone(self.update(data, sequence=3))
 
     def test_new_capture_gets_its_own_ingress_age(self):
         self.update()
@@ -144,8 +151,7 @@ class TerrainTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 self.update(sequence=1, received_at=received)
             self.assertIsNone(self.producer.current())
-        with self.assertRaises(TimeoutError):
-            self.update(sequence=1, received_at=1.)
+        self.assertIsNone(self.update(sequence=1, received_at=1.))
         self.clock.value = 9.
         with self.assertRaisesRegex(ValueError, 'monotonic'):
             self.producer.current()
@@ -180,6 +186,25 @@ class TerrainTests(unittest.TestCase):
         with self.assertRaises(TimeoutError):
             self.update()
         self.assertIsNone(self.producer.current())
+
+    def test_age_expiry_during_native_work_discards_result_and_allows_next_capture(self):
+        for stage in ('segment', 'project'):
+            with self.subTest(stage=stage):
+                self.producer = TerrainProducer(self.projector, self.segmenter, self.projection,
+                    self.declaration, TerrainBudget(maximum_age_seconds=.1), clock=self.clock)
+                mock = self.segment if stage == 'segment' else self.project
+                original = mock.side_effect
+                def expires(*args, **kwargs):
+                    result = original(*args, **kwargs)
+                    self.clock.value += .11
+                    return result
+                mock.side_effect = expires
+                self.assertIsNone(self.update())
+                self.assertIsNone(self.producer.current())
+                mock.side_effect = original
+                data = replace(observations(), scans=tuple(
+                    replace(scan, stamp=scan.stamp + 1) for scan in observations().scans))
+                self.assertIsNotNone(self.update(data, sequence=1))
 
     def test_incomplete_or_mismatched_native_results_are_not_published(self):
         project = self.project.side_effect

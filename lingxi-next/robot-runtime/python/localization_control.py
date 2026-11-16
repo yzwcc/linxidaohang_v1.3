@@ -206,7 +206,7 @@ class LocalizedNative:
     """Keep LIO on its sensor owner; optionally isolate saved-map registration."""
 
     def __init__(self, session, native_factory, *, acquisition_output=None, on_acquisition=None,
-                 asynchronous=False, on_frame=None):
+                 asynchronous=False, on_frame=None, on_projection=None):
         if not isinstance(session, LocalizationSession) or not callable(native_factory):
             raise ValueError("localization_session_and_point_native_factory_required")
         if acquisition_output is not None or on_acquisition is not None:
@@ -226,7 +226,7 @@ class LocalizedNative:
             if asynchronous:
                 from lingxi_slam.localization_lane import LocalizationLane
                 self.registration_lane = LocalizationLane(session, on_acquisition=on_acquisition,
-                    on_frame=on_frame).start()
+                    on_frame=on_frame, on_projection=on_projection).start()
             else:
                 session.open_worker()
             self.native = native_factory(self.accept)

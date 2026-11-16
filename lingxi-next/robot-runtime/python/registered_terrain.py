@@ -15,7 +15,7 @@ from lingxi_slam.registered_acquisition import RegisteredAcquisition
 from lingxi_slam.base_pose import timestamp
 from lingxi_navigation.recorded_occupancy import OfflineGeometry, RaySelection
 from lingxi_navigation.occupancy import ClearanceProjection, canonical
-from lingxi_navigation.registered_window import RegisteredRayWindow
+from lingxi_navigation.registered_window import RegisteredInputExpired, RegisteredRayWindow
 from lingxi_navigation.terrain import TerrainBudget
 from lingxi_navigation.terrain_lane import TerrainLane
 from lingxi_navigation.runtime_fault import record_fault
@@ -76,7 +76,8 @@ class RegisteredTerrainSource:
                 self.submitted = self.submitted_sha256 = self.submitted_epoch_sha256 = None
                 self.scan_stamps.clear()
                 self.submitted_stamps = self.annotated_grid = self.raw_grid = None
-                self.window.clear()
+                if self.window is not None:
+                    self.window.clear()
                 self.lane.withdraw('registered_localization_recovering')
         else:
             self._retire('registered_localization_revoked')
@@ -92,6 +93,16 @@ class RegisteredTerrainSource:
             if self.window is not None:
                 self.window.clear()
             self.lane.retire(reason)
+
+    def _withdraw_expired_input(self):
+        if self.window is not None:
+            self.window.clear()
+        self.window = None
+        self.scan_stamps.clear()
+        self.submitted = None
+        self.submitted_sha256 = self.submitted_epoch_sha256 = None
+        self.submitted_stamps = self.annotated_grid = self.raw_grid = None
+        self.lane.withdraw('registered_input_expired')
 
     def retire(self, reason='registered_source_revoked'):
         with self.lock:
@@ -119,6 +130,10 @@ class RegisteredTerrainSource:
                         or state['referenceFrame'] != packet.native_frame_id):
                     self._retire('registered_localization_revoked')
                     return False
+                if type(packet.received_at) in (int, float) and np.isfinite(packet.received_at):
+                    if self.session.clock() - packet.received_at >= self.budget.maximum_age_seconds:
+                        self._withdraw_expired_input()
+                        return False
                 if self.saved_map:
                     base = state.get('basePose', {})
                     if (type(scan_header_ns) is not int or base.get('status') != 'available'
@@ -159,6 +174,9 @@ class RegisteredTerrainSource:
                     self.submitted_epoch_sha256 = hashlib.sha256(canonical([batch.map_id,
                         batch.receipt_sha256, batch.binding_sha256, batch.geometry_declaration_sha256])).hexdigest()
                 return accepted
+            except RegisteredInputExpired:
+                self._withdraw_expired_input()
+                return False
             except BaseException as error:
                 record_fault('registered_terrain_input', error, started_at=started, code='registered_terrain_input_failed')
                 self._retire('registered_terrain_input_failed')

@@ -1,0 +1,3967 @@
+{
+  "d": {
+    "mapId": "slam-7b5d81c2b43946de974e2e01127f8dd5",
+    "mapName": "11.14.1",
+    "markedCurrentBasePose": [
+      0.1454930012047504,
+      1.8340926577663819,
+      52.59464098249762
+    ],
+    "motionCommandsSent": false,
+    "posePurpose": "user_selected_current_position_relocalization",
+    "samples": [
+      {
+        "elapsedSeconds": 0.0,
+        "state": "acquiring",
+        "reason": "confirmation_required",
+        "lastFrame": 0,
+        "baseStatus": "unavailable",
+        "baseReason": "localization_not_tracking",
+        "consecutiveMatches": 0,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 0.45,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 5,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 0.88,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 7,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 1.33,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 12,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 1.78,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 16,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 2.23,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 21,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 2.67,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 26,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 3.12,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 30,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 3.55,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 36,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 3.99,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 39,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 4.43,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 43,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 4.88,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 48,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 5.32,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 53,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 5.77,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 56,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 6.22,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 60,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 6.66,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 66,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 7.1,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 69,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 7.55,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 75,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 7.99,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 78,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 8.44,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 84,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 8.88,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 88,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 9.35,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 93,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 9.8,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 98,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 10.24,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 101,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 10.69,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 107,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 11.13,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 110,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 11.57,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 116,
+        "baseStatus": "unavailable",
+        "baseReason": "awaiting_scan_time",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 12.02,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 120,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 12.46,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 123,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 12.9,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 129,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 13.34,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 133,
+        "baseStatus": "unavailable",
+        "baseReason": "awaiting_scan_time",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 13.79,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 138,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 14.23,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 142,
+        "baseStatus": "unavailable",
+        "baseReason": "awaiting_scan_time",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 14.67,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 146,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 15.12,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 150,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 15.57,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 155,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 16.05,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 160,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 16.49,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 165,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 16.96,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 168,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 17.39,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 173,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 17.84,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 177,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 18.29,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 182,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 18.73,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 186,
+        "baseStatus": "unavailable",
+        "baseReason": "awaiting_scan_time",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 19.17,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 192,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 19.62,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 196,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 20.06,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 201,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 20.5,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 204,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 20.96,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 208,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 21.41,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 213,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 21.86,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 218,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 22.31,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 222,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 22.75,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 226,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 23.19,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 232,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 23.63,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 235,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 24.07,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 240,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 24.52,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 243,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 24.98,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 249,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 25.41,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 253,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 25.85,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 258,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 26.29,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 262,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 26.73,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 267,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 27.18,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 269,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 27.63,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 276,
+        "baseStatus": "unavailable",
+        "baseReason": "awaiting_scan_time",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 28.07,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 279,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 28.51,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 285,
+        "baseStatus": "unavailable",
+        "baseReason": "awaiting_scan_time",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 28.96,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 289,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 29.42,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 294,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 29.88,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 298,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 30.34,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 302,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 30.79,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 307,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 31.24,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 311,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 31.69,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 315,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 32.14,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 322,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 32.58,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 326,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 33.02,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 329,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 33.48,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 335,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 33.93,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 339,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 34.38,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 342,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 34.84,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 347,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 35.28,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 353,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 35.75,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 356,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 36.2,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 362,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 36.64,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 367,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 37.09,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 371,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 37.53,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 374,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 37.97,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 378,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 38.42,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 382,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 38.87,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 387,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 39.31,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 392,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 39.75,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 396,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 40.21,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 401,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 40.65,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 405,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 41.08,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 411,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 41.53,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 414,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 41.97,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 419,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 42.42,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 423,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 42.86,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 427,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 43.3,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 433,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 43.74,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 436,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      }
+    ],
+    "runId": "ddbb9aaad11e410493bbc557f7abd78f",
+    "release": "0.1.50-relocation-freshness-20261116-gace7005-d",
+    "result": "runtime_exited",
+    "runtime": {
+      "backend": "glim",
+      "inputMode": "live",
+      "serviceId": "fa6897efd98e44fabea5a2e9c8013a92",
+      "generation": 1,
+      "runId": "ddbb9aaad11e410493bbc557f7abd78f",
+      "phase": "failed",
+      "selectedMap": {
+        "mapId": "slam-7b5d81c2b43946de974e2e01127f8dd5",
+        "receiptSha256": "71e4d2a6d483620985236d54d01de21b8a788dfcd790607bba0c09ea0f7d4773"
+      },
+      "cleanupComplete": false,
+      "closed": false,
+      "localizationReady": false,
+      "navigationReady": false,
+      "failureCode": "child_reported_failure"
+    },
+    "faults": [
+      "{\"event\":\"lingxi_private_fault\",\"phase\":\"registered_terrain_input\",\"code\":\"registered_terrain_input_failed\",\"elapsedMs\":0.704,\"exception\":\"ValueError\",\"frames\":[{\"file\":\"registered_terrain.py\",\"function\":\"__call__\",\"line\":157},{\"file\":\"registered_window.py\",\"function\":\"offer\",\"line\":93}]}",
+      "{\"event\":\"lingxi_private_fault\",\"phase\":\"registered_terrain_retire\",\"code\":\"registered_terrain_input_failed\"}",
+      "{\"event\":\"lingxi_private_fault\",\"phase\":\"acquisition_health\",\"code\":\"registered_terrain_input_failed\"}"
+    ],
+    "maxContinuousTrackingSeconds": 14.78
+  },
+  "e": {
+    "mapId": "slam-7b5d81c2b43946de974e2e01127f8dd5",
+    "mapName": "11.14.1",
+    "markedCurrentBasePose": [
+      0.1454930012047504,
+      1.8340926577663819,
+      52.59464098249762
+    ],
+    "motionCommandsSent": false,
+    "posePurpose": "user_selected_current_position_relocalization",
+    "samples": [
+      {
+        "elapsedSeconds": 0.0,
+        "state": "acquiring",
+        "reason": "confirmation_required",
+        "lastFrame": 0,
+        "baseStatus": "unavailable",
+        "baseReason": "localization_not_tracking",
+        "consecutiveMatches": 0,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 0.44,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 6,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 0.89,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 9,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 1.32,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 13,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 1.76,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 18,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 2.2,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 21,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 2.66,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 27,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 3.12,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 33,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 3.56,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 36,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 4.01,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 40,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 4.47,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 45,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 4.91,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 50,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 5.35,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 53,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 5.79,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 58,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 6.25,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 62,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 6.69,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 68,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 7.14,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 71,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 7.59,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 77,
+        "baseStatus": "unavailable",
+        "baseReason": "awaiting_scan_time",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 8.02,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 81,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 8.47,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 85,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 8.93,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 90,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 9.39,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 93,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 9.83,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 98,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 10.29,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 103,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 10.73,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 108,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 11.22,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 111,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 11.69,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 118,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 12.14,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 121,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 12.59,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 126,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 13.04,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 130,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 13.48,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 135,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 13.93,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 140,
+        "baseStatus": "unavailable",
+        "baseReason": "awaiting_scan_time",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 14.37,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 144,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 14.81,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 148,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 15.25,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 153,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 15.74,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 158,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 16.18,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 163,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 16.63,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 167,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 17.08,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 172,
+        "baseStatus": "unavailable",
+        "baseReason": "awaiting_scan_time",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 17.51,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 175,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 17.96,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 180,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 18.4,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 185,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 18.87,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 189,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 19.33,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 194,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 19.79,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 197,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 20.23,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 203,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 20.68,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 207,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 21.15,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 212,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 21.59,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 218,
+        "baseStatus": "unavailable",
+        "baseReason": "awaiting_scan_time",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 22.04,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 220,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 22.49,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 226,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 22.92,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 229,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 23.36,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 234,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 23.81,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 238,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 24.26,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 242,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 24.7,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 246,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 25.14,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 251,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 25.58,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 256,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 26.03,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 260,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 26.47,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 266,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 26.91,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 268,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 27.36,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 274,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 27.82,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 279,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 28.26,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 283,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 28.72,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 287,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 29.15,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 293,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 29.6,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 296,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 30.05,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 301,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 30.49,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 305,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 30.93,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 309,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 31.39,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 314,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 31.83,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 319,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 32.26,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 323,
+        "baseStatus": "unavailable",
+        "baseReason": "awaiting_scan_time",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 32.7,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 328,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 33.15,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 331,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 33.6,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 336,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 34.06,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 341,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 34.52,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 344,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 34.98,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 351,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 35.42,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 354,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 35.88,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 359,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 36.31,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 362,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 36.76,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 369,
+        "baseStatus": "unavailable",
+        "baseReason": "awaiting_scan_time",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 37.19,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 372,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 37.63,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 377,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 38.06,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 380,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 38.52,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 385,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 39.0,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 388,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 39.45,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 396,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 39.88,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 400,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 40.33,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 404,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 40.78,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 408,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 41.24,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 412,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 41.68,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 417,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 42.13,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 422,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 42.57,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 426,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 43.01,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 431,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 43.46,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 434,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 43.91,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 439,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 44.35,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 445,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 44.79,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 447,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 45.24,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 452,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 45.68,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 457,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 46.14,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 461,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 46.58,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 466,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 47.02,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 471,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 47.47,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 475,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 47.91,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 479,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 48.35,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 483,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 48.79,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 487,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 49.23,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 493,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 49.66,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 497,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 50.12,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 502,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 50.56,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 505,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 50.99,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 510,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 51.44,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 515,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 51.88,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 519,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 52.32,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 522,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 52.76,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 527,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 53.2,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 532,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 53.64,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 537,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 54.08,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 542,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 54.53,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 545,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 54.97,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 550,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 55.42,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 554,
+        "baseStatus": "unavailable",
+        "baseReason": "awaiting_scan_time",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 55.87,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 559,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 56.31,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 564,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 56.75,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 567,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 57.22,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 572,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 57.68,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 577,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 58.14,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 582,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 58.59,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 587,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 59.04,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 592,
+        "baseStatus": "unavailable",
+        "baseReason": "awaiting_scan_time",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 59.49,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 595,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 59.94,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 600,
+        "baseStatus": "unavailable",
+        "baseReason": "awaiting_scan_time",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 60.39,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 604,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 60.85,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 609,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 61.3,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 614,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 61.75,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 617,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 62.19,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 624,
+        "baseStatus": "unavailable",
+        "baseReason": "awaiting_scan_time",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 62.65,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 628,
+        "baseStatus": "unavailable",
+        "baseReason": "awaiting_scan_time",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 63.14,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 631,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 63.59,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 636,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 64.04,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 640,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 64.48,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 644,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 64.93,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 650,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 65.38,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 654,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 65.82,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 658,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 66.26,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 662,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 66.73,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 669,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 67.22,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 672,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 67.68,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 677,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 68.14,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 682,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 68.57,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 687,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 69.02,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 690,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 69.47,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 695,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 69.92,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 700,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 70.36,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 703,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 70.81,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 709,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 71.26,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 714,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 71.71,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 717,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 72.15,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 721,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 72.59,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 727,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 73.03,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 731,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 73.46,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 735,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 73.92,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 740,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 74.36,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 744,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 74.8,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 749,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 75.24,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 752,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 75.68,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 757,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 76.13,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 762,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 76.57,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 767,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 77.05,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 769,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 77.5,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 774,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 77.96,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 778,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 78.41,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 781,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 78.85,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 787,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 79.29,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 793,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 79.75,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 796,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 80.2,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 800,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 80.68,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 804,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 81.15,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 807,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      },
+      {
+        "elapsedSeconds": 81.62,
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 810,
+        "baseStatus": "available",
+        "baseReason": "diagnostic_quality_only",
+        "consecutiveMatches": 3,
+        "navigationReady": false
+      }
+    ],
+    "runId": "8ac429710bb04b4a92e9c2c53dc98cda",
+    "release": "0.1.50-relocation-freshness-20261116-gace7005-e",
+    "result": "runtime_exited",
+    "runtime": {
+      "backend": "glim",
+      "inputMode": "live",
+      "serviceId": "08c1b1666f654889baf04dae6f1ae9c0",
+      "generation": 1,
+      "runId": "8ac429710bb04b4a92e9c2c53dc98cda",
+      "phase": "failed",
+      "selectedMap": {
+        "mapId": "slam-7b5d81c2b43946de974e2e01127f8dd5",
+        "receiptSha256": "71e4d2a6d483620985236d54d01de21b8a788dfcd790607bba0c09ea0f7d4773"
+      },
+      "cleanupComplete": true,
+      "closed": false,
+      "localizationReady": false,
+      "navigationReady": false,
+      "failureCode": "child_reported_failure"
+    },
+    "faults": [
+      "{\"event\":\"lingxi_private_fault\",\"phase\":\"registered_terrain_retire\",\"code\":\"live_acquisition_revoked\"}"
+    ],
+    "maxContinuousTrackingSeconds": 18.48
+  },
+  "deployedRelease": "0.1.50-relocation-freshness-20261116-gace7005-i",
+  "deployedSourceSha256": {
+    "capacitor.config.ts": "5360a0aa66f5d85e36977a4b74d5aae141cc61517fffe00af0a99a1ba0f5e47c",
+    "docs/slam-humble-live-evidence.json": "1c597055f2e5f275c6903b9869fe2988bef669bebe324ade4891c36b3017850d",
+    "docs/slam-native-point-pipe-evidence.json": "4eb6356d68186c4ee04b010a5cd56383cad857511a762ed760c8f6eecb053a94",
+    "docs/slam-point-arm64-target-evidence.json": "83311c9c80d6f9e8829ca739fff1230cea08e9ce3815ecfeb210607ac7815af0",
+    "docs/slam-point-consumer-preparation-evidence.json": "e872f80c7fee78342f95fec8d5fedd743cd0f581513d713930d492bc238481ad",
+    "docs/slam-stream-input-evidence.json": "d4defa80f4e5d48ca0bc620965218103c89726cdde0e523531d14262468449cc",
+    "docs/slam-supervised-arm64-evidence.json": "76327f59f6224933bc2c8162dddd1ef834833f891015e687971e0095422136ed",
+    "package-lock.json": "203ce2892de1e3611c45f6a9a942dd4b79aa698f67b191dce1578ce1d55a1273",
+    "package.json": "c6cca3210262a87d8c9294ef4a7e964381bc749c5566c854e4f1e88b9aecab66",
+    "robot-api/src/action-authorization.ts": "80e727bad7353363248ab8142b19b0c4d3ba89396e5e45bcc41b80288b087ce2",
+    "robot-api/src/actions-backend.ts": "8598ee3af32af157452773d81c4acf185764f4331c500f5fcaa1682dc396103d",
+    "robot-api/src/adapters/aimdk.ts": "3c72216b3b1e8a9f0887033b2c5d3f8096fd90ecb8019d09d9bc93a76b53cfcb",
+    "robot-api/src/adapters/demo.ts": "28f4a741b251860d475db881594d5fe73ac802f5f37d7fce4938fb89bf2ef530",
+    "robot-api/src/adapters/offline-navigation.ts": "283085e0e048eb2f18c6b7fb6b880306c4c6fbe5c679c0c14ae123160fd708e2",
+    "robot-api/src/adapters/physical-navigation.ts": "4f356475a6ce51e49ec43970735d7bdb38404d0ab824eb8a1f8905e53e5e1743",
+    "robot-api/src/aimdk_ros_bridge.py": "7737e1e65e419a1668ce4f583e4ad5fabb050087c7269b23e9ccb04a29cee666",
+    "robot-api/src/artifact-digests.ts": "5414d9c236af958645fc4edb10cde8cec01dced1866c912e6252a502b612bf41",
+    "robot-api/src/auth.ts": "3792b8cc0ff430ad38ca4ab28af245f1504946b55fd320a9de8c3f036b640f92",
+    "robot-api/src/calibration.ts": "1f43cecaed438b86e0b1cde1db240c1d9bce3bef229de23b9169dc978c8b88ea",
+    "robot-api/src/corrected-map-preview.ts": "cd65492609decd30ea26a9d6e4567e3e755b89b9d2553ab4a5d360b2a1813793",
+    "robot-api/src/domain.ts": "a8f2457c7e64297fc2337532d535e1ded0c9c62305bf739fdce5f32dbe890e5a",
+    "robot-api/src/index.ts": "21887e4b51980445ac848614afc1bc6cd8f8dde4012ffd9e86c887af074f67d7",
+    "robot-api/src/jobs.ts": "28317bc66dc027f0873fedeae0d6eafe2f9244db708a7f8173184429145643f8",
+    "robot-api/src/lidar.ts": "63cdf232de13addd361da7921734889f0913ced62b8d549f8b86da96d39b5136",
+    "robot-api/src/localization-backend.ts": "d1a6422fb77896ab3f7d4397cb725745dbf6ce9a6df5433ea756817159ce02f4",
+    "robot-api/src/mapping-backend.ts": "9991b6471c25353ea805fb048fddba2c07fde5e00fd9b7d28fdec536b4df3858",
+    "robot-api/src/mapping-points.ts": "4ce23d79366b588ba4a085464b740827294f5adff6606df136dd4f036dbc535d",
+    "robot-api/src/offline-main.ts": "90acff6172890281e7edb0b68e80cd9075b821a640c840bdf7468531dce54331",
+    "robot-api/src/offline-navigation-backend.ts": "1215afe904dfb2dcc66b99df1e7f94e44337f54250b5d10b9ef33da60afdf5a9",
+    "robot-api/src/offline-workspace.ts": "b8e9f67b1a404f675e0daa1ed16194a394840f49bc7580d4f3343d481b712161",
+    "robot-api/src/physical-navigation-backend.ts": "392005f392b7b0683fe3a657345ac7eeb299b0e3cb6ff7e2ff5243c4ad47d0d8",
+    "robot-api/src/saved-scan-preview.ts": "e7258fb4d4229f3a12be987bccada0ae564bd766ee31d3d72ceb6129acc29a73",
+    "robot-api/src/server.ts": "1219519cf5dfd9f9055f99038c96e776b2cbb7b4e8027e70d0402b057912bb06",
+    "robot-api/src/slam-map-catalog.ts": "8627b59bab3a49927333275a69c4a1ac75f27efb81b026dc7e7d88076af51181",
+    "robot-api/src/slam-map-references.ts": "0ac664c213369c3d373eba57757a5ad794a90259a3d4f3f3874093cebdde0d38",
+    "robot-api/src/slam-points.ts": "b9ad55d77d51e764536248069987080358d69a98eb904c18804a72c797ff2dca",
+    "robot-api/src/store.ts": "9b2bfe57a787af12cf897aa3c6f7496c2997d4bdbbed796a9dbf45f3eac8ac8e",
+    "robot-api/src/voice/answerer.ts": "69cc88bc0cb987d4cd67d77d7663fbdebdee1759a74bb15a94c70755a9e5c626",
+    "robot-api/src/voice/diagnostics.ts": "e7832eac5459e13ae8cb8670749c680834ee733c0e18becbd1f946c8203aae84",
+    "robot-api/src/voice/router.ts": "74862da4b87cac71f0760bab7a9f081cff7d9f24d8f9f5a9b39cf83b6b49af19",
+    "robot-navigation/THIRD_PARTY_NOTICES.md": "dea977de2e1d238789667a297c1a8e4e9ed1c90e0915ccc2d2b7a1833b32eecf",
+    "robot-navigation/bridge/__init__.py": "e4e209fb0da4a97daeb1e95e0d849652ad40fc62f4b3cb2dfabc05543ca594f9",
+    "robot-navigation/bridge/nav2_lease_guard.py": "62825541336025f52bc7282da2d46a4a13c7475a541df50ebbc01a74b91778f7",
+    "robot-navigation/bridge/physical_nav_bridge.py": "09f5e4e0f23715207bbf89289267263ac4054f791d0af420014a7cdb0cf85e55",
+    "robot-navigation/lingxi_navigation/__init__.py": "dc29844577c6a8f5f3f6f1e32a7517fb57b7c60602f0d15752e60e6be5659177",
+    "robot-navigation/lingxi_navigation/ground.py": "a47b949bc326f6b40d9613c23c5daf447658b003285b77a455429fabc34d2e4b",
+    "robot-navigation/lingxi_navigation/ground_inspection.py": "fb60ecbd58b3ec6c9003dfe62966785c9987fb654bb88fa7335c34af660f3ac5",
+    "robot-navigation/lingxi_navigation/lifecycle_startup.py": "98847987f6c6b5d9d257dc9e8a387430151f7e953068633433a7b2b9ed9beb90",
+    "robot-navigation/lingxi_navigation/localization_guard.py": "6c1c921948386bd4b162d2c959bf043f030ea7b56e3d70abdbd7f2e575769f1f",
+    "robot-navigation/lingxi_navigation/nav2_action.py": "c974461d861c0511673984d87cdaadf79b882dda52315e2ec7bc1db06d8cfec6",
+    "robot-navigation/lingxi_navigation/nav2_producer.py": "175072ea6b9664dbd8b0742a6c08a6bd9d7c53c251d05be8c3805ed0dfac5338",
+    "robot-navigation/lingxi_navigation/nav2_profile.py": "ec1d0392bcf0f140067d8da3931a8412e4d46236041657603c9099900c1cf6f8",
+    "robot-navigation/lingxi_navigation/navfn.py": "e86dced7b77d57136359a46963b69563fb4a53f995674a416248a0e80086caa8",
+    "robot-navigation/lingxi_navigation/occupancy.py": "3e0f425075466c5d82199586bbb5ff5ee8c42ef004944f9c8cc63736ca790a67",
+    "robot-navigation/lingxi_navigation/owned_inputs.py": "38911874d06c0c7e221a2314cb55a3001f3d18233202c2ca1fe1c37f95587ac3",
+    "robot-navigation/lingxi_navigation/physical_bridge.py": "9c01e698905f22b4e743b32e8631f375385cd09431f7e42f07441ca3e8745efc",
+    "robot-navigation/lingxi_navigation/physical_maps.py": "3b495920e32239731b0a0a8ffee275dcba4de50b0adf21bc1e92bacbb52200b5",
+    "robot-navigation/lingxi_navigation/physical_ros.py": "16ab5058eb2185ae026186873e512659f87a46ea83bffbb6970f6a1d13ca59a8",
+    "robot-navigation/lingxi_navigation/physical_socket.py": "983a024f85737c3ae84661c095b7c22750fc4bd03350859470e9c1b867154411",
+    "robot-navigation/lingxi_navigation/physical_velocity.py": "6c841f9e5d08c2e996ef46d2ee040ebd21da2222a89bb866582a86c39d2b6c45",
+    "robot-navigation/lingxi_navigation/recorded_occupancy.py": "af26d7a34ac77b484c976065c5340c7b1ed414eab2b2da5a0541f4f5e678511a",
+    "robot-navigation/lingxi_navigation/registered_window.py": "fdd045bf12175064149ea48b32b07878db9612f1fd73100edb44070d3e5d79bd",
+    "robot-navigation/lingxi_navigation/runtime.py": "ab736473d089eb7c1164b7e8b489c06733e6708c4bf7e21b1dcde2c221078a15",
+    "robot-navigation/lingxi_navigation/runtime_fault.py": "d6c09752626a2f161ad552156efdd129f1f8dafed53a2a18f27ac1c4843ec161",
+    "robot-navigation/lingxi_navigation/terrain.py": "cdfe3e3c1c29206eac9825fa20fa701b8879ee898fb151391f931d6b9b1475d2",
+    "robot-navigation/lingxi_navigation/terrain_feed.py": "8c65dd9a1b33c45f948782ed924028171a15cf6f9728c920eff07196a3935c00",
+    "robot-navigation/lingxi_navigation/terrain_lane.py": "b8cf31707be5ce7848603fe8966b43a6566db7b337668996039d7a6eadd9d6f9",
+    "robot-navigation/lingxi_navigation/terrain_process.py": "90580ab8dc40c65b3f7e9f8f4c2c21e0642764bd1714745f35bf57a2d3635bef",
+    "robot-navigation/lingxi_navigation/terrain_protocol.py": "6154e402e8b433d05cdb6b15bf23de55c114d061241ee57219d4d9681bd4f4f7",
+    "robot-navigation/lingxi_navigation/terrain_ros.py": "57f768e5b55b812a45f993e2293f7c801ed094dcdbcccb4226c14fb6d597f1e3",
+    "robot-navigation/lingxi_navigation/terrain_worker.py": "c5f2f4313804a2d03125e51975caf545aef59a9fcdca62e2aada98be8303bc28",
+    "robot-navigation/lingxi_navigation/traversability.py": "9ceb4a7fd7587f43a50fdd1cb11f8414c659781a548d302e8e1cbc23ce695b0c",
+    "robot-navigation/lingxi_navigation/velocity_source.py": "26bf70ca52a20c18aff94256122d6d54c7669a9aa65b4b2926d1de0f0b03e180",
+    "robot-navigation/native-ground/ground_bridge.cpp": "ac4a0d7621305775070f736f7eb178fe9add4f6375824b85d11948c893a3a589",
+    "robot-navigation/native-octomap/octomap_bridge.cpp": "4a53f10d231f3781c665bd84a973080319cad0063ec45979d558c5e439240dea",
+    "robot-navigation/nav2_physical.launch.py": "4065d41cd652cdcb0583575591ddb172be09a7db75a6a8a7049a27a49b42e4fb",
+    "robot-navigation/octomap.lock.json": "5e698d0378d27d6df29b809c709ac0061788bdc819d663ef97054fcb5e97b31b",
+    "robot-navigation/patchworkpp.lock.json": "e08ff740fd558fd09c3493a925abbcd0d85fc4459fc00846b1fbf053d678de3b",
+    "robot-runtime/build-live.mjs": "07d2f31c043db8c6e398301011aa31ebac67bffaf8d68f2f86b803929fb85a41",
+    "robot-runtime/build-slam.mjs": "ec302567868e0ac955f615855af5252799625c894109e2f13e1d33426cfc7342",
+    "robot-runtime/python/acquisition_bundle.py": "ac5b11f0b81b59d2e6eb6014b0e05f5ad7490aa481484233d424fcd8ef3204fb",
+    "robot-runtime/python/async_mapping_bundle.py": "1d3d77bb9f3644a71fdba76e4ef248ea2b8509876aaf85a8703cdf91bcaa1c0c",
+    "robot-runtime/python/controlled_localization.py": "d2d6bd60af4f4bde0de32f823ee7fcdd9d9367c4725b2040fde522003dcdd469",
+    "robot-runtime/python/controlled_mapping.py": "d687771b0ea1d37b6ba860ccc88761d5980f9857488eb22cd59422649cfba5ce",
+    "robot-runtime/python/launch_live_bundle.py": "dc04c02c266512b5099ba4b5de2f9065aff008d1152db1619daee9ffa99bff25",
+    "robot-runtime/python/launch_mapping_bundle.py": "2ed76e735e3870cba9680e5b6fa2b7b33d5260e839ecdf0ba2b8c3a874900341",
+    "robot-runtime/python/launch_slam_bundle.py": "a47834948da7d9a341225fc2683e23104fededab87ad456727795a1c9215f368",
+    "robot-runtime/python/live_acquisition.py": "cb27b986decb36a1e308406d145b7a67a1f9f5f301204fed84133c0776c0b68c",
+    "robot-runtime/python/live_base_pose.py": "967c4f08785e67902c7c806d164fd538c35d4ab1c1a4ac9c67cf80d9566ec96b",
+    "robot-runtime/python/live_bundle.py": "b67332035854ab955a8243bbe3225e81fd9d30bc9026ea444c4c62b2834c320e",
+    "robot-runtime/python/live_child.py": "f37d8bfa1b614d0bb27cf2b3d8ced2a42978176f2495dedf58b64451e68ae875",
+    "robot-runtime/python/live_localization.py": "4f42c5f237222d8a44a49b0f103cd6976506a0ebbb003fef762f14e2f2ed62e8",
+    "robot-runtime/python/live_localization_ros.py": "50f5da9c3ef89836e1a3f411dbf495b0d756f6bb8bda3256ca1b30943ae00366",
+    "robot-runtime/python/live_points.py": "53d64ed91b92ce33c98933b66d6fd03772d89bb48b7d96c6171ac92aa420e740",
+    "robot-runtime/python/live_terrain_ros.py": "0c24748930b6030c257d5cf12857f8ba869d12f8eb6ed91f453b8f03a159a3e9",
+    "robot-runtime/python/localization_control.py": "9d0060dab03badef1e2997934dd8e031079e6135c9c943699a22fa2d0bde7c5d",
+    "robot-runtime/python/localization_owner.py": "6068acf26a5b0f0d92251ba01892e0a23a3ab2f26476e71a70da4501eb4efd1a",
+    "robot-runtime/python/localization_service.py": "fdbcdf052da19f1f3b63544c234adbe2f06bb5c8dfca3db9dc1049a6960c59b6",
+    "robot-runtime/python/managed_localization.py": "5c41013d0e26fd29c4d88649dbb5a80e6b71622beb63e867ea10ed7e17938fa2",
+    "robot-runtime/python/managed_mapping.py": "34699b6bccca6e0207ea566ea4bba853ef1d5f05ff04e51e6ea3cee304979f50",
+    "robot-runtime/python/managed_slam.py": "97edad0906197b2549476489112f4508d93e39f18618161bea69236b82e5b3f9",
+    "robot-runtime/python/mapping_owner.py": "9bcc8fc26c1a60e84c9cdb94259082328892145034c11a9f78f7f36825eda0b9",
+    "robot-runtime/python/mapping_platform.py": "54d7317f1e127bb79677012e1eedad6fecfed6b44941ff0dc081fa51990a7ab4",
+    "robot-runtime/python/mapping_points.py": "f8e7bc00e9474ad452811ce4ba2b7b4cf9456298452dbcf73e6abfc6a1e963aa",
+    "robot-runtime/python/mapping_service.py": "135be42c4779103c8386ad90297b005010dbb17dae24e43fd3c60e411dbbb7d2",
+    "robot-runtime/python/point_owner.py": "af45907d371cda55b13ed56b305a7dcf34f4d7f23cf18795e57e65632cbfce04",
+    "robot-runtime/python/prepare_live_bundle.py": "2f35a4d527295382ea9c915a091e31261c90238babf06419df90919b05de6f8d",
+    "robot-runtime/python/prepare_mapping_bundle.py": "dea1886ad13c0dc09b994abf8fe20e1b66e218b9e10d6dfaa72b9de544e70cef",
+    "robot-runtime/python/prepare_slam_bundle.py": "211b87dd71c3a5344f421daeea1a52cdebd6f41a03885109730233559e7957b2",
+    "robot-runtime/python/product_configuration.py": "476565184f53ddbc3e7931546b07abf4cd0cf9cb2d483955ff42c959f437d8da",
+    "robot-runtime/python/registered_terrain.py": "8bd2a11dea24d63778c4a447905f11ac45c99e7e69c3a5ceb0f60cbe75c764e7",
+    "robot-runtime/python/replay_mapping.py": "2a5c14e0abf6507ebf9f3f14f9f2d46f5cab29702fd000b8ed35470072efb64a",
+    "robot-runtime/python/slam_deploy.py": "e665491249f258e245e779cc70f6ba4f7509f84e58b6f185aafc5ba3ad503b4c",
+    "robot-runtime/python/slam_owner.py": "15850d56a80d624ff9b525575a6dae9d032036bb6eaedbcb9be4b13f3981899a",
+    "robot-runtime/python/slam_service.py": "b0311e8f3b6c337efe35f0f6e8d210477a2906dfbc173d21ee1eca2eaa9eefb7",
+    "robot-runtime/python/terrain_bundle.py": "15b725b9c9546f608225d5c9415d06a82430caee5f5d4027d9aab28e7bd8edc7",
+    "robot-runtime/src/localization-api.ts": "f1bac511f6b72e3e520d24fe0f83a9b6593fbd4ad1dda6b16a16dad548aa7e28",
+    "robot-runtime/src/localization-main.ts": "e6ced31ea39441a72ffed8c0a207ad50f667d25a9650e529a1827e200ac96e2e",
+    "robot-runtime/src/main.ts": "0fa9cf41537356299dd9e2443549612646a0a017c3343771387c7de3a9dfa025",
+    "robot-runtime/src/mapping-api.ts": "47ccaf857ec4ce6113e44a52ddfe0e355232f50822d6ac97537ee65f6608b1b9",
+    "robot-runtime/src/mapping-main.ts": "a3497991158111fc6eff398feabcaee07f69603bacb61595d57bdda8dccc55d6",
+    "robot-runtime/src/point-api.ts": "e3e70da83c876d164b4158456a9df6c08442489955125a5b5d9b702243f31392",
+    "robot-runtime/src/product-config.ts": "eb73b5d908b0fb497c007912bd5407760a682d9ed050fe99cf9a5e5f55b94af6",
+    "robot-runtime/src/slam-main.ts": "4620076c9ee41768d5bf39e6dba9ba560c31cce695016144e8b608bb9c0d77c5",
+    "robot-slam/lingxi_slam/__init__.py": "9a59075191196952798a68b31564f2fc148727cbcfa59ae715657865894c4226",
+    "robot-slam/lingxi_slam/acquisition_output.py": "37678f982b4567a48fd2874ab26cee83e2eadbdd2ab8f52e4fc881d9ff348429",
+    "robot-slam/lingxi_slam/activity_lease.py": "9176682a990b0e3abc3caa4c28e7d5d772302253ad78bbb8a9f8e5fbd7a3b431",
+    "robot-slam/lingxi_slam/async_mapping.py": "8100fc590e484c58acf6b9f104fa466dbbc03dd6dd9cccc2d6fd0ba409c30b1e",
+    "robot-slam/lingxi_slam/base_pose.py": "4ddd5c7f35d8e1779fb3fcd8ef349754bbb6ce0478bc3d97e62076dedf8426be",
+    "robot-slam/lingxi_slam/base_pose_input.py": "75e48cafe1a870b4da67ba4869e5f1ea6894dc7f7f73856ca7339b93110de1df",
+    "robot-slam/lingxi_slam/corrected_preview.py": "f59d281dcc4c052be8ac9eeea21ac361793745ab7f9110aa663b686df9b02b0f",
+    "robot-slam/lingxi_slam/dds_profile.py": "f53432e9e0066bd6709152e15122e861ca0c786767a6a11cdce7d1bb80f569b4",
+    "robot-slam/lingxi_slam/localization_lane.py": "1a5fbfa78c06c1f2f1fa26b083636153f1d8bc5d59ed229a30ddee533d14fabe",
+    "robot-slam/lingxi_slam/localization_session.py": "eb87a81b0971987b6159c24fb653a154a925fb525996a6aa131a4bd38e3cdcaf",
+    "robot-slam/lingxi_slam/localization_tracking.py": "768a1bab18f2d4bb54bea3b1b45f4fb373efb69986d4b37f761c2153f1434435",
+    "robot-slam/lingxi_slam/map_provenance.py": "bec5841b0f8097c97fb4eef5304f95a5416d7a1a4707aff0727bfd0e365f1587",
+    "robot-slam/lingxi_slam/mapping_input.py": "a34d3838b05236bd4cd60475b5c85f6db2c6487d6c2d8faf41fedb8b6b2f9385",
+    "robot-slam/lingxi_slam/mapping_session.py": "88cf786fc53be6cb9af6b250e02909f8202ec04772d5a0f4f5c063eb49d6f3cb",
+    "robot-slam/lingxi_slam/mapping_worker.py": "c24d83db34618ee6d0df7c2b2f63a9b751d5d82b34f9c6f4f81b7571f3231179",
+    "robot-slam/lingxi_slam/messages.py": "bb52d293b2d839ecb80bc51d0b5dcff17b533911b17c9ab462d86f255c1dc336",
+    "robot-slam/lingxi_slam/observation_archive.py": "50608d2bf8e316f8583b60bbf4970987e0331a125fdb7967ac8e991f0c0b6f08",
+    "robot-slam/lingxi_slam/observation_binding.py": "b0ae111c3aa1ebcc115509b4d9f03f2689dcdaf0b5aecb7c5504b4d69cc8d214",
+    "robot-slam/lingxi_slam/observation_window.py": "99fcd29a1e76ad00ea13c236f9697be64662a89f3c9e6d6073c788deebe87a06",
+    "robot-slam/lingxi_slam/observed_mapping.py": "786fc0b6227e2e219af073160b50bc31a6a3c48d52341e1fb446ab7678913f44",
+    "robot-slam/lingxi_slam/passive_ros.py": "08f0862d0d7e8cf8631555462ffe1a0942a1182c66d21baf2ca84fd298fb7abe",
+    "robot-slam/lingxi_slam/point_data.py": "14444f89b917eb98b7edf4804acb45948babe20cd28214fa20734c08cddefc36",
+    "robot-slam/lingxi_slam/point_output.py": "4b501e2411fd6e54f6b22f954fe13ac222de8d43ad221d61aba5de102512ba81",
+    "robot-slam/lingxi_slam/point_pipe.py": "c19c395dc7d3429d238bb870319b56defbbb3858ca70e025cbb03ea6733fb822",
+    "robot-slam/lingxi_slam/process_protocol.py": "4a1ec7aaa37dd82a644f81fc3b19dfa65796a181d9b6ee4bb31b9337ebdaa6ba",
+    "robot-slam/lingxi_slam/process_supervisor.py": "80a2f3aa40dc39c5bee2d79b125c76cd399334f98ca65e6690b0128dee128b06",
+    "robot-slam/lingxi_slam/registered_acquisition.py": "75b8d0e8d6f947316ecccd224e557ec6ad26d7ec2a201742a8e8a1219c697447",
+    "robot-slam/lingxi_slam/registration_process.py": "4bd2ae85dded1d3354457a73487f23d62b063a6365a54322ab18da29cbca5f3a",
+    "robot-slam/lingxi_slam/saved_scan_preview.py": "660d2a6b43e19bd72047d85dd254f5940941c5577c1c8505d6ce813dccc0cee5",
+    "robot-slam/lingxi_slam/seeded_localization.py": "9e877946c027fa8aa1e0d9ddee7696f53d5ce719a9655c413b63bd7cf1ed9354",
+    "robot-slam/lingxi_slam/sensor_admission.py": "eafe810e053f5da92ea022dd66615c568deca4a5ca6143ff82e894a19c1e626d",
+    "robot-slam/lingxi_slam/stream.py": "e5f5efdadc115edbd97a854ccc6a9a8b6e86bbf6c8d344c5ba1c8d2100194010",
+    "robot-slam/lingxi_slam/worker.py": "c5c4647e9de70cb0926700a3229b5a1a11e77d3dd695d5a164ff53ee19486ef9",
+    "robot-slam/native-acquisition-output/CMakeLists.txt": "7068da7d6afe889eaacbdbc6b44e0fe5ba8b4479a569099b9cfa9c408d6cf426",
+    "robot-slam/native-acquisition-output/acquisition.cpp": "f7c0276d77ce1892e13f6e089790391dd579eb68a22c6f88d6aaa3fd73bea85a",
+    "robot-slam/native-acquisition-output/acquisition.h": "fd3aa5aefeb0b1e78fb830836fe712cd43c0c07317c556d815fa48d4bf58ffe2",
+    "robot-slam/native-acquisition-output/acquisition_contract.cpp": "be51e62943f1d45348796d27a8751aac10fb21e9dd7b77d71f398df7645996f6",
+    "robot-slam/native-acquisition-output/exports.map": "d5f3fdb32eccd8e114d0e8b00086f74a9b940c0276a1e151035654e58e21eaa3",
+    "robot-slam/native-point-output/CMakeLists.txt": "2efe69a776d107ffa32f5ec866665a106df6e420e35fedfb9e7f6bd0b807b483",
+    "robot-slam/native-point-output/exports.map": "2dfe4e67279bf1219f19a81a33162757f11c2e2004d4ff5470254e03e074d0ec",
+    "robot-slam/native-point-output/point_output.cpp": "b563747a07964843a27b8160b69509ad9ab8e99556e03de0ba4887c082347b07",
+    "robot-slam/native-point-output/point_output.h": "b9bcb8f6a937bfc0df59ff54f4802a581c6df29820b9a7e31a184236be0d3b2f",
+    "robot-slam/native-point-output/point_output_contract.cpp": "4b37ec7c125524076f33d41fb7566b713b35141449efcb2b35ff3779283667ba",
+    "robot-slam/native-point-output/verify_exports.cmake": "92aa6b31a481733ea9fec9070eb1a55fc96bf325e900d3d76fde8afff7e631d7",
+    "robot-slam/runtime-arm64-cp310.lock.json": "71d74391a6edc9e6e87a4e79ba7f91a60c82daac1b57506fc3041bd9a6915cd9",
+    "shared/calibration.ts": "e7938e940d1ecdb7ab85531631c6c4ad2ccc77860b5f5c92588293f3fef4a8f6",
+    "shared/contracts.ts": "9090f0e056016a829d4a36d2ef7ead68c6cfa8e76f56a1af352c62abd96a8e6c",
+    "shared/fixtures/slam-point-v1.synthetic.json": "bc244c94064018baf7167d172aa32e5be7ccf838107723fde6ffc58e2de7250c",
+    "shared/localization.ts": "8aa547e70f8bcb2923419d5ac4995572896407629d59ab1a2c0c56f8b151b2cc",
+    "shared/mapping.ts": "e817a07074698e779391f92adf3b3ee265b4c51bfbeb6fa291845e1ee91c5c4d",
+    "shared/offline-navigation.ts": "87c6249186437c16fdee890bd3f8edf042a9892415a64194d2b17cc667b8c0cd",
+    "shared/physical-navigation.ts": "e9736400d84d7d32657a696e4c1955b35a9edcc5bd04e77cd2dd5649fa68cf61",
+    "shared/slam-reference.ts": "73cdcbd27fafda57aee350b00d455d1dbbd51925502c76a0f235df6131ba4abd",
+    "tools/acquisition_target_probe.py": "28381422b22e954f20e75e286dd08a6dfc7da3217b809e2ab199d49e423e94eb",
+    "tools/archive-release.py": "ff267ef3cd195a6eabb65aab4f87c378ea59d94a23d2049f29fe80d7baef4c77",
+    "tools/arm64_python_runtime.py": "9c38ce91496aeba951f90f1d545e55463953e6bffdd18536c888e25afa93044f",
+    "tools/audit_glim_initialization.py": "484f9faf35f65afb1c1af97a953eaaa6e05e272fb056dfe84c451b8fce92a001",
+    "tools/audit_historical_evidence.py": "804534fd8920f61a7482a631747168a4c7111fca53ceff68931659dba2692623",
+    "tools/audit_slam_calibration.py": "03375a989583b26e6a92557cb23515d7f97cd0586e2cfd54a54aa424819e5374",
+    "tools/benchmark_terrain_pipeline.py": "da2784ef35d7855f90a07b4aa7351267b314deff19e73509a008521ac455def6",
+    "tools/build-identity.mjs": "b11db384bac5867d0786a53c5a7bf3ec6d681907f5761f4eb7a9ca4f41e69b3d",
+    "tools/build_glim_acquisition_arm64.py": "92f2e11bfaf875bbae84568ace69458db1b8d4954d2456759b079a35d33a470f",
+    "tools/build_glim_async_arm64.py": "e38d21fb438367ce43136ae497c64bec7f0574eaceff1a7a0ecccba53f739220",
+    "tools/build_glim_observations.py": "dc69c4a69d2ac1c6e141c228751128f5f08821947ed89aef8f5a5136440477dc",
+    "tools/build_glim_observations_arm64.py": "2889cc887daa48272d1b076ea46ff812bad9b559cc87749431b608efc7b2c23e",
+    "tools/build_glim_point_arm64.py": "1973620fba28317ef0f906fab5ec9327d34d369c34f1099e11ff2363f6f41d1f",
+    "tools/build_glim_target_preprocess.py": "557fdd134d6fd7ffde34e9f30d83408753b4392c9a12de9ce6cc5ca1726b9a28",
+    "tools/build_glim_target_replay.py": "3a25b50a63f9f4ebde38abb1b491bbd735bb5ace6865d91f1e6c9b9fccf43e3b",
+    "tools/build_ground_offline.py": "aa190579b153b1582ef07977d4fc9d69a6b428b9f38e59af8447852d741db082",
+    "tools/build_octomap_offline.py": "e3c223f469fd0ca5bbd29fcdd81fc0744d99304207acefe2497836b2189a9016",
+    "tools/build_slam_arm64_trial.py": "15488e8c69b9d6bdc515b058b00e7401af3ba488346115e130a96f5d6b8e536b",
+    "tools/build_slam_cpu_trial.py": "ce855ca6b45385d2b2eecf1462c04a55abd0e0c1e36a7955f5376b6d1351a7a9",
+    "tools/build_terrain_arm64.py": "2606da7f0c4cc58d28cd5e537eea3a48c7ee3cf364b97d86207ad14f1fbd17e2",
+    "tools/check_acquisition_arm64_emulation.py": "3f98c567f479b69f374ebe15779540cc89dd9bed5b725d52c66d339acbf3ad68",
+    "tools/check_arm64_live_runtime.py": "aa4922da22c931ebe1d10b7493f8600a9768ba2e9dbe22a8fe11ef63e25dcbab",
+    "tools/check_arm64_python_runtime.py": "6a0f686f290846fba4a1175ce6879e977030424ffc566fb647561035db6c1ec7",
+    "tools/check_base_pose_tf2.py": "fedfb912f16a98a298b7e79beb1f84f41eb47f66296e0e24f6f6b61db0d000dc",
+    "tools/check_ground_native.py": "cfa5ac5488d0254360bd8b433527d7d2b83a9ea7987a5c97bb125f6723537aa1",
+    "tools/check_installed_slam_python.py": "b993af5b6f5fa917b0970e6c568841b706b2b29abfe9f744adfc504681e0b858",
+    "tools/check_localization_runtime.py": "ed86dd68b019d8ec68ff0c1160cc1c851f83eaca56346dc8ed8254f9e147a120",
+    "tools/check_managed_live_localization.py": "f37301612d42fc1a78bc4c990a3b663c298feb3ffd31d8104bb338337413eb59",
+    "tools/check_managed_localization_runtime.py": "c81e75570ac7f63de48a7b506552a074bf3c8ddfb10478764fd3a95388834a10",
+    "tools/check_navfn_native.py": "036042d9c65581a5acf198f57a037b46170c2866fd560ea0484d2493a2733aae",
+    "tools/check_observation_target_geometry.py": "8fcb39a46a5a7e6e731ffa6b3de17f16b034a9889a84867cb66c9b39614409f6",
+    "tools/check_octomap_native.py": "9ac9145012c7e87f20392dc54420c195ce9896069628c11b04868506dec7a53b",
+    "tools/check_shared_slam_live_package.py": "9e50dd827e8308be571138e6286a2c4ece17dbafbd9750dc7f354e0c665572cb",
+    "tools/check_slam_message_adapter.py": "366a6e9cb1e76dcefd56ad2f718fb22c0eee284a1bb851c1524e3a0d7bc9bd18",
+    "tools/check_slam_workspace_target.py": "a57479178a084601ae2f7a29d163d73be67f4789001c3a872429696292a88b65",
+    "tools/check_stationary_seeded_live.py": "5a01716ef89a113eef0acd8be4ac81aa05a38967e8396e05238c0cdfc928cea9",
+    "tools/check_terrain_native.py": "342eac2415d06083dacc6c255c1668e18a1c387386dd7b731dc240436ce62747",
+    "tools/compare_glim_architectures.py": "b741d1a7f57894dee2fd9e87b47638f80221ae26bfc449239d2665f30c88d6aa",
+    "tools/compare_pointcloud_geometry.py": "f9dea1f0c02f077fec3d5d8dbb8c3a0a94dc39d224ecb19e9deb2d774ea6a69a",
+    "tools/diagnose_slam_sensors.py": "0c9808ca472b6d7be7b3b118c05d83b13f5b975e76da1c732e08adf071e1b824",
+    "tools/evaluate_recorded_clearance.py": "36ecbcb4a5c4e9047a301026b8ebdce5d2ad59ab2d65bb80f3c8a30f3c072c3c",
+    "tools/evaluate_recorded_terrain.py": "101f935e44c46ca003c8ed3aa9fb8d8562c00f9b6d3bec8526d3e7d79682d0de",
+    "tools/export_async_mapping_evidence.py": "926c39b776392dcccda17bf3b14cfc23b9111edde174f2682c403c05df8d6d5a",
+    "tools/export_glim_controlled_mapping.py": "0141b810faf4e2bae55bb42261102c7f9cea9b122536ca0ceb06574f927c42cb",
+    "tools/export_glim_controlled_target.py": "bcf9c8089322125c6920acda8916d6e822eba1f69f9b6087cdf2c9ef53edbeb2",
+    "tools/export_glim_live_evidence.py": "e9aebca4d73988ae4e9a7161306525800f97c9fa133b740da21b3b5193fbcc63",
+    "tools/export_glim_mapping_evidence.py": "9d9c836403abf49222c497bb516ec26fd866bde3c2537c9e4b2aeb8eaeffdcfa",
+    "tools/export_glim_matched_evidence.py": "64483fd57ac410f438dd1adbf915dca1874bf44d136e302a9a1b4f65303a6942",
+    "tools/export_glim_point_composition.py": "15a50b21ad70ee8757ca12dbe94bfde837e7a7cb335adcc0ad6162b4c2be20b8",
+    "tools/export_glim_point_consumer.py": "89edbb0d4397d2efcc357f644d3008012d39aa6bd33eebab9f3743f8d722f89b",
+    "tools/export_glim_point_evidence.py": "c7c9e1a0cce3aecaf08960edbdcbfcb057fb093700bd0da4b83b0ec6706504de",
+    "tools/export_glim_point_pipe_evidence.py": "3ef187b57b35e3818222d8ce5d28260989388fc1811ff025742c5bfe12d2d049",
+    "tools/export_glim_point_target.py": "4ed5b3d28482dc8454ee5afa906931938d3739898a63b394e439bcb7483a3841",
+    "tools/export_glim_preprocess_evidence.py": "e6523c0c3fe54eaa4e99c5e1f55248a0bd9af02944351fa82829b97a0ba5984d",
+    "tools/export_glim_stream_evidence.py": "8af5997f1f11b9ab1bae629dc7645e241b57c59513a66f66a9b250b6a4cde871",
+    "tools/export_glim_supervised_target.py": "c0812cf427e250de91e1b07fb198b49fb06a16432ce06a8f93574868c1d2f00a",
+    "tools/export_glim_target_mapping_evidence.py": "bdcc3640603926efe6a0f2c8f9d459b487e3c718b3187fbbb5f060bd5cf7a7c4",
+    "tools/export_glim_target_preprocess_evidence.py": "ef98cde84ad6dae37506d9e912495a7d53a5332a2dc4c619a16d6004f5d6d689",
+    "tools/export_glim_target_replay_evidence.py": "8f88098f353f9d9fdaddf3f19258eb8ef6c9f3a9d900cfa325518e69dc4fc323",
+    "tools/export_glim_trial_evidence.py": "e95b584d3fef7f0b40a50c3a4c84174c195b17e748b977f0c029807a10d7351a",
+    "tools/export_glim_worker_evidence.py": "27169b234ed6d5869f2980c716166145872e454a21b683e4b5ec067153cc6a45",
+    "tools/export_kiss_trial_evidence.py": "e4be34c7da32c70d16bfa622499c637bca6ac6c909161f4953f5f6daca796397",
+    "tools/export_live_localization_evidence.py": "26ec26a5e4d763e5eafb6d6819c115a9c78954613b16a14db854827d61a9725b",
+    "tools/export_localization_arm64_evidence.py": "bc446b60dc7aa970635304fd5197aa1b73f6972c62391e22e5f8eb48347f004e",
+    "tools/export_nav2_evidence.py": "4e109697056e1ed6f78a37e1f831065d054fa797efa35fff53bf241759edad9a",
+    "tools/export_slam_target_evidence.py": "abced19f93f5644126e38062749719bbc75817c33abe0003f189f724148ac97c",
+    "tools/export_terrain_nav2_evidence.py": "a56f36ccf281098e1838dc17574b14354bfa6951f81f801f7972f35765cc9f60",
+    "tools/extract_glim_point_consumer.py": "6b3b4efa34d0b6e486cdb601d2e2fc3317e35041ebf7f6e8ee4f041e2cd42559",
+    "tools/glim-async-mapping/CMakeLists.txt": "03b90e02b8d2e690fed1186495c54ba2ff2efbb987b127ccbb3fc9d31ec35eb7",
+    "tools/glim-async-mapping/async_mapping.cpp": "8522ac02cd994abbea687a7e22cd5e9da716ab7a348347be6b4a262228e507d6",
+    "tools/glim-async-mapping/bounded_worker.hpp": "e412a8f6678ebf267502d8e8f48b644e18fb33c0f249b3f9135e9e7b5f769335",
+    "tools/glim-full-mapping/CMakeLists.txt": "7753772e42ec76507ee0d210178df41db8956997a15efd98fb87c85a91a0f4b6",
+    "tools/glim-full-mapping/full_mapping.cpp": "58825a135c0e1b7122252daac7bc1e5c8601fca006a3bf144a3765006363dce8",
+    "tools/glim-full-mapping/submapping-eof.patch": "908cd67635d19f2897e93ccdcee77366717849730e50a5611b6869fe0b5eb3ed",
+    "tools/glim-mapping/CMakeLists.txt": "5d60565098aa8dc97a9144b160ed5019dad2fb408b0cae9627271ecc4378ac3e",
+    "tools/glim-mapping/mapping.cpp": "0769e7bdd399a1c9addfde89655bd0596baf922cc0b4a1618147b91ad51fda9c",
+    "tools/glim-observations/CMakeLists.txt": "cf0f6448dcfa102d08f2471ebe85b93bebf45289a48d580bfc30ec815c59c3bd",
+    "tools/glim-observations/observation-capture.patch": "eece39fb78fefcd6c6b9a368c0f2adcab2a3aeaf490cc899d1c31348df1578b1",
+    "tools/glim-observations/observation_capture.cpp": "9269fdd61c281118724cd9567a53c4febb68ba25c1f21ba68714a9dc8d7169da",
+    "tools/glim-observations/observation_capture.hpp": "e4e521e20febc3b0cbfbb9be66708ff6cb06fe805f892bac8d4a8719f7a9d034",
+    "tools/glim-replay/CMakeLists.txt": "53d285546e082a23975e9f7f709c68abd47f4cd12a3349eb6c14fb946d1d340b",
+    "tools/glim-replay/offline.cpp": "4a104e25a4eb28fc7c558d9ae8fb12bab03a478e48f499f55ff95d9667aa2b1c",
+    "tools/glim_live_session.py": "04b69ed2f8b8f85085a609ae2139d46123c6d7753c17228eae25da5ee712f714",
+    "tools/glim_matched_session.py": "20245c70053635ccf804a67122f31d1af33edc6a99b8b221a2009a7e9409aa02",
+    "tools/glim_point_supervised_target.py": "9b974d44d52c1f3b87a8ddbb74d8990a818e4a7bf459e396eed5e7cdcabd2063",
+    "tools/glim_point_target_probe.py": "1eea6812be0717e60f7f376ab7a99b32e256a44a64f788ab37044cee77fe8505",
+    "tools/glim_supervised_target.py": "339fb32891eeb0cfb88dc065fe8ecb3b2071e2920214b0ffb0f628190a00e36f",
+    "tools/glim_target_controlled_mapping.py": "07ab538ce92bce425be6da97a5d4e70d839b096dd455646745c78adb4b15de4b",
+    "tools/glim_target_mapping.py": "274919647e57256fdd841304e93de5e17113a78247ba901bbfa0f04e0738d7ba",
+    "tools/glim_target_preprocess.py": "041b58ef4bdced5f1a781f44a6090dcf4a3f9d115b8c1ae6e22ae10fdf187888",
+    "tools/glim_target_replay.py": "20d0adf3f6e68b6c4d9a61b970be716ee5ead74d609918bd67edb4fcacc46d77",
+    "tools/glim_target_worker.py": "e45fbaa2e29fef1f9bccc7c395247185d8b1d1e31f84b738646da289e71ede01",
+    "tools/glim_trial_config.py": "761e93e856d57a80e96204c8b58a60e4ac067adc26611c4dc858196d6bc95833",
+    "tools/humble_velocity_source.py": "37a107837bb58849f7e99cb8f3e95c0fe862a257e1be5e7f437b7c87b410df4e",
+    "tools/inspect_acquisition_ground.py": "0af3dbececb8e53f7b88b9ce122cccf24525bdc43517a1f2f5820e44e1eb475d",
+    "tools/inspect_lidar_ranges.py": "b2a63003a035c4964221ca80a7f2b94518177abfa15687e95ef104a4c22230aa",
+    "tools/nav2_service_diagnostic.py": "fb5e374942ae09bb0c037b8dedab36f80ab3962806562a05392dab49795ca1da",
+    "tools/offline_nav2_service.py": "c857a87bef0499d4c5bc301ca387e224f05a68c62653bacab427d67b173c4732",
+    "tools/offline_nav2_worker.py": "953c38da9fd0e61825c27d7085cbc3554befcfca395f88272920cc62e05ac0fd",
+    "tools/prepare_acquisition_bundle.py": "51328ef871e990edc5002b5e417fb4b4f3eaf66637754be019021a259dcec005",
+    "tools/prepare_async_mapping_bundle.py": "435a5c1e838fbaa36859d5dc43e72c9bf124df688b1374a14f0faa87395ab19e",
+    "tools/prepare_glim_controlled_target.py": "16bbd4a1563d4641ef5dc69174fe8afb170a3fb348723abaa3b9fda84674bbc7",
+    "tools/prepare_glim_live_target.py": "903f9e1223dac09e4ae472299504ab2f30bfc27b436b8f73ead6b62ea2dfbfea",
+    "tools/prepare_glim_matched_target.py": "fbd1019a763b8f1784294760d92618eb8f2906a1c1b5c1da44de032dc179ed72",
+    "tools/prepare_glim_point_consumer.py": "42e4b2c1658bb2a71a1f25fbe9dfa613b1c743f0aa625566443fba07c28122ba",
+    "tools/prepare_glim_point_target.py": "ff3698373d7ff1a2636526d54028af05ac064b1c3040ff2ab7d2ed809f9782e4",
+    "tools/prepare_glim_worker_target.py": "5fe27c0da536f3540868e3d6b058c0790c54a47e0a84acfbd2657b7ec5c4c954",
+    "tools/prepare_installed_acquisition_inputs.py": "795560780e177d4cd54c44bae0d3afdfea6db1f6eb8d111cd1822cbfddc48b77",
+    "tools/prepare_installed_mapping_inputs.py": "99abd4944ae6bf56d75f07695d8bbe5b689faf05d320049f552baf1add2d7311",
+    "tools/prepare_nav2_offline.py": "25a792f31b046396eefcdcea026eaf7d48a24771d7f4e78da83f5f9d3736f1c7",
+    "tools/prepare_navfn.py": "6fc2761e48e1e9dfff5176ec0d9f83778886d60c1bfe937c9724252283b27622",
+    "tools/prepare_octomap.py": "de187287cdc1ebe501d78b269e9387a42a1bbd7ec2b688593a536ca43e76da1b",
+    "tools/prepare_slam_arm64_cache.py": "353a18458d6c54bc0ebf093f89cf1d6dfd1b8e05c6b1c9e3f79da145250474d0",
+    "tools/prepare_slam_target_bundle.py": "6ca7dfae0173693917b8bb50e0cda5bfc86e74cd75b4120c27eb67edbe9c8c73",
+    "tools/prepare_x2_navigation_profile.py": "1a9ee206a8db988b5b309cfa8703a10fd918b7ffae9d997e59529e2d847c289f",
+    "tools/probe_humble_publication.py": "5ae36518628af8be8f96f83ebcbefcf9ad7d76aa2367b429c2e856892559f757",
+    "tools/probe_registered_terrain_ros.py": "99b4b5741c445404e7c45719ab489c887b187cdf2322d7c4bb71a1449175c42c",
+    "tools/probe_terrain_ros.py": "541498195471b6d28f37ae1d8ef0f88caade46c573567e9f077004454111bb9d",
+    "tools/project_recorded_base_poses.py": "11b9a7a54b28140d32a194628b640806906fe7cae0a769e39d784dc2c56ce130",
+    "tools/python_runtime_kit.py": "e02fc0b820d2bab182d4d7d157129343c9b4456f2a99cfeb215bcc4d8e388f82",
+    "tools/read_robot_calibration.py": "4173f6682c60ebb254658362524d79c27941d9984d9f1377e2e99b2f73596f37",
+    "tools/refine_saved_map.py": "012070b10915d88c63c2656705d85499c3ad1bcee7236b949c32ef103d29d1a4",
+    "tools/refresh_installed_mapping_inputs.py": "0d358b4a79f5a219d40e5e24b71bcc74727e97b19bbfd48ff59411e2bcad07ab",
+    "tools/release_scope.py": "cefb376c10163a0b20fbaa12cbdc39970411f9947fb45e8b22d06edba9eb0756",
+    "tools/render_glim_controlled_maps.py": "9dd14892050143d775e85309763428b9e0266ab8600c84911fef937789b1cc57",
+    "tools/run_acquisition_target_trial.py": "b89a1d9660add0e366d3f5cd677aa441ca6fef23390535b0f2bfe96d316736d9",
+    "tools/run_async_mapping_session_trial.py": "8693d35e806c8e749e9bf70fc8c9b6614fa58a1c2c9f186a93864e053ee176b7",
+    "tools/run_base_pose_tf2_target.py": "907e8b683ce15c7800c78e68b50297121a34db9e3ec8442d39009b9289bd94ac",
+    "tools/run_glim_acquisition_trial.py": "465674e20b4f4e95e214042e89818c3d289f698bb7cc722099362e425ff6a6f8",
+    "tools/run_glim_async_mapping.py": "c347577312bc1102b858349c07f27dd2cebcfe2dec6935432c677de74be04c1a",
+    "tools/run_glim_controlled_mapping.py": "3d45dcdd806cdb5730d3ee51d4b5a7a21a33b069a99e231d99e6832ba4423804",
+    "tools/run_glim_controlled_target.py": "9f6d085774f8e76ade646a73fc25b5dc1f1c394b64694bcf19c74640f3593ca8",
+    "tools/run_glim_cpu_smoke.py": "01a5edcc782ca7f1949da4e1b6d31ee66af1a7a4dacbd9470ac21414141ab06b",
+    "tools/run_glim_full_mapping.py": "0c73ee258853c6d6e47dd8a363bf1a8a09972eb2760f78c88aa1f33fb2d078b3",
+    "tools/run_glim_live_target.py": "0e9097a46531fdf757602c8a674b49d155f97810d2429bafd9ebbe51f176521c",
+    "tools/run_glim_mapping_trial.py": "80c3c04178a6e9d1cc2bdc6fb467c746bc14245d69c0a6d7c04b4e22b5e2fa6a",
+    "tools/run_glim_matched_target.py": "46c4aeba46f4e796d9ca59b48eb7d004a0d459426afd701022295caf033dbd57",
+    "tools/run_glim_offline_trial.py": "aa04dce703a0f121138318b6ee52ba999e47593d6ed2ccac7bd2c524c1cff683",
+    "tools/run_glim_point_composition_target.py": "c0b4ad9bb77e51644ef1baa09fae163caf0580292ca0ca70a3d9bc31b4b2123a",
+    "tools/run_glim_point_output_trial.py": "c33b2cc6be2236114e5cb050355243535c49e8694f9c7c33f2e1bc8a82e4c7d2",
+    "tools/run_glim_point_pipe_trial.py": "9ec8732fd402795816aa3ca2a34c50f6281dba6ad1629cc6775955bdcb69d103",
+    "tools/run_glim_point_target.py": "e9b9a93a5c111c8b07c000df7611e6cd6c6f17c133723635609f5be6f6c758f4",
+    "tools/run_glim_preprocess_trial.py": "4423fd4ea576a383e52201866a4d5030bb4110f81fc63ff06e36543ca0513393",
+    "tools/run_glim_stream_trial.py": "512ee896c05345de191d7793ac6c1602291d699125c07eeb0d44ff7ff4e2597a",
+    "tools/run_glim_supervised_replay.py": "0939970e4bcae15f9ff925335bd646cdb23cacd525c33979e8bd3d8ab2c2dfc2",
+    "tools/run_glim_supervised_target.py": "39e9583e2a420cf1200a252ea67698e9368ed0c54ca9254053f65da49c8ee6cf",
+    "tools/run_glim_target_preprocess.py": "230788413ecdc8cd6da175bf2d8376aff729a4041a5bbc2db123fd40355eee73",
+    "tools/run_glim_target_replays.py": "adbc45a80452caf68a63de61c0eadf1ee0fe502575e9a2eb279bdf3722034464",
+    "tools/run_glim_worker_target.py": "cb98c9c2db79b0afe9a46e2a4aa278b1cff484bfebe1c6255f60df87b32e2216",
+    "tools/run_kiss_offline_trial.py": "ebe6d933005fa0821b50c0f91477e7a80a32ac1d174bf1040ec90d91e382a8aa",
+    "tools/run_live_localization_arm64_trial.py": "d13b83e81684aeec0afe10aae4df63c37de4b0de2c91c32a1a59c57e826bdecc",
+    "tools/run_localization_arm64_trial.py": "d6a83ee53da94a12cae370e85ad2fa75868b0c41d939f234b0dcf5b6332fea2e",
+    "tools/run_mapping_arm64_trial.py": "85b3b1f2596adc10b22dbbd349a6a46a5ab0744cbdd2b204a29636ce0bd3de4c",
+    "tools/run_mapping_control_trial.py": "fc9257c3a96e163182407072548c136f54c0a9c40170a13886fb1e137b8d2fab",
+    "tools/run_mapping_input_trial.py": "f9702f83af4bb93f6f7f5f1300019788453b2d034b50551164dbfac99d6cf237",
+    "tools/run_nav2_offline.py": "6edea313fa59241ca240063f093c2b95cc79867314d4fc9e6c7a53fbf493a056",
+    "tools/run_navfn_target.py": "ba284b22787a62f27e41309a49194c0ac141f81c8f6ecee0870ef61002c2a088",
+    "tools/run_observation_target.py": "566ac6f4c313f3d34b5aed58257230b55ffb1f46698e04395e9a77cfc4ab0e37",
+    "tools/run_observed_mapping.py": "1557d86293cd39f97d8513ecf27c0bb837182b80f74fb8de98409e53a4b23b58",
+    "tools/run_octomap_target.py": "60bf066dfc7f2a89b495ab6a7e8f69a1c958fcc2fea4c9d97a40b4682ab5d88c",
+    "tools/run_recorded_localization_trial.py": "9220d7b2b9f7424c860845cf1ecfaa745e7ab45e9de260651cbf2d9f2b876a52",
+    "tools/run_registered_terrain_replay.py": "6a1326e4a21e0461fefacd36e3c890f59ba9aa0429de857e11c324b323d5696d",
+    "tools/run_saved_map_arm64_localization.py": "bfde6f360d64ad8e9fd6c0054c9e0c9efaae95ead6f08d07b01232e1d39df1bb",
+    "tools/run_seeded_localization_trial.py": "0c5459600375f6d48248bb195b774c5410bc15dfc7500153a690e6b596676c32",
+    "tools/run_slam_target_trial.py": "bc0b1cb3292dd8a22364c48f8a547abbb24e8e30a98cfef05362079ff5ac29d8",
+    "tools/run_terrain_target_trial.py": "6614dd473b24088697b5dc6635fb3220f429ce0b2a79a3290ca8b911ad247e16",
+    "tools/slam_bag_audit.py": "529f6eb0b6a5050e74d0c65c566d53893f5e989e0a1a6d889ba0d27bf7a7620b",
+    "tools/slam_callback_journal.py": "3c9242f163b0c9265358085c6c59407973fa862592f2daea8151576ba7a9fe8b",
+    "tools/slam_preflight.py": "eb49571fb2393ccae22111aa98ee14f26fa7b8d7ae136fb5112a56313f06c6ac",
+    "tools/slam_target_probe.py": "cc58ce591d955691e168cb62b68c970ab24fbc30043d1fccfe23ffafb9716978",
+    "tools/terrain-arm64/CMakeLists.txt": "fa0737d2015d440ce11fe1bc4f573e39e6f30fc5345e7b66057352bc3d8c2bc0",
+    "tools/terrain-arm64/ground.exports": "20a5db7eca8323294e50e37434efac5ec065effa511f209111ee71f77be694b5",
+    "tools/terrain-arm64/octomap.exports": "b9a66247981081c80252c6e82ca76ef6b11d75a409fcb60736a6168fef18f3fe",
+    "tools/terrain_nav2_fixture.py": "df5c0dcc7c5b76d5f860c232a30d7f46087a63c554d8afd796bc4b24d9ecedec",
+    "tools/terrain_target_probe.py": "722baa1618049d565ae05842f7e06db8cbd57d0dde095d30f967ad852a9f3e83",
+    "tools/test-deploy-linux.py": "4ae2584c776638d5c3c5a319a9832b0118b707ad464ef474dd7731f31c1af8d6",
+    "tools/test_verify_android.py": "946f8c54cd376bf6442fb9602268862ddd360ad7fc63d54e93b14d80236581d3",
+    "tools/verify-android.py": "51c56bd7b38b49ea1682ad331dcb400428a6efe73ac39dda9e7d90721b648556",
+    "tools/verify-release.py": "43549046f06f5055220e0b3587334a7302ae1a19eb32f53956a4e521046993d1",
+    "tools/verify_recorded_ground.py": "7d3561970f76cac3a4ae4edb9644e2d9af57984ae087d50619c18ef1106a9037",
+    "tools/verify_recorded_terrain.py": "4695bbf17f2d1c4a0f7d7c352706e593c39cfe2da48cc4f409f4421310b49913",
+    "tools/verify_registered_terrain_ros.py": "80a5836727dbe5ee4c2e5008bef86cd2897efd6ccfb90d875a152acd84e6940b",
+    "tools/verify_slam_capture.py": "073c280e1791636e6ccd41c016ca50d56fa3a71078eb5ab1a4bfcc77e0259bad",
+    "tools/verify_terrain_nav2_offline.py": "d417c7210b91da0b5bb4fcbd57ea5d5a87b22e937c5980e1e175dd95ef07579c",
+    "tools/verify_terrain_ros_evidence.py": "bba0bc18bdcc223b24d8139efdc79998ec9eb3297faccbe0dd39f27eca2848fc",
+    "tsconfig.api.json": "2f414e51f1e6a41a211422581ca969a489e92e41aa04c2a6160896861597edf7",
+    "tsconfig.json": "43c39a0b91274a080742f236cf271d988731f67c44f38f72866fe1a5c1d5f615",
+    "tsconfig.runtime.json": "1f6b772f216851cdda260add92ecc502f6e3867335e514f71a97608edf131cb8",
+    "vite.config.ts": "71e5251d0261f8ddf711ef210b500ab2078256b5ed8b4b519986d040418048c6",
+    "web/index.html": "79f1f8743ce5459ac1ae0380cdc0a23053dc53c6ff5182baef262f738371ab10",
+    "web/src/App.tsx": "49c8d76a87e12426911d7db51714dbc0b3e416df8f53b9c29c3d6fd6af9a4d6c",
+    "web/src/CalibrationPanel.tsx": "cfe298e413a8041306e83f670049eca1ad703a098d60f50b791389b3ee149baf",
+    "web/src/LidarCanvas.tsx": "e5e10e8934d7256bbececf7dc6b8b4736faf09dc560c071d4a63ba1637de15bd",
+    "web/src/LocalizationPanel.tsx": "b1ab8ba56be55f627e2732038f47bc9bd88c584240cf23129f04d61279eeaeeb",
+    "web/src/MapCanvas.tsx": "3faaab04594bda13606c84acd0fe5a1f494b7792e2e17039a4bc124c41bea258",
+    "web/src/RouteCheckPanel.tsx": "7d4d0087ce5967eab133a4e9266bb3f62e10e821a55f36440c7e7939dbf21a4f",
+    "web/src/api.ts": "1c435cd8c003f16b21dfdb8030dc05dfbda309bddee05c3b154cac4db06c7164",
+    "web/src/lidar-view.ts": "ba9d079ddb1187b9815480526c0c3bf42eab21d361730cdcaba1c3ea4052ba60",
+    "web/src/localization-view.ts": "b426ff460845cdf5bf62cc0be22295049c949a7248469b379c71e304d7ca1976",
+    "web/src/main.tsx": "41431cb94a112ca05f90ca6037229d09d4bb8ecc1c27ae3bb3740ace8f01d2a6",
+    "web/src/mapping-view.ts": "b4757055cccd73c6f9e85bfcca94b45a51e95439e1c076e33e6fa28659e3cfca",
+    "web/src/robot-session.ts": "55fbcf2970d1132df62ce78a43d2f91888f84de0fdf85b54ebf86e8038578595",
+    "web/src/route-check.ts": "c4e0f90f2a8ab12ab2b8c5f934067dd32c1a92b8a287b57f9181725a0351be3c",
+    "web/src/styles.css": "2a3a091626da44638178ae9f57e3b670ececbf884c88f5f171cb60c8c1ad5970",
+    "web/src/vite-env.d.ts": "6b1994808efabd11506066c16a5047de065cb900be0e481729e062adaa20b454"
+  },
+  "currentRuntime": {
+    "phase": "running",
+    "runId": "174dfb9a1d294212a645f906af8a472c",
+    "generation": 1,
+    "cleanupComplete": false,
+    "reason": null,
+    "failure": null
+  },
+  "tests": {
+    "platform": "robot Linux ARM64 installed CPython 3.10 as service user",
+    "passed": 127,
+    "modules": [
+      "test_terrain",
+      "test_terrain_transport",
+      "test_terrain_lane",
+      "test_registered_terrain",
+      "test_live_acquisition"
+    ],
+    "result": "OK",
+    "testRoot": "/tmp/lingxi-freshness-d-w2kujwml",
+    "atomicPosePublication": {
+      "platform": "robot Linux ARM64, service user, installed cp310-v2 runtime",
+      "passed": 150,
+      "skipped": 0,
+      "modules": [
+        "test_slam_localization_session",
+        "test_async_localization",
+        "test_live_base_pose",
+        "test_localization_control",
+        "test_live_localization",
+        "test_live_acquisition",
+        "test_localization_output"
+      ]
+    },
+    "timestampDiagnostics": {
+      "passed": 21,
+      "skipped": 0,
+      "module": "test_slam_stream",
+      "platform": "robot Linux ARM64, service user, isolated source overlay"
+    },
+    "assets": {
+      "profiles": [
+        "slam",
+        "mapping"
+      ],
+      "result": "built"
+    }
+  },
+  "g": {
+    "mapId": "slam-7b5d81c2b43946de974e2e01127f8dd5",
+    "mapName": "11.14.1",
+    "markedCurrentBasePose": [
+      0.1454930012047504,
+      1.8340926577663819,
+      52.59464098249762
+    ],
+    "motionCommandsSent": false,
+    "posePurpose": "user_selected_current_position_relocalization",
+    "runId": "c0ca3c3bbcd642c18a79cf4f5edb289c",
+    "release": "0.1.50-relocation-freshness-20261116-gace7005-g",
+    "result": "sustained_tracking_not_confirmed",
+    "maxContinuousTrackingSeconds": 25.04,
+    "sampleCount": 202,
+    "states": {
+      "acquiring": 1,
+      "tracking": 201
+    },
+    "baseStatuses": {
+      "unavailable": 10,
+      "available": 192
+    },
+    "lastSample": {
+      "elapsedSeconds": 89.78,
+      "state": "tracking",
+      "reason": "diagnostic_quality_only",
+      "lastFrame": 898,
+      "baseStatus": "available",
+      "baseReason": "diagnostic_quality_only",
+      "consecutiveMatches": 3,
+      "navigationReady": false
+    },
+    "faults": [],
+    "latestIngress": [],
+    "currentFaults": [
+      "sensor_worker_failure:StreamError:stream.py:102",
+      "sensor_stream_failure:ordered_continuous_integer_sensor_time_required",
+      "{\"event\":\"lingxi_private_fault\",\"phase\":\"registered_terrain_retire\",\"code\":\"registered_localization_revoked\"}"
+    ]
+  },
+  "h": {
+    "mapId": "slam-7b5d81c2b43946de974e2e01127f8dd5",
+    "mapName": "11.14.1",
+    "markedCurrentBasePose": [
+      0.1454930012047504,
+      1.8340926577663819,
+      52.59464098249762
+    ],
+    "motionCommandsSent": false,
+    "posePurpose": "user_selected_current_position_relocalization",
+    "runId": "978b7b73cef74c86b306f5b1ffff4bef",
+    "release": "0.1.50-relocation-freshness-20261116-gace7005-h",
+    "result": "stationary_tracking_sustained_60_seconds",
+    "basePose": {
+      "status": "available",
+      "reason": "diagnostic_quality_only",
+      "mapFromBase": [
+        [
+          -0.6773309502825557,
+          -0.7313058332532327,
+          -0.080092235149399,
+          -0.9940881377897888
+        ],
+        [
+          0.7279764969412441,
+          -0.681968374479333,
+          0.07049597211578747,
+          -0.8293051308252796
+        ],
+        [
+          -0.106174484518873,
+          -0.010556160606084986,
+          0.9942917460942042,
+          0.6461142333802337
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "lastFrame": 606,
+      "scanHeaderNs": "1794804701816754000",
+      "effectiveScanNs": "1794804701816754000",
+      "metresPerMapUnit": 1,
+      "navigationFromRaw": [
+        [
+          1.6653345369377348e-16,
+          -0.9999886369086309,
+          -0.0047671850833118454,
+          0
+        ],
+        [
+          0.9996525129723569,
+          0.000125663334094972,
+          -0.026359770802847196,
+          0
+        ],
+        [
+          0.026360070334734913,
+          -0.004765528548337018,
+          0.9996411538295145,
+          1.0075613549854456
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "coordinateUnits": "metres-at-declared-scale",
+      "coordinateFrame": "lingxi_saved_map",
+      "bodyFrame": "base_link",
+      "physicalScaleValidated": false,
+      "navigationReady": false
+    },
+    "localizationReady": false,
+    "navigationReady": false,
+    "distinctTrackingFrames": 135,
+    "maxContinuousTrackingSeconds": 60.15,
+    "sampleCount": 136,
+    "states": {
+      "acquiring": 1,
+      "tracking": 135
+    },
+    "baseStatuses": {
+      "unavailable": 1,
+      "available": 135
+    },
+    "lastSample": {
+      "elapsedSeconds": 60.59,
+      "state": "tracking",
+      "reason": "diagnostic_quality_only",
+      "lastFrame": 606,
+      "baseStatus": "available",
+      "baseReason": "diagnostic_quality_only",
+      "consecutiveMatches": 3,
+      "navigationReady": false
+    },
+    "latestLogs": [
+      {
+        "imu": {
+          "count": 53718,
+          "healthSeconds": 0.7879708840673629,
+          "metadataSeconds": 1.2232822761015996,
+          "offerSeconds": 3.2846838458171987,
+          "maximumCallbackSeconds": 0.012106629999834695,
+          "arrivalSpanSeconds": 268.5709049899997,
+          "sourceSpanSeconds": 268.570782241
+        },
+        "cloud": {
+          "count": 2686,
+          "healthSeconds": 0.14287238299948513,
+          "metadataSeconds": 7.086412309025036,
+          "offerSeconds": 0.6727412179807288,
+          "maximumCallbackSeconds": 0.05927052300012292,
+          "arrivalSpanSeconds": 268.49958341599995,
+          "sourceSpanSeconds": 268.500819
+        }
+      },
+      {
+        "imu": {
+          "count": 55707,
+          "healthSeconds": 0.815676089066983,
+          "metadataSeconds": 1.2667680101085352,
+          "offerSeconds": 3.4174789448061347,
+          "maximumCallbackSeconds": 0.012106629999834695,
+          "arrivalSpanSeconds": 278.56566021399976,
+          "sourceSpanSeconds": 278.516198649
+        },
+        "cloud": {
+          "count": 2785,
+          "healthSeconds": 0.14511255099841947,
+          "metadataSeconds": 7.423016548025771,
+          "offerSeconds": 0.7009375039815495,
+          "maximumCallbackSeconds": 0.05927052300012292,
+          "arrivalSpanSeconds": 278.40301777199966,
+          "sourceSpanSeconds": 278.400243
+        }
+      },
+      {
+        "imu": {
+          "count": 57694,
+          "healthSeconds": 0.8418648720517012,
+          "metadataSeconds": 1.3167901291162707,
+          "offerSeconds": 3.535830196785355,
+          "maximumCallbackSeconds": 0.012106629999834695,
+          "arrivalSpanSeconds": 288.57091470700016,
+          "sourceSpanSeconds": 288.451904715
+        },
+        "cloud": {
+          "count": 2886,
+          "healthSeconds": 0.14803245999701176,
+          "metadataSeconds": 7.671859129020959,
+          "offerSeconds": 0.7288815739875645,
+          "maximumCallbackSeconds": 0.05927052300012292,
+          "arrivalSpanSeconds": 288.50696260400036,
+          "sourceSpanSeconds": 288.501461
+        }
+      },
+      {
+        "imu": {
+          "count": 59721,
+          "healthSeconds": 0.8703020320481301,
+          "metadataSeconds": 1.3597521761321332,
+          "offerSeconds": 3.651082408782713,
+          "maximumCallbackSeconds": 0.012106629999834695,
+          "arrivalSpanSeconds": 298.5864607659996,
+          "sourceSpanSeconds": 298.584333361
+        },
+        "cloud": {
+          "count": 2986,
+          "healthSeconds": 0.15053817499574507,
+          "metadataSeconds": 7.93915065802139,
+          "offerSeconds": 0.7546548619857276,
+          "maximumCallbackSeconds": 0.05927052300012292,
+          "arrivalSpanSeconds": 298.4999910910001,
+          "sourceSpanSeconds": 298.500149
+        }
+      },
+      {
+        "imu": {
+          "count": 61709,
+          "healthSeconds": 0.9006394650477887,
+          "metadataSeconds": 1.4012524341233075,
+          "offerSeconds": 3.775471226810623,
+          "maximumCallbackSeconds": 0.014248171999497572,
+          "arrivalSpanSeconds": 308.58622916900003,
+          "sourceSpanSeconds": 308.524954856
+        },
+        "cloud": {
+          "count": 3086,
+          "healthSeconds": 0.15503610099312937,
+          "metadataSeconds": 8.247369877020901,
+          "offerSeconds": 0.7783103689862401,
+          "maximumCallbackSeconds": 0.05927052300012292,
+          "arrivalSpanSeconds": 308.5211455569997,
+          "sourceSpanSeconds": 308.499723
+        }
+      },
+      {
+        "imu": {
+          "count": 63710,
+          "healthSeconds": 0.9279970140178193,
+          "metadataSeconds": 1.4424014351698133,
+          "offerSeconds": 3.891398579791712,
+          "maximumCallbackSeconds": 0.014248171999497572,
+          "arrivalSpanSeconds": 318.5936501870001,
+          "sourceSpanSeconds": 318.529062709
+        },
+        "cloud": {
+          "count": 3186,
+          "healthSeconds": 0.1605624099911438,
+          "metadataSeconds": 8.543865056021787,
+          "offerSeconds": 0.8050547809889395,
+          "maximumCallbackSeconds": 0.05927052300012292,
+          "arrivalSpanSeconds": 318.51085380899985,
+          "sourceSpanSeconds": 318.500172
+        }
+      }
+    ],
+    "latestFaults": [],
+    "deployedSourceHashes": {
+      "robot-slam/lingxi_slam/localization_session.py": "eb87a81b0971987b6159c24fb653a154a925fb525996a6aa131a4bd38e3cdcaf",
+      "robot-slam/lingxi_slam/localization_lane.py": "1a5fbfa78c06c1f2f1fa26b083636153f1d8bc5d59ed229a30ddee533d14fabe",
+      "robot-runtime/python/live_localization.py": "4f42c5f237222d8a44a49b0f103cd6976506a0ebbb003fef762f14e2f2ed62e8",
+      "robot-runtime/python/live_acquisition.py": "cb27b986decb36a1e308406d145b7a67a1f9f5f301204fed84133c0776c0b68c",
+      "robot-runtime/python/localization_control.py": "9d0060dab03badef1e2997934dd8e031079e6135c9c943699a22fa2d0bde7c5d",
+      "robot-runtime/python/live_base_pose.py": "967c4f08785e67902c7c806d164fd538c35d4ab1c1a4ac9c67cf80d9566ec96b",
+      "robot-slam/lingxi_slam/stream.py": "374ffd555c30a12fcd404a4ecf4517477edef2a8c0bb8447b02e1a70b5330a46",
+      "robot-slam/lingxi_slam/passive_ros.py": "08f0862d0d7e8cf8631555462ffe1a0942a1182c66d21baf2ca84fd298fb7abe"
+    },
+    "currentRuntime": {
+      "phase": "running",
+      "runId": "978b7b73cef74c86b306f5b1ffff4bef",
+      "generation": 1,
+      "cleanupComplete": false,
+      "reason": null,
+      "failure": null
+    },
+    "currentState": {
+      "state": "tracking",
+      "reason": "diagnostic_quality_only",
+      "lastFrame": 3211,
+      "mapFromSensor": [
+        [
+          0.7251147559224043,
+          -0.07626309988456392,
+          -0.6843923264755929,
+          -0.733260214056881
+        ],
+        [
+          0.6822803342640696,
+          -0.05506851654070348,
+          0.729013859935468,
+          1.0812795075005812
+        ],
+        [
+          -0.09328531784072064,
+          -0.9955661330631521,
+          0.012101820712133712,
+          -0.01293598637083233
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "basePose": {
+        "status": "available",
+        "reason": "diagnostic_quality_only",
+        "mapFromBase": [
+          [
+            -0.6775256815596832,
+            -0.7311451895219698,
+            -0.07991161841724208,
+            -0.9879742356944147
+          ],
+          [
+            0.7278802874007944,
+            -0.6821362647945841,
+            0.0698622175342435,
+            -0.8270974969311178
+          ],
+          [
+            -0.10559003465658373,
+            -0.010832644844743392,
+            0.9943510086621903,
+            0.6428620696969909
+          ],
+          [
+            0,
+            0,
+            0,
+            1
+          ]
+        ],
+        "lastFrame": 3211,
+        "scanHeaderNs": "1794804962315539000",
+        "effectiveScanNs": "1794804962315539000",
+        "metresPerMapUnit": 1,
+        "navigationFromRaw": [
+          [
+            1.6653345369377348e-16,
+            -0.9999886369086309,
+            -0.0047671850833118454,
+            0
+          ],
+          [
+            0.9996525129723569,
+            0.000125663334094972,
+            -0.026359770802847196,
+            0
+          ],
+          [
+            0.026360070334734913,
+            -0.004765528548337018,
+            0.9996411538295145,
+            1.0075613549854456
+          ],
+          [
+            0,
+            0,
+            0,
+            1
+          ]
+        ],
+        "coordinateUnits": "metres-at-declared-scale",
+        "coordinateFrame": "lingxi_saved_map",
+        "bodyFrame": "base_link",
+        "physicalScaleValidated": false,
+        "navigationReady": false
+      },
+      "quality": null,
+      "localizationReady": false,
+      "navigationReady": false
+    },
+    "comparisonInRawMapFrame": {
+      "baseX": -0.8364235900915694,
+      "baseY": 0.9895970582794185,
+      "baseYawDegrees": 43.09222912217043,
+      "horizontalDifferenceMapUnits": 1.2951189172488484,
+      "yawDifferenceDegrees": -9.502411860327186,
+      "interpretation": "difference from user mark, not a surveyed accuracy measurement"
+    }
+  },
+  "i": {
+    "mapId": "slam-7b5d81c2b43946de974e2e01127f8dd5",
+    "mapName": "11.14.1",
+    "markedCurrentBasePose": [
+      0.1454930012047504,
+      1.8340926577663819,
+      52.59464098249762
+    ],
+    "motionCommandsSent": false,
+    "posePurpose": "user_selected_current_position_relocalization",
+    "runId": "174dfb9a1d294212a645f906af8a472c",
+    "release": "0.1.50-relocation-freshness-20261116-gace7005-i",
+    "result": "stationary_tracking_sustained_15_seconds",
+    "basePose": {
+      "status": "available",
+      "reason": "diagnostic_quality_only",
+      "mapFromBase": [
+        [
+          -0.6773095520442867,
+          -0.7313625640863232,
+          -0.07975446479509192,
+          -0.9925235233298736
+        ],
+        [
+          0.7280674510738028,
+          -0.6819075196803904,
+          0.0701444742201772,
+          -0.8277675422946782
+        ],
+        [
+          -0.10568620927040495,
+          -0.010557107096566112,
+          0.9943437547953143,
+          0.6408359467758693
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "lastFrame": 159,
+      "scanHeaderNs": "1794805065715433000",
+      "effectiveScanNs": "1794805065715433000",
+      "metresPerMapUnit": 1,
+      "navigationFromRaw": [
+        [
+          1.6653345369377348e-16,
+          -0.9999886369086309,
+          -0.0047671850833118454,
+          0
+        ],
+        [
+          0.9996525129723569,
+          0.000125663334094972,
+          -0.026359770802847196,
+          0
+        ],
+        [
+          0.026360070334734913,
+          -0.004765528548337018,
+          0.9996411538295145,
+          1.0075613549854456
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "coordinateUnits": "metres-at-declared-scale",
+      "coordinateFrame": "lingxi_saved_map",
+      "bodyFrame": "base_link",
+      "physicalScaleValidated": false,
+      "navigationReady": false
+    },
+    "localizationReady": false,
+    "navigationReady": false,
+    "distinctTrackingFrames": 35,
+    "maxContinuousTrackingSeconds": 15.09,
+    "sampleCount": 36,
+    "lastSample": {
+      "elapsedSeconds": 15.53,
+      "state": "tracking",
+      "reason": "diagnostic_quality_only",
+      "lastFrame": 159,
+      "baseStatus": "available",
+      "baseReason": "diagnostic_quality_only",
+      "consecutiveMatches": 3,
+      "navigationReady": false
+    },
+    "latestFieldStatus": {
+      "motionCommandsSent": false,
+      "release": "0.1.50-relocation-freshness-20261116-gace7005-i",
+      "runtime": {
+        "phase": "running",
+        "runId": "174dfb9a1d294212a645f906af8a472c",
+        "generation": 1,
+        "cleanupComplete": false,
+        "reason": null,
+        "failure": null
+      },
+      "state": {
+        "state": "tracking",
+        "reason": "diagnostic_quality_only",
+        "lastFrame": 4568,
+        "basePose": {
+          "status": "available",
+          "reason": "diagnostic_quality_only",
+          "mapFromBase": [
+            [
+              -0.6772579116751795,
+              -0.7314719981531754,
+              -0.07918737957078405,
+              -0.9960271741923284
+            ],
+            [
+              0.7282108637902683,
+              -0.681792389550246,
+              0.06977393053689858,
+              -0.8292816645397264
+            ],
+            [
+              -0.10502702660488929,
+              -0.010410163207237656,
+              0.9944151458144379,
+              0.6367788180277673
+            ],
+            [
+              0,
+              0,
+              0,
+              1
+            ]
+          ],
+          "lastFrame": 4568,
+          "scanHeaderNs": "1794805506615803000",
+          "effectiveScanNs": "1794805506615803000",
+          "metresPerMapUnit": 1,
+          "navigationFromRaw": [
+            [
+              1.6653345369377348e-16,
+              -0.9999886369086309,
+              -0.0047671850833118454,
+              0
+            ],
+            [
+              0.9996525129723569,
+              0.000125663334094972,
+              -0.026359770802847196,
+              0
+            ],
+            [
+              0.026360070334734913,
+              -0.004765528548337018,
+              0.9996411538295145,
+              1.0075613549854456
+            ],
+            [
+              0,
+              0,
+              0,
+              1
+            ]
+          ],
+          "coordinateUnits": "metres-at-declared-scale",
+          "coordinateFrame": "lingxi_saved_map",
+          "bodyFrame": "base_link",
+          "physicalScaleValidated": false,
+          "navigationReady": false
+        },
+        "quality": null,
+        "localizationReady": false,
+        "navigationReady": false,
+        "navigationInputs": null
+      },
+      "stateKeys": [
+        "binding",
+        "generation",
+        "state",
+        "reason",
+        "requestPending",
+        "workerReady",
+        "workerClosed",
+        "cleanupComplete",
+        "consecutiveMatches",
+        "lastFrame",
+        "referenceFrame",
+        "mapFromSensor",
+        "coordinateUnits",
+        "sourceFrame",
+        "basePose",
+        "localizationReady",
+        "navigationReady"
+      ],
+      "logs": {
+        "private-child.log": [
+          "{\"event\":\"lingxi_private_fault\",\"phase\":\"terrain_process_exchange\",\"code\":\"terrain_process_update_failed\",\"elapsedMs\":203.401,\"exception\":\"TimeoutError\",\"frames\":[{\"file\":\"terrain_process.py\",\"function\":\"update\",\"line\":206},{\"file\":\"terrain_process.py\",\"function\":\"_exchange\",\"line\":140}],\"diagnostics\":{\"scan_count\":1,\"ray_count\":2048,\"window_span_ms\":0.0,\"request_bytes\":131772,\"age_deadline_remaining_ms_at_exchange_start\":57.397,\"processing_deadline_remaining_ms_at_exchange_start\":195.252,\"input_age_ms_at_exchange_start\":242.603,\"received_age_ms_at_exchange_start\":242.603,\"exchange_elapsed_ms\":198.369,\"age_deadline_remaining_ms_after_exchange\":-140.972,\"processing_deadline_remaining_ms_after_exchange\":-3.117}}",
+          "{\"event\":\"lingxi_private_fault\",\"phase\":\"acquisition_terrain_health\",\"code\":\"terrain_process_update_failed\"}",
+          "{\"event\":\"lingxi_private_fault\",\"phase\":\"terrain_lane_update\",\"elapsedMs\":223.32,\"exception\":\"TimeoutError\",\"frames\":[{\"file\":\"terrain_lane.py\",\"function\":\"_run\",\"line\":114},{\"file\":\"terrain_process.py\",\"function\":\"update\",\"line\":206},{\"file\":\"terrain_process.py\",\"function\":\"_exchange\",\"line\":140}]}",
+          "{\"event\":\"lingxi_private_fault\",\"phase\":\"registered_terrain_retire\",\"code\":\"terrain_lane_failed\"}"
+        ],
+        "private-terrain.log": []
+      },
+      "runFiles": [
+        "localization.sock",
+        "private-terrain.log",
+        "private-child.log"
+      ],
+      "sourceSha256": {
+        "robot-runtime/python/registered_terrain.py": "8bd2a11dea24d63778c4a447905f11ac45c99e7e69c3a5ceb0f60cbe75c764e7",
+        "robot-navigation/lingxi_navigation/registered_window.py": "fdd045bf12175064149ea48b32b07878db9612f1fd73100edb44070d3e5d79bd",
+        "robot-navigation/lingxi_navigation/terrain_process.py": "90580ab8dc40c65b3f7e9f8f4c2c21e0642764bd1714745f35bf57a2d3635bef",
+        "robot-navigation/lingxi_navigation/terrain_lane.py": "b8cf31707be5ce7848603fe8966b43a6566db7b337668996039d7a6eadd9d6f9"
+      }
+    }
+  },
+  "operatorAcceptance": {
+    "date": "2026-11-16",
+    "mapName": "11.14.1",
+    "release": "0.1.50-relocation-freshness-20261116-gace7005-i",
+    "runId": "174dfb9a1d294212a645f906af8a472c",
+    "operatorConfirmedArrowPositionAndHeading": true,
+    "statement": "用户确认网页定位箭头的位置和方向与实际位置的误差可接受，可认为重合。",
+    "scope": "stationary_current_position_visual_alignment",
+    "surveyedMetricAccuracyMeasured": false,
+    "movingLocalizationAccepted": false,
+    "automaticNavigationAccepted": false,
+    "repeatManualSeedRequired": false,
+    "motionCommandsSent": false
+  },
+  "remainingBlocker": {
+    "component": "live_saved_map_terrain",
+    "reason": "terrain_process_update_failed",
+    "observedInputAgeAtExchangeStartMs": 242.603,
+    "observedProcessingElapsedMs": 203.401,
+    "terrainRayCount": 2048,
+    "processingBudgetMs": 200,
+    "inputAgeBudgetMs": 300,
+    "localizationContinuesAfterTerrainFailure": true,
+    "nextWork": "Reduce terrain processing and acquisition-to-terrain delay, restore current terrain/navigation inputs."
+  },
+  "regressionTestSourceSha256": {}
+}

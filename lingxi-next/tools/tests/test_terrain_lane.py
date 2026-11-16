@@ -134,6 +134,27 @@ class LaneTests(unittest.TestCase):
         self.assertIsNone(lane.snapshot().grid)
         wait_for(lambda: self.created[0].closed)
 
+    def test_expired_update_accepts_next_scan_on_same_owner(self):
+        lane = self.lane()
+        process = self.created[0]
+        original = process.update
+        def update(data, *, sequence, received_at):
+            if sequence == 0:
+                self.calls.append('expired')
+                return None
+            return original(data, sequence=sequence, received_at=received_at)
+        process.update = update
+        self.assertTrue(lane.submit(observations(), sequence=0, received_at=time.monotonic()))
+        wait_for(lambda: lane.snapshot().state == 'ready')
+        self.assertIsNone(lane.snapshot().grid)
+        self.assertEqual('terrain_expired', lane.snapshot().failure)
+        self.release.set()
+        self.assertTrue(lane.submit(observations(), sequence=1, received_at=time.monotonic()))
+        wait_for(lambda: lane.snapshot().grid is not None)
+        self.assertEqual(1, len(self.created))
+        self.assertEqual(1, lane.snapshot().grid.sequence)
+        self.assertFalse(process.closed)
+
     def test_invalid_or_replayed_submission_retires_source(self):
         lane = self.lane()
         self.release.set()

@@ -285,6 +285,16 @@ class CallbackWorker(unittest.TestCase):
         worker.stop()
         self.assertEqual(["create", "close"], [call[0] for call in self.calls])
 
+    def test_health_state_checks_watchdog_without_copying_stream_diagnostics(self):
+        gate = threading.Event()
+        worker = self.make(gate=gate, native_startup_seconds=.03)
+        with patch.object(module, 'deepcopy', side_effect=AssertionError('unneeded copy')):
+            self.assertEqual('starting', worker.health_state())
+            time.sleep(.05)
+            self.assertEqual('failed', worker.health_state())
+        self.assertEqual('native_startup_deadline_exceeded', worker.snapshot()['failure'])
+        gate.set()
+
     def test_native_startup_budget_does_not_extend_sensor_or_queue_deadlines(self):
         gate = threading.Event()
         worker = self.make(gate=gate, native_startup_seconds=.3,

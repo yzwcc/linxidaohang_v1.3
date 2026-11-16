@@ -257,6 +257,29 @@ class SourceTests(unittest.TestCase):
         self.assertEqual(0., spec().minimum_z_metres - .1)
         self.assertEqual(1.4, spec().maximum_z_metres)
 
+    def test_expired_registered_scan_withdraws_terrain_without_retiring_localization(self):
+        self.source = RegisteredTerrainSource(self.session, self.lane, geometry(), projection=spec(),
+            budget=TerrainBudget(maximum_age_seconds=.3))
+        self.accepted()
+        stale = replace(self.observe(), received_at=self.now - .31)
+        self.assertFalse(self.source(stale))
+        self.assertFalse(self.source.retired)
+        self.assertIsNone(self.source.window)
+        self.assertIsNone(self.lane.snapshot().grid)
+        self.assertEqual('registered_input_expired', self.lane.snapshot().failure)
+        self.assertEqual('tracking', self.session.state()['state'])
+
+        self.reject = True
+        self.assertIsNone(self.observe())
+        self.assertIsNone(self.source.snapshot().grid)
+        self.assertFalse(self.source.retired)
+        self.reject = False
+        for _ in range(3):
+            fresh = self.observe()
+        self.assertTrue(self.source(fresh))
+        wait_for(lambda: self.source.snapshot().grid is not None)
+        self.assertFalse(self.source.retired)
+
     def test_pause_with_no_more_scans_retires_old_grid(self):
         self.accepted()
         self.command('pause')
@@ -264,6 +287,28 @@ class SourceTests(unittest.TestCase):
         self.assertTrue(self.source.retired)
         self.assertEqual([], self.source.window.frames)
         self.assertEqual('retired', self.lane.snapshot().state)
+
+    def test_expiry_between_source_check_and_window_offer_can_recover(self):
+        self.source = RegisteredTerrainSource(self.session, self.lane, geometry(), projection=spec(),
+            budget=TerrainBudget(maximum_age_seconds=.3))
+        self.accepted()
+        candidate = self.observe()
+        original = RegisteredRayWindow.offer
+
+        def delayed(window, packet, **kwargs):
+            with patch.object(window, 'clock', return_value=self.now + .31):
+                return original(window, packet, **kwargs)
+
+        with patch.object(RegisteredRayWindow, 'offer', delayed):
+            self.assertFalse(self.source(candidate))
+        self.assertFalse(self.source.retired)
+        self.assertIsNone(self.source.window)
+        self.assertIsNone(self.lane.snapshot().grid)
+        self.assertEqual('registered_input_expired', self.lane.snapshot().failure)
+        self.assertEqual('tracking', self.session.state()['state'])
+        candidate = self.observe()
+        self.assertTrue(self.source(candidate))
+        wait_for(lambda: self.source.snapshot().grid is not None)
 
     def test_real_registration_retry_withdraws_then_rebuilds_from_only_recovered_scans(self):
         old = self.accepted()
@@ -528,7 +573,9 @@ class ActualNativeComposition(unittest.TestCase):
     def test_registered_window_to_real_supervised_patchwork_octomap_and_pause_retirement(self):
         from terrain_nav2_fixture import acquisition, projection
         data, spec = acquisition('open'), projection()
-        directory = Path(self.enterContext(tempfile.TemporaryDirectory())).resolve()
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        directory = Path(temporary.name).resolve()
         gate = threading.Event()
         budget = TerrainBudget(maximum_rays=131072, maximum_processing_seconds=10.,
             maximum_age_seconds=15., maximum_work_units=16000000)

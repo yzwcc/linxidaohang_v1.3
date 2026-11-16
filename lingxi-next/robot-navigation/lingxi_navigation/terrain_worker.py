@@ -62,6 +62,11 @@ def main():
                 raise ValueError('current_complete_terrain_request_required')
             data = decode_observations(request['observations'], budget)
             result = producer.update(data, sequence=request['sequence'], received_at=request['receivedAt'])
+            if result is None:
+                send('expired', sequence=producer.sequence, mapRevision=data.revision,
+                     observationsSha256=data.sha256, receivedAt=producer.capture_received,
+                     expiresAt=producer.capture_received + budget.maximum_age_seconds)
+                continue
             send('terrain', summary=result.summary(), costs=base64.b64encode(result.fused.costs).decode(),
                  receivedAt=result.received_at, expiresAt=result.expires_at)
     except EOFError:

@@ -213,9 +213,28 @@ class PassiveHumble(unittest.TestCase):
         with patch.object(self.worker, "offer_cloud", side_effect=lambda message: values.append("receiver")):
             run_passive(self.worker, self.topics, 1, stop_event=self.stop,
                         on_sensor=lambda kind, message: values.append(kind))
-        with patch.object(self.worker, "snapshot", return_value={"state": "running"}):
+        with patch.object(self.worker, "health_state", return_value="running"):
             self.subscriptions[0][2](object())
         self.assertEqual(["cloud", "receiver"], values)
+
+    def test_ingress_timing_keeps_relative_spans_and_skips_invalid_stamp_types(self):
+        timing = passive_ros.IngressTiming()
+        for index in range(2):
+            message = NS(header=NS(stamp=NS(sec=1700000000 + index, nanosec=500)))
+            timing.record('imu', message, 10. + index, 10.01 + index,
+                          10.03 + index, 10.06 + index)
+        timing.record('cloud', NS(header=NS(stamp=NS(sec='invalid', nanosec=None))),
+                      1., 1., 1., 1.)
+        summary = timing.summary()
+        self.assertEqual(2, summary['imu']['count'])
+        self.assertEqual(1., summary['imu']['arrivalSpanSeconds'])
+        self.assertEqual(1., summary['imu']['sourceSpanSeconds'])
+        self.assertAlmostEqual(.02, summary['imu']['healthSeconds'])
+        self.assertAlmostEqual(.04, summary['imu']['metadataSeconds'])
+        self.assertAlmostEqual(.06, summary['imu']['offerSeconds'])
+        self.assertAlmostEqual(.06, summary['imu']['maximumCallbackSeconds'])
+        self.assertIsNone(summary['cloud']['sourceSpanSeconds'])
+        self.assertNotIn('1700000000', str(summary))
 
     def test_starting_or_terminal_worker_does_not_admit_stale_ros_callbacks(self):
         values = []
@@ -224,7 +243,7 @@ class PassiveHumble(unittest.TestCase):
                         on_sensor=lambda kind, message: values.append("metadata"))
         for state in ("new", "starting", "stopping", "stopped", "failed"):
             with self.subTest(state=state), \
-                    patch.object(self.worker, "snapshot", return_value={"state": state}):
+                    patch.object(self.worker, "health_state", return_value=state):
                 self.assertFalse(self.subscriptions[0][2](object()))
         self.assertEqual([], values)
 

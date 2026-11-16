@@ -210,6 +210,66 @@ class ProcessFaultTests(unittest.TestCase):
         thread.join(2)
         self.assertEqual(['single_terrain_process_owner_required'], errors)
 
+    def test_reply_crossing_age_deadline_is_discarded_without_losing_pipe_alignment(self):
+        service = self.service(budget=TerrainBudget(maximum_age_seconds=.1, maximum_processing_seconds=.8))
+        program = '''from lingxi_navigation.terrain_protocol import *
+from lingxi_navigation.terrain import TerrainBudget
+import base64,hashlib,sys,time
+request=read_message(sys.stdin.buffer)
+session=request['session']
+projection=request['configuration']['projection']
+def send(**value):
+    sys.stdout.buffer.write(frame(dict(version=1,session=session,**value)))
+    sys.stdout.buffer.flush()
+send(kind='ready')
+for i in range(2):
+    request=read_message(sys.stdin.buffer)
+    data=decode_observations(request['observations'],TerrainBudget())
+    if i==0: time.sleep(.12)
+    costs=bytes(projection['width']*projection['height'])
+    summary=dict(sequence=request['sequence'],mapRevision=data.revision,observationsSha256=data.sha256,
+        traversabilityBytesSha256=hashlib.sha256(costs).hexdigest(),
+        cells=dict(free=len(costs),occupied=0,unknown=0),scans=len(data.scans),
+        rays=sum(len(s.returns) for s in data.scans),offlineOnly=True,
+        physicalScaleValidated=False,groundSupportValidated=False,navigationReady=False)
+    send(kind='terrain',summary=summary,costs=base64.b64encode(costs).decode(),
+        receivedAt=request['receivedAt'],expiresAt=request['receivedAt']+.1)
+time.sleep(20)
+'''
+        self.fake(service, program)
+        self.addCleanup(service.close)
+        pid = service.process.pid
+        self.assertIsNone(service.update(observations(), sequence=0, received_at=time.monotonic()))
+        self.assertEqual('ready', service.state)
+        data = replace(observations(), scans=tuple(replace(s, stamp=s.stamp+1) for s in observations().scans))
+        self.assertIsNotNone(service.update(data, sequence=1, received_at=time.monotonic()))
+        self.assertEqual(pid, service.process.pid)
+
+    def test_false_or_wrong_source_expiry_reply_is_terminal(self):
+        for change in ("sequence=r['sequence']+1", "sequence=r['sequence']"):
+            service = self.service()
+            program = '''from lingxi_navigation.terrain_protocol import *
+from lingxi_navigation.terrain import TerrainBudget
+import sys,time
+r=read_message(sys.stdin.buffer)
+session=r['session']
+sys.stdout.buffer.write(frame(dict(version=1,kind='ready',session=session)))
+sys.stdout.buffer.flush()
+r=read_message(sys.stdin.buffer)
+data=decode_observations(r['observations'],TerrainBudget())
+sys.stdout.buffer.write(frame(dict(version=1,kind='expired',session=session,SEQUENCE,
+    mapRevision=data.revision,observationsSha256=data.sha256,
+    receivedAt=r['receivedAt'],expiresAt=r['receivedAt']+3.)))
+sys.stdout.buffer.flush()
+time.sleep(20)
+'''.replace('SEQUENCE', change)
+            with self.subTest(change=change):
+                self.fake(service, program)
+                with self.assertRaises(ValueError):
+                    service.update(observations(), sequence=0, received_at=time.monotonic())
+                self.assertEqual('failed', service.state)
+                self.assertTrue(service.cleanup_complete)
+
     def test_wrong_parent_fails_before_waiting_for_configuration(self):
         environment = {**os.environ, 'PYTHONPATH': str(ROOT / 'robot-navigation')}
         result = subprocess.run([sys.executable, '-B', '-m', 'lingxi_navigation.terrain_worker', '1'],
@@ -317,6 +377,16 @@ class NativeProcessTests(unittest.TestCase):
         self.service.process.wait(timeout=2.)
         self.assertIsNone(self.service.current())
         self.assertTrue(self.service.cleanup_complete)
+
+    def test_expired_native_request_then_fresh_capture_uses_same_child(self):
+        pid = self.service.process.pid
+        self.assertIsNone(self.service.update(self.data, sequence=0, received_at=time.monotonic()-16.))
+        self.assertEqual('ready', self.service.state)
+        # A retry of that capture must retain the original receipt and expire.
+        self.assertIsNone(self.service.update(self.data, sequence=1, received_at=time.monotonic()))
+        data = replace(self.data, scans=tuple(replace(s, stamp=s.stamp+5) for s in self.data.scans))
+        self.assertIsNotNone(self.service.update(data, sequence=2, received_at=time.monotonic()))
+        self.assertEqual(pid, self.service.process.pid)
 
 
 if __name__ == '__main__':

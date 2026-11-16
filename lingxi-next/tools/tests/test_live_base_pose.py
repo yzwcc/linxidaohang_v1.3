@@ -167,6 +167,16 @@ class LiveBaseInput(unittest.TestCase):
         observed["cloudMessages"] = 99
         self.assertEqual(1, owner.summary()["observations"]["cloudMessages"])
 
+    def test_preparing_original_timing_does_not_publish_partial_pose(self):
+        session, owner = self.owner()
+        owner.projector = NS(lookup=lambda stamp: None)
+        owner.sensor("imu", imu())
+        owner.sensor("cloud", cloud())
+        timing = owner.prepare(self.EPOCH + 40_000_000, 1000.04, np.eye(4), None)
+        self.assertEqual(self.EPOCH + 40_000_000, timing.effective_ns)
+        self.assertEqual([], session.projected)
+        self.assertEqual([], session.revoked)
+
     def test_missing_or_invalid_lookup_never_fabricates_unseeded_pose(self):
         for failure in (False, True):
             session, owner = self.owner()
