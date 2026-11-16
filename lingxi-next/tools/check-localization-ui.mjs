@@ -86,7 +86,7 @@ function metric() {
     syntheticBanner: Boolean(document.querySelector(".synthetic-fixture-banner")),
     seedFields: document.querySelectorAll('.seed-fields input[type="number"]').length,
     seedHeading: document.querySelector(".localization-controls form h2")?.textContent ?? null,
-    seedDisabled: button("提交初始位姿")?.disabled, stopDisabled: button("停止会话")?.disabled,
+    seedDisabled: button("提交重定位位姿")?.disabled, stopDisabled: button("停止会话")?.disabled,
     startDisabled: button("启动定位进程")?.disabled, shutdownDisabled: button("关闭定位进程")?.disabled,
     runtime: document.querySelector('[data-testid="localization-runtime"]')?.textContent ?? null,
     alert: document.querySelector('[role="alert"]')?.textContent ?? null };
@@ -97,7 +97,7 @@ async function capture(name, pose, cloud = true) {
   assert.equal(value.panelOverlap, false);
   assert.equal(value.syntheticBanner, true);
   assert.equal(value.seedFields, 6);
-  assert.equal(value.seedHeading, "初始雷达位姿");
+  assert.equal(value.seedHeading, "当前重定位底盘位姿");
   assert.equal(Boolean(value.pose), pose);
   if (cloud) assert(value.nonBackground > 100);
   if (pose) assert(value.pose.includes("雷达") && !value.pose.includes("IMU"));
@@ -152,16 +152,21 @@ try {
   const beforeReference = control("status").commands.length;
   run("select", "#seed-reference", "last");
   const referenceFields = draftFields();
-  assert.deepEqual([referenceFields.x, referenceFields.y, referenceFields.z], ["1", "-0.5", "0.4"]);
-  assert(Math.abs(Number(referenceFields.roll) - 90) < 1e-8);
-  assert.equal(Number(referenceFields.pitch), 0); assert.equal(Number(referenceFields.yaw), 0);
+  const nearFields = (actual, expected) => {
+    for (const [key, value] of Object.entries(expected)) {
+      assert(Math.abs(Number(actual[key]) - value) < 1e-8, `${key}: ${actual[key]} != ${value}`);
+    }
+  };
+  nearFields(referenceFields, { x: .9087092137478123, y: -.49724971964466114, z: .7398977923683148,
+    roll: 179.514831717, pitch: 1.921461883, yaw: .063034022 });
   assert.equal(control("status").commands.length, beforeReference);
   assert.equal(evaluate("window.__localizationMetric().seedDisabled"), true);
   run("check", "#seed-reference-confirmed");
   assert.equal(evaluate("window.__localizationMetric().seedDisabled"), false);
   await capture("reference-draft", false);
   run("select", "#seed-reference", "first");
-  assert(Object.values(draftFields()).every(value => Number(value) === 0));
+  nearFields(draftFields(), { x: -.09129078625218762, y: .3398977923683148, z: -.002750280355338852,
+    roll: 89.512718221, pitch: .06299858, yaw: -1.921463045 });
   assert.equal(evaluate("document.querySelector('#seed-reference-confirmed').checked"), false);
   assert.equal(evaluate("window.__localizationMetric().seedDisabled"), true);
   assert.equal(control("status").commands.length, beforeReference);
@@ -220,16 +225,22 @@ try {
     escapeCancelled: true, panPreservedDraft: true, zoomedPickChecked: true, nonPlanarFieldsPreserved: true,
     sameMapSessionChangeCancelsGesture: true };
   fillSeed();
-  click("提交初始位姿");
-  wait("window.__localizationMetric().status?.includes('初始位姿已提交')");
+  click("提交重定位位姿");
+  wait("window.__localizationMetric().status?.includes('重定位位姿已提交')");
   await capture("pending", false);
   const submitted = control("status");
   assert.deepEqual(submitted.commands, ["seed"]);
   assert.equal(submitted.seedSourceFrame, "lidar_chest_front");
   assert.equal(submitted.seedReferenceFresh, true, "seed uses the just-read live reference frame");
   assert.equal(submitted.seedReferenceFrameAdvanced, true, "seed refreshes beyond the session's initial scan frame");
-  assert.deepEqual(submitted.seed.map(row => row[3]), [1.25, -0.5, 0.1, 1]);
-  assert(Math.abs(submitted.seed[1][0] - Math.cos(Math.PI / 18)) < 1e-6);
+  const expectedSensor = [
+    [-.004300137914674542, -.09553435729397915, -.9954171112302632, 1.279341678041941],
+    [.9900308476260713, .13973572310518173, -.017687885636383162, -.4571638159491308],
+    [.14078504843746875, -.9855697053879452, .09398107928322584, .44810381916698805],
+    [0, 0, 0, 1],
+  ];
+  submitted.seed.forEach((row, i) => row.forEach((value, j) =>
+    assert(Math.abs(value - expectedSensor[i][j]) < 1e-8, `sensor pose [${i},${j}]`)));
   control("track");
   wait("Boolean(window.__localizationMetric().pose)");
   await capture("tracking", true);
@@ -278,7 +289,7 @@ try {
   wait("!document.querySelector('#seed-x').disabled");
   fillSeed();
   wait("!window.__localizationMetric().seedDisabled");
-  click("提交初始位姿");
+  click("提交重定位位姿");
   control("track");
   wait("Boolean(window.__localizationMetric().pose)");
   run("set", "viewport", "844", "390");
@@ -292,7 +303,7 @@ try {
   fillSeed();
   control("conflict-next");
   const before = control("status").commands.length;
-  click("提交初始位姿");
+  click("提交重定位位姿");
   wait("Boolean(window.__localizationMetric().alert)");
   const conflict = control("status");
   assert.equal(conflict.commands.length, before + 1);

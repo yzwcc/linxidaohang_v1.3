@@ -9,27 +9,27 @@ import {
 import { api, ApiError, jsonBody, type Connection } from "./api";
 import LidarCanvas from "./LidarCanvas";
 import RouteCheckPanel from "./RouteCheckPanel";
-import { emptySeedFields, freshSeedReference, mapBasePoseToSensor, planarLidarPose, planarSeedDraft, seedDraftReady, seedMatrix, seedReferenceFields,
+import { emptySeedFields, freshSeedReference, mapBasePoseToSensor, navigationBasePoseToRaw, planarLidarPose, planarSeedDraft, seedDraftReady, seedMatrix, seedReferenceFields,
   withPlanarSeed, type SeedFields } from "./localization-view";
 import type { PlanarLidarPose } from "./lidar-view";
 
 const labels: Record<LocalizationState["state"], string> = {
-  unseeded: "等待初始位姿", seed_requested: "初始位姿已提交，等待确认", acquiring: "正在建立连续匹配",
+  unseeded: "等待重定位位姿", seed_requested: "重定位位姿已提交，等待确认", acquiring: "正在建立连续匹配",
   tracking: "连续匹配已建立", lost: "匹配丢失", paused: "已暂停", stopped: "会话已停止", failed: "定位进程异常",
 };
 const reasons: Record<string, string> = {
-  explicit_seed_required: "需要手动提交初始位姿",
-  worker_seed_confirmation_required: "工作线程尚未确认初始位姿",
+  explicit_seed_required: "请在地图上指定机器人当前位置和朝向",
+  worker_seed_confirmation_required: "工作线程尚未确认重定位位姿",
   corrected_point_stream_expired: "扫描数据已过期",
   fresh_matching_seed_reference_required: "参考帧已过期，请重新确认",
   explicit_stop: "本次定位已停止",
   runtime_stopping: "定位进程正在停止",
-  seed_application_failed: "初始位姿应用失败",
-  corrected_point_time_gap_or_reversal: "扫描帧时间不连续，请重新确认初始位姿",
+  seed_application_failed: "重定位位姿应用失败",
+  corrected_point_time_gap_or_reversal: "扫描帧时间不连续，请重新确认当前位置和朝向",
   corrected_point_algorithm_gap: "扫描算法帧间隔过长，请检查点云输出频率",
   corrected_point_receipt_time_reversed: "扫描帧接收顺序异常，请检查定位数据队列",
   corrected_point_algorithm_gap_and_receipt_time_reversed: "扫描帧间隔过长且接收顺序异常，请检查定位数据队列",
-  scan_map_registration_rejected: "扫描与地图未能匹配，请检查初始位置和朝向",
+  scan_map_registration_rejected: "扫描与地图未能匹配，请检查当前位置和朝向",
   registration_retry_after_rejection: "短暂匹配失败，正在限时重捕获；当前无有效定位",
   scan_map_recovery_deadline_exceeded: "限时重捕获未成功，请重新确认当前位置和朝向",
 };
@@ -192,12 +192,13 @@ export default function LocalizationPanel({ connection, maps, mappingActive = fa
     try {
       if (action === "seed" && (!seedDraftReady(fields, draftBinding, state, preview) ||
           selectedReference !== "" && !referenceConfirmed)) {
-        throw new Error("请完整填写当前地图与会话的初始底盘位姿");
+        throw new Error("请完整填写机器人在当前地图上的重定位底盘位姿");
       }
       body = {
         binding: state.binding, expectedGeneration: state.generation,
         ...(action === "seed" ? { sourceFrame: state.sourceFrame,
-          referenceFrame: state.referenceFrame, mapFromSensor: mapBasePoseToSensor(seedMatrix(fields)) } : {}),
+          referenceFrame: state.referenceFrame, mapFromSensor: mapBasePoseToSensor(seedMatrix(fields),
+            state.basePose?.metresPerMapUnit ?? 1) } : {}),
       } as Omit<LocalizationCommand, "action">;
       if (action === "seed" && state.referenceFrame === null) throw new Error("当前没有新鲜参考帧，请等待扫描数据");
     } catch (caught) { setError((caught as Error).message); return; }
@@ -222,8 +223,8 @@ export default function LocalizationPanel({ connection, maps, mappingActive = fa
       if (!sameLocalizationBinding(result.binding, state.binding) || result.generation !== state.generation + 1 ||
           result.state !== ({ seed: "seed_requested", pause: "paused", stop: "stopped" } as const)[action] ||
           !result.requestPending || result.mapFromSensor !== null) throw new Error("响应未通过会话校验，请刷新状态后确认");
-      setMessage(action === "seed" ? "初始位姿请求已接受，等待扫描匹配确认" :
-        action === "pause" ? "暂停请求已接受；继续时需重新提交初始位姿" : "停止请求已接受；本会话不能恢复");
+      setMessage(action === "seed" ? "重定位位姿请求已接受，等待扫描匹配确认" :
+        action === "pause" ? "暂停请求已接受；继续时需重新提交重定位位姿" : "停止请求已接受；本会话不能恢复");
     } catch (caught) {
       if (epoch !== connectionEpoch.current) return;
       setError(`${(caught as Error).message}。请核对当前状态，操作不会自动重试。`);
@@ -278,9 +279,11 @@ export default function LocalizationPanel({ connection, maps, mappingActive = fa
     matchedPreview.receiptSha256 === snapshot.binding.receipt_sha256 &&
     matchedPreview.pointsSha256 === snapshot.binding.points_sha256
     ? planarLidarPose(snapshot.mapFromSensor) : undefined;
-  const basePoseMatrix = snapshot?.state === "tracking" && snapshot.basePose?.status === "available"
+  const basePoseMatrix = pose && snapshot?.basePose?.status === "available"
     ? snapshot.basePose.mapFromBase : undefined;
   const basePose = basePoseMatrix ? planarLidarPose(basePoseMatrix) : undefined;
+  const rawBasePose = basePoseMatrix && snapshot?.basePose?.navigationFromRaw ? planarLidarPose(navigationBasePoseToRaw(
+    basePoseMatrix, snapshot.basePose.metresPerMapUnit, snapshot.basePose.navigationFromRaw)) : undefined;
   const pickEnabled = Boolean(!busy && !terminal && snapshot?.workerReady && !snapshot.requestPending &&
     snapshot.referenceFrame !== null && matchedPreview?.mapId === snapshot.binding.map_id &&
     matchedPreview?.receiptSha256 === snapshot.binding.receipt_sha256 &&
@@ -299,11 +302,12 @@ export default function LocalizationPanel({ connection, maps, mappingActive = fa
   }
 
   function pickSeed(value: PlanarLidarPose) { editSeed((previous) => withPlanarSeed(previous, value)); }
-  const referenceAvailable = Boolean(seedReferenceFields(matchedPreview, snapshot?.binding, "first"));
+  const referenceAvailable = Boolean(seedReferenceFields(matchedPreview, snapshot?.binding, "first",
+    snapshot?.basePose?.metresPerMapUnit ?? 1));
 
   function loadReference(endpoint: string) {
     if (endpoint !== "first" && endpoint !== "last") return;
-    const value = seedReferenceFields(matchedPreview, snapshot?.binding, endpoint);
+    const value = seedReferenceFields(matchedPreview, snapshot?.binding, endpoint, snapshot?.basePose?.metresPerMapUnit ?? 1);
     if (value) editSeed(() => value, endpoint);
   }
   const map = maps?.find((item) => item.id === mapId);
@@ -316,21 +320,21 @@ export default function LocalizationPanel({ connection, maps, mappingActive = fa
     </div>
     <div className={`notice${basePose ? "" : " warn"}`} role="status">
       {basePose
-        ? "厂家胸前雷达外参已用于初始定位；当前底盘位姿按扫描时刻 TF 换算。"
-        : "初始底盘位姿将按 X2 厂家胸前雷达外参换算；定位后显示同帧 TF 底盘坐标。"}
+        ? "厂家胸前雷达外参已用于重定位；当前底盘位姿按扫描时刻 TF 换算。"
+        : "选定的当前底盘位姿将按 X2 厂家胸前雷达外参换算；定位后显示同帧 TF 底盘坐标。"}
     </div>
     <div className="content-grid two localization-layout">
       <section className="localization-cloud">
         <div className="inline localization-heading"><h2>{map?.name ?? "当前会话地图"}</h2>
           <span className="tag">{matchedPreview ? "已保存点云" : "点云暂不可用"}</span></div>
-        {matchedPreview ? <LidarCanvas key={bindingKey} preview={matchedPreview} overlayPose={basePose ?? pose}
+        {matchedPreview ? <LidarCanvas key={bindingKey} preview={matchedPreview} overlayPose={rawBasePose ?? pose}
           seedSelection={{ enabled: pickEnabled, pose: draftPose, onSelect: pickSeed }} /> :
           <div className="empty">等待定位服务与地图点云</div>}
         {pose && <div className="helper mono" data-testid="localization-pose">
           雷达 · X {pose.x.toFixed(3)} / Y {pose.y.toFixed(3)} / Z {snapshot!.mapFromSensor![2][3].toFixed(3)} raw
         </div>}
         {basePose && <div className="helper mono" data-testid="localization-base-pose">
-          底盘 · X {basePose.x.toFixed(3)} / Y {basePose.y.toFixed(3)} / Z {basePoseMatrix![2][3].toFixed(3)} m（声明尺度）
+          底盘（导航坐标）· X {basePose.x.toFixed(3)} / Y {basePose.y.toFixed(3)} / Z {basePoseMatrix![2][3].toFixed(3)} m（声明尺度）
         </div>}
       </section>
       <section className="localization-controls stack">
@@ -366,13 +370,14 @@ export default function LocalizationPanel({ connection, maps, mappingActive = fa
               runtime.cleanupComplete || runtime.phase === "stopping"}
               onClick={() => void lifecycle("shutdown")}><Power size={13} />关闭定位进程</button>
           </div>
-          {inputMode === "live" && <p className="helper">定位会话时长由机器人配置决定；到期前会自动关闭定位进程。请先记录 A 点再移动，到期后需重新启动并确认初始位姿。</p>}
+          {inputMode === "live" && <p className="helper">定位会话时长由机器人配置决定；到期前会自动关闭定位进程。请先记录 A 点再移动，到期后需重新启动并确认当前位置和朝向。</p>}
           {runtime?.failureCode && <div className="notice error" role="alert">
             {runtime.failureCode === "map_selection_unavailable" ? "地图不可选择或与当前传感器配置不匹配" : "定位进程异常，请检查诊断记录"}
           </div>}
         </div>}
         <form className="stack" onSubmit={(event) => { event.preventDefault(); void command("seed"); }}>
-          <h2>初始底盘位姿</h2>
+          <h2>当前重定位底盘位姿</h2>
+          <p className="helper">在地图上选择机器人当前位置和朝向。首帧、末帧仅作为可选参考。</p>
           <div className="field"><label htmlFor="seed-reference">建图参考位姿</label>
             <select id="seed-reference" value={selectedReference} disabled={!pickEnabled || !referenceAvailable}
               onChange={(event) => loadReference(event.target.value)}>
@@ -397,7 +402,7 @@ export default function LocalizationPanel({ connection, maps, mappingActive = fa
             </div>)}
           </div>
           <button className="btn primary" type="submit" disabled={busy || !seedReady}>
-            <Compass size={14} />提交初始位姿
+            <Compass size={14} />提交重定位位姿
           </button>
         </form>
         <div className="task-controls">

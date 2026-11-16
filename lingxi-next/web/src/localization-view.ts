@@ -35,12 +35,27 @@ function inverseRigid(value: RigidMatrix): RigidMatrix {
   ]);
 }
 
-export function mapBasePoseToSensor(mapFromBase: RigidMatrix): RigidMatrix {
-  return multiplyRigid(rigidMatrixSchema.parse(mapFromBase), FACTORY_BASE_FROM_CHEST_LIDAR);
+function factoryExtrinsicInMapUnits(metresPerMapUnit: number): RigidMatrix {
+  if (!Number.isFinite(metresPerMapUnit) || metresPerMapUnit <= 0) throw new Error("invalid_map_unit_scale");
+  return rigidMatrixSchema.parse(FACTORY_BASE_FROM_CHEST_LIDAR.map((row, index) =>
+    index < 3 ? [row[0], row[1], row[2], row[3] / metresPerMapUnit] : row));
 }
 
-export function mapSensorPoseToBase(mapFromSensor: RigidMatrix): RigidMatrix {
-  return multiplyRigid(rigidMatrixSchema.parse(mapFromSensor), inverseRigid(FACTORY_BASE_FROM_CHEST_LIDAR));
+export function mapBasePoseToSensor(mapFromBase: RigidMatrix, metresPerMapUnit = 1): RigidMatrix {
+  return multiplyRigid(rigidMatrixSchema.parse(mapFromBase), factoryExtrinsicInMapUnits(metresPerMapUnit));
+}
+
+export function mapSensorPoseToBase(mapFromSensor: RigidMatrix, metresPerMapUnit = 1): RigidMatrix {
+  return multiplyRigid(rigidMatrixSchema.parse(mapFromSensor), inverseRigid(factoryExtrinsicInMapUnits(metresPerMapUnit)));
+}
+
+export function navigationBasePoseToRaw(mapFromBase: RigidMatrix, metresPerMapUnit: number,
+  navigationFromRaw: RigidMatrix): RigidMatrix {
+  if (!Number.isFinite(metresPerMapUnit) || metresPerMapUnit <= 0) throw new Error("invalid_map_unit_scale");
+  const raw = multiplyRigid(inverseRigid(rigidMatrixSchema.parse(navigationFromRaw)),
+    rigidMatrixSchema.parse(mapFromBase));
+  return rigidMatrixSchema.parse(raw.map((row, index) =>
+    index < 3 ? [row[0], row[1], row[2], row[3] / metresPerMapUnit] : row));
 }
 
 /** Resolve the scan at submission time; the display poll can outlive the 0.5 s scan-gap limit. */
@@ -49,7 +64,7 @@ export async function freshSeedReference(expected: LocalizationState, read: () =
   if (!sameLocalizationBinding(value.binding, expected.binding) || value.generation !== expected.generation ||
       !value.workerReady || value.workerClosed || value.cleanupComplete || value.requestPending ||
       value.referenceFrame === null || ["stopped", "failed"].includes(value.state)) {
-    throw new Error("定位会话或参考帧已变化，请重新确认初始位姿");
+    throw new Error("定位会话或参考帧已变化，请重新确认当前位置和朝向");
   }
   return value.referenceFrame;
 }
@@ -66,12 +81,13 @@ export function seedFieldsFromMatrix(value: RigidMatrix): SeedFields {
 }
 
 export function seedReferenceFields(preview: SavedSlamPointPreview | undefined,
-  binding: LocalizationState["binding"] | undefined, endpoint: "first" | "last"): SeedFields | undefined {
+  binding: LocalizationState["binding"] | undefined, endpoint: "first" | "last",
+  metresPerMapUnit = 1): SeedFields | undefined {
   const references = savedSlamReferencesSchema.safeParse(preview?.seedReferences);
   if (!binding || !preview || !references.success || preview.mapId !== binding.map_id ||
       preview.receiptSha256 !== binding.receipt_sha256 || preview.pointsSha256 !== binding.points_sha256 ||
       preview.inputMode !== binding.input_mode || references.data.profileSha256 !== binding.profile_sha256) return;
-  return seedFieldsFromMatrix(mapSensorPoseToBase(references.data[endpoint].mapFromSensor));
+  return seedFieldsFromMatrix(mapSensorPoseToBase(references.data[endpoint].mapFromSensor, metresPerMapUnit));
 }
 
 export function withPlanarSeed(fields: SeedFields, pose: PlanarLidarPose): SeedFields {

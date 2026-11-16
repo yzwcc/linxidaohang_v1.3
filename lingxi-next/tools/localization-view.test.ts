@@ -1,13 +1,16 @@
 import { describe, expect, it, vi } from "vitest";
 import { emptySeedFields, FACTORY_BASE_FROM_CHEST_LIDAR, freshSeedReference, mapBasePoseToSensor, mapSensorPoseToBase,
-  planarLidarPose, planarSeedDraft, seedDraftReady, seedMatrix, seedFieldsFromMatrix, seedReferenceFields,
+  navigationBasePoseToRaw, planarLidarPose, planarSeedDraft, seedDraftReady, seedMatrix, seedFieldsFromMatrix, seedReferenceFields,
   withPlanarSeed, type SeedFields } from "../web/src/localization-view";
-import { rigidMatrixSchema } from "../shared/localization";
+import { rigidMatrixSchema, type RigidMatrix } from "../shared/localization";
 import type { SavedSlamPointPreview } from "../shared/contracts";
 import { localizationFixture } from "../robot-api/tests/fixtures/localization-state";
 import type { SavedSlamReferences } from "../shared/slam-reference";
 
 const zero: SeedFields = { x: "0", y: "0", z: "0", roll: "0", pitch: "0", yaw: "0" };
+const multiplyRigid = (a: RigidMatrix, b: RigidMatrix) => rigidMatrixSchema.parse(Array.from({ length: 4 }, (_, row) =>
+  Array.from({ length: 4 }, (_, column) => a[row][0] * b[0][column] + a[row][1] * b[1][column] +
+    a[row][2] * b[2][column] + a[row][3] * b[3][column])));
 describe("reference scan refresh before seed submission", () => {
   it("uses the latest scan rather than the older display poll", async () => {
     const displayed = localizationFixture();
@@ -79,6 +82,26 @@ describe("X2 factory chest LiDAR extrinsic", () => {
     const recovered = mapSensorPoseToBase(sensor);
     recovered.forEach((row, index) => row.forEach((value, column) =>
       expect(value).toBeCloseTo(base[index][column], 12)));
+  });
+
+  it("keeps factory lever arms in metres while seed coordinates use scaled raw map units", () => {
+    const base = seedMatrix({ ...zero, x: "4", y: "-2", z: ".6", roll: "4", pitch: "-3", yaw: "75" });
+    const sensor = mapBasePoseToSensor(base, .5);
+    expect(sensor[0][3]).not.toBeCloseTo(base[0][3], 3);
+    const recovered = mapSensorPoseToBase(sensor, .5);
+    recovered.forEach((row, index) => row.forEach((value, column) =>
+      expect(value).toBeCloseTo(base[index][column], 12)));
+  });
+
+  it("projects a navigation-frame base pose back onto the raw map at its declared scale", () => {
+    const navigationFromRaw = seedMatrix({ ...zero, x: "2", y: "-1", z: ".8", roll: "2", pitch: "-4", yaw: "90" });
+    const rawBase = seedMatrix({ ...zero, x: "4", y: "5", z: "1.2", roll: "-3", pitch: "5", yaw: "-35" });
+    const scaledRaw = rigidMatrixSchema.parse(rawBase.map((row, index) => index < 3
+      ? [row[0], row[1], row[2], row[3] * .5] : row));
+    const navigationBase = multiplyRigid(navigationFromRaw, scaledRaw);
+    const recovered = navigationBasePoseToRaw(navigationBase, .5, navigationFromRaw);
+    recovered.forEach((row, index) => row.forEach((value, column) =>
+      expect(value).toBeCloseTo(rawBase[index][column], 11)));
   });
 });
 
