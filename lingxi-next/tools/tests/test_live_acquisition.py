@@ -456,10 +456,13 @@ class CompositionTests(SettingsFixture, unittest.TestCase):
             wait_for(lambda: composition.lane.snapshot().state == 'ready')
         selection = composition.source.selection
         indices = selection.indices(7201, 1)
-        self.assertEqual(4096, selection.maximum_per_scan)
-        self.assertEqual(4096, len(indices))
-        self.assertEqual((0, 7200), (int(indices[0]), int(indices[-1])))
-        self.assertLessEqual(int(np.diff(indices).max()), 2)
+        self.assertEqual(2048, len(indices))
+        # Cover the whole ordered scan, including both ends, without a gap
+        # larger than four original returns; do not filter out ground returns.
+        self.assertLessEqual(int(indices[0]), 2)
+        self.assertLessEqual(7200 - int(indices[-1]), 2)
+        self.assertTrue(np.all(np.diff(indices) > 0))
+        self.assertLessEqual(int(np.diff(indices).max()), 4)
 
     def test_navigation_discovery_requires_actual_paired_live_owners_and_current_observation(self):
         from test_localization_output import SyntheticLiveFixture

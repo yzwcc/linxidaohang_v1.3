@@ -203,7 +203,9 @@ class AcquisitionComposition:
         self.pending_terrain = None
         self.terrain_budget = (TerrainBudget(maximum_span_seconds=.2, maximum_processing_seconds=.2,
             maximum_age_seconds=.3) if settings.saved_map_terrain else TerrainBudget())
-        self.terrain_selection = RaySelection(maximum_per_scan=4096) if settings.saved_map_terrain else RaySelection()
+        # Keep the full scan for localization. Bound only terrain's uniformly
+        # sampled measured ray pairs so its child can finish within the .3 s age limit.
+        self.terrain_selection = RaySelection(maximum_per_scan=2048) if settings.saved_map_terrain else RaySelection()
         self.localization_ros_output = None
         if settings.localization_ros_output:
             from live_localization_ros import LiveLocalizationRosOutput
