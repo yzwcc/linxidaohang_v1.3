@@ -44,11 +44,16 @@ class LidarReturn:
     endpoint_metres: tuple
 
     def __post_init__(self):
-        if (any(type(value) is not tuple or len(value) != 3 for value in
-                (self.origin_metres, self.endpoint_metres))
-                or any(not finite(value) or abs(value) > 500 for value in
-                       self.origin_metres + self.endpoint_metres)
-                or not 1e-5 < math.dist(self.origin_metres, self.endpoint_metres) <= 200):
+        origin, endpoint = self.origin_metres, self.endpoint_metres
+        if (type(origin) is not tuple or type(endpoint) is not tuple
+                or len(origin) != 3 or len(endpoint) != 3):
+            raise ValueError("finite_per_return_origin_and_endpoint_required")
+        # This runs for every decoded ray. Keep the scalar checks local rather
+        # than constructing two generators and calling finite six times.
+        for value in origin + endpoint:
+            if type(value) not in (int, float) or not math.isfinite(value) or abs(value) > 500:
+                raise ValueError("finite_per_return_origin_and_endpoint_required")
+        if not 1e-5 < math.dist(origin, endpoint) <= 200:
             raise ValueError("finite_per_return_origin_and_endpoint_required")
 
 

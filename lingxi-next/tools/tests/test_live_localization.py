@@ -18,6 +18,24 @@ if AVAILABLE:
 
 @unittest.skipUnless(AVAILABLE, "requires Linux runtime dependencies")
 class LiveCompletion(unittest.TestCase):
+    def test_live_imu_accepts_short_dropout_but_rejects_long_gap_or_regression(self):
+        from test_slam_stream import StreamSynchronization
+        fixture = StreamSynchronization()
+        for delta in (56_000_000, 100_000_000, 100_000_001, 0, -1):
+            with self.subTest(delta=delta):
+                stream, native = fixture.make(limits=live_localization.live_stream_limits())
+                fixture.imu(stream, 0, 0.)
+                operation = lambda: stream.push_imu(fixture.BASE + delta,
+                    [0, 0, 9.81], [0, 0, 0], .1)
+                if 0 < delta <= 100_000_000:
+                    operation()
+                    self.assertEqual(2, stream.snapshot()['counts']['receivedImu'])
+                else:
+                    with self.assertRaisesRegex(RuntimeError, 'sensor_time'):
+                        operation()
+                    self.assertEqual('failed', stream.snapshot()['state'])
+                self.assertEqual([], native.calls)
+
     def test_live_scheduling_is_scoped_and_restored_on_runtime_failure(self):
         original = sys.getswitchinterval()
         try:

@@ -108,9 +108,14 @@ class PatchworkSegmenter:
         if threading.get_ident() != self.owner:
             raise RuntimeError('single_patchwork_segmenter_owner_required')
         if (type(declaration) is not GroundDeclaration or type(points) is not tuple
-                or not 3 <= len(points) <= 8192 or any(type(point) is not tuple or len(point) != 3
-                    or any(not finite(value) or abs(value) > 100 for value in point) for point in points)):
+                or not 3 <= len(points) <= 8192):
             raise ValueError('bounded_finite_gravity_aligned_sensor_points_required')
+        for point in points:
+            if type(point) is not tuple or len(point) != 3:
+                raise ValueError('bounded_finite_gravity_aligned_sensor_points_required')
+            for value in point:
+                if type(value) not in (int, float) or not math.isfinite(value) or abs(value) > 100:
+                    raise ValueError('bounded_finite_gravity_aligned_sensor_points_required')
         packed = array('d', chain.from_iterable(points))
         xyz = (ctypes.c_double * len(packed)).from_buffer(packed)
         labels, counts = (ctypes.c_uint8 * len(points))(), (ctypes.c_uint64 * 3)()

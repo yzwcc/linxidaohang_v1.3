@@ -80,6 +80,20 @@ class SensorStream:
             raise StreamError("stream_not_running")
 
     def _fail(self, reason):
+        if reason == "sensor_arrival_deadline_exceeded":
+            ages, limits = {}, {}
+            for topic, previous in (("imu", self.last_imu_received), ("cloud", self.last_cloud_received)):
+                ages[topic] = self.last_received - (self.first_received if previous is None else previous)
+                limits[topic] = (self.limits.initial_wait_seconds if previous is None
+                                 else self.limits.maximum_sensor_silence_seconds)
+            self.failure_diagnostics = {
+                "expiredTopics": [topic for topic in ages if ages[topic] > limits[topic]],
+                "arrivalAgeSeconds": ages, "arrivalLimitSeconds": limits,
+                "receivedImu": self.counts["receivedImu"],
+                "receivedClouds": self.counts["receivedClouds"],
+                "processedScans": self.counts["processedScans"],
+                "pendingClouds": len(self.clouds), "pendingImu": len(self.imu),
+            }
         if reason == "scan_wait_deadline_exceeded":
             scan = self.clouds[0]
             end = (None if self.origin_ns is None else

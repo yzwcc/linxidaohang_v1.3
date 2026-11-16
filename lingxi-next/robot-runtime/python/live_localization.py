@@ -15,6 +15,13 @@ from mapping_service import private_json
 from live_child import serve, verified_child_session
 
 
+def live_stream_limits():
+    from lingxi_slam.stream import Limits
+    # Field capture includes occasional 56 ms source gaps. Admit up to 100 ms
+    # with the original samples; regressions, longer gaps and silence still fail.
+    return Limits(maximum_imu_gap_ns=100_000_000)
+
+
 def verify_completion(report, final, *, frozen, binding, sources, config_hash, base_scale=None,
                       base_navigation_from_raw=None, acquisition_integrity=None):
     """Live shutdown accounts for accepted callbacks, including the discarded tail."""
@@ -216,7 +223,7 @@ def _child(args, sink, platform):
                                "frame_relative_nanoseconds_hypothesis"), platform.hypothesis,
         # Spawn and map preprocessing finish before ROS admits sensor callbacks.
         # Runtime queue, processing and sensor-silence limits remain unchanged.
-        on_frame=None, native_startup_seconds=10.)
+        on_frame=None, native_startup_seconds=10., stream_limits=live_stream_limits())
     report = {"result": "failed", "session": binding.session, "inputMode": "live",
               "robotContacted": True, "motionCommandsSent": False,
               "localizationReady": False, "navigationReady": False,

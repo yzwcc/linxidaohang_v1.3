@@ -27,7 +27,7 @@ if AVAILABLE:
     from lingxi_slam.seeded_localization import RegistrationEstimate
     from lingxi_navigation.ground import GroundDeclaration
     from lingxi_navigation.recorded_occupancy import OfflineGeometry, RaySelection
-    from lingxi_navigation.registered_window import RegisteredRayWindow
+    from lingxi_navigation.registered_window import RegisteredInputExpired, RegisteredRayWindow
     from lingxi_navigation.terrain import TerrainBudget
     from lingxi_navigation.terrain_lane import TerrainLane
     from lingxi_navigation.terrain_process import TerrainProcess
@@ -110,6 +110,25 @@ class WindowTests(unittest.TestCase):
         self.assertEqual(2, len(value.observations.scans[0].returns))
         self.assertNotEqual(value.observations.selection_sha256,
             self.window().offer(original).observations.selection_sha256)
+
+    def test_two_scan_window_evicts_oldest_without_renewing_receipt(self):
+        window = self.window(budget=TerrainBudget(maximum_scans=2, maximum_age_seconds=.3))
+        first = packet(1)
+        window.offer(first)
+        self.now = 10.2
+        second = packet(2)
+        window.offer(second)
+        self.now = 10.3
+        latest = packet(3)
+        value = window.offer(latest)
+        self.assertEqual([second, latest], window.frames)
+        self.assertEqual(second.received_at, value.received_at)
+        self.assertEqual(latest.received_at, value.latest_received_at)
+        self.assertEqual([second.algorithm_stamp, latest.algorithm_stamp],
+                         [scan.stamp for scan in value.observations.scans])
+        self.now = latest.received_at + .31
+        with self.assertRaises(RegisteredInputExpired):
+            window.offer(packet(4, received=latest.received_at))
 
     def test_work_bound_evicts_oldest_whole_scan_and_keeps_original_receipts(self):
         base = spec().width * spec().height * 13

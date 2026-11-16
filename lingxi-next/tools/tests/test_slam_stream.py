@@ -116,6 +116,30 @@ class StreamSynchronization(unittest.TestCase):
             self.cloud(stream, milliseconds=40 + index * 100, received=index * .1)
         with self.assertRaisesRegex(StreamError, "deadline"):
             stream.tick(2.01)
+        self.assertEqual(["imu"], stream.failure_diagnostics["expiredTopics"])
+        self.assertEqual(2., stream.failure_diagnostics["arrivalLimitSeconds"]["imu"])
+
+    def test_silence_identifies_each_expired_topic_before_discarding_buffers(self):
+        for first, last, now, expired in (("imu", "cloud", .8, ["imu"]),
+                                           ("cloud", "imu", .8, ["cloud"]),
+                                           ("imu", "cloud", .9, ["imu", "cloud"])):
+            with self.subTest(expired=expired):
+                stream, _ = self.make()
+                operations = {"imu": lambda when: self.imu(stream, 0, when),
+                              "cloud": lambda when: self.cloud(stream, received=when)}
+                operations[first](0.)
+                operations[last](.1)
+                with self.assertRaisesRegex(StreamError, "sensor_arrival_deadline_exceeded"):
+                    stream.tick(now)
+                diagnostics = stream.failure_diagnostics
+                self.assertEqual(expired, diagnostics["expiredTopics"])
+                self.assertAlmostEqual(now, diagnostics["arrivalAgeSeconds"][first])
+                self.assertAlmostEqual(now - .1, diagnostics["arrivalAgeSeconds"][last])
+                self.assertEqual({"imu": .75, "cloud": .75}, diagnostics["arrivalLimitSeconds"])
+                self.assertEqual(1, diagnostics["receivedImu"])
+                self.assertEqual(1, diagnostics["receivedClouds"])
+                self.assertEqual(1, diagnostics["pendingClouds"])
+                self.assertEqual(0, stream.snapshot()["pendingClouds"])
 
     def test_scan_wait_failure_preserves_sync_diagnostics_before_clearing_buffers(self):
         stream, native = self.make(limits=Limits(maximum_sensor_silence_seconds=2.))

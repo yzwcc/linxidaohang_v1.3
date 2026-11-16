@@ -1,0 +1,49 @@
+{
+  "date": "2026-11-16",
+  "release": "0.1.50-live-stability-20261116-g41f7927-m",
+  "mapName": "11.14.1",
+  "staticDisplayAcceptedByUser": true,
+  "motionCommandsSent": false,
+  "tracking": {
+    "durationSeconds": 19.964,
+    "samples": 62,
+    "allTracking": true,
+    "allBaseAvailable": true,
+    "distinctFrames": 62,
+    "laterFrame": 1995,
+    "localizationReady": false,
+    "navigationReady": false
+  },
+  "terrain": {
+    "inputsAvailable": true,
+    "namespace": "lingxi_offline_b86463fe0ebf238512b5359d2f7ef3be",
+    "samples": 121,
+    "withFree": 0,
+    "withOccupied": 0,
+    "last": {
+      "free": 0,
+      "occupied": 0,
+      "unknown": 9216,
+      "stamp": 1794811023710351293,
+      "frame": "lingxi_saved_map",
+      "width": 96,
+      "height": 96,
+      "resolution": 0.10000000149011612,
+      "origin": [
+        -4.8,
+        -4.8
+      ]
+    },
+    "maximumFree": 0,
+    "distinctStamps": 121,
+    "motionCommandsSent": false
+  },
+  "checks": {
+    "platform": "robot ARM64, lingxi-next service user",
+    "total": 174,
+    "passed": 171,
+    "skipped": 3,
+    "slamBundle": "built",
+    "mappingBundle": "built"
+  }
+}
