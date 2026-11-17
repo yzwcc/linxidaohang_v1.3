@@ -141,6 +141,8 @@ class AcquisitionSettings:
         self.library_sha256 = bundle['files']['lib/' + acquisition_bundle.LIBRARY]['sha256']
         self.terrain = terrain_settings(value['terrain']) if 'terrain' in value else None
         if self.saved_map_terrain:
+            geometry, projection, declaration = self.terrain
+            self.terrain = (geometry, replace(projection, column_policy='observed_column'), declaration)
             import numpy as np
             from lingxi_slam.base_pose import navigation_transform
             base = getattr(self.platform, 'value', {}).get('basePose', {})

@@ -31,6 +31,12 @@ def projection(**changes):
 
 
 class ObservationContractTests(unittest.TestCase):
+    def test_column_policy_is_explicit_and_bound_into_result_identity(self):
+        self.assertEqual('full_column', projection().column_policy)
+        for policy in (None, True, 'fill_unknown'):
+            with self.subTest(policy=policy), self.assertRaises(ValueError):
+                projection(column_policy=policy)
+
     def test_default_metric_height_band_is_point_one_to_one_point_four(self):
         spec = ClearanceProjection(16, 16, .1, 0., 0.)
         self.assertEqual((.1, 1.4), (spec.minimum_z_metres, spec.maximum_z_metres))
@@ -208,7 +214,7 @@ class NativeOctomapTests(unittest.TestCase):
         ends = (ctypes.c_uint32 * 1)(1)
         output, stats = (ctypes.c_uint8 * 256)(*([123] * 256)), (ctypes.c_uint64 * 7)(*([123] * 7))
         self.assertEqual(-1, native.lingxi_octomap_project(rays, 1, ends, 1, .1, 10., 0., 0.,
-            0., .1, 16, 16, 1, output, 256, stats))
+            0., .1, 16, 16, 1, output, 256, stats, 0))
         self.assertEqual([123] * 256, list(output))
         self.assertEqual([123] * 7, list(stats))
 
@@ -285,7 +291,7 @@ class NativeOctomapDifferentialTests(unittest.TestCase):
             stats = (ctypes.c_uint64 * 7)(*([123] * 7))
             native = projector.native
             result = native.lingxi_octomap_project(rays, 1, ends, 1, .1, 10.,
-                0., 0., 0., .1, 16, 16, work, output, 256, stats)
+                0., 0., 0., .1, 16, 16, work, output, 256, stats, 0)
             return result, native.lingxi_octomap_error(), bytes(output), tuple(stats)
         for changes in ({'work': 1}, {'end': 0}, {'end': 2}, {'coordinate': float('nan')},
                         {'coordinate': 501.}, {'work': 16000001}):

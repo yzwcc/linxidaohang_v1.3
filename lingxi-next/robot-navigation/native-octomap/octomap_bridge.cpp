@@ -19,7 +19,7 @@ bool aligned(double value, double resolution) {
 }
 }  // namespace
 
-extern "C" int lingxi_octomap_abi_version() { return 1; }
+extern "C" int lingxi_octomap_abi_version() { return 2; }
 extern "C" const char* lingxi_octomap_version() { return LINGXI_OCTOMAP_VERSION; }
 extern "C" const char* lingxi_octomap_error() { return error.c_str(); }
 
@@ -27,9 +27,10 @@ extern "C" int lingxi_octomap_project(
     const double* rays, size_t count, const uint32_t* scan_ends, size_t scans,
     double resolution, double maximum_range, double origin_x, double origin_y,
     double minimum_z, double maximum_z, int width, int height, uint64_t work_limit,
-    uint8_t* output, size_t capacity, uint64_t* stats) {
+    uint8_t* output, size_t capacity, uint64_t* stats, uint32_t column_policy) {
   try {
     error.clear();
+    require(column_policy <= 1, "explicit_clearance_column_policy_required");
     require(rays && scan_ends && output && stats && count && count <= maximum_rays &&
       scans && scans <= 4096, "bounded_complete_observed_rays_required");
     require(std::isfinite(resolution) && resolution >= .025 && resolution <= 1 &&
@@ -70,6 +71,7 @@ extern "C" int lingxi_octomap_project(
     tree.setOccupancyThres(.5);
     size_t start = 0;
     octomap::KeyRay keyray;
+    std::vector<uint8_t> observed_hits(capacity, 0);
     for (size_t scan = 0; scan < scans; ++scan) {
       octomap::KeySet free_cells, occupied_cells;
       for (size_t i = start; i < scan_ends[scan]; ++i) {
@@ -84,6 +86,13 @@ extern "C" int lingxi_octomap_project(
           free_cells.insert(keyray.begin(), keyray.end());
         octomap::OcTreeKey key;
         if (hit && tree.coordToKeyChecked(endpoint, key)) occupied_cells.insert(key);
+        // Retain measured obstacles across all scans in an observed column.
+        if (column_policy == 1 && hit && ray[5] >= minimum_z && ray[5] < maximum_z) {
+          const int x = int(std::floor((ray[3] - origin_x) / resolution));
+          const int y = int(std::floor((ray[4] - origin_y) / resolution));
+          if (x >= 0 && x < width && y >= 0 && y < height)
+            observed_hits[size_t(y) * width + x] = 1;
+        }
         require(free_cells.size() + occupied_cells.size() <= 524288,
           "octomap_scan_cell_budget_exhausted");
       }
@@ -104,14 +113,19 @@ extern "C" int lingxi_octomap_project(
     uint64_t free_count = 0, occupied_count = 0, unknown_count = 0;
     for (int y = 0; y < height; ++y) {
       for (int x = 0; x < width; ++x) {
-        bool unknown = false, occupied = false;
+        bool unknown = false, occupied = observed_hits[size_t(y) * width + x], seen_free = false;
         for (size_t z = 0; z < levels; ++z) {
           const auto* node = tree.search(origin_x + (x + .5) * resolution,
             origin_y + (y + .5) * resolution, minimum_z + (z + .5) * resolution);
           if (!node) unknown = true;
           else if (tree.isNodeOccupied(node)) { occupied = true; break; }
+          else seen_free = true;
         }
-        const uint8_t cost = occupied ? 254 : unknown ? 255 : 0;
+        // Policy 1 projects observed space in 2.5D; it does not certify that
+        // every height is clear. Fusion still requires repeated floor support.
+        // Unseen columns remain unknown and hits at any height win.
+        const uint8_t cost = occupied ? 254 :
+          (column_policy == 1 ? (seen_free ? 0 : 255) : (unknown ? 255 : 0));
         projected[size_t(y) * width + x] = cost;
         free_count += cost == 0;
         occupied_count += cost == 254;

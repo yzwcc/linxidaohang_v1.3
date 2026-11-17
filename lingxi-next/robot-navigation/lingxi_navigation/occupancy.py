@@ -143,6 +143,7 @@ class ClearanceProjection:
     minimum_z_metres: float = DEFAULT_MINIMUM_Z_METRES
     maximum_z_metres: float = DEFAULT_MAXIMUM_Z_METRES
     maximum_range_metres: float = 10.
+    column_policy: str = "full_column"
 
     def __post_init__(self):
         resolution = self.resolution_metres
@@ -154,7 +155,8 @@ class ClearanceProjection:
                        or abs(value / resolution - round(value / resolution)) >= 1e-7 for value in coordinates)
                 or not 1 <= round((self.maximum_z_metres - self.minimum_z_metres) / resolution) <= 128
                 or self.width * self.height * round((self.maximum_z_metres - self.minimum_z_metres) / resolution) > 4000000
-                or not finite(self.maximum_range_metres) or not .1 <= self.maximum_range_metres <= 30):
+                or not finite(self.maximum_range_metres) or not .1 <= self.maximum_range_metres <= 30
+                or self.column_policy not in ("full_column", "observed_column")):
             raise ValueError("bounded_voxel_aligned_clearance_projection_required")
 
 
@@ -201,7 +203,7 @@ class OctomapProjector:
         native.lingxi_octomap_version.restype = ctypes.c_char_p
         native.lingxi_octomap_error.argtypes = []
         native.lingxi_octomap_error.restype = ctypes.c_char_p
-        if native.lingxi_octomap_abi_version() != 1 or native.lingxi_octomap_version() != VERSION.encode():
+        if native.lingxi_octomap_abi_version() != 2 or native.lingxi_octomap_version() != VERSION.encode():
             raise ValueError("pinned_octomap_version_and_abi_required")
         loaded = {}
         for line in Path("/proc/self/maps").read_text(encoding="utf-8").splitlines():
@@ -217,7 +219,7 @@ class OctomapProjector:
         native.lingxi_octomap_project.argtypes = [ctypes.POINTER(ctypes.c_double), ctypes.c_size_t,
             ctypes.POINTER(ctypes.c_uint32), ctypes.c_size_t, *([ctypes.c_double] * 6),
             ctypes.c_int, ctypes.c_int, ctypes.c_uint64, ctypes.POINTER(ctypes.c_uint8),
-            ctypes.c_size_t, ctypes.POINTER(ctypes.c_uint64)]
+            ctypes.c_size_t, ctypes.POINTER(ctypes.c_uint64), ctypes.c_uint32]
         native.lingxi_octomap_project.restype = ctypes.c_int
         self.native, self.owner = native, threading.get_ident()
 
@@ -257,7 +259,8 @@ class OctomapProjector:
             projection.resolution_metres, projection.maximum_range_metres,
             projection.origin_x_metres, projection.origin_y_metres,
             projection.minimum_z_metres, projection.maximum_z_metres,
-            projection.width, projection.height, maximum_work_units, output, size, stats)
+            projection.width, projection.height, maximum_work_units, output, size, stats,
+            int(projection.column_policy == "observed_column"))
         if status != 0:
             raise RuntimeError(self.native.lingxi_octomap_error().decode("utf-8", errors="replace"))
         costs = bytes(output)

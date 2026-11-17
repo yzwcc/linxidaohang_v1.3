@@ -37,7 +37,7 @@ def build(sysroot, output):
     with (output / "private-build.log").open("x") as stream:
         subprocess.run(command, stdout=stream, stderr=stream, check=True, timeout=90)
         subprocess.run([sys.executable, "-c", "import ctypes, sys; native = ctypes.CDLL(sys.argv[1]); "
-            "assert native.lingxi_octomap_abi_version() == 1", str(output / "liblingxi_octomap.so")],
+            "assert native.lingxi_octomap_abi_version() == 2", str(output / "liblingxi_octomap.so")],
             stdout=stream, stderr=stream, check=True, timeout=10,
             env={key: value for key, value in os.environ.items() if key != "LD_LIBRARY_PATH"})
     if digest(source) != source_hash or any(digest(source) != digest(output / "lib" / name)

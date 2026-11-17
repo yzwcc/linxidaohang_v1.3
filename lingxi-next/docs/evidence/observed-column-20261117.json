@@ -1,0 +1,270 @@
+{
+  "release": "0.1.50-observed-column-20261117-g0f0108b-x",
+  "deployment": {
+    "previousRelease": "0.1.50-registered-height-20261117-gcb0a25f-w",
+    "sourceBaseCommit": "0f0108b",
+    "sourceChanges": [
+      "tools/build_octomap_offline.py",
+      "tools/tests/test_terrain_packing.py",
+      "tools/tests/test_ground.py",
+      "tools/tests/test_octomap.py",
+      "robot-navigation/lingxi_navigation/occupancy.py",
+      "robot-navigation/native-octomap/octomap_bridge.cpp",
+      "robot-runtime/python/live_acquisition.py"
+    ],
+    "settingsPath": "/var/lib/lingxi-next/native-inputs/acquisition-observed-column-20261117-x/acquisition.json",
+    "settingsSha256": "27e6547273a1ce4130b6694ca7e9d1bcba563ec3b33b3897733d0a89d99a670c",
+    "nativeTrialReused": false,
+    "executedContracts": 24,
+    "trialManifestSha256": "2508e857956fa74e764bcc3fbd6780f35b9fb4180a7b49a6fafcca67b11d9f5f",
+    "probeSeconds": 0.948906063999857,
+    "cacheExpiryRenewed": false,
+    "motionCommandsSent": false,
+    "mapFilesChanged": false
+  },
+  "restoration": {
+    "state": "tracking",
+    "baseStatus": "available",
+    "samples": 62,
+    "distinctAvailableFrames": 62,
+    "unavailableSamples": 0
+  },
+  "passiveTerrainProbe": {
+    "inputsAvailable": true,
+    "samples": 117,
+    "withFree": 53,
+    "withOccupied": 68,
+    "last": {
+      "free": 0,
+      "occupied": 0,
+      "unknown": 9216,
+      "largestFreeComponent": 0,
+      "stamp": 1794916726523308074,
+      "frame": "lingxi_saved_map",
+      "width": 96,
+      "height": 96,
+      "resolution": 0.10000000149011612,
+      "origin": [
+        -4.8,
+        -4.8
+      ]
+    },
+    "maximumFree": 68,
+    "maximumLargestFreeComponent": 36,
+    "freeCellDistribution": {
+      "0": 64,
+      "65": 6,
+      "64": 6,
+      "62": 5,
+      "66": 5,
+      "59": 3,
+      "61": 10,
+      "60": 5,
+      "68": 9,
+      "58": 4
+    },
+    "distinctStamps": 67,
+    "motionCommandsSent": false
+  },
+  "navigationSnapshot": {
+    "state": "tracking",
+    "lastFrame": 1945,
+    "workerReady": true,
+    "baseStatus": "available",
+    "inputsAvailable": false,
+    "localizationReady": false,
+    "navigationReady": false
+  },
+  "recentDiagnostics": [
+    {
+      "event": "lingxi_private_fault",
+      "phase": "terrain_ros_output",
+      "code": "current_terrain",
+      "diagnostics": {
+        "free_cells": 0,
+        "occupied_cells": 112,
+        "unknown_cells": 9104,
+        "grid_remaining_ms": 233.635,
+        "oldest_scan_age_ms": 662.909,
+        "latest_scan_age_ms": 662.909
+      }
+    },
+    {
+      "event": "lingxi_private_fault",
+      "phase": "terrain_ros_output",
+      "code": "current_terrain",
+      "diagnostics": {
+        "free_cells": 66,
+        "occupied_cells": 132,
+        "unknown_cells": 9018,
+        "grid_remaining_ms": 188.787,
+        "oldest_scan_age_ms": 722.671,
+        "latest_scan_age_ms": 623.654
+      }
+    },
+    {
+      "event": "lingxi_private_fault",
+      "phase": "terrain_ros_output",
+      "code": "current_terrain",
+      "diagnostics": {
+        "free_cells": 60,
+        "occupied_cells": 138,
+        "unknown_cells": 9018,
+        "grid_remaining_ms": 242.079,
+        "oldest_scan_age_ms": 656.725,
+        "latest_scan_age_ms": 556.735
+      }
+    },
+    {
+      "event": "lingxi_private_fault",
+      "phase": "terrain_ros_output",
+      "code": "current_terrain",
+      "diagnostics": {
+        "free_cells": 65,
+        "occupied_cells": 132,
+        "unknown_cells": 9019,
+        "grid_remaining_ms": 245.831,
+        "oldest_scan_age_ms": 662.015,
+        "latest_scan_age_ms": 561.315
+      }
+    },
+    {
+      "event": "lingxi_private_fault",
+      "phase": "terrain_ros_output",
+      "code": "original_terrain_scan_time_unavailable",
+      "diagnostics": {
+        "free_cells": 0,
+        "occupied_cells": 0,
+        "unknown_cells": 9216,
+        "grid_remaining_ms": 89.652,
+        "oldest_scan_age_ms": 808.551,
+        "latest_scan_age_ms": 708.488
+      }
+    },
+    {
+      "event": "lingxi_private_fault",
+      "phase": "terrain_ros_output",
+      "code": "current_terrain",
+      "diagnostics": {
+        "free_cells": 68,
+        "occupied_cells": 133,
+        "unknown_cells": 9015,
+        "grid_remaining_ms": 170.099,
+        "oldest_scan_age_ms": 738.334,
+        "latest_scan_age_ms": 639.685
+      }
+    },
+    {
+      "event": "lingxi_private_fault",
+      "phase": "terrain_ros_output",
+      "code": "current_terrain",
+      "diagnostics": {
+        "free_cells": 53,
+        "occupied_cells": 124,
+        "unknown_cells": 9039,
+        "grid_remaining_ms": 182.478,
+        "oldest_scan_age_ms": 720.163,
+        "latest_scan_age_ms": 620.17
+      }
+    },
+    {
+      "event": "lingxi_private_fault",
+      "phase": "terrain_process_expired",
+      "code": "terrain_expired",
+      "diagnostics": {
+        "scan_count": 2,
+        "ray_count": 2048,
+        "window_span_ms": 99.552,
+        "request_bytes": 131915,
+        "age_deadline_remaining_ms_at_exchange_start": 58.733,
+        "processing_deadline_remaining_ms_at_exchange_start": 396.764,
+        "input_age_ms_at_exchange_start": 741.267,
+        "received_age_ms_at_exchange_start": 741.267,
+        "exchange_elapsed_ms": 79.246,
+        "age_deadline_remaining_ms_after_exchange": -20.513,
+        "processing_deadline_remaining_ms_after_exchange": 317.518
+      }
+    },
+    {
+      "event": "lingxi_private_fault",
+      "phase": "terrain_ros_output",
+      "code": "terrain_expired",
+      "diagnostics": {
+        "free_cells": 0,
+        "occupied_cells": 0,
+        "unknown_cells": 9216
+      }
+    },
+    {
+      "event": "lingxi_private_fault",
+      "phase": "terrain_ros_output",
+      "code": "current_terrain",
+      "diagnostics": {
+        "free_cells": 68,
+        "occupied_cells": 131,
+        "unknown_cells": 9017,
+        "grid_remaining_ms": 254.4,
+        "oldest_scan_age_ms": 660.045,
+        "latest_scan_age_ms": 559.097
+      }
+    },
+    {
+      "event": "lingxi_private_fault",
+      "phase": "terrain_ros_output",
+      "code": "current_terrain",
+      "diagnostics": {
+        "free_cells": 69,
+        "occupied_cells": 136,
+        "unknown_cells": 9011,
+        "grid_remaining_ms": 133.171,
+        "oldest_scan_age_ms": 776.636,
+        "latest_scan_age_ms": 577.095
+      }
+    },
+    {
+      "event": "lingxi_private_fault",
+      "phase": "terrain_ros_output",
+      "code": "current_terrain",
+      "diagnostics": {
+        "free_cells": 64,
+        "occupied_cells": 124,
+        "unknown_cells": 9028,
+        "grid_remaining_ms": 210.059,
+        "oldest_scan_age_ms": 707.994,
+        "latest_scan_age_ms": 607.946
+      }
+    }
+  ],
+  "motionCommandsSent": false,
+  "mapFilesChanged": false,
+  "physicalNavigationAccepted": false,
+  "checks": {
+    "hostNativeGround": {
+      "testsRun": 24,
+      "skipped": 0,
+      "failures": 0
+    },
+    "targetNativeGround": {
+      "testsRun": 24,
+      "skipped": 0,
+      "failures": 0
+    },
+    "additionalRegression": {
+      "testsRun": 195,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 47
+    },
+    "builtAssets": [
+      "slam",
+      "mapping"
+    ]
+  },
+  "limitations": [
+    "Stationary observation only; moving localization, avoidance and goal navigation remain pending.",
+    "Output still has expiry gaps and insufficient connected traversable coverage.",
+    "localizationReady and navigationReady remain false; no physical acceptance is claimed.",
+    "Robot is standing normally; the upstream sensor height discrepancy is not yet attributed.",
+    "The earlier ABI1 prototype replay is not validation of this ABI2 release."
+  ]
+}

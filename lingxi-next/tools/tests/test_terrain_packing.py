@@ -101,7 +101,8 @@ class NativePackingTests(unittest.TestCase):
         projector.owner = threading.get_ident()
         captured = []
         def project(rays, count, ends, scans, resolution, maximum_range, ox, oy, zmin, zmax,
-                    width, height, budget, output, size, stats):
+                    width, height, budget, output, size, stats, column_policy):
+            self.assertEqual(0, column_policy)
             captured.append((ctypes.string_at(rays, count * 6 * ctypes.sizeof(ctypes.c_double)),
                              tuple(ends), count, scans, zmin, zmax, budget))
             output[:] = [255] * size

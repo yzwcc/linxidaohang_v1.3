@@ -288,6 +288,29 @@ class NativeGroundTests(unittest.TestCase):
         self.assertNotIn(0, fuse_declared(air, replace(support, costs=bytes([255] * 4096))).costs)
         self.assertFalse(fused.navigation_ready)
 
+        # Sparse vertical coverage must project observed free space, while a
+        # missing floor and a suspended obstacle both remain impassable.
+        sparse = replace(floor, scans=floor.scans + (ScanObservation(2, 3., 'f' * 64, horizontal[:1]),))
+        observed = replace(projection, column_policy='observed_column')
+        air = projector.project_declared(sparse, observed)
+        support = declared_ground_candidates(sparse, observed, self.declaration, self.native)
+        fused = fuse_declared(air, support)
+        full = projector.project_declared(sparse, projection)
+        self.assertGreater(air.costs.count(0), full.costs.count(0))
+        self.assertGreater(fused.costs.count(0), 0)
+        self.assertNotIn(0, fuse_declared(air, replace(support, costs=bytes([255] * 4096))).costs)
+        self.assertEqual(255, air.costs[0])
+        # Even many subsequent free rays cannot erase this window's measured
+        # obstacle. Its height differs from the free horizontal ray.
+        hit = LidarReturn((0., .01, .65), (1.05, .01, .65))
+        blocked = replace(sparse, scans=(ScanObservation(0, .5, 'f' * 64, (hit,)),) + tuple(
+            replace(scan, ordinal=i + 1) for i, scan in enumerate(sparse.scans)))
+        blocked_air = projector.project_declared(blocked, observed)
+        cell = 32 * 64 + 42
+        self.assertEqual(254, blocked_air.costs[cell])
+        self.assertNotEqual(air.sha256, full.sha256)
+        self.assertFalse(fused.navigation_ready)
+
     def test_native_failure_has_no_partial_output(self):
         xyz, labels, counts = (ctypes.c_double * 9)(*([float('nan')] * 9)), (ctypes.c_uint8 * 3)(7, 7, 7), (ctypes.c_uint64 * 3)(9, 9, 9)
         status = self.native.native.lingxi_ground_segment(xyz, 3, .6, .3, 10., labels, 3, counts)
