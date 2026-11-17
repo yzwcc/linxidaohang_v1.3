@@ -24,7 +24,7 @@ SOURCES = ("robot-navigation/lingxi_navigation/__init__.py",
     "robot-navigation/lingxi_navigation/ground.py", "tools/tests/test_ground.py",
     "tools/terrain_target_probe.py")
 NOTICES = ("THIRD_PARTY_NOTICES.md", "PATCHWORKPP_LICENSE", "OCTOMAP_DISTRIBUTION_COPYRIGHT")
-CHECKS = dict.fromkeys(("bundleIntegrity", "isolatedLibraries", "all21Contracts", "inputsUnchanged"), True)
+CHECKS = dict.fromkeys(("bundleIntegrity", "isolatedLibraries", "all24Contracts", "inputsUnchanged"), True)
 BOUNDARIES = dict.fromkeys(("sensorSubscriptionsStarted", "motionCommandsSent", "servicesSwitched",
     "systemPackagesInstalled", "realDataProcessed", "liveThroughputValidated", "physicalScaleValidated",
     "groundSupportValidated", "navigationReady", "deploymentApproved"), False)
@@ -82,7 +82,7 @@ def verify_bundle(root):
                 or PurePosixPath(name).is_absolute() or ".." in PurePosixPath(name).parts
                 or PurePosixPath(name).as_posix() != name or not digest(identity)
                 for name, identity in sources.items())
-            or type(contracts) is not list or len(contracts) != 21
+            or type(contracts) is not list or len(contracts) != 24
             or any(type(name) is not str or not name.startswith("terrain_native_contracts.") for name in contracts)
             or contracts != sorted(set(contracts))):
         raise ValueError("current_sources_and_exact_terrain_contracts_required")
@@ -147,7 +147,7 @@ def mapped_libraries(root, manifest, maps):
 
 def run_contracts(root, contracts):
     suite = load_contracts(root)
-    if len(contracts) != 21 or contract_ids(suite) != contracts:
+    if len(contracts) != 24 or contract_ids(suite) != contracts:
         raise ValueError("exact_current_terrain_contract_inventory_required")
 
     class Result(unittest.TextTestResult):

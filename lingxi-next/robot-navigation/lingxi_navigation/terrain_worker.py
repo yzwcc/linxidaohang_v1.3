@@ -6,6 +6,7 @@ from pathlib import Path
 import resource
 import signal
 import sys
+import time
 import traceback
 
 
@@ -29,11 +30,13 @@ def main():
     resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
     resource.setrlimit(resource.RLIMIT_AS, (2 * 1024**3, 2 * 1024**3))
     resource.setrlimit(resource.RLIMIT_FSIZE, (8 * 1024**2, 8 * 1024**2))
-    from .ground import GroundDeclaration, PatchworkSegmenter
+    from .ground import GroundDeclaration, GroundFrameMismatch, PatchworkSegmenter
     from .occupancy import ClearanceProjection, OctomapProjector
     from .terrain import TerrainBudget, TerrainProducer
     from .terrain_protocol import decode_observations, frame, read_message
+    from .runtime_fault import record_fault
     session = None
+    last_rejection = None
     # Native diagnostics must never share the framed stdout pipe.
     protocol = os.fdopen(os.dup(sys.stdout.fileno()), 'wb', buffering=0)
     os.dup2(sys.stderr.fileno(), sys.stdout.fileno())
@@ -61,7 +64,23 @@ def main():
                     or request['version'] != 1 or request['session'] != session or request['kind'] != 'update'):
                 raise ValueError('current_complete_terrain_request_required')
             data = decode_observations(request['observations'], budget)
-            result = producer.update(data, sequence=request['sequence'], received_at=request['receivedAt'])
+            try:
+                result = producer.update(data, sequence=request['sequence'], received_at=request['receivedAt'])
+            except GroundFrameMismatch as error:
+                # The producer consumed this sequence/capture and withdrew its
+                # snapshot before validating geometry. Reject only this window;
+                # keep the native owner for subsequent, correctly framed scans.
+                now = time.monotonic()
+                if last_rejection is None or now - last_rejection >= 5.:
+                    last_rejection = now
+                    record_fault('terrain_ground_rejected', error, code='ground_frame_mismatch',
+                                 diagnostics=dict(ground_height_error_metres=error.height_error_metres,
+                                                  ground_origin_span_metres=error.origin_span_metres))
+                send('rejected', reason='ground_frame_mismatch', sequence=producer.sequence,
+                     mapRevision=data.revision, observationsSha256=data.sha256,
+                     receivedAt=producer.capture_received,
+                     expiresAt=producer.capture_received + budget.maximum_age_seconds)
+                continue
             if result is None:
                 send('expired', sequence=producer.sequence, mapRevision=data.revision,
                      observationsSha256=data.sha256, receivedAt=producer.capture_received,

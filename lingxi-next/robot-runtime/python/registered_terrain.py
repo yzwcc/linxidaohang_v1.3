@@ -204,6 +204,8 @@ class RegisteredTerrainSource:
                 if self.generation is not None:
                     self._check_localization(state)
                 result = self.lane.snapshot()
+                if self.visible_grid is not None and self.visible_grid.sequence <= result.rejected_through:
+                    self.visible_grid = None
                 if result.state in ('failed', 'retired'):
                     self._retire(result.failure or 'registered_terrain_unavailable')
                     return self.lane.snapshot()

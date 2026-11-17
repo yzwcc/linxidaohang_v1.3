@@ -77,8 +77,8 @@ class TerrainTargetTrial(unittest.TestCase):
         sftp.normalize.return_value = "/home/synthetic"
         return client, sftp, client.get_transport.return_value.open_session.return_value.__enter__.return_value
 
-    def test_exact_bundle_and_21_current_contract_ids(self):
-        self.assertEqual(21, len(self.manifest["contracts"]))
+    def test_exact_bundle_and_24_current_contract_ids(self):
+        self.assertEqual(24, len(self.manifest["contracts"]))
         self.assertEqual(self.manifest, probe.verify_bundle(self.root))
 
     def test_mutated_binary_or_source_rejected(self):
@@ -131,7 +131,7 @@ class TerrainTargetTrial(unittest.TestCase):
         original = copy.deepcopy(self.manifest)
         for field, value in (("inputClassification", "recorded"),
                 ("boundaries", {**probe.BOUNDARIES, "navigationReady": True}),
-                ("contracts", original["contracts"][:-1]), ("contracts", [original["contracts"][0]] * 21)):
+                ("contracts", original["contracts"][:-1]), ("contracts", [original["contracts"][0]] * 24)):
             self.manifest = {**original, field: value}
             self.write_manifest()
             with self.assertRaises(ValueError):
@@ -155,7 +155,7 @@ class TerrainTargetTrial(unittest.TestCase):
         for field, value in (("executedContracts", original["executedContracts"][:-1]),
                 ("mappedLibrariesSha256", {}), ("trialManifestSha256", "b" * 64),
                 ("buildReportSha256", "c" * 64), ("target", None), ("target", dict(machine="x86_64")),
-                ("checks", {**probe.CHECKS, "all21Contracts": 1}),
+                ("checks", {**probe.CHECKS, "all24Contracts": 1}),
                 ("boundaries", {**probe.BOUNDARIES, "navigationReady": 0}),
                 ("probeSeconds", float("nan")), ("probeSeconds", 121)):
             with self.subTest(field=field), self.assertRaisesRegex(ValueError, "complete_source_bound"):
@@ -196,7 +196,7 @@ class TerrainTargetTrial(unittest.TestCase):
                 patch.object(runner, "receive", return_value=(0, json.dumps(result).encode(), b"")):
             value = runner.run(args)
         self.assertEqual(probe.RESULT, value["result"])
-        self.assertEqual(21, value["executedContracts"])
+        self.assertEqual(24, value["executedContracts"])
         self.assertEqual(len(self.manifest["files"]) + 1, sftp.put.call_count)
         self.assertEqual(2, sftp.symlink.call_count)
         self.assertTrue(all(call.args[1] == 0o600 for call in sftp.chmod.call_args_list))
@@ -241,7 +241,7 @@ class TerrainTargetTrial(unittest.TestCase):
             octomap_arm64=self.home / "dependencies")
         with patch.object(builder, "verify", return_value=report), patch.object(runner, "ROOT", self.source):
             value = runner.prepare(args)
-            self.assertEqual(21, value["contracts"])
+            self.assertEqual(24, value["contracts"])
             self.assertEqual(probe.BOUNDARIES, value["boundaries"])
             identity = probe.sha256(args.output / probe.MANIFEST)
             with self.assertRaisesRegex(ValueError, "new_direct"):
@@ -281,7 +281,7 @@ class TerrainTrialProcessContracts(unittest.TestCase):
             loaded.assert_not_called()
 
     def test_exact_success_not_skips_failures_or_partial_suite(self):
-        methods = {"test_%02d" % index: lambda self: None for index in range(21)}
+        methods = {"test_%02d" % index: lambda self: None for index in range(24)}
         case = type("SyntheticContracts", (unittest.TestCase,), methods)
         def suite():
             return unittest.TestSuite([unittest.defaultTestLoader.loadTestsFromTestCase(case)])

@@ -6,7 +6,7 @@ can support a cell. Empty air, sparse patches and out-of-range returns stay unkn
 """
 from array import array
 import ctypes
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 import hashlib
 from itertools import chain
 import math
@@ -42,6 +42,7 @@ class GroundDeclaration:
     maximum_height_spread_metres: float = .04
     minimum_points_per_cell: int = 3
     minimum_scans_per_cell: int = 2
+    sensor_height_source: str = 'declared'
 
     def __post_init__(self):
         if (not all(map(finite, (self.sensor_height_metres, self.ground_z_metres,
@@ -57,7 +58,8 @@ class GroundDeclaration:
                 or type(self.minimum_points_per_cell) is not int
                 or not 3 <= self.minimum_points_per_cell <= 100
                 or type(self.minimum_scans_per_cell) is not int
-                or not 2 <= self.minimum_scans_per_cell <= 100):
+                or not 2 <= self.minimum_scans_per_cell <= 100
+                or self.sensor_height_source not in ('declared', 'registered_scan_origin')):
             raise ValueError('explicit_bounded_offline_ground_declaration_required')
 
     @property
@@ -170,9 +172,14 @@ def validate_declared_ground_frame(observations, declaration):
     for scan in observations.scans:
         # Reference a measured origin, not an averaged or guessed robot position.
         anchor = scan.returns[0].origin_metres
-        height_error = abs(anchor[2] - declaration.sensor_height_metres - declaration.ground_z_metres)
+        height = anchor[2] - declaration.ground_z_metres
+        registered = declaration.sensor_height_source == 'registered_scan_origin'
+        height_error = (max(.2 - height, height - 3., 0.) if registered
+                        else abs(height - declaration.sensor_height_metres))
         origin_span = max(math.dist(anchor, ray.origin_metres) for ray in scan.returns)
-        if height_error > declaration.height_tolerance_metres or origin_span > .35:
+        if (registered and not .2 <= height <= 3.
+                or not registered and height_error > declaration.height_tolerance_metres
+                or origin_span > .35):
             raise GroundFrameMismatch(scan.ordinal, height_error, origin_span)
 
 
@@ -190,10 +197,14 @@ def declared_ground_candidates(observations, projection, declaration, segmenter)
                         ray.endpoint_metres[2] - az) for ray in scan.returns)
         # Tiny scans supply no plane evidence; preserve them as unclassified.
         if len(points) >= 3:
-            result = segmenter.segment(points, declaration)
+            # The registered origin already includes the current body/TF pose.
+            # Vary the native sensor height, never the declared map floor.
+            scan_declaration = (replace(declaration, sensor_height_metres=az - declaration.ground_z_metres)
+                if declaration.sensor_height_source == 'registered_scan_origin' else declaration)
+            result = segmenter.segment(points, scan_declaration)
             if (type(result) is not GroundLabels or len(result.labels) != len(points)
                     or result.input_sha256 != hashlib.sha256(canonical(points)).hexdigest()
-                    or result.declaration_sha256 != declaration.sha256
+                    or result.declaration_sha256 != scan_declaration.sha256
                     or result.library_sha256 != segmenter.sha256):
                 raise ValueError('complete_scan_bound_ground_labels_required')
             labels = result.labels

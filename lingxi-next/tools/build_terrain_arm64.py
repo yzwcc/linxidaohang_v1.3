@@ -79,7 +79,7 @@ def inputs(args):
     checked_tree(args.octomap_host / 'include/octomap', octomap['headersSha256'])
     host_check = load(args.host_check)
     if (host_check.get('result') != 'native_synthetic_ground_fusion_passed'
-            or host_check.get('machine') != 'x86_64' or host_check.get('testsRun') != 21
+            or host_check.get('machine') != 'x86_64' or host_check.get('testsRun') != 24
             or any(type(host_check.get(key)) is not int or host_check[key] != 0
                    for key in ('failures', 'errors', 'skipped'))
             or host_check.get('nativeSha256') != ground_report['nativeSha256']
@@ -115,7 +115,7 @@ def inputs(args):
     return dict(crossCore=cross, sourceSha256=source_sha256, hostContractSourceSha256=tested_sources,
         groundBuildReportSha256=digest(args.ground_host / 'build-report.json'),
         octomapBuildReportSha256=digest(args.octomap_host / 'build-report.json'),
-        hostContractReportSha256=digest(args.host_check), hostContracts=21,
+        hostContractReportSha256=digest(args.host_check), hostContracts=24,
         upstreamFilesSha256=ground_report['upstreamFilesSha256'],
         eigenHeadersSha256=ground_report['eigenHeadersSha256'],
         octomapHeadersSha256=octomap['headersSha256'], dependenciesSha256=dependencies,

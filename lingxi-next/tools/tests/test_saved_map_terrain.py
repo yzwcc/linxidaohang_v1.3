@@ -189,6 +189,25 @@ class SavedMapTerrainTests(SavedMapTerrainFixture, SyntheticLiveFixture, unittes
         self.scan(3, first.effective_ns + 200_000_000)
         self.assertEqual(3, self.result().sequence)
 
+    def test_ground_rejected_window_cannot_restore_cached_grid_on_next_pending_job(self):
+        self.terrain()
+        _, first, _ = self.scan()
+        old = self.result()
+        # Simulate a completed rejection which the publisher did not observe
+        # before the next real, blocked submission began.
+        with self.lane.condition:
+            self.lane._set(grid=None, failure='ground_frame_mismatch', rejected_through=2)
+        self.release.clear()
+        self.addCleanup(self.release.set)
+        self.scan(3, first.effective_ns + 200_000_000)
+        self.assertEqual('busy', self.lane.snapshot().state)
+        self.assertIsNone(self.source.snapshot().grid)
+        self.assertIsNone(self.source.visible_grid)
+        self.assertLess(old.sequence, self.lane.snapshot().rejected_through)
+        self.assertFalse(self.source.retired)
+        self.release.set()
+        self.assertEqual(3, self.result().sequence)
+
     def test_retry_clears_old_scan_window_and_preserves_original_timestamp_watermark(self):
         self.terrain()
         _, first, _ = self.scan()

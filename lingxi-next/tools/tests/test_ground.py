@@ -51,7 +51,8 @@ class GroundContractTests(unittest.TestCase):
                 {'ground_z_metres': float('nan')}, {'maximum_range_metres': 100},
                 {'minimum_range_metres': 4., 'maximum_range_metres': 4.5},
                 {'height_tolerance_metres': .11}, {'maximum_height_spread_metres': 0.},
-                {'minimum_points_per_cell': 2}, {'minimum_scans_per_cell': True}):
+                {'minimum_points_per_cell': 2}, {'minimum_scans_per_cell': True},
+                {'sensor_height_source': 'guessed'}):
             with self.subTest(changes=changes), self.assertRaises(ValueError):
                 replace(base, **changes)
         self.assertNotEqual(base.sha256, replace(base, sensor_height_metres=.7).sha256)
@@ -157,6 +158,42 @@ class GroundContractTests(unittest.TestCase):
             validate_declared_ground_frame(data, GroundDeclaration(.6, 0.))
         self.assertAlmostEqual(.36, failure.exception.origin_span_metres)
 
+    def test_registered_height_follows_each_scan_without_moving_floor_or_accepting_steps(self):
+        data = observations()
+        data = replace(data, scans=tuple(replace(scan, returns=tuple(
+            replace(ray, origin_metres=(0., 0., height)) for ray in scan.returns))
+            for scan, height in zip(data.scans, (.35, .95))))
+        declaration = GroundDeclaration(.985, 0., sensor_height_source='registered_scan_origin')
+        heights = []
+        def segment(points, declared):
+            heights.append(declared.sensor_height_metres)
+            self.assertEqual(0., declared.ground_z_metres)
+            return GroundLabels(bytes(len(points)), hashlib.sha256(canonical(points)).hexdigest(),
+                                declared.sha256, '1' * 64)
+        with patch.object(PatchworkSegmenter, 'segment', side_effect=segment):
+            result = declared_ground_candidates(data, spec(), declaration, mocked_segmenter())
+        self.assertEqual([.35, .95], heights)
+        self.assertEqual(1, result.costs.count(0))
+        self.assertEqual(declaration.sha256, result.declaration_sha256)
+        for z in (-.12, .12):
+            stepped = replace(data, scans=tuple(replace(scan, returns=scan.returns + (
+                replace(scan.returns[0], endpoint_metres=(1.02, .02, z)),)) for scan in data.scans))
+            with self.subTest(z=z):
+                self.assertNotIn(0, self.candidate(stepped, declaration).costs)
+
+    def test_registered_height_preflight_rejects_out_of_bounds_and_deskew_before_native(self):
+        data = observations()
+        declaration = GroundDeclaration(.985, 0., sensor_height_source='registered_scan_origin')
+        for height, span in ((.199, 0.), (3.001, 0.), (.35, .36)):
+            scan = data.scans[-1]
+            returns = tuple(replace(ray, origin_metres=(span if i else 0., 0., height))
+                            for i, ray in enumerate(scan.returns))
+            changed = replace(data, scans=(data.scans[0], replace(scan, returns=returns)))
+            with self.subTest(height=height, span=span), patch.object(PatchworkSegmenter, 'segment') as native:
+                with self.assertRaises(GroundFrameMismatch):
+                    declared_ground_candidates(changed, spec(), declaration, mocked_segmenter())
+                native.assert_not_called()
+
     def test_candidate_identity_binds_provenance_geometry_and_all_cells(self):
         result = self.candidate()
         for changed in (replace(result, observations_sha256='2' * 64), replace(result, declaration_sha256='2' * 64),
@@ -214,6 +251,16 @@ class NativeGroundTests(unittest.TestCase):
         result = declared_ground_candidates(observations(points), spec(), self.declaration, self.native)
         self.assertGreater(result.costs.count(0), 100)
         self.assertGreater(result.costs.count(255), 100)
+        self.assertFalse(result.navigation_ready)
+
+    def test_actual_core_segments_same_map_floor_from_different_registered_heights(self):
+        data = observations(tuple((x, y, z + .6) for x, y, z in floor_points()))
+        data = replace(data, scans=tuple(replace(scan, returns=tuple(
+            replace(ray, origin_metres=(0., 0., height)) for ray in scan.returns))
+            for scan, height in zip(data.scans, (.35, .95))))
+        result = declared_ground_candidates(data, spec(),
+            GroundDeclaration(.985, 0., sensor_height_source='registered_scan_origin'), self.native)
+        self.assertGreater(result.costs.count(0), 100)
         self.assertFalse(result.navigation_ready)
 
     def test_actual_sparse_plane_does_not_invent_supported_cells(self):

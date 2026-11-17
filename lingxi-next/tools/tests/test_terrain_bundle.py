@@ -105,7 +105,7 @@ class TerrainBundleTests(TargetFixture, unittest.TestCase):
     def test_incomplete_target_results_and_physical_claims_rejected(self):
         original = deepcopy(self.receipt["targetProbe"])
         for changes in ({"executedContracts": original["executedContracts"][:-1]},
-                {"target": {"machine": "x86_64"}}, {"checks": {**original["checks"], "all21Contracts": 1}},
+                {"target": {"machine": "x86_64"}}, {"checks": {**original["checks"], "all24Contracts": 1}},
                 {"boundaries": {**original["boundaries"], "navigationReady": True}},
                 {"mappedLibrariesSha256": {}}, {"probeSeconds": True}):
             with self.subTest(changes=changes):

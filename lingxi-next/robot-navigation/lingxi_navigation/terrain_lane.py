@@ -21,6 +21,7 @@ class LaneSnapshot:
     grid: object = None
     failure: object = None
     child_pid: object = None
+    rejected_through: int = -1
 
 
 class TerrainLane:
@@ -120,7 +121,11 @@ class TerrainLane:
                         if sequence <= self.withdrawn_through:
                             self._set(state='ready', grid=None)
                         elif grid is None:
-                            self._set(state='ready', grid=None, failure='terrain_expired')
+                            failure = ('ground_frame_mismatch' if getattr(service, 'failure', None)
+                                       == 'ground_frame_mismatch' else 'terrain_expired')
+                            self._set(state='ready', grid=None, failure=failure,
+                                rejected_through=sequence if failure == 'ground_frame_mismatch'
+                                else self.value.rejected_through)
                         else:
                             self._set(state='ready', grid=grid, failure=None)
                 phase, started = 'terrain_lane_current', time.monotonic()

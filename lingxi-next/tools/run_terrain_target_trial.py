@@ -29,8 +29,8 @@ def prepare(args):
     sources = {**report["inputs"]["sourceSha256"], **report["inputs"]["hostContractSourceSha256"]}
     sources.update({name: probe.sha256(ROOT / name) for name in probe.SOURCES + ("tools/run_terrain_target_trial.py",)})
     contracts = probe.contract_ids(probe.load_contracts(ROOT))
-    if len(contracts) != 21:
-        raise ValueError("exact21_current_terrain_contracts_required")
+    if len(contracts) != 24:
+        raise ValueError("exact24_current_terrain_contracts_required")
     members = {name: ROOT / name for name in probe.SOURCES}
     members.update({"native/" + name: args.build / "build" / name for name in probe.LIBRARIES + probe.NOTICES})
     members.update({"native/lib/" + name: args.build / "build/lib" / name for name in probe.DEPENDENCIES})

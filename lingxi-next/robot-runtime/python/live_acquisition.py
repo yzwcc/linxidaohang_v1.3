@@ -1,5 +1,6 @@
 """Explicit passive acquisition; optional private ROS terrain, never motion."""
 from pathlib import Path
+from dataclasses import replace
 import sys
 import threading
 
@@ -256,6 +257,8 @@ class AcquisitionComposition:
                 raise ValueError('unchanged_acquisition_inputs_at_native_start_required')
             if self.settings.terrain is not None:
                 geometry, projection, declaration = self.settings.terrain
+                if self.settings.saved_map_terrain:
+                    declaration = replace(declaration, sensor_height_source='registered_scan_origin')
                 terrain = self.settings.value['terrain']
                 def native_terrain():
                     ground, octomap = terrain['ground'], terrain['octomap']

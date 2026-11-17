@@ -278,6 +278,38 @@ time.sleep(20)
         self.assertNotEqual(0, result.returncode)
         self.assertIn(b'current_terrain_owner_required', result.stderr)
 
+    def test_wrong_source_or_reason_in_rejection_is_terminal(self):
+        for change in ("reply['sequence']+=1", "reply['mapRevision']+=1",
+                       "reply['observationsSha256']='f'*64", "reply['receivedAt']+=.01",
+                       "reply['expiresAt']+=1", "reply['reason']='arbitrary_error'"):
+            service = self.service()
+            program = '''from lingxi_navigation.terrain_protocol import *
+from lingxi_navigation.terrain import TerrainBudget
+import sys,time
+r=read_message(sys.stdin.buffer)
+session=r['session']
+def send(value):
+    sys.stdout.buffer.write(frame(value)); sys.stdout.buffer.flush()
+send(dict(version=1,kind='ready',session=session))
+r=read_message(sys.stdin.buffer)
+data=decode_observations(r['observations'],TerrainBudget())
+reply=dict(version=1,kind='rejected',reason='ground_frame_mismatch',session=session,
+    sequence=r['sequence'],mapRevision=data.revision,observationsSha256=data.sha256,
+    receivedAt=r['receivedAt'],expiresAt=r['receivedAt']+3.)
+CHANGE
+send(reply)
+time.sleep(20)
+'''.replace('CHANGE', change)
+            with self.subTest(change=change):
+                self.fake(service, program)
+                try:
+                    with self.assertRaises(ValueError):
+                        service.update(observations(), sequence=0, received_at=time.monotonic())
+                    self.assertEqual('failed', service.state)
+                    self.assertTrue(service.cleanup_complete)
+                finally:
+                    service.close()
+
     def test_abrupt_owner_death_kills_worker_even_when_worker_is_not_reading(self):
         environment = {**os.environ, 'PYTHONPATH': str(ROOT / 'robot-navigation')}
         program = ('import os,sys,time; from lingxi_navigation.terrain_worker import bind_parent; '
@@ -387,6 +419,28 @@ class NativeProcessTests(unittest.TestCase):
         data = replace(self.data, scans=tuple(replace(s, stamp=s.stamp+5) for s in self.data.scans))
         self.assertIsNotNone(self.service.update(data, sequence=2, received_at=time.monotonic()))
         self.assertEqual(pid, self.service.process.pid)
+
+    def test_bad_ground_window_then_fresh_native_window_recovers_same_child(self):
+        first = self.service.update(self.data, sequence=0, received_at=time.monotonic())
+        self.assertGreater(first.costs.count(0), 0)
+        pid = self.service.process.pid
+        bad = replace(self.data, scans=tuple(replace(scan, stamp=scan.stamp+5., returns=tuple(
+            replace(ray, origin_metres=(*ray.origin_metres[:2], ray.origin_metres[2]+.2))
+            for ray in scan.returns)) for scan in self.data.scans))
+        received = time.monotonic()
+        self.assertIsNone(self.service.update(bad, sequence=1, received_at=received))
+        self.assertIsNone(self.service.current())
+        self.assertIsNone(self.service.summary)
+        self.assertEqual('ready', self.service.state)
+        self.assertEqual('ground_frame_mismatch', self.service.failure)
+        self.assertIsNone(self.service.update(bad, sequence=2, received_at=time.monotonic()))
+        self.assertEqual(received, self.service.capture_received)
+        good = replace(self.data, scans=tuple(replace(s, stamp=s.stamp+10.) for s in self.data.scans))
+        result = self.service.update(good, sequence=3, received_at=time.monotonic())
+        self.assertGreater(result.costs.count(0), 0)
+        self.assertIsNone(self.service.failure)
+        self.assertEqual(pid, self.service.process.pid)
+        self.assertIsNone(self.service.process.poll())
 
 
 if __name__ == '__main__':

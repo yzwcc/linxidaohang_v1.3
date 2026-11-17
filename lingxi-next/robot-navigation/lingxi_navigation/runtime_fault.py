@@ -37,6 +37,8 @@ _DIAGNOSTIC_LIMITS = {
     'clearance_occupied_cells': (0, 1048576),
     'input_age_ms_at_completion': (0, 300000),
     'processing_elapsed_ms': (0, 15000),
+    'ground_height_error_metres': (0, 1000),
+    'ground_origin_span_metres': (0, 1000),
 }
 
 

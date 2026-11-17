@@ -313,6 +313,7 @@ class CompositionTests(SettingsFixture, unittest.TestCase):
                 def cleanup_complete(self):
                     return self.closed
             def process(**kwargs):
+                case.assertEqual('declared', kwargs['declaration'].sensor_height_source)
                 case.process = Process(case.release, case.terrain_calls)
                 return case.process
             self.contexts.enter_context(patch.object(live, 'TerrainProcess', side_effect=process))
@@ -445,6 +446,8 @@ class CompositionTests(SettingsFixture, unittest.TestCase):
             def cleanup_complete(self):
                 return self.closed
         def process(**kwargs):
+            case.assertEqual('registered_scan_origin', kwargs['declaration'].sensor_height_source)
+            case.assertEqual(0., kwargs['declaration'].ground_z_metres)
             case.process = Process(case.release, case.terrain_calls)
             return case.process
         with patch.object(live, 'TerrainProcess', side_effect=process):

@@ -192,6 +192,7 @@ class TerrainProcess:
             capture = (observations.scans[-1].stamp, observations.scans[-1].source_sha256)
             effective = min(received_at, self.capture_received) if capture == self.capture else received_at
             self.capture, self.capture_received, self.sequence = capture, effective, sequence
+            self.failure = None
             expires = effective + self.budget.maximum_age_seconds
             processing_deadline = now + self.budget.maximum_processing_seconds
             # Consume the reply even if its acquisition expires during IO. The
@@ -209,22 +210,31 @@ class TerrainProcess:
                 diagnostics=diagnostics, age_deadline=expires, processing_deadline=processing_deadline,
                 effective_received_at=effective, received_at=received_at)
             phase = 'terrain_process_validate'
-            if reply.get('kind') == 'expired':
-                if (set(reply) != {'version', 'kind', 'session', 'sequence', 'mapRevision',
-                                   'observationsSha256', 'receivedAt', 'expiresAt'}
+            if reply.get('kind') in ('expired', 'rejected'):
+                rejected = reply['kind'] == 'rejected'
+                fields = {'version', 'kind', 'session', 'sequence', 'mapRevision',
+                          'observationsSha256', 'receivedAt', 'expiresAt'}
+                if rejected:
+                    fields.add('reason')
+                if (set(reply) != fields
+                        or rejected and reply['reason'] != 'ground_frame_mismatch'
                         or type(reply['sequence']) is not int or reply['sequence'] != sequence
                         or type(reply['mapRevision']) is not int or reply['mapRevision'] != observations.revision
                         or reply['observationsSha256'] != observations.sha256
                         or reply['receivedAt'] != effective or reply['expiresAt'] != expires):
-                    raise ValueError('current_source_bound_expired_terrain_reply_required')
+                    raise ValueError('current_source_bound_empty_terrain_reply_required')
                 completed = self._now()
                 if completed >= processing_deadline:
                     raise TimeoutError('terrain_processing_deadline_exceeded_before_publication')
+                if rejected:
+                    self.failure = 'ground_frame_mismatch'
+                    return None
                 if completed < expires:
                     raise ValueError('terrain_expiry_before_original_deadline')
                 if self.last_expiry_diagnostic is None or completed - self.last_expiry_diagnostic >= 5.:
                     self.last_expiry_diagnostic = completed
                     record_fault('terrain_process_expired', code='terrain_expired', diagnostics=diagnostics)
+                self.failure = 'terrain_expired'
                 return None
             summary = reply.get('summary', {})
             costs = base64.b64decode(reply['costs'], validate=True)
@@ -248,6 +258,7 @@ class TerrainProcess:
             if completed >= processing_deadline:
                 raise TimeoutError('terrain_processing_deadline_exceeded_before_publication')
             if completed >= expires:
+                self.failure = 'terrain_expired'
                 return None
             self.grid, self.summary = result, summary
             return result
