@@ -41,15 +41,16 @@ class RegisteredRayWindow:
     """
 
     def __init__(self, binding, generation, geometry, *, projection, budget=TerrainBudget(),
-                 selection=RaySelection(), clock=time.monotonic):
+                 selection=RaySelection(), clock=time.monotonic, prefer_local_returns=False):
         if (type(binding) is not LocalizationBinding or type(generation) is not int
                 or not 0 <= generation < 2**53 - 1 or type(geometry) is not OfflineGeometry
                 or type(projection) is not ClearanceProjection
                 or type(budget) is not TerrainBudget or type(selection) is not RaySelection
-                or not callable(clock)):
+                or not callable(clock) or type(prefer_local_returns) is not bool):
             raise ValueError('explicit_registered_window_binding_and_offline_geometry_required')
         self.binding, self.generation, self.geometry = binding, generation, geometry
         self.projection, self.budget, self.selection, self.clock = projection, budget, selection, clock
+        self.prefer_local_returns = prefer_local_returns
         self.owner, self.frames = threading.get_ident(), []
         self.frame_work = []
         self.fixed_work = projection.width * projection.height * round(
@@ -74,6 +75,26 @@ class RegisteredRayWindow:
         # Charge ALL measured pairs even when an explicit offline selection is used.
         return int(np.sum(np.ceil(np.sqrt(3.) * np.minimum(lengths,
             self.projection.maximum_range_metres) / self.projection.resolution_metres) + 5))
+
+    def _indices(self, frame):
+        indices = self.selection.indices(len(frame.origins), len(self.frames))
+        if not self.prefer_local_returns or len(indices) == len(frame.origins):
+            return indices
+        # Spend three quarters of the existing budget on local endpoints, while
+        # retaining distant measured rays that clear air inside the local grid.
+        # Rotate differences into the declared gravity frame; translation cancels.
+        rotation = np.array(self.geometry.declared_from_raw).reshape(4, 4)[:3, :3]
+        delta = ((frame.endpoints - frame.origins) * self.geometry.metres_per_raw_unit) @ rotation.T
+        local = np.sum(delta[:, :2] ** 2, axis=1) <= self.projection.maximum_range_metres ** 2
+        groups = (np.flatnonzero(local), np.flatnonzero(~local))
+        nearby = min(len(groups[0]), 3 * len(indices) // 4)
+        distant = min(len(groups[1]), len(indices) - nearby)
+        nearby = min(len(groups[0]), len(indices) - distant)
+        selected = []
+        for group, count in zip(groups, (nearby, distant)):
+            if count:
+                selected.append(group[(2 * np.arange(count, dtype=np.int64) + 1) * len(group) // (2 * count)])
+        return np.sort(np.concatenate(selected))
 
     def offer(self, packet, *, materialize=True):
         if threading.get_ident() != self.owner:
@@ -131,9 +152,12 @@ class RegisteredRayWindow:
         if not materialize:
             return None
         digest = hashlib.sha256(canonical(asdict(self.selection)))
+        if self.prefer_local_returns:
+            digest.update(canonical(dict(policy='local_endpoints_three_quarters_v1',
+                horizontalRangeMetres=self.projection.maximum_range_metres)))
         scans = []
         for ordinal, frame in enumerate(self.frames):
-            indices = self.selection.indices(len(frame.origins), len(self.frames))
+            indices = self._indices(frame)
             digest.update(canonical(dict(frameId=frame.native_frame_id, source=frame.source_sha256,
                 receivedAt=frame.received_at, originalReturns=len(frame.origins))))
             digest.update(indices.astype('<u8').tobytes())

@@ -204,8 +204,8 @@ class AcquisitionComposition:
         self.pending_terrain = None
         self.terrain_budget = (TerrainBudget(maximum_scans=2, maximum_span_seconds=.2, maximum_processing_seconds=.4,
             maximum_age_seconds=SAVED_MAP_TERRAIN_MAXIMUM_AGE_SECONDS) if settings.saved_map_terrain else TerrainBudget())
-        # Keep the full scan for localization. Bound only terrain's uniformly
-        # sampled measured ray pairs within the bounded original-input age limit.
+        # Keep the full scan for localization. Bound terrain's measured ray pairs;
+        # the saved-map window prioritizes local endpoints and retains distant rays.
         # Retain two recent scans so the ground declaration's repeated-observation
         # requirement can be satisfied without restoring the larger ray workload.
         self.terrain_selection = RaySelection(maximum_per_scan=1024) if settings.saved_map_terrain else RaySelection()

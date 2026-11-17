@@ -47,6 +47,13 @@ int lingxi_ground_segment(const double* xyz, std::size_t count, double height,
     }
     patchwork::Params parameters;
     parameters.sensor_height = height;
+    // A 1024-return terrain scan cannot populate the upstream 504 patches.
+    // Coarsen sparse scans while retaining the minimum plane evidence and all
+    // slope/height checks. Dense offline scans keep the upstream partitioning.
+    if (count <= 2048) {
+      parameters.num_sectors_each_zone = {8, 8, 8, 8};
+      parameters.num_rings_each_zone = {1, 1, 1, 1};
+    }
     parameters.min_range = minimum_range;
     parameters.max_range = maximum_range;
     parameters.enable_RNR = false;  // No fabricated intensity for XYZ-only scans.

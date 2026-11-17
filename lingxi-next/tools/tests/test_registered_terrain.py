@@ -111,6 +111,46 @@ class WindowTests(unittest.TestCase):
         self.assertNotEqual(value.observations.selection_sha256,
             self.window().offer(original).observations.selection_sha256)
 
+    def test_local_selection_retains_measured_nearby_and_distant_pairs_with_identity(self):
+        candidate = packet(1, count=120)
+        # Unique origins make any mismatched endpoint/origin selection observable.
+        origins = np.column_stack((np.arange(120) / 1000., np.zeros(120), np.full(120, .6)))
+        delta = np.column_stack((np.r_[np.full(40, 1.), np.full(80, 19.)],
+                                np.zeros(120), np.full(120, -.6)))
+        candidate = replace(candidate, origins=readonly(origins), endpoints=readonly(origins + delta))
+        window = self.window(selection=RaySelection(maximum_per_scan=16), prefer_local_returns=True)
+        result = window.offer(candidate)
+        rays = result.observations.scans[0].returns
+        self.assertEqual((120, 16), (result.source_returns, result.selected_returns))
+        self.assertEqual(12, sum(ray.endpoint_metres[0] - ray.origin_metres[0] < 2 for ray in rays))
+        for ray in rays:
+            index = round(ray.origin_metres[0] * 1000)
+            np.testing.assert_array_equal(ray.endpoint_metres, candidate.endpoints[index])
+        self.assertEqual(16, len({ray.origin_metres for ray in rays}))
+        self.assertEqual(candidate.received_at, result.received_at)
+        uniform = self.window(selection=RaySelection(maximum_per_scan=16)).offer(candidate)
+        self.assertEqual(uniform.projection_work_units, result.projection_work_units)
+        self.assertNotEqual(uniform.observations.selection_sha256, result.observations.selection_sha256)
+        # When either stratum is empty, the other fills the original budget.
+        for offset in (1., 19.):
+            adjusted = replace(candidate, endpoints=readonly(origins + [offset, 0., -.6]))
+            result = self.window(selection=RaySelection(maximum_per_scan=16), prefer_local_returns=True).offer(adjusted)
+            self.assertEqual(16, result.selected_returns)
+            self.assertEqual(16, len(set(result.observations.scans[0].returns)))
+
+    def test_local_selection_uses_scaled_gravity_frame_before_horizontal_range(self):
+        candidate = packet(1, count=40)
+        transform = np.eye(4)
+        transform[:3, :3] = [[0., 0., 1.], [0., 1., 0.], [-1., 0., 0.]]
+        transform[:3, 3] = [20., -10., 2.]
+        delta = np.column_stack((np.zeros(40), np.zeros(40), np.r_[np.ones(20), np.full(20, 8.)]))
+        candidate = replace(candidate, endpoints=readonly(candidate.origins + delta))
+        geo = OfflineGeometry(2., tuple(map(float, transform.ravel())))
+        window = RegisteredRayWindow(BINDING, 1, geo, projection=replace(spec(), maximum_range_metres=4.5),
+            selection=RaySelection(maximum_per_scan=8), clock=lambda: self.now, prefer_local_returns=True)
+        rays = window.offer(candidate).observations.scans[0].returns
+        self.assertEqual(6, sum(abs(ray.endpoint_metres[0] - ray.origin_metres[0]) < 4.5 for ray in rays))
+
     def test_two_scan_window_evicts_oldest_without_renewing_receipt(self):
         window = self.window(budget=TerrainBudget(maximum_scans=2, maximum_age_seconds=.3))
         first = packet(1)

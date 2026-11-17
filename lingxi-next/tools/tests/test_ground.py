@@ -201,6 +201,13 @@ class NativeGroundTests(unittest.TestCase):
         self.assertGreater(first.labels.count(0), 1000)
         self.native.segment(tuple((x, y, z + .5) for x, y, z in points), self.declaration)
         self.assertEqual(first, self.native.segment(points, self.declaration))
+        # A bounded scan with a small floor patch and taller returns must still
+        # identify the floor; dense-only fixtures hid sparse partition starvation.
+        floor = tuple((1. + .025 * i, -.4 + .025 * j, -.6) for i in range(16) for j in range(16))
+        wall = tuple((2., -.5 + .01 * (i % 100), -.3 + .05 * (i // 100)) for i in range(768))
+        sparse = self.native.segment(floor + wall, self.declaration)
+        self.assertGreater(sparse.labels[:len(floor)].count(0), 100)
+        self.assertNotIn(0, sparse.labels[len(floor):])
 
     def test_actual_ground_core_candidate_support_not_metric_costmap(self):
         points = tuple((x, y, z + .6) for x, y, z in floor_points())

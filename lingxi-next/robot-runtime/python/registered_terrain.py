@@ -155,7 +155,8 @@ class RegisteredTerrainSource:
                 if self.window is None:
                     self.generation = packet.generation
                     self.window = RegisteredRayWindow(packet.binding, packet.generation, self.geometry,
-                        projection=self.projection, budget=self.budget, selection=self.selection, clock=self.session.clock)
+                        projection=self.projection, budget=self.budget, selection=self.selection, clock=self.session.clock,
+                        prefer_local_returns=self.saved_map)
                 # Retain measured pairs while busy; only build a submission when the lane is ready.
                 # Leave a completed result observable between submissions. Every
                 # original scan still enters the bounded window while coalescing.
