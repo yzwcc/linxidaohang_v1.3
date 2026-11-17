@@ -1,0 +1,191 @@
+{
+  "schemaVersion": 1,
+  "result": "deployed_terrain_handoff_with_passive_observation",
+  "sourceBaseCommit": "350f158",
+  "release": "0.1.50-terrain-handoff-20261117-g350f158-u",
+  "previousRelease": "0.1.50-local-terrain-20261117-g9323a93-t",
+  "sourceSha256": {
+    "robot-runtime/python/registered_terrain.py": "1e5eec66bc773056dfaaacdc93c36beb1e3dcd40478fa45fef5f755f762ca85f"
+  },
+  "originalDeadlinesPreserved": true,
+  "nativeTrialReused": true,
+  "settingsChanged": false,
+  "checks": {
+    "savedMapTerrain": {
+      "run": 15,
+      "passed": 15,
+      "skipped": 0
+    },
+    "registeredTerrain": {
+      "run": 39,
+      "passed": 37,
+      "skipped": 2
+    },
+    "liveAcquisition": {
+      "run": 39,
+      "passed": 39,
+      "skipped": 0
+    },
+    "builtProfiles": [
+      "slam",
+      "mapping"
+    ]
+  },
+  "preSwitchFailure": {
+    "state": "lost",
+    "reason": "corrected_point_stream_expired",
+    "switchedBeforeFailure": false,
+    "causeEstablished": false
+  },
+  "recovery": {
+    "seedSource": "prior_tracking_estimate",
+    "samples": 37,
+    "distinctAvailableFrames": 37,
+    "unavailableSamples": 0
+  },
+  "passiveObservation": {
+    "secondsEach": 6,
+    "before": {
+      "inputsAvailable": false,
+      "namespace": "lingxi_offline_16ecf12b1731dda2f43b4f5192347862",
+      "samples": 122,
+      "withFree": 30,
+      "withOccupied": 40,
+      "last": {
+        "free": 18,
+        "occupied": 114,
+        "unknown": 9084,
+        "stamp": 1794911299415746000,
+        "frame": "lingxi_saved_map",
+        "width": 96,
+        "height": 96,
+        "resolution": 0.10000000149011612,
+        "origin": [
+          -4.8,
+          -4.8
+        ]
+      },
+      "maximumFree": 19,
+      "distinctStamps": 101,
+      "motionCommandsSent": false
+    },
+    "after": {
+      "inputsAvailable": false,
+      "namespace": "lingxi_offline_a0d7c753d141c323ec82aa4ec95aed72",
+      "samples": 120,
+      "withFree": 57,
+      "withOccupied": 63,
+      "last": {
+        "free": 14,
+        "occupied": 123,
+        "unknown": 9079,
+        "stamp": 1794911483815462000,
+        "frame": "lingxi_saved_map",
+        "width": 96,
+        "height": 96,
+        "resolution": 0.10000000149011612,
+        "origin": [
+          -4.8,
+          -4.8
+        ]
+      },
+      "maximumFree": 18,
+      "distinctStamps": 74,
+      "motionCommandsSent": false
+    }
+  },
+  "finalState": {
+    "state": "tracking",
+    "reason": "diagnostic_quality_only",
+    "lastFrame": 486,
+    "basePoseStatus": "available",
+    "localizationReady": false,
+    "navigationReady": false
+  },
+  "candidateDiagnostics": [
+    {
+      "scan_count": 2,
+      "ray_count": 2048,
+      "ground_returns": 398,
+      "nonground_returns": 1650,
+      "unclassified_returns": 0,
+      "support_free_cells": 32,
+      "support_occupied_cells": 109,
+      "clearance_free_cells": 152,
+      "clearance_occupied_cells": 105,
+      "free_cells": 14,
+      "occupied_cells": 109,
+      "input_age_ms_at_completion": 539.29,
+      "processing_elapsed_ms": 81.627
+    },
+    {
+      "scan_count": 2,
+      "ray_count": 2048,
+      "ground_returns": 381,
+      "nonground_returns": 1667,
+      "unclassified_returns": 0,
+      "support_free_cells": 22,
+      "support_occupied_cells": 110,
+      "clearance_free_cells": 149,
+      "clearance_occupied_cells": 103,
+      "free_cells": 14,
+      "occupied_cells": 110,
+      "input_age_ms_at_completion": 493.728,
+      "processing_elapsed_ms": 61.557
+    },
+    {
+      "scan_count": 2,
+      "ray_count": 2048,
+      "ground_returns": 394,
+      "nonground_returns": 1654,
+      "unclassified_returns": 0,
+      "support_free_cells": 20,
+      "support_occupied_cells": 111,
+      "clearance_free_cells": 134,
+      "clearance_occupied_cells": 105,
+      "free_cells": 14,
+      "occupied_cells": 111,
+      "input_age_ms_at_completion": 494.291,
+      "processing_elapsed_ms": 58.451
+    },
+    {
+      "scan_count": 2,
+      "ray_count": 2048,
+      "ground_returns": 393,
+      "nonground_returns": 1655,
+      "unclassified_returns": 0,
+      "support_free_cells": 30,
+      "support_occupied_cells": 113,
+      "clearance_free_cells": 141,
+      "clearance_occupied_cells": 109,
+      "free_cells": 20,
+      "occupied_cells": 113,
+      "input_age_ms_at_completion": 687.817,
+      "processing_elapsed_ms": 72.394
+    },
+    {
+      "scan_count": 2,
+      "ray_count": 2048,
+      "ground_returns": 393,
+      "nonground_returns": 1655,
+      "unclassified_returns": 0,
+      "support_free_cells": 31,
+      "support_occupied_cells": 123,
+      "clearance_free_cells": 146,
+      "clearance_occupied_cells": 116,
+      "free_cells": 14,
+      "occupied_cells": 123,
+      "input_age_ms_at_completion": 475.663,
+      "processing_elapsed_ms": 92.494
+    }
+  ],
+  "otherFaults": [],
+  "motionCommandsSent": false,
+  "limitations": [
+    "Short sequential stationary samples are not a controlled benchmark",
+    "Free cells remain sparse; no continuous planning region established",
+    "Some original scan timestamps expire before publication",
+    "Localization loss in previous release has not been root-caused",
+    "No moving localization, avoidance or goal-navigation acceptance"
+  ]
+}

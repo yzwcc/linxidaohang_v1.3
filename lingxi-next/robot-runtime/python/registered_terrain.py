@@ -46,6 +46,7 @@ class RegisteredTerrainSource:
             raise ValueError('same_saved_map_scale_frame_geometry_and_fresh_window_required')
         self.saved_map, self.scan_stamps = saved_map, {}
         self.submitted_stamps = self.annotated_grid = self.raw_grid = None
+        self.visible_grid = None
         state = lane.snapshot()
         if state.grid is not None or lane.last_sequence != -1 or state.state not in ('starting', 'ready'):
             raise ValueError('new_exclusive_registered_terrain_lane_required')
@@ -79,6 +80,7 @@ class RegisteredTerrainSource:
                 self.submitted = self.submitted_sha256 = self.submitted_epoch_sha256 = None
                 self.scan_stamps.clear()
                 self.submitted_stamps = self.annotated_grid = self.raw_grid = None
+                self.visible_grid = None
                 if self.window is not None:
                     self.window.clear()
                 self.lane.withdraw('registered_localization_recovering')
@@ -93,6 +95,7 @@ class RegisteredTerrainSource:
             self.submitted = None
             self.scan_stamps.clear()
             self.submitted_stamps = self.annotated_grid = self.raw_grid = None
+            self.visible_grid = None
             if self.window is not None:
                 self.window.clear()
             self.lane.retire(reason)
@@ -105,6 +108,7 @@ class RegisteredTerrainSource:
         self.submitted = None
         self.submitted_sha256 = self.submitted_epoch_sha256 = None
         self.submitted_stamps = self.annotated_grid = self.raw_grid = None
+        self.visible_grid = None
         self.lane.withdraw('registered_input_expired')
 
     def retire(self, reason='registered_source_revoked'):
@@ -222,7 +226,17 @@ class RegisteredTerrainSource:
                             self.annotated_grid = replace(grid, coordinate_frame='lingxi_saved_map',
                                 oldest_scan_ns=oldest, latest_scan_ns=latest)
                             self.raw_grid = grid
+                        self.visible_grid = self.annotated_grid
                         return replace(result, grid=self.annotated_grid)
+                elif (self.saved_map and not self.retired and result.state == 'busy'
+                        and result.failure == 'terrain_pending' and self.visible_grid is not None):
+                    # A new job does not invalidate a previously validated grid in
+                    # this same localization generation. Keep its original scan
+                    # stamps and deadline; withdrawal and loss clear it immediately.
+                    grid = self.visible_grid
+                    if grid.session == result.session and self.session.clock() < grid.expires_at:
+                        return replace(result, grid=grid, failure=None)
+                    self.visible_grid = None
                 return replace(result, grid=None) if self.retired else result
             except BaseException as error:
                 record_fault('registered_terrain_snapshot', error, started_at=started, code='registered_localization_unavailable')

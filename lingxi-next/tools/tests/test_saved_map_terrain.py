@@ -55,7 +55,8 @@ class SavedMapTerrainFixture:
         return packet, timing, accepted
 
     def result(self):
-        wait_for(lambda: self.source.snapshot().grid is not None)
+        wait_for(lambda: (grid := self.source.snapshot().grid) is not None
+            and grid.sequence == self.source.submitted.observations.revision)
         return self.source.snapshot().grid
 
 
@@ -142,6 +143,51 @@ class SavedMapTerrainTests(SavedMapTerrainFixture, SyntheticLiveFixture, unittes
         self.session.phase = 'tracking'
         self.assertIsNone(self.source.snapshot().grid)
         self.assertTrue(self.source.retired)
+
+    def test_previous_grid_survives_next_computation_only_until_its_original_deadline(self):
+        self.terrain()
+        _, first, _ = self.scan()
+        old = self.result()
+        self.release.clear()
+        self.addCleanup(self.release.set)
+        _, second, accepted = self.scan(2, first.effective_ns + 100_000_000)
+        self.assertTrue(accepted)
+        wait_for(lambda: self.calls.count('update') == 2)
+        self.assertIsNone(self.lane.snapshot().grid)
+        snapshot = self.source.snapshot()
+        self.assertEqual('busy', snapshot.state)
+        self.assertIsNone(snapshot.failure)
+        self.assertIs(old, snapshot.grid)
+        self.assertEqual(first.effective_ns, snapshot.grid.latest_scan_ns)
+        self.assertEqual(old.received_at + .8, snapshot.grid.expires_at)
+        # Expire only the cached fixture, keeping localization's independent
+        # freshness clock valid while the replacement remains blocked.
+        self.source.visible_grid = replace(old, expires_at=old.received_at + .000001)
+        self.assertIsNone(self.source.snapshot().grid)
+        self.assertIsNone(self.source.visible_grid)
+        self.assertFalse(self.source.retired)
+        self.release.set()
+        new = self.result()
+        self.assertEqual(second.effective_ns, new.latest_scan_ns)
+        self.assertGreater(new.sequence, old.sequence)
+
+    def test_retry_discards_visible_grid_and_late_replacement(self):
+        self.terrain()
+        _, first, _ = self.scan()
+        self.result()
+        self.release.clear()
+        self.addCleanup(self.release.set)
+        self.scan(2, first.effective_ns + 100_000_000)
+        wait_for(lambda: self.calls.count('update') == 2)
+        self.assertIsNotNone(self.source.snapshot().grid)
+        self.session.phase, self.session.reason = 'acquiring', 'registration_retry_after_rejection'
+        self.assertIsNone(self.source.snapshot().grid)
+        self.release.set()
+        wait_for(lambda: self.lane.snapshot().state == 'ready')
+        self.session.phase, self.session.reason = 'tracking', 'diagnostic_quality_only'
+        self.assertIsNone(self.source.snapshot().grid)
+        self.scan(3, first.effective_ns + 200_000_000)
+        self.assertEqual(3, self.result().sequence)
 
     def test_retry_clears_old_scan_window_and_preserves_original_timestamp_watermark(self):
         self.terrain()
