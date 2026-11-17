@@ -5,9 +5,10 @@
   "sourceBaseCommit": "155ff39",
   "change": {
     "savedMapTerrainReturnsPerScan": 4096,
+    "sourceDefaultAfterFieldResult": 1024,
     "localizationPointCloud": "unchanged_full_cloud",
     "manufacturerChestLidarTranslationZMetres": 0.336658,
-    "manufacturerSensorHeightMetres": 0.9845569899873013,
+    "declaredSensorHeightMetres": 0.9845569899873013,
     "measuredCurrentSensorHeightMetresApprox": 0.959,
     "heightDifferenceMetresApprox": 0.026,
     "robotPosture": "standing_confirmed"
@@ -17,7 +18,13 @@
     "testsRun": 192,
     "passed": 189,
     "skipped": 3,
-    "slamAndMappingAssetsBuilt": true
+    "slamAndMappingCandidateAssetsBuilt": true,
+    "restoredSourceRegression": {
+      "testsRun": 192,
+      "passed": 189,
+      "skipped": 3,
+      "seconds": 31.069
+    }
   },
   "field": {
     "testedCandidate": "0.1.50-terrain-density-20261117-g155ff39-s",
@@ -28,7 +35,8 @@
       "queueAgeSeconds": 0.500282,
       "queuedImuSamples": 126,
       "queuedClouds": 5,
-      "cause": "4096-point saved-map terrain sampling increased CPU load and delayed GLIM sensor consumption"
+      "observedFailure": "GLIM sensor callback queue exceeded its age limit during the 4096-point candidate run",
+      "suspectedContributor": "Additional terrain CPU workload; causality has not been isolated from other real-time load"
     },
     "restoredPreviousRelease": "0.1.50-terrain-cadence-20261116-gdc822e2-r",
     "localizationStateAfterRestore": "tracking",
@@ -69,7 +77,7 @@
     },
     "motionCommandsSent": false
   },
-  "result": "4096-point candidate finds additional floor returns but produces no free cells and overloads the GLIM input queue; reverted to r, where static tracking resumed. Navigation is not ready.",
+  "result": "4096-point candidate finds additional floor returns but produces no free cells; its run then fails at the GLIM input queue age limit. Reverted runtime and source sampling to 1024, where static tracking resumed. Navigation is not ready.",
   "remaining": [
     "Keep terrain CPU work from starving GLIM sensor consumption while producing sufficiently supported fresh cells.",
     "Produce usable fresh traversable cells and confirm the robot receives them before changing navigation readiness.",
