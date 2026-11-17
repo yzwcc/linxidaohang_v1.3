@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "capturedAt": "2026-11-17T09:01:43Z",
-  "release": "0.1.50-terrain-density-20261117-g155ff39-s",
+  "capturedAt": "2026-11-17T09:08:09Z",
+  "release": "0.1.50-terrain-cadence-20261116-gdc822e2-r",
   "sourceBaseCommit": "155ff39",
   "change": {
     "savedMapTerrainReturnsPerScan": 4096,
@@ -20,19 +20,31 @@
     "slamAndMappingAssetsBuilt": true
   },
   "field": {
-    "localizationState": "tracking",
-    "basePoseAvailableSamples": 61,
-    "samples": 61,
+    "testedCandidate": "0.1.50-terrain-density-20261117-g155ff39-s",
+    "candidateTrackingSamplesBeforeFailure": 61,
+    "candidateFailure": {
+      "code": "child_reported_failure",
+      "sensorWorkerFault": "callback_queue_age_exceeded",
+      "queueAgeSeconds": 0.500282,
+      "queuedImuSamples": 126,
+      "queuedClouds": 5,
+      "cause": "4096-point saved-map terrain sampling increased CPU load and delayed GLIM sensor consumption"
+    },
+    "restoredPreviousRelease": "0.1.50-terrain-cadence-20261116-gdc822e2-r",
+    "localizationStateAfterRestore": "tracking",
+    "basePoseAvailableSamplesAfterRestore": 54,
+    "samplesAfterRestore": 54,
+    "distinctFramesAfterRestore": 54,
     "localizationReady": false,
     "navigationReady": false,
-    "terrainGroundReturnsPerScanObserved": "4-35",
-    "terrainSupportFreeCellsObserved": 0,
-    "terrainFusedFreeCellsObserved": 0,
-    "terrainProcessingMillisecondsObserved": "83-158",
-    "oldestInputAgeMillisecondsAtCompletionObserved": "698-798",
-    "rosTerrainMessages": 29,
-    "rosMessagesWithFreeCells": 0,
-    "rosLastGrid": {
+    "candidateTerrainGroundReturnsPerScanObserved": "4-38",
+    "candidateTerrainSupportFreeCellsObserved": 0,
+    "candidateTerrainFusedFreeCellsObserved": 0,
+    "candidateTerrainProcessingMillisecondsObserved": "84-191",
+    "candidateOldestInputAgeMillisecondsAtCompletionObserved": "307-869",
+    "candidateRosTerrainMessages": 29,
+    "candidateRosMessagesWithFreeCells": 0,
+    "candidateRosLastGrid": {
       "frame": "lingxi_saved_map",
       "width": 96,
       "height": 96,
@@ -41,11 +53,25 @@
       "occupiedCells": 0,
       "unknownCells": 9216
     },
+    "latestPassiveRecheckAfterRestore": {
+      "runtimePhase": "running",
+      "localizationState": "tracking",
+      "lastFrame": 965,
+      "basePoseStatus": "available",
+      "localizationReady": false,
+      "navigationReady": false,
+      "currentTerrainFreeCells": 0,
+      "currentTerrainOccupiedCells": 62,
+      "currentTerrainUnknownCells": 9154,
+      "latestTerrainInputAgeMilliseconds": 629,
+      "oldestTerrainInputAgeMilliseconds": 729,
+      "motionCommandsSent": false
+    },
     "motionCommandsSent": false
   },
-  "result": "Higher sampling finds some floor returns, but live support and fused grids remain all unknown. Static localization is stable; navigation is not ready.",
+  "result": "4096-point candidate finds additional floor returns but produces no free cells and overloads the GLIM input queue; reverted to r, where static tracking resumed. Navigation is not ready.",
   "remaining": [
-    "Explain sparse per-scan ground support and single-scan terrain batches under the 0.8 second freshness limit.",
+    "Keep terrain CPU work from starving GLIM sensor consumption while producing sufficiently supported fresh cells.",
     "Produce usable fresh traversable cells and confirm the robot receives them before changing navigation readiness.",
     "Complete moving localization, obstacle avoidance and navigation acceptance."
   ]
