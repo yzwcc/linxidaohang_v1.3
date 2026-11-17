@@ -208,7 +208,7 @@ class AcquisitionComposition:
         # sampled measured ray pairs within the bounded original-input age limit.
         # Retain two recent scans so the ground declaration's repeated-observation
         # requirement can be satisfied without restoring the larger ray workload.
-        self.terrain_selection = RaySelection(maximum_per_scan=1024) if settings.saved_map_terrain else RaySelection()
+        self.terrain_selection = RaySelection(maximum_per_scan=4096) if settings.saved_map_terrain else RaySelection()
         self.localization_ros_output = None
         if settings.localization_ros_output:
             from live_localization_ros import LiveLocalizationRosOutput

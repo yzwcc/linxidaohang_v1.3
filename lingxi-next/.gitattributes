@@ -2,6 +2,10 @@
 *.py text eol=lf
 *.service text eol=lf
 *.example text eol=lf
+tools/glim-*/** text eol=lf
+tools/terrain-arm64/** text eol=lf
+robot-slam/native-*/** text eol=lf
+robot-navigation/native-*/** text eol=lf
 tools/glim-preprocess/*.cpp text eol=lf
 tools/glim-preprocess/CMakeLists.txt text eol=lf
 docs/slam-preprocess-repeatability-evidence.json text eol=lf

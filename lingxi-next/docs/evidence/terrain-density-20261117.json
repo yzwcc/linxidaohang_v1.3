@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-11-17T09:01:43Z",
+  "release": "0.1.50-terrain-density-20261117-g155ff39-s",
+  "sourceBaseCommit": "155ff39",
+  "change": {
+    "savedMapTerrainReturnsPerScan": 4096,
+    "localizationPointCloud": "unchanged_full_cloud",
+    "manufacturerChestLidarTranslationZMetres": 0.336658,
+    "manufacturerSensorHeightMetres": 0.9845569899873013,
+    "measuredCurrentSensorHeightMetresApprox": 0.959,
+    "heightDifferenceMetresApprox": 0.026,
+    "robotPosture": "standing_confirmed"
+  },
+  "targetValidation": {
+    "platform": "Linux ARM64 robot",
+    "testsRun": 192,
+    "passed": 189,
+    "skipped": 3,
+    "slamAndMappingAssetsBuilt": true
+  },
+  "field": {
+    "localizationState": "tracking",
+    "basePoseAvailableSamples": 61,
+    "samples": 61,
+    "localizationReady": false,
+    "navigationReady": false,
+    "terrainGroundReturnsPerScanObserved": "4-35",
+    "terrainSupportFreeCellsObserved": 0,
+    "terrainFusedFreeCellsObserved": 0,
+    "terrainProcessingMillisecondsObserved": "83-158",
+    "oldestInputAgeMillisecondsAtCompletionObserved": "698-798",
+    "rosTerrainMessages": 29,
+    "rosMessagesWithFreeCells": 0,
+    "rosLastGrid": {
+      "frame": "lingxi_saved_map",
+      "width": 96,
+      "height": 96,
+      "resolutionMetres": 0.1,
+      "freeCells": 0,
+      "occupiedCells": 0,
+      "unknownCells": 9216
+    },
+    "motionCommandsSent": false
+  },
+  "result": "Higher sampling finds some floor returns, but live support and fused grids remain all unknown. Static localization is stable; navigation is not ready.",
+  "remaining": [
+    "Explain sparse per-scan ground support and single-scan terrain batches under the 0.8 second freshness limit.",
+    "Produce usable fresh traversable cells and confirm the robot receives them before changing navigation readiness.",
+    "Complete moving localization, obstacle avoidance and navigation acceptance."
+  ]
+}
