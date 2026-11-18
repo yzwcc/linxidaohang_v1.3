@@ -102,12 +102,16 @@ class ObservationArchiveTests(unittest.TestCase):
             quaternions = rotations.as_quat()
             quaternions[::2] *= -1
             trajectory = np.column_stack((times, rng.normal(size=(24, 3)), quaternions))
-            from lingxi_slam.observation_archive import acquisition_rotations
+            from lingxi_slam.observation_archive import acquisition_rotations, acquisition_rays
             # Include every key, repeated first/last returns and interior samples.
             returns = np.sort(np.r_[times, times[0], times[-1], rng.uniform(times[0], times[-1], 7100)])
             actual = acquisition_rotations(trajectory, returns)
             expected = Slerp(times, rotations)(returns).as_matrix()
             np.testing.assert_allclose(actual, expected, rtol=0, atol=3e-15)
+            origin, vectors = rng.normal(size=3), rng.normal(size=(len(returns), 3))
+            origins, endpoints = acquisition_rays(trajectory, returns, origin, vectors)
+            np.testing.assert_allclose(origins, np.einsum('nij,j->ni', expected, origin), rtol=0, atol=1e-14)
+            np.testing.assert_allclose(endpoints, np.einsum('nij,nj->ni', expected, vectors), rtol=0, atol=1e-14)
         trajectory[:, 0] = np.linspace(10, 11, 24)
         reference = pose()
         reference[:3, :3] = rotations[0].as_matrix()
@@ -132,6 +136,23 @@ class ObservationArchiveTests(unittest.TestCase):
                         {"trajectory": np.zeros((2, 8))}, {"source": np.array([[0, np.nan, 0, 0]])}):
             with self.subTest(changes=changes), self.assertRaises(ValueError):
                 list(self.read(**changes))
+
+    def test_direct_live_rays_handle_stationary_tiny_and_half_turn_rotations(self):
+        from scipy.spatial.transform import Slerp
+        from lingxi_slam.observation_archive import acquisition_rays
+        origin = np.array([.2, -.1, .3])
+        times = np.array([10., 10., 10.25, 10.5, 11., 11.])
+        vectors = np.arange(18).reshape(6, 3) / 10
+        for angle in (0., 1e-15, 1e-8, np.pi - 1e-12, np.pi):
+            with self.subTest(angle=angle):
+                rotations = Rotation.from_rotvec([[0., 0., 0.], [angle, 0., 0.]])
+                quaternions = rotations.as_quat()
+                quaternions[-1] *= -1
+                trajectory = np.column_stack(([10., 11.], np.zeros((2, 3)), quaternions))
+                expected = Slerp(trajectory[:, 0], rotations)(times)
+                origins, endpoints = acquisition_rays(trajectory, times, origin, vectors)
+                np.testing.assert_allclose(origins, expected.apply(origin), rtol=0, atol=1e-14)
+                np.testing.assert_allclose(endpoints, expected.apply(vectors), rtol=0, atol=1e-14)
 
     def test_truncation_extra_bytes_and_count_mismatch_never_complete(self):
         good = archive_bytes()

@@ -31,20 +31,35 @@ def rigid(matrix):
     return matrix
 
 
-def acquisition_rotations(trajectory, times):
-    """Shortest-arc SLERP via public SciPy APIs, with batched matrix composition.
+def _acquisition_rotation_parts(trajectory, times):
+    """Shortest-arc SLERP via public SciPy APIs, without per-return composition.
 
     The caller validates finite, ordered, bracketed times before this operation.
-    Compose only the few trajectory keys as Rotation objects; per-return
-    composition uses NumPy rather than thousands of quaternion products.
+    Only the few trajectory keys are composed as Rotation objects.
     """
     keys = Rotation.from_quat(trajectory[:, 4:])
     relative = (keys[:-1].inv() * keys[1:]).as_rotvec()
     index = np.maximum(np.searchsorted(trajectory[:, 0], times) - 1, 0)
     alpha = ((times - trajectory[index, 0])
              / (trajectory[index + 1, 0] - trajectory[index, 0]))
-    delta = Rotation.from_rotvec(relative[index] * alpha[:, None]).as_matrix()
-    return np.einsum('nij,njk->nik', keys.as_matrix()[index], delta)
+    delta = Rotation.from_rotvec(relative[index] * alpha[:, None])
+    return keys.as_matrix()[index], delta
+
+
+def acquisition_rotations(trajectory, times):
+    keys, delta = _acquisition_rotation_parts(trajectory, times)
+    return keys @ delta.as_matrix()
+
+
+def acquisition_rays(trajectory, times, origin, vectors):
+    """Apply the interpolated rotations directly to both measured ray ends.
+
+    Avoid constructing and composing two 3x3 matrices for every return. SciPy
+    still supplies the same shortest-arc interpolation, including tiny angles.
+    """
+    keys, delta = _acquisition_rotation_parts(trajectory, times)
+    return (np.einsum('nij,nj->ni', keys, delta.apply(origin)),
+            np.einsum('nij,nj->ni', keys, delta.apply(vectors)))
 
 
 @dataclass(frozen=True)
@@ -161,9 +176,9 @@ class ObservationArchive:
                     imu_lidar = np.linalg.inv(extrinsic)
                     vectors = source[:, 1:] @ imu_lidar[:3, :3].T + imu_lidar[:3, 3]
                     if getattr(self, '_batched_rotations', False):
-                        rotations = acquisition_rotations(trajectory, times)
-                        origins = np.einsum('nij,j->ni', rotations, imu_lidar[:3, 3]) + translations
-                        ends = np.einsum('nij,nj->ni', rotations, vectors) + translations
+                        origins, ends = acquisition_rays(trajectory, times, imu_lidar[:3, 3], vectors)
+                        origins += translations
+                        ends += translations
                     else:
                         # Keep saved-archive geometry hashes on the original path.
                         rotations = Slerp(trajectory[:, 0], Rotation.from_quat(trajectory[:, 4:]))(times)

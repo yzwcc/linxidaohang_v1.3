@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "purpose": "synthetic_host_decode_benchmark_not_robot_latency",
+  "machine": "x86_64",
+  "python": "3.12.3",
+  "numpy": "2.5.4",
+  "scipy": "1.16.3",
+  "sourceSha256": {
+    "robot-slam/lingxi_slam/observation_archive.py": "afe314c0fcfa0e7fe4c17c0aa148780336e33d6e53aca2fc2c2b4021bdc97aec",
+    "robot-slam/lingxi_slam/acquisition_output.py": "37678f982b4567a48fd2874ab26cee83e2eadbdd2ab8f52e4fc881d9ff348429"
+  },
+  "cases": [
+    {
+      "points": 5000,
+      "iterations": 150,
+      "decodeMilliseconds": {
+        "previous": {
+          "p50": 2.331917499999836,
+          "p95": 2.8120917999995934
+        },
+        "direct": {
+          "p50": 1.808989500000191,
+          "p95": 2.30951419999954
+        }
+      },
+      "p50ReductionPercent": 22.424807052551465,
+      "matchingGeometry": true,
+      "sourceSha256": "258fd072b16690ff0eacfbe3227a0f7f98c21b90cccc4b20bbef8caff7163823"
+    },
+    {
+      "points": 7100,
+      "iterations": 150,
+      "decodeMilliseconds": {
+        "previous": {
+          "p50": 2.9134709999998343,
+          "p95": 3.5494408999999556
+        },
+        "direct": {
+          "p50": 2.2992814999995836,
+          "p95": 2.9822315499998364
+        }
+      },
+      "p50ReductionPercent": 21.08102328803978,
+      "matchingGeometry": true,
+      "sourceSha256": "0ccf6da485c1d7b159daafd19a44304fdc5a9c9061392085fbe85f4def03ca99"
+    }
+  ],
+  "robotContacted": false
+}
