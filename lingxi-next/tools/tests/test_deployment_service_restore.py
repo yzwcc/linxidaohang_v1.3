@@ -23,7 +23,7 @@ class DeploymentServiceRestore(unittest.TestCase):
 
     def test_restore_order_starts_apis_before_robot_owners_and_voice(self):
         transaction = (ROOT / "deploy" / "transaction.sh").read_text(encoding="utf-8")
-        order = "local -a restore_order=(api aimdk actions independent-mapping independent-slam navigation agent)"
+        order = "local -a restore_order=(reference-navigation api aimdk actions independent-mapping independent-slam navigation agent)"
         self.assertIn(order, transaction)
         self.assertIn('systemctl is-active --quiet "$service" || return 1', transaction)
 

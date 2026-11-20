@@ -19,12 +19,13 @@ export function inactiveMappingScanNotice(state: Pick<RobotState,
 }
 
 export function confirmedMappingSave(result: unknown, session: string | undefined,
-  name: string): { id: string; name: string } | undefined {
+  name: string, backend: RobotState["mappingBackend"] = "glim"): { id: string; name: string } | undefined {
   if (!session || !/^[a-f0-9]{32}$/.test(session) || !result || typeof result !== "object") return undefined;
   const response = result as Record<string, unknown>;
-  if (response.confirmed !== true || !response.savedSlamMap || typeof response.savedSlamMap !== "object") return undefined;
-  const map = response.savedSlamMap as Record<string, unknown>;
-  if (map.id !== `slam-${session}` || map.name !== name.trim()) return undefined;
+  const saved = backend === "fastlio" ? response.map : response.savedSlamMap;
+  if (response.confirmed !== true || !saved || typeof saved !== "object") return undefined;
+  const map = saved as Record<string, unknown>;
+  if (map.id !== `${backend === "fastlio" ? "fastlio" : "slam"}-${session}` || map.name !== name.trim()) return undefined;
   return { id: map.id as string, name: map.name as string };
 }
 

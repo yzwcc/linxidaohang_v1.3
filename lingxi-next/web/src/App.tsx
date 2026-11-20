@@ -36,6 +36,7 @@ import type {
   MapPoint,
   OccupancyGrid,
   PublicSettings,
+  RobotPose,
   RobotState,
   SavedSlamPointPreview,
   TourStep,
@@ -402,7 +403,7 @@ function Mapping({
       const result = await run("/api/v1/mapping/stop-save", {
         name: mapName, ...(state.mappingBackend ? { session: state.mappingSession } : {}),
       }, "POST");
-      setSavedMap(confirmedMappingSave(result, state.mappingSession, mapName));
+      setSavedMap(confirmedMappingSave(result, state.mappingSession, mapName, state.mappingBackend));
       setMapName("");
     } finally { setBusy(false); }
   }
@@ -448,7 +449,7 @@ function Mapping({
         >
           <LidarCanvas connection={connection} synthetic={Boolean(state.navigationExecution)} inactiveNotice={inactiveMappingScanNotice(state)} />
           <div className="inline mapping-summary" style={{ marginTop: 12 }}>
-            <span className="tag">{state.mappingBackend ? "GLIM 独立建图" : `当前地图 ${activeMap?.name ?? "未选择"}`}</span>
+            <span className="tag">{state.mappingBackend === "fastlio" ? "FAST-LIO 建图" : state.mappingBackend === "glim" ? "GLIM 独立建图" : `当前地图 ${activeMap?.name ?? "未选择"}`}</span>
             {state.mappingProgress && <>
               {!state.mapping && <span className="tag">上次采集</span>}
               <span className="tag mono">扫描 {state.mappingProgress.processedScans}</span>
@@ -469,6 +470,8 @@ function Mapping({
             <div className="stack">
               {feedback && <div className={`notice ${feedback.tone}`} role={feedback.tone === "error" ? "alert" : "status"}
                 data-testid="mapping-feedback">{feedback.text}</div>}
+              {savedMap && !state.mapping && state.mappingBackend === "fastlio" &&
+                <div className="notice ok">地图「{savedMap.name}」已保存。请到地图管理选择并设置重定位位姿。</div>}
               {savedMap && !state.mapping && savedMap.id === `slam-${state.mappingSession}` &&
                 <div className="mapping-save-result stack" data-testid="mapping-save-result">
                 <div role="status"><Check size={14} /><span>已保存：{savedMap.name}</span></div>
@@ -500,7 +503,7 @@ function Mapping({
               {!canStart && !state.mapping && <span className="helper danger-text">接口检查未通过，开始采集已禁用。</span>}
             </div>
           </Section>
-          <div className="notice"><CircleHelp size={14} />{state.mappingBackend
+          <div className="notice"><CircleHelp size={14} />{state.mappingBackend === "fastlio" ? "FAST-LIO · 实时激光惯性建图" : state.mappingBackend
             ? state.mappingInputMode === "live" ? "GLIM · 实时激光惯性建图" : "GLIM · 录制数据验证"
             : "AIMDK 本机建图 · 外置遥控器移动"}</div>
         </div>
@@ -617,9 +620,9 @@ function Maps({
                 {state.maps.map((map) => (
                   <tr key={map.id}>
                     <td><strong>{map.name}</strong></td>
-                    <td className="mono">{state.navigationExecution ? "合成场景" : map.mapId ?? "未查询"}</td>
+                    <td className="mono">{state.mappingBackend === "fastlio" ? "FAST-LIO" : state.navigationExecution ? "合成场景" : map.mapId ?? "未查询"}</td>
                     <td>{map.active ? <span className="tag">当前使用</span> : <span className="muted">可用</span>}</td>
-                    <td>{!state.navigationExecution && <button className="btn small" disabled={state.mapping || navigationBusy(state)} onClick={() => run(`/api/v1/maps/${encodeURIComponent(map.id)}/activate`, {})}>从建图起点定位</button>}</td>
+                    <td>{!state.navigationExecution && <button className="btn small" disabled={state.mapping || navigationBusy(state)} onClick={() => run(`/api/v1/maps/${encodeURIComponent(map.id)}/activate`, {})}>{state.mappingBackend === "fastlio" ? "加载地图" : "从建图起点定位"}</button>}</td>
                   </tr>
                 ))}
                 {!state.maps.length && <tr><td colSpan={4} className="empty">未发现已保存地图</td></tr>}
@@ -741,9 +744,27 @@ function NavigationPage({
 }) {
   const points = state.points.filter((point) => point.mapId === state.activeMapId);
   const ready = state.checks.find((item) => item.id === "navigation")?.ready;
+  const reference = state.mappingBackend === "fastlio";
+  const [preview, setPreview] = useState<{ mapId: string; poses: RobotPose[]; grid: OccupancyGrid }>();
+  const [previewPending, setPreviewPending] = useState(false);
+  useEffect(() => { setPreview(undefined); }, [state.activeMapId, state.mapping, ready]);
+
+  async function previewPath(point: MapPoint) {
+    setPreviewPending(true);
+    setPreview(undefined);
+    try {
+      const [result, grid] = await Promise.all([
+        run("/api/v1/navigation/preview", { pointId: point.id }),
+        run(`/api/v1/maps/${encodeURIComponent(point.mapId)}/grid`, undefined, "GET"),
+      ]);
+      const route = result as { mapId: string; poses: RobotPose[] };
+      if (route?.mapId === point.mapId && Array.isArray(route.poses)) setPreview({ ...route, grid: grid as OccupancyGrid });
+    } finally { setPreviewPending(false); }
+  }
+
   return (
     <div className="page">
-      <PageHeading title="导航管理" description={state.independentProduct ? "独立导航 · 待标定与实机验收" : state.navigationExecution ? "离线 Nav2 · 合成场景" : "基于 X2 原生点到点导航与安全链路"} />
+      <PageHeading title="导航管理" description={reference ? "FAST-LIO 与 GICP · 路径预览" : state.independentProduct ? "独立导航 · 待标定与实机验收" : state.navigationExecution ? "离线 Nav2 · 合成场景" : "基于 X2 原生点到点导航与安全链路"} />
       {state.actionBusy && (
         <div className={state.actionStatus === "uncertain" ? "notice error" : "notice warn"} style={{ marginBottom: 14 }}>
           <AlertTriangle size={14} />
@@ -775,16 +796,21 @@ function NavigationPage({
                     <td><strong>{point.name}</strong>{point.isStart && <span className="tag" style={{ marginLeft: 6 }}>起点</span>}</td>
                     <td>{state.maps.find((map) => map.id === point.mapId)?.name}</td>
                     <td className="mono">{point.x.toFixed(2)}, {point.y.toFixed(2)}</td>
-                    <td><button className="btn small primary" disabled={!ready || !state.activeMapId || state.mapping || state.actionBusy || navigationBusy(state)} onClick={() => run("/api/v1/navigation/point", { pointId: point.id })}><Navigation size={12} />前往</button></td>
+                    <td>{reference
+                      ? <button className="btn small" disabled={!ready || state.mapping || previewPending} onClick={() => { void previewPath(point).catch(() => undefined); }}><Navigation size={12} />预览路径</button>
+                      : <button className="btn small primary" disabled={!ready || !state.activeMapId || state.mapping || state.actionBusy || navigationBusy(state)} onClick={() => run("/api/v1/navigation/point", { pointId: point.id })}><Navigation size={12} />前往</button>}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
             {!ready && <div className="notice warn" style={{ marginTop: 12 }}><AlertTriangle size={14} />{state.navigationExecution
-              ? "离线导航状态未确认，请停止任务并检查后端。" : "未检测到 X2 原生导航组件，导航命令已禁用。"}</div>}
+              ? "离线导航状态未确认，请停止任务并检查后端。" : reference ? "请完成重定位并检查路径规划服务。" : "未检测到 X2 原生导航组件，导航命令已禁用。"}</div>}
           </Section>
         </div>
         <div className="stack">
+        {reference && ready && !state.mapping && preview && preview.mapId === state.activeMapId && <Section title="路径预览" icon={Map}>
+          <MapCanvas grid={preview.grid} route={preview.poses} points={points} pose={state.pose} activeMapName={preview.mapId} />
+        </Section>}
         {state.navigationExecution && <Section title="导航点云" icon={Radio}><LidarCanvas connection={connection} synthetic /></Section>}
         <Section title="运行条件" icon={ShieldCheck}>
           <CheckList checks={state.checks.filter((item) => ["navigation", "slam", "odom"].includes(item.id))} />
@@ -875,7 +901,7 @@ function Tours({
                       <td>{tour.steps.length}</td><td>{tour.repeatCount}</td>
                       <td className="muted">{tour.updatedAt.slice(0, 16).replace("T", " ")}</td>
                       <td className="row-actions">
-                        <button className="btn small primary" disabled={state.independentProduct || tour.requiresReview || state.mapping || navigationBusy(state) || tour.mapId !== state.activeMapId} title={state.independentProduct ? "独立导航尚未就绪" : "开始讲解"} onClick={() => run(`/api/v1/tours/${encodeURIComponent(tour.id)}/start`)}><Play size={12} />开始</button>
+                        <button className="btn small primary" disabled={state.independentProduct || state.mappingBackend === "fastlio" || tour.requiresReview || state.mapping || navigationBusy(state) || tour.mapId !== state.activeMapId} title={state.independentProduct || state.mappingBackend === "fastlio" ? "独立导航尚未就绪" : "开始讲解"} onClick={() => run(`/api/v1/tours/${encodeURIComponent(tour.id)}/start`)}><Play size={12} />开始</button>
                         <button className="btn icon small danger" title="删除任务" onClick={() => run(`/api/v1/tours/${encodeURIComponent(tour.id)}`, undefined, "DELETE")}><Trash2 size={13} /></button>
                       </td>
                     </tr>
@@ -1149,9 +1175,12 @@ export default function App() {
     if (message) setToast(message);
   }
 
+  const referenceMode = state?.mappingBackend === "fastlio";
   const run = useCallback(async (path: string, body?: unknown, method = "POST") => {
-    if (connection && session.current?.connection === connection) return session.current.run(path, body, method);
-  }, [connection]);
+    if (!connection || session.current?.connection !== connection) return;
+    const timeoutMs = referenceMode ? referenceRequestTimeout(path) : undefined;
+    return session.current.run(path, body, method, timeoutMs);
+  }, [connection, referenceMode]);
 
   const activeMap = useMemo(() => state?.maps.find((map) => map.id === state.activeMapId), [state]);
   const isolatedLocalization = state?.slamLocalization !== undefined && !state?.independentProduct;
@@ -1228,6 +1257,14 @@ export default function App() {
       {toast && <div role="status" className="toast">{toast}</div>}
     </div>
   );
+}
+
+function referenceRequestTimeout(path: string) {
+  if (path === "/api/v1/mapping/start") return 75_000;
+  if (path === "/api/v1/mapping/stop-save") return 1_115_000;
+  if (path === "/api/v1/mapping/stop-discard") return 505_000;
+  if (/^\/api\/v1\/maps\/[^/]+\/activate$/.test(path)) return 235_000;
+  if (path === "/api/v1/navigation/preview") return 40_000;
 }
 
 function navigationLabel(status: RobotState["navigation"]["status"]): string {

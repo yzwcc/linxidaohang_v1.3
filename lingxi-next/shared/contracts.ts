@@ -146,7 +146,7 @@ export type RobotState = {
   checks: HealthCheck[];
   mapping: boolean;
   mappingStatus?: "idle" | "requested" | "running" | "saving" | "failed";
-  mappingBackend?: "glim";
+  mappingBackend?: "glim" | "fastlio";
   mappingInputMode?: "live" | "recorded";
   mappingCaptureLimitSeconds?: number;
   mappingSession?: string;

@@ -22,7 +22,7 @@ const run = (command, args, options = {}) => new Promise((resolve, reject) => {
   child.on("exit", (code) => code === 0 ? resolve() : reject(new Error(`${command} failed: ${code}`)));
 });
 async function fetchArchive(url, name, sha256) {
-  const filename = path.resolve(".local", name);
+  const filename = path.resolve(process.env.LINGXI_ARM64_BUILD_CACHE ?? ".local", name);
   return downloadVerified(url, filename, "sha256", sha256);
 }
 await run(process.execPath, ["node_modules/typescript/bin/tsc", "--noEmit"]);
@@ -56,11 +56,14 @@ await Promise.all([
   cp("dist", path.join(stage, "web"), { recursive: true }),
   cp("robot-api/dist/index.mjs", path.join(stage, "api/index.mjs")),
   cp("robot-api/src/aimdk_ros_bridge.py", path.join(stage, "bridge/aimdk_ros_bridge.py")),
+  cp("robot-runtime/python/reference_service.py", path.join(stage, "bridge/reference_service.py")),
   cp("robot-agent/build/lingxi-agent-0.1.0.jar", path.join(stage, "agent/lingxi-agent.jar")),
   cp("robot-agent/build/lib", path.join(stage, "agent/lib"), { recursive: true }),
   cp("robot-agent/lib/linksoul-agentsdk-1.5.0-SNAPSHOT.jar", path.join(stage, "agent/lib/linksoul-agentsdk-1.5.0-SNAPSHOT.jar")),
   cp("robot-agent/src/main/resources/logback.xml", path.join(stage, "agent/logback.xml")),
   cp("tools/migrate-legacy.mjs", path.join(stage, "tools/migrate-legacy.mjs")),
+  cp("tools/check_reference_bag.py", path.join(stage, "tools/check_reference_bag.py")),
+  cp("tools/replay_reference_mapping.py", path.join(stage, "tools/replay_reference_mapping.py")),
   cp("deploy", path.join(stage, "deploy"), { recursive: true }),
   cp("docs", path.join(stage, "docs"), { recursive: true }),
   cp("README.md", path.join(stage, "README.md")),
@@ -120,6 +123,8 @@ await writeFile(path.join(stage, "VERSION"), `${version}\n`);
 await writeFile(path.join(stage, "release-status.json"), JSON.stringify({
   version, target: "linux-arm64", classification: "commissioning", productionAccepted: false,
   scope: JSON.parse(await readFile("deploy/release-scope.json", "utf8")),
+  referenceNavigation: { revision: "90bbc8096c23a5660fc6c5e26dd99ec1ed79da11",
+    motionEnabled: false, nativeRuntimeIncluded: false, profile: "docs/X2_REFERENCE_COMMISSIONING.md" },
   ...(independent ? { independentStackIncluded: true,
     independent: JSON.parse(await readFile("deploy/independent-scope.json", "utf8")) } : {}),
   sdk: { version: "1.5.0-SNAPSHOT", sha256: "810c5e7a7d40191097dc5c4c37e3133407e63307fcb204d35caacb7768912c25" },

@@ -6,11 +6,12 @@ type Props = {
   grid?: OccupancyGrid;
   pose?: RobotPose;
   points: MapPoint[];
+  route?: RobotPose[];
   activeMapName?: string;
   onMapClick?: (point: { x: number; y: number }) => void;
 };
 
-export default function MapCanvas({ grid, pose, points, activeMapName, onMapClick }: Props) {
+export default function MapCanvas({ grid, pose, points, route, activeMapName, onMapClick }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [revision, setRevision] = useState(0);
   const [zoom, setZoom] = useState(1);
@@ -127,6 +128,18 @@ export default function MapCanvas({ grid, pose, points, activeMapName, onMapClic
       context.restore();
     }
 
+    if (grid && route?.length) {
+      context.strokeStyle = "#005eec";
+      context.lineWidth = 2;
+      context.beginPath();
+      route.forEach((waypoint, index) => {
+        const position = toCanvas(waypoint.x, waypoint.y);
+        if (index === 0) context.moveTo(position.x, position.y);
+        else context.lineTo(position.x, position.y);
+      });
+      context.stroke();
+    }
+
     for (const point of grid ? points : []) {
       if (activeMapName && point.mapId !== activeMapName) continue;
       const position = grid
@@ -162,7 +175,7 @@ export default function MapCanvas({ grid, pose, points, activeMapName, onMapClic
     context.strokeStyle = "#cbd5d1";
     context.strokeRect(left, top, drawWidth, drawHeight);
     viewRef.current = { grid, bounds };
-  }, [grid, pose, points, activeMapName, revision, zoom, pan]);
+  }, [grid, pose, points, route, activeMapName, revision, zoom, pan]);
 
   function handleClick(event: React.MouseEvent<HTMLCanvasElement>) {
     const view = viewRef.current;

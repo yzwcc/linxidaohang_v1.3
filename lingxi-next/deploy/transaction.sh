@@ -3,7 +3,7 @@
 SERVICES=(lingxi-next-agent.service lingxi-next-api.service lingxi-next-aimdk.service
   lingxi-next-actions.service
   lingxi-next-independent-mapping.service lingxi-next-independent-slam.service
-  lingxi-next-navigation.service)
+  lingxi-next-navigation.service lingxi-next-reference-navigation.service)
 ACTIVE_SERVICES=()
 
 deployment_lock() {
@@ -97,7 +97,7 @@ deployment_stop() {
 
 deployment_restore_active_services() {
   local service name was_active
-  local -a restore_order=(api aimdk actions independent-mapping independent-slam navigation agent)
+  local -a restore_order=(reference-navigation api aimdk actions independent-mapping independent-slam navigation agent)
   for name in "${restore_order[@]}"; do
     service="lingxi-next-${name}.service"
     was_active=0

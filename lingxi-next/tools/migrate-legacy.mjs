@@ -151,7 +151,33 @@ async function restrictedWrite(filePath, value) {
   try { await handle.writeFile(value); await handle.sync(); } finally { await handle.close(); }
 }
 
-export async function migrateLegacy({ source, destination, apply = false, beforeCommit }) {
+export function assignRebuiltMaps(entries, assignments, maps) {
+  if (!assignments || Object.getPrototypeOf(assignments) !== Object.prototype) {
+    throw new Error("Point assignments must be an object keyed by legacy map name");
+  }
+  if (Object.keys(assignments).length !== entries.length) throw new Error("Every legacy map needs one assignment");
+  for (const entry of entries) {
+    const assignment = Object.hasOwn(assignments, entry.map.id) ? assignments[entry.map.id] : undefined;
+    if (typeof assignment?.mapId !== "string" || !/^fastlio-[0-9a-f]{32}$/.test(assignment.mapId) ||
+        !maps.some((map) => map.id === assignment.mapId)) throw new Error(`Rebuilt map unavailable for ${entry.map.id}`);
+    const poses = assignment.points;
+    if (!poses || Object.getPrototypeOf(poses) !== Object.prototype || Object.keys(poses).length !== entry.points.length) {
+      throw new Error(`Confirm every rebuilt position and yaw for ${entry.map.id}`);
+    }
+    entry.targetMap = assignment.mapId;
+    entry.points = entry.points.map((point) => {
+      const pose = Object.hasOwn(poses, point.id) ? poses[point.id] : undefined;
+      if (!pose || ![pose.x, pose.y, pose.yaw].every(Number.isFinite) || Math.abs(pose.x) > 1000 ||
+          Math.abs(pose.y) > 1000 || Math.abs(pose.yaw) > 2 * Math.PI) throw new Error(`Invalid rebuilt pose for ${point.id}`);
+      return { ...point, mapId: assignment.mapId, x: pose.x, y: pose.y, yaw: pose.yaw };
+    });
+    entry.tours = entry.tours.map((tour) => ({ ...tour, mapId: assignment.mapId, requiresReview: true }));
+  }
+  const targets = entries.map((entry) => entry.targetMap);
+  if (new Set(targets).size !== targets.length) throw new Error("Rebuilt maps must be assigned one-to-one");
+}
+
+export async function migrateLegacy({ source, destination, apply = false, beforeCommit, pointAssignments }) {
   const sourcePath = path.resolve(source);
   const target = path.resolve(destination);
   const metadata = await stat(sourcePath);
@@ -173,15 +199,6 @@ export async function migrateLegacy({ source, destination, apply = false, before
   if (new Set(entries.map((entry) => entry.map.id)).size !== entries.length) {
     throw new Error("Duplicate map names in legacy sources");
   }
-  const report = {
-    schemaVersion: 1, applied: apply, mapFilesMoved: 0, knowledgeBaseMigrated: false,
-    files: entries.map((entry) => ({
-      source: entry.filename, sha256: entry.sha256, map: entry.map.id,
-      points: entry.points.length, tours: entry.tours.length, warnings: entry.warnings,
-    })),
-  };
-  if (!apply) return report;
-  await mkdir(target, { recursive: true, mode: 0o700 });
   let current;
   const statePath = path.join(target, "state.json");
   let initialStateBytes;
@@ -197,9 +214,22 @@ export async function migrateLegacy({ source, destination, apply = false, before
     };
     initialStateBytes = undefined;
   }
+  if (pointAssignments) assignRebuiltMaps(entries, pointAssignments, current.maps);
+  const report = {
+    schemaVersion: 1, applied: apply, mapFilesMoved: 0, knowledgeBaseMigrated: false,
+    files: entries.map((entry) => ({
+      source: entry.filename, sha256: entry.sha256, map: entry.map.id,
+      points: entry.points.length, tours: entry.tours.length, warnings: entry.warnings,
+      ...(entry.targetMap ? { targetMap: entry.targetMap } : { pointIds: entry.points.map(({ id, name }) => ({ id, name })) }),
+    })),
+  };
+  if (!apply) return report;
+  await mkdir(target, { recursive: true, mode: 0o700 });
   for (const entry of entries) {
-    if (current.maps.some((map) => map.id === entry.map.id) ||
-        current.points.some((point) => entry.points.some((candidate) => candidate.id === point.id))) {
+    if ((!entry.targetMap && current.maps.some((map) => map.id === entry.map.id)) ||
+        current.points.some((point) => entry.points.some((candidate) => candidate.id === point.id) ||
+          point.mapId === entry.targetMap && point.isStart && entry.points.some((candidate) => candidate.isStart)) ||
+        current.tours.some((tour) => entry.tours.some((candidate) => candidate.id === tour.id))) {
       throw new Error(`Destination already contains ${entry.map.id}; no data overwritten`);
     }
   }
@@ -209,7 +239,7 @@ export async function migrateLegacy({ source, destination, apply = false, before
     await restrictedWrite(path.join(backup, `${index + 1}-${path.basename(entry.filename)}`), entry.bytes);
     // Detect a source change during preparation, before committing new state.
     if (digest(await readFile(entry.filename)) !== entry.sha256) throw new Error("Legacy source changed during migration");
-    current.maps.push(entry.map);
+    if (!entry.targetMap) current.maps.push(entry.map);
     current.points.push(...entry.points);
     current.tours.push(...entry.tours);
     if (entry.selectedTourId) current.selectedTourId = entry.selectedTourId;
@@ -244,10 +274,12 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     args.includes("--source-file") ? option("--source-file") : undefined;
   const destination = args.includes("--destination") ? option("--destination") : undefined;
   if (!source || !destination) {
-    console.error("Usage: node tools/migrate-legacy.mjs --source-dir DIR --destination DIR [--apply]");
+    console.error("Usage: node tools/migrate-legacy.mjs --source-dir DIR --destination DIR [--point-assignments FILE] [--apply]");
     process.exitCode = 2;
   } else {
-    migrateLegacy({ source, destination, apply: args.includes("--apply") })
+    const assignments = args.includes("--point-assignments") ? option("--point-assignments") : undefined;
+    (assignments ? readFile(assignments, "utf8").then(JSON.parse) : Promise.resolve(undefined))
+      .then((pointAssignments) => migrateLegacy({ source, destination, apply: args.includes("--apply"), pointAssignments }))
       .then((report) => console.log(JSON.stringify(report, null, 2)))
       .catch((error) => { console.error(error.message); process.exitCode = 1; });
   }

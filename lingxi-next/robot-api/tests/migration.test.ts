@@ -106,4 +106,25 @@ describe("non-destructive legacy migration", () => {
     expect(await readFile(statePath, "utf8")).toBe(concurrent);
     expect((await readdir(destination)).filter((file) => file.endsWith(".tmp"))).toEqual([]);
   });
+  it("binds only manually confirmed coordinates to a rebuilt map", async () => {
+    const directory = await mkdtemp(path.join(os.tmpdir(), "lingxi-rebuilt-migration-"));
+    directories.push(directory);
+    const source = path.join(directory, "source.json");
+    const destination = path.join(directory, "new");
+    const statePath = path.join(destination, "state.json");
+    const mapId = `fastlio-${"9".repeat(32)}`;
+    await mkdir(destination);
+    await writeFile(source, JSON.stringify(legacy()));
+    await writeFile(statePath, JSON.stringify({ maps: [{ id: mapId, name: "新展厅" }], points: [], tours: [] }));
+    const assignments = { 展厅: { mapId, points: { "展厅:home": { x: 7, y: 8, yaw: 0 } } } };
+    await expect(migrateLegacy({ source, destination, pointAssignments: assignments }))
+      .rejects.toThrow("Confirm every rebuilt position");
+    const complete = { 展厅: { mapId, points: { ...assignments.展厅.points, "展厅:display": { x: 2, y: 5, yaw: 0.4 } } } };
+    await migrateLegacy({ source, destination, pointAssignments: complete, apply: true });
+    const state = JSON.parse(await readFile(statePath, "utf8"));
+    expect(state.maps).toHaveLength(1);
+    expect(state.points[0]).toMatchObject({ mapId, x: 7, y: 8, yaw: 0, isStart: true });
+    expect(state.tours[0]).toMatchObject({ mapId, requiresReview: true, repeatCount: 2,
+      steps: [{ pointId: "展厅:display", narration: "欢迎", waitSeconds: 9 }] });
+  });
 });

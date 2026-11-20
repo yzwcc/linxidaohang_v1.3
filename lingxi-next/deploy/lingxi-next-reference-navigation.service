@@ -1,0 +1,24 @@
+[Unit]
+Description=Lingxi Next FAST-LIO reference navigation commissioning service
+After=network.target
+
+[Service]
+User=lingxi-next
+Group=lingxi-next
+EnvironmentFile=/etc/lingxi-next/robot.env
+WorkingDirectory=/opt/lingxi-next/current
+ExecStart=/bin/bash /opt/lingxi-next/current/deploy/run.sh reference-navigation
+Restart=on-failure
+RestartSec=3
+UMask=0077
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/lingxi-next
+RuntimeDirectory=lingxi-next-reference
+RuntimeDirectoryMode=0700
+TimeoutStopSec=120
+
+[Install]
+WantedBy=multi-user.target

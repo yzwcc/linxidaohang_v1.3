@@ -9,6 +9,7 @@ import type { FastifyInstance } from "fastify";
 import { buildServer } from "../src/server";
 import { pairingCodeHash } from "../src/auth";
 import { DemoAdapter } from "../src/adapters/demo";
+import { ReferenceNavigationAdapter } from "../src/reference-navigation";
 import type { MappingBackend, MappingBackendState } from "../src/mapping-backend";
 import type { LocalizationBackend } from "../src/localization-backend";
 import { identityMatrix, localizationFixture, localizationRuntimeFixture } from "./fixtures/localization-state";
@@ -51,6 +52,41 @@ function secureRequest(origin: string, method: string, route: string, payload?: 
     request.end();
   });
 }
+
+it("correlates reference map saves on the paired HTTPS API and rejects actuation", async () => {
+  const root = await mkdtemp(path.join(tmpdir(), "lingxi-reference-api-"));
+  const session = "a".repeat(32);
+  const map = { id: `fastlio-${session}`, name: "展厅", active: false, resolution: 0.05, origin: [0, 0, 0] };
+  const save = vi.fn(async () => map);
+  const actuate = vi.fn();
+  const reference = Object.assign(Object.create(ReferenceNavigationAdapter.prototype), {
+    demoMode: false,
+    getSnapshot: async () => ({ connected: true, mapping: true, mappingBackend: "fastlio", mappingSession: session,
+      actionBusy: false, navigation: { status: "idle" }, checks: [], motionPresets: [], expressions: [], linkcraftResources: [] }),
+    listMaps: async () => [], stopAndSaveMap: save, startNavigation: actuate,
+  }) as ReferenceNavigationAdapter;
+  let server: FastifyInstance | undefined;
+  try {
+    const tls = await tlsMaterial(root);
+    server = await buildServer({ referenceNavigation: reference, stateDirectory: path.join(root, "state"),
+      pairingCodeHash: pairingCodeHash("synthetic-reference"), tlsKey: tls.key, tlsCert: tls.cert });
+    const origin = await server.listen({ host: "127.0.0.1", port: 0 });
+    const pairing = await secureRequest(origin, "POST", "/api/v1/session/pair", { pairingCode: "synthetic-reference" });
+    expect(pairing.statusCode).toBe(201);
+    const { token } = pairing.json() as { token: string };
+    expect((await secureRequest(origin, "POST", "/api/v1/mapping/stop-save", { name: map.name }, token)).statusCode).toBe(400);
+    expect(save).not.toHaveBeenCalled();
+    expect((await secureRequest(origin, "POST", "/api/v1/mapping/stop-save", { name: map.name, session }, token)).json())
+      .toEqual({ confirmed: true, map });
+    expect(save).toHaveBeenCalledExactlyOnceWith(map.name, session);
+    expect((await secureRequest(origin, "POST", "/api/v1/navigation/point", { pointId: "target" }, token)).statusCode).toBe(409);
+    expect((await secureRequest(origin, "POST", "/api/v1/tours/tour/start", {}, token)).statusCode).toBe(409);
+    expect(actuate).not.toHaveBeenCalled();
+  } finally {
+    await server?.close();
+    await rm(root, { recursive: true, force: true });
+  }
+});
 
 
 describe("explicit independent product composition with synthetic services", () => {

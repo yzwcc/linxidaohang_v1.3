@@ -96,13 +96,13 @@ export class RobotSession {
     return pending;
   }
 
-  async run(path: string, body?: unknown, method = "POST"): Promise<unknown> {
+  async run(path: string, body?: unknown, method = "POST", timeoutMs?: number): Promise<unknown> {
     if (this.closed) return;
     try {
       const result = await api<unknown>(this.connection, path, {
         method, signal: this.abort.signal,
         ...(body === undefined ? {} : { body: jsonBody(body) }),
-      });
+      }, timeoutMs);
       if (this.closed) return;
       if (method !== "GET") {
         this.listeners.notice(path.includes("stop-save") ? "地图保存已确认。" : "请求已处理");

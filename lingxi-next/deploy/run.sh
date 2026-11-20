@@ -204,6 +204,21 @@ case "${1:-}" in
   independent-slam)
     run_independent_slam
     ;;
+  reference-navigation)
+    source_ros_runtime
+    required_directory "${LINGXI_REFERENCE_SOURCE:-}" LINGXI_REFERENCE_SOURCE
+    required_pinned_configuration "${LINGXI_REFERENCE_CONFIG:-}" "${LINGXI_REFERENCE_CONFIG_SHA256:-}" LINGXI_REFERENCE_CONFIG
+    required_file "${LINGXI_REFERENCE_OVERLAY:-}" LINGXI_REFERENCE_OVERLAY
+    [[ "${LINGXI_REFERENCE_PYTHON:-}" == /* && -x "$LINGXI_REFERENCE_PYTHON" ]] || exit 78
+    [[ "${LINGXI_REFERENCE_ROS2:-}" == /* && -f "$LINGXI_REFERENCE_ROS2" ]] || exit 78
+    set +u
+    source "$LINGXI_REFERENCE_OVERLAY"
+    set -u
+    export PYTHONNOUSERSITE=1 PYTHONDONTWRITEBYTECODE=1
+    exec "$LINGXI_REFERENCE_PYTHON" -s -B "$CURRENT/bridge/reference_service.py" \
+      --source "$LINGXI_REFERENCE_SOURCE" --config "$LINGXI_REFERENCE_CONFIG" --socket "$LINGXI_REFERENCE_SOCKET" \
+      --ros2 "$LINGXI_REFERENCE_ROS2"
+    ;;
   agent)
     if [[ -n "${LINGXI_PRODUCT_CONFIG:-}${LINGXI_PRODUCT_CONFIG_SHA256:-}" ]]; then
       require_independent_product
@@ -218,5 +233,5 @@ case "${1:-}" in
       -Dlogback.configurationFile=/opt/lingxi-next/current/agent/logback.xml \
       -cp '/opt/lingxi-next/current/agent/lingxi-agent.jar:/opt/lingxi-next/current/agent/lib/*' local.lingxi.AgentMain
     ;;
-  *) echo "Usage: run.sh api|aimdk|actions|navigation|independent-mapping|independent-slam|agent" >&2; exit 2 ;;
+  *) echo "Usage: run.sh api|aimdk|actions|navigation|independent-mapping|independent-slam|reference-navigation|agent" >&2; exit 2 ;;
 esac

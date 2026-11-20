@@ -1,0 +1,421 @@
+import argparse
+from contextlib import asynccontextmanager
+import logging
+import math
+import os
+from pathlib import Path
+import re
+import signal
+import stat
+import subprocess
+import sys
+import threading
+import time
+import uuid
+
+
+REFERENCE_REVISION = "90bbc8096c23a5660fc6c5e26dd99ec1ed79da11"
+SESSION = r"[0-9a-f]{32}"
+MAP = rf"fastlio-{SESSION}"
+LOGGER = logging.getLogger("lingxi.reference")
+EXPORT_WAIT_S = 600
+
+
+def private_directory(path):
+    if not path.is_absolute() or path != path.resolve(strict=True) or not path.is_dir():
+        raise ValueError("canonical_private_directory_required")
+    details = path.stat()
+    if details.st_uid != os.getuid() or details.st_mode & 0o077:
+        raise ValueError("owned_private_directory_required")
+    return path
+
+
+def resource(root, path):
+    path = Path(path)
+    result = path.resolve(strict=True)
+    if result != path or not result.is_relative_to(root) or not result.is_file():
+        raise ValueError("reference_asset_outside_data_directory")
+    return result
+
+
+def checked_grid(root, bundle):
+    import yaml
+    from PIL import Image
+
+    metadata_path = resource(root, bundle["yaml_path"])
+    metadata = yaml.safe_load(metadata_path.read_text(encoding="utf-8"))
+    if metadata["image"] != "map.pgm" or metadata.get("mode", "trinary") != "trinary":
+        raise ValueError("unsupported_grid_format")
+    resolution = float(metadata["resolution"])
+    origin = [float(value) for value in metadata["origin"]]
+    occupied, free = float(metadata["occupied_thresh"]), float(metadata["free_thresh"])
+    negate = metadata["negate"]
+    if (len(origin) != 3 or not all(map(math.isfinite, origin)) or not 0.02 <= resolution <= 0.2
+            or not 0 <= free < occupied <= 1 or negate not in (0, 1)):
+        raise ValueError("invalid_grid_geometry")
+    with Image.open(resource(root, metadata_path.parent / "map.pgm")) as image:
+        width, height = image.size
+        if (image.mode != "L" or min(width, height) < 1 or width * height > 4_000_000
+                or [width, height] != [bundle["width"], bundle["height"]]
+                or resolution != bundle["resolution"] or origin != bundle["origin"]):
+            raise ValueError("grid_metadata_mismatch")
+        values = [value / 255.0 if negate else 1.0 - value / 255.0 for value in range(256)]
+        lookup = [100 if value > occupied else 0 if value < free else -1 for value in values]
+        pixels = image.transpose(Image.Transpose.FLIP_TOP_BOTTOM).tobytes()
+        cells = [lookup[value] for value in pixels]
+    return {"width": width, "height": height, "resolution": resolution, "originX": origin[0],
+            "originY": origin[1], "originYaw": origin[2], "stamp": metadata_path.stat().st_mtime_ns / 1e6,
+            "cells": cells}
+
+
+def wait_for(read, complete, deadline):
+    while time.monotonic() < deadline:
+        value = read()
+        if complete(value):
+            return value
+        time.sleep(0.15)
+    raise TimeoutError("reference_operation_unconfirmed")
+
+
+def make_app(upstream, root, nav2_process=None):
+    from fastapi import FastAPI, HTTPException
+    from fastapi.responses import JSONResponse
+    from pydantic import BaseModel, ConfigDict, Field, FiniteFloat
+
+    class Session(BaseModel):
+        model_config = ConfigDict(extra="forbid")
+        session: str = Field(pattern=f"^{SESSION}$")
+
+    class Save(Session):
+        name: str = Field(min_length=1, max_length=64)
+
+    class Pose(BaseModel):
+        model_config = ConfigDict(extra="forbid")
+        x: FiniteFloat = Field(ge=-1000, le=1000)
+        y: FiniteFloat = Field(ge=-1000, le=1000)
+        yaw: FiniteFloat = Field(ge=-2 * math.pi, le=2 * math.pi)
+
+    class Place(BaseModel):
+        model_config = ConfigDict(extra="forbid")
+        pose: Pose | None = None
+
+    @asynccontextmanager
+    async def lifespan(_app):
+        async with upstream.lifespan(upstream.app):
+            if upstream.app.state.ros.motion_enabled:
+                raise RuntimeError("reference_motion_must_be_disabled")
+            yield
+
+    app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
+    state = upstream.app.state
+    transition = threading.Lock()
+    finalizing = None
+    last_failed = None
+    last_started = None
+    export_request = None
+
+    @app.exception_handler(RuntimeError)
+    @app.exception_handler(ValueError)
+    @app.exception_handler(KeyError)
+    @app.exception_handler(OSError)
+    async def operation_failure(_request, error):
+        LOGGER.warning("Reference operation failed: %s", type(error).__name__)
+        LOGGER.debug("Reference exception detail", exc_info=error)
+        code = 504 if isinstance(error, TimeoutError) else 404 if isinstance(error, (KeyError, FileNotFoundError)) else 409
+        return JSONResponse(status_code=code, content={"error": "reference_operation_unconfirmed"})
+
+    def guarded(operation):
+        if not transition.acquire(blocking=False):
+            raise RuntimeError("reference_transition_in_progress")
+        try:
+            return operation()
+        finally:
+            transition.release()
+
+    def aimdk_ready():
+        return bool(state.ros.source_set.service_is_ready() and state.ros.source_get.service_is_ready())
+
+    def session(identity):
+        for item in state.mapping.snapshot()["items"]:
+            if item["id"] == identity:
+                return item
+        raise KeyError("unknown_reference_session")
+
+    def export_pending():
+        return bool(export_request and state.jobs.get(export_request[2])["state"] in {"queued", "running"})
+
+    def managed_map(identity):
+        if not re.fullmatch(MAP, identity):
+            raise KeyError("unknown_reference_map")
+        bundle = state.store.map(identity)
+        resource(root, bundle["localization_map"])
+        return bundle
+
+    def map_payload(bundle):
+        return {"id": bundle["id"], "name": bundle["name"], "resolution": bundle["resolution"],
+                "origin": bundle["origin"], "active": state.active_map_id == bundle["id"]}
+
+    @app.get("/lingxi/status")
+    def status():
+        snapshot = state.mapping.snapshot()
+        current = snapshot["active"]
+        ros = state.ros.snapshot()
+        sensors = ros["sensor_fresh"]
+        aimdk = aimdk_ready()
+        sensors_ready = bool(sensors["lidar"] and sensors["imu"] and not ros.get("fatal_error"))
+        phase = {"starting": "requested", "recording": "running", "stopping": "saving"}
+        saving = finalizing or (export_request[0] if export_pending() else None)
+        failed = last_failed or next((item["id"] for item in snapshot["items"] if item["id"] == last_started
+                                      and item["state"] in {"failed", "interrupted"}), None)
+        result = {"phase": "saving" if saving else phase.get(current["state"], "failed") if current
+                            else "failed" if failed else "idle",
+                  "session": saving or (current["id"] if current else failed),
+                  "sensorsReady": sensors_ready, "aimdkReady": aimdk,
+                  "mappingReady": bool(snapshot["enabled"] and current is None and sensors_ready
+                                       and aimdk and not saving and not transition.locked()),
+                  "planningReady": bool((nav2_process is None or nav2_process.poll() is None)
+                                        and ros["localization_fresh"] and ros["actions"]["compute_path"]
+                                        and ros["nav2"]["loaded_map"] and state.active_map_id)}
+        if state.active_map_id and ros["localization_fresh"] and ros.get("pose") and ros.get("stamp"):
+            result.update(pose=ros["pose"], poseAtMs=ros["stamp"] * 1000)
+        return result
+
+    @app.get("/lingxi/lidar")
+    def lidar():
+        import numpy as np
+
+        active = state.mapping.snapshot()["active"]
+        if not active or active["state"] != "recording":
+            raise HTTPException(404)
+        with state.ros.lock:
+            frame = state.ros.frame
+            received = state.ros.frame_received
+        now = time.time()
+        if (frame is None or frame["stamp"] < active["started_at"] or not -0.1 <= now - frame["stamp"] <= 1.5
+                or time.monotonic() - received > 1.5):
+            raise HTTPException(404)
+        points = frame["body_points"]
+        sample = points[::max(1, math.ceil(len(points) / 8000)), :3]
+        transform = frame["odom_imu"]
+        values = sample @ transform[:3, :3].T + transform[:3, 3]
+        values = values[np.isfinite(values).all(axis=1)]
+        if len(values) == 0:
+            raise HTTPException(404)
+        stamp_ms = frame["stamp_ns"] // 1_000_000
+        return {"sequence": stamp_ms, "epoch": active["id"], "source": "point-cloud", "frameId": "fastlio_odom",
+                "sensorFrame": "lidar_chest_front", "fixedFrame": True, "stampMs": stamp_ms,
+                "receivedAtMs": (now - (time.monotonic() - received)) * 1000,
+                "points": values.reshape(-1).tolist()}
+
+    @app.get("/lingxi/maps")
+    def maps():
+        return [map_payload(bundle) for bundle in state.store.maps() if re.fullmatch(MAP, bundle["id"])]
+
+    @app.get("/lingxi/maps/{identity}/grid")
+    def grid(identity: str):
+        return checked_grid(root, managed_map(identity))
+
+    @app.post("/lingxi/mapping/start")
+    def start():
+        def operation():
+            nonlocal last_failed, last_started
+            if not aimdk_ready() or export_pending():
+                raise RuntimeError("reference_mapping_start_unavailable")
+            if state.navigation_lio.is_active():
+                upstream.stop_navigation_runtime()
+                wait_for(state.navigation_lio.is_active, lambda active: not active, time.monotonic() + 55)
+            state.active_map_id = None
+            request_id = uuid.uuid4().hex
+            result = upstream.start_mapping(upstream.MappingStartRequest(
+                name=f"扫描-{request_id}", request_id=request_id))
+            last_failed = None
+            last_started = result["id"]
+            return result["id"]
+        return guarded(operation)
+
+    def stop_capture(identity):
+        current = state.mapping.snapshot()["active"]
+        if current and current["id"] != identity:
+            raise RuntimeError("reference_session_changed")
+        upstream.stop_mapping(identity)
+        return wait_for(lambda: session(identity), lambda value: value["state"] not in {"starting", "recording", "stopping"}
+                        and not state.mapping.is_active(), time.monotonic() + 470)
+
+    @app.post("/lingxi/mapping/discard")
+    def discard(body: Session):
+        def operation():
+            nonlocal finalizing, last_failed, last_started
+            finalizing = body.session
+            try:
+                if any(bundle["id"] == f"fastlio-{body.session}" for bundle in state.store.maps()):
+                    raise RuntimeError("exported_capture_cannot_be_discarded")
+                current = state.mapping.snapshot()["active"]
+                if current and current["id"] != body.session:
+                    raise RuntimeError("reference_session_changed")
+                if any(item["id"] == body.session for item in state.mapping.snapshot()["items"]):
+                    stop_capture(body.session)
+                result = upstream.delete_mapping(body.session, confirmed=True)
+                if result.get("deleted") is not True or result.get("id") != body.session:
+                    raise RuntimeError("reference_discard_unconfirmed")
+                last_failed = None
+                if last_started == body.session:
+                    last_started = None
+                return True
+            finally:
+                finalizing = None
+        return guarded(operation)
+
+    @app.post("/lingxi/mapping/save")
+    def save(body: Save):
+        def operation():
+            nonlocal finalizing, last_failed, export_request
+            identity = f"fastlio-{body.session}"
+            finalizing = body.session
+            try:
+                selected = stop_capture(body.session)
+                if selected["state"] != "saved":
+                    raise RuntimeError("reference_capture_not_saved")
+                try:
+                    bundle = managed_map(identity)
+                except KeyError:
+                    if export_pending():
+                        if export_request[:2] != (body.session, body.name):
+                            raise RuntimeError("reference_export_already_running")
+                        job_id = export_request[2]
+                    else:
+                        job = upstream.export_map_request(upstream.ExportRequest(
+                            recording_dir=selected["recording_dir"], map_id=identity, name=body.name))
+                        job_id = job["id"]
+                        export_request = (body.session, body.name, job_id)
+                    result = wait_for(lambda: state.jobs.get(job_id),
+                                      lambda value: value["state"] in {"succeeded", "failed"}, time.monotonic() + EXPORT_WAIT_S)
+                    if result["state"] != "succeeded":
+                        raise RuntimeError("reference_grid_export_failed")
+                    bundle = managed_map(identity)
+                if bundle["name"] != body.name:
+                    raise RuntimeError("reference_map_name_changed")
+                checked_grid(root, bundle)
+                last_failed = None
+                return map_payload(bundle)
+            except Exception:
+                last_failed = body.session
+                raise
+            finally:
+                finalizing = None
+        return guarded(operation)
+
+    @app.post("/lingxi/maps/{identity}/activate")
+    def activate(identity: str, body: Place):
+        def operation():
+            if export_pending():
+                raise RuntimeError("reference_export_already_running")
+            bundle = managed_map(identity)
+            checked_grid(root, bundle)
+            upstream.activate_map(identity)
+            if body.pose is None:
+                return True
+            try:
+                runtime = wait_for(state.navigation_lio.snapshot, lambda value: value["state"] in {"ready", "failed"},
+                                   time.monotonic() + 95)
+                if runtime["state"] != "ready":
+                    raise RuntimeError("reference_localization_input_failed")
+                upstream.localize(upstream.LocalizationRequest(map_id=identity, **body.pose.model_dump(), timeout_s=30))
+                result = wait_for(state.localizer.snapshot,
+                                  lambda value: value["state"] in {"confirmed", "failed", "cancelled"},
+                                  time.monotonic() + 31)
+                if result["state"] != "confirmed":
+                    raise RuntimeError("reference_localization_unconfirmed")
+                state.localizer.wait_for_confirmation(identity, timeout_s=2)
+                state.ros.activate_map(bundle["yaml_path"])
+            except Exception:
+                upstream.cancel_localization()
+                state.active_map_id = None
+                raise
+            return True
+        return guarded(operation)
+
+    @app.post("/lingxi/maps/{identity}/plan")
+    def plan(identity: str, body: Place):
+        def operation():
+            bundle = managed_map(identity)
+            upstream.require_mapping_idle()
+            if body.pose is None or state.active_map_id != identity:
+                raise RuntimeError("reference_map_inactive_or_goal_missing")
+            state.tasks.require_localization(identity)
+            state.ros.activate_map(bundle["yaml_path"])
+            return state.ros.compute_path(body.pose.model_dump(), timeout_s=15)
+        return guarded(operation)
+
+    return app
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--source", type=Path, required=True)
+    parser.add_argument("--socket", type=Path, required=True)
+    parser.add_argument("--config", type=Path, required=True)
+    parser.add_argument("--ros2", type=Path, required=True)
+    args = parser.parse_args()
+    os.umask(0o077)
+    if not sys.platform.startswith("linux"):
+        raise RuntimeError("reference_runtime_requires_linux")
+    source = args.source.resolve(strict=True)
+    revision = subprocess.check_output(["git", "-C", str(source), "rev-parse", "HEAD"], text=True).strip()
+    dirty = subprocess.check_output(["git", "-C", str(source), "status", "--porcelain", "--untracked-files=all"], text=True)
+    if revision != REFERENCE_REVISION or dirty:
+        raise RuntimeError("reference_checkout_does_not_match_pinned_revision")
+    private_directory(args.socket.parent)
+    if not args.socket.is_absolute() or len(os.fsencode(args.socket)) >= 100 or os.path.lexists(args.socket):
+        raise ValueError("new_private_reference_socket_required")
+    os.environ["ROBOT_NAV_CONFIG"] = str(args.config.resolve(strict=True))
+    sys.path.insert(0, str(source))
+    import uvicorn
+    from robot_nav_tasks.settings import load_settings
+
+    settings = load_settings()
+    if settings["motion_enabled"] is not False:
+        raise RuntimeError("reference_motion_must_be_disabled")
+    root = private_directory(Path(settings["data_dir"]))
+    if settings.get("nav2_enabled") is not True or settings.get("visualization", {}).get("enabled", False):
+        raise RuntimeError("reference_profile_requires_nav2_and_disables_visualization_bridge")
+    if settings.get("color_mapping", {}).get("enabled", False):
+        raise RuntimeError("reference_profile_does_not_support_color_mapping")
+    if settings.get("mapping", {}).get("loop_closure_enabled", False):
+        raise RuntimeError("reference_profile_does_not_support_loop_closure")
+    from robot_nav_tasks import server as upstream
+
+    # Uvicorn changes UDS mode itself when binding. Supply an already bound private socket.
+    import socket
+    with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as endpoint:
+        endpoint.bind(str(args.socket))
+        identity = args.socket.stat().st_ino
+        os.chmod(args.socket, 0o600)
+        nav2 = None
+        try:
+            os.environ.setdefault("ROS_LOG_DIR", str(root / "logs"))
+            nav2 = subprocess.Popen([sys.executable, str(args.ros2.resolve(strict=True)), "launch",
+                                     str(source / "deploy/nav2_services.launch.py")], cwd=source,
+                                    stdin=subprocess.DEVNULL, start_new_session=True)
+            config = uvicorn.Config(make_app(upstream, root, nav2), access_log=False, lifespan="on")
+            runner = uvicorn.Server(config)
+            runner.run(sockets=[endpoint])
+            if not runner.started:
+                raise RuntimeError("reference_service_start_failed")
+        finally:
+            if nav2 is not None and nav2.poll() is None:
+                try:
+                    os.killpg(nav2.pid, signal.SIGINT)
+                    nav2.wait(timeout=20)
+                except subprocess.TimeoutExpired:
+                    os.killpg(nav2.pid, signal.SIGKILL)
+                    nav2.wait(timeout=5)
+                except ProcessLookupError:
+                    nav2.wait(timeout=5)
+            if os.path.lexists(args.socket):
+                details = args.socket.lstat()
+                if stat.S_ISSOCK(details.st_mode) and details.st_ino == identity:
+                    args.socket.unlink()
+
+
+if __name__ == "__main__":
+    main()

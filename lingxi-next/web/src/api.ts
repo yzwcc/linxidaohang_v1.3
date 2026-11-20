@@ -63,12 +63,13 @@ export async function api<T>(
   connection: Connection,
   path: string,
   init: RequestInit = {},
+  timeoutMs?: number,
 ): Promise<T> {
   const headers = new Headers(init.headers);
   headers.set("Authorization", `Bearer ${connection.token}`);
   if (init.body && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
-  const timeout = AbortSignal.timeout(path.includes("stop-save") ? 130_000
-    : path.includes("stop-discard") ? 110_000 : path.includes("activate") ? 35_000 : 10_000);
+  const timeout = AbortSignal.timeout(timeoutMs ?? (path.includes("stop-save") ? 130_000
+    : path.includes("stop-discard") ? 110_000 : path.includes("activate") ? 35_000 : 10_000));
   const response = await fetch(`${connection.baseUrl}${path}`, {
     ...init, headers, signal: init.signal ? AbortSignal.any([init.signal, timeout]) : timeout,
   });

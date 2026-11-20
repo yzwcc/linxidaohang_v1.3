@@ -44,8 +44,11 @@ import {
   type LocalizationCommand, type LocalizationLifecycleCommand,
 } from "../../shared/localization";
 
+import { ReferenceNavigationAdapter } from "./reference-navigation";
+
 type ServerOptions = {
   adapter?: RobotAdapter;
+  referenceNavigation?: ReferenceNavigationAdapter;
   lidarSource?: {
     getLidarFrame: NonNullable<RobotAdapter["getLidarFrame"]>;
     getPointEvent?: () => LidarEvent;
@@ -124,6 +127,7 @@ class HttpAgentSpeaker implements SpeechOutput {
 }
 
 export async function buildServer(options: ServerOptions = {}): Promise<FastifyInstance> {
+  const referenceNavigation = options.referenceNavigation;
   const offlineNavigation = options.offlineNavigationBackend;
   const independentProduct = options.independentProduct === true;
   if (!independentProduct && (options.physicalNavigationBackend || process.env.LINGXI_NAVIGATION_SOCKET)) {
@@ -151,6 +155,10 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
     throw new Error("isolated_localization_console_requires_only_own_backend");
   }
   const isolatedConsole = mappingConsole || localizationConsole;
+  if (referenceNavigation && (demoMode || isolatedConsole || options.adapter || options.lidarSource || offlineNavigation ||
+      mappingBackend || localizationBackend || physicalNavigation || options.actionsBackend || independentProduct)) {
+    throw new Error("reference_navigation_requires_exclusive_production_adapter");
+  }
   if (offlineNavigation && (isolatedConsole || mappingBackend || localizationBackend || options.adapter ||
       options.lidarSource || options.agentSpeaker || options.savedSlamDirectory || process.env.LINGXI_SAVED_SLAM_DIR || physicalNavigation)) {
     throw new Error("isolated_offline_navigation_requires_only_own_backend");
@@ -159,7 +167,7 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
     throw new Error("isolated_mapping_console_requires_own_backend_without_robot_adapter");
   }
   const baseAdapter = offlineNavigation ? new OfflineNavigationAdapter(offlineNavigation) : isolatedConsole ? mappingConsoleAdapter() :
-    options.adapter ?? (demoMode ? new DemoAdapter() : new AimdkAdapter(process.env.AIMDK_BRIDGE_URL));
+    referenceNavigation ?? options.adapter ?? (demoMode ? new DemoAdapter() : new AimdkAdapter(process.env.AIMDK_BRIDGE_URL));
   const savedSlamDirectory = options.savedSlamDirectory ?? process.env.LINGXI_SAVED_SLAM_DIR;
   const slamCatalog = savedSlamDirectory ? new SavedSlamMapCatalog(savedSlamDirectory) : undefined;
   if (options.actionsBackend && (!independentProduct || !mappingBackend || !localizationBackend || !slamCatalog || demoMode)) {
@@ -400,12 +408,13 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
       }));
     }
     const byId = new Map<string, RobotMap>();
-    for (const map of db.maps) byId.set(map.id, map);
+    if (!referenceNavigation) for (const map of db.maps) byId.set(map.id, map);
     for (const map of discovered) {
       const saved = byId.get(map.id);
       byId.set(map.id, { ...saved, ...map, mapId: map.mapId ?? saved?.mapId });
     }
-    const selected = db.activeMapId ?? [...byId.values()].find((map) => map.active)?.id;
+    const liveMap = discovered.find((map) => map.active)?.id;
+    const selected = referenceNavigation ? liveMap : db.activeMapId ?? liveMap;
     const maps = [...byId.values()].map((map) => ({
       ...map,
       active: map.id === selected,
@@ -576,6 +585,7 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
   app.post<{ Params: { id: string }; Body?: { initialPose?: { x: number; y: number; yaw: number } } }>(
     "/api/v1/maps/:id/activate",
     async (request) => {
+      if (referenceNavigation && !secureRequest(request)) throw deny(426, "重定位必须通过 HTTPS");
       const snapshot = await runtimeSnapshot();
       if (snapshot.actionBusy) throw deny(409, "机器人动作状态未解除，请先检查动作服务状态");
       if (jobs.hasActiveJob() || snapshot.mapping || ["requested", "running", "paused"].includes(snapshot.navigation.status)) {
@@ -591,7 +601,8 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
       if (!parsedPose.success) throw deny(400, "初始位姿参数无效");
       const state = await store.read();
       const maps = await adapter.listMaps().catch(() => []);
-      let map = maps.find((item) => item.id === request.params.id) ?? state.maps.find((item) => item.id === request.params.id);
+      let map = maps.find((item) => item.id === request.params.id);
+      if (!map && !referenceNavigation) map = state.maps.find((item) => item.id === request.params.id);
       // A saved GLIM map is only promoted into the managed map set when an
       // explicit physical bridge confirms activation. Catalog discovery is
       // deliberately read-only and cannot create points or activate motion.
@@ -605,7 +616,7 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
       await store.setActiveMap(map.id);
       const response = await stateResponse();
       emitState(response);
-      return { accepted: true, mapId: map.mapId };
+      return { accepted: true, mapId: referenceNavigation ? map.id : map.mapId };
     },
   );
   app.get<{ Params: { id: string } }>("/api/v1/maps/:id/grid", async (request) => {
@@ -613,10 +624,21 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
     if (!method) throw deny(501, "地图栅格读取尚未配置");
     const maps = await adapter.listMaps();
     const map = maps.find((item) => item.id === request.params.id);
-    if (!map) throw deny(404, "地图未通过 AIMDK 确认");
+    if (!map) throw deny(404, "地图未通过当前建图服务确认");
     return method.call(adapter, map);
   });
-  app.post("/api/v1/mapping/start", async (_request, reply) => {
+  if (referenceNavigation) app.post<{ Body: unknown }>("/api/v1/navigation/preview", async (request) => {
+    if (!secureRequest(request)) throw deny(426, "路径预览必须通过 HTTPS");
+    const target = z.object({ pointId: z.string().min(1).max(100) }).strict().safeParse(request.body);
+    if (!target.success) throw deny(400, "目标点无效");
+    const current = await store.read();
+    const point = current.points.find((item) => item.id === target.data.pointId && item.mapId === current.activeMapId);
+    const map = point && (await referenceNavigation.listMaps()).find((item) => item.id === point.mapId && item.active);
+    if (!map || !point) throw deny(409, "请先在当前地图上重定位并选择目标点");
+    return { mapId: map.id, poses: await referenceNavigation.previewPath(map, { x: point.x, y: point.y, yaw: point.yaw }) };
+  });
+  app.post("/api/v1/mapping/start", async (request, reply) => {
+    if (referenceNavigation && !secureRequest(request)) throw deny(426, "建图控制必须通过 HTTPS");
     if (mappingBackend && !demoMode && !mappingConsole) {
       throw deny(409, "独立建图需要专用联调入口");
     }
@@ -626,7 +648,7 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
     if (jobs.hasActiveJob() || ["requested", "running", "paused"].includes(state.navigation.status)) {
       throw deny(409, "请先停止导航或讲解任务，再开始建图");
     }
-    if (mappingConsole && !state.mappingControlReady) throw deny(409, "建图服务未就绪或上一会话尚未结束");
+    if ((mappingConsole || referenceNavigation) && !state.mappingControlReady) throw deny(409, "建图服务未就绪或上一会话尚未结束");
     const required = new Set(mappingConsole ? [] : ["aimdk", "slam", "lidar"]);
     const failures = state.checks.filter((item) => required.has(item.id) && !item.ready);
     if (failures.length) throw deny(409, `建图预检未通过：${failures.map((item) => item.label).join("、")}`);
@@ -636,6 +658,7 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
     return reply.code(202).send({ accepted: true });
   });
   app.post<{ Body: unknown }>("/api/v1/mapping/stop-save", async (request) => {
+    if (referenceNavigation && !secureRequest(request)) throw deny(426, "建图控制必须通过 HTTPS");
     const parsedName = z.object({ name: z.string().trim().min(1).max(64) }).safeParse(request.body);
     if (!parsedName.success) throw deny(400, "地图名称长度必须为 1–64 个字符");
     const name = parsedName.data.name;
@@ -653,18 +676,23 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
       emitState(await stateResponse());
       return { savedSlamMap: map, confirmed: true };
     }
-    const map = await adapter.stopAndSaveMap(name);
+    const referenceSession = z.object({ session: z.string().regex(/^[a-f0-9]{32}$/) }).safeParse(request.body);
+    if (referenceNavigation && !referenceSession.success) throw deny(400, "建图操作需要当前会话标识");
+    const map = referenceNavigation && referenceSession.success
+      ? await referenceNavigation.stopAndSaveMap(name, referenceSession.data.session) : await adapter.stopAndSaveMap(name);
     await store.putMap(map);
-    await store.setActiveMap(map.id);
+    if (!referenceNavigation) await store.setActiveMap(map.id);
     emitState(await stateResponse());
     return { map, confirmed: true };
   });
   app.post("/api/v1/mapping/stop-discard", async (request) => {
-    if (!mappingBackend) throw deny(501, "当前建图后端尚未提供放弃接口");
+    if (referenceNavigation && !secureRequest(request)) throw deny(426, "建图控制必须通过 HTTPS");
+    if (!mappingBackend && !referenceNavigation) throw deny(501, "当前建图后端尚未提供放弃接口");
     const identity = z.object({ session: z.string().regex(/^[a-f0-9]{32}$/) }).strict().safeParse(request.body);
     if (!identity.success) throw deny(400, "独立建图操作需要当前会话标识");
     const finish = () => mappingBackend!.finish(identity.data.session, false);
-    if (productActions) await productActions.runMappingControl(finish); else await finish();
+    if (referenceNavigation) await referenceNavigation.discardMapping(identity.data.session);
+    else if (productActions) await productActions.runMappingControl(finish); else await finish();
     emitState(await stateResponse());
     return { confirmed: true, saved: false };
   });
@@ -731,6 +759,7 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
     return { selected: true };
   });
   app.post<{ Params: { id: string } }>("/api/v1/tours/:id/start", async (request, reply) => {
+    if (referenceNavigation) throw deny(409, "FAST-LIO 联调配置的运动输出已关闭");
     const tour = (await store.read()).tours.find((item) => item.id === request.params.id);
     if (!tour) throw deny(404, "讲解任务不存在");
     await store.selectTour(tour.id);
@@ -740,6 +769,7 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
   });
 
   app.post<{ Body: { pointId: string } }>("/api/v1/navigation/point", async (request, reply) => {
+    if (referenceNavigation) throw deny(409, "FAST-LIO 联调配置的运动输出已关闭");
     const state = await stateResponse();
     if (state.actionBusy) throw deny(409, "机器人动作状态未解除，请先检查动作服务状态");
     const point = state.points.find((item) => item.id === request.body?.pointId);
@@ -1074,7 +1104,9 @@ export async function startServer(): Promise<void> {
   const keyPath = process.env.LINGXI_TLS_KEY;
   const certPath = process.env.LINGXI_TLS_CERT;
   if (!isDemo && (!keyPath || !certPath)) throw new Error("生产模式必须配置 LINGXI_TLS_KEY 和 LINGXI_TLS_CERT");
+  const referenceSocket = process.env.LINGXI_REFERENCE_SOCKET;
   const app = await buildServer({
+    referenceNavigation: referenceSocket ? new ReferenceNavigationAdapter(referenceSocket) : undefined,
     tlsKey: keyPath ? readFileSync(keyPath) : undefined,
     tlsCert: certPath ? readFileSync(certPath) : undefined,
   });

@@ -6,7 +6,7 @@ import { spawnSync } from "node:child_process";
 import path from "node:path";
 
 const version = "3.9.11";
-const root = path.resolve(".local");
+const root = path.resolve(process.env.LINGXI_AGENT_BUILD_CACHE ?? ".local");
 const home = path.join(root, `apache-maven-${version}`);
 if (!existsSync(home)) {
   const base = `https://repo.maven.apache.org/maven2/org/apache/maven/apache-maven/${version}/apache-maven-${version}-bin.zip`;

@@ -13,7 +13,7 @@ const projectRoot = path.resolve(".");
 const webIdentity = await assertCurrentWebBuild(projectRoot);
 const webAssets = await assertSyncedWebAssets(projectRoot);
 const nativeSource = await androidBuildIdentity(projectRoot);
-const root = path.resolve(".local");
+const root = path.resolve(process.env.LINGXI_ANDROID_BUILD_CACHE ?? ".local");
 const sdk = path.join(root, "android-sdk");
 await mkdir(root, { recursive: true });
 const run = (command, args, options = {}) => new Promise((resolve, reject) => {
@@ -109,5 +109,6 @@ await writeFile(path.join("artifacts", `${apkName}.build.json`), JSON.stringify(
 }, null, 2) + "\n");
 await run("python", ["tools/verify-android.py", path.join("artifacts", apkName), "--java",
   path.join(javaHome, "bin", "java.exe"), "--node", process.execPath,
+  "--build-tools", path.join(sdk, "build-tools", "35.0.0"),
   "--report", path.join("artifacts", `${apkName}.verification.json`)]);
 console.log("Source-bound commissioning APK verified under artifacts/; signing keys are excluded from delivery.");
