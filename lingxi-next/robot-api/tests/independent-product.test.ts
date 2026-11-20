@@ -88,6 +88,36 @@ it("correlates reference map saves on the paired HTTPS API and rejects actuation
   }
 });
 
+it("keeps controller changes idle-only and correlates navigation commands to the reference task", async () => {
+  const session = "a".repeat(32);
+  const map = { id: `fastlio-${session}`, name: "展厅" };
+  const point = { id: "p1", mapId: map.id, name: "展台", x: 1, y: 2, yaw: 0, isStart: false };
+  let navigation = { session, ready: true, physicalMotionSent: false, status: "idle",
+    requiresStop: false, taskId: null as string | null, pointId: null as string | null, detail: "" };
+  const call = vi.fn(async (route: string, payload?: { taskId: string; action?: string }) => {
+    if (route === "status") return { phase: "idle", session: null, sensorsReady: true, mappingReady: true,
+      aimdkReady: true, planningReady: true, pose: { x: 0, y: 0, yaw: 0 }, poseAtMs: Date.now(), navigation };
+    navigation = { ...navigation, taskId: payload!.taskId, pointId: point.id,
+      status: payload?.action === "pause" ? "paused" : payload?.action === "stop" ? "idle" : "running" };
+    return navigation;
+  });
+  const adapter = Object.assign(Object.create(ReferenceNavigationAdapter.prototype), {
+    call, mode: "point", pendingCommands: 0,
+  }) as ReferenceNavigationAdapter;
+  expect((await adapter.getSnapshot()).referenceNavigation?.mode).toBe("point");
+  await adapter.selectMode("nav2");
+  await adapter.startNavigation(point, map, "test-task");
+  expect(call).toHaveBeenLastCalledWith("navigation/start", expect.objectContaining({
+    session, taskId: "test-task", pointId: point.id, mapId: map.id, mode: "nav2",
+  }), 21_000);
+  await expect(adapter.selectMode("point")).rejects.toThrow();
+  await expect(adapter.controlNavigation("pause", "old-task")).rejects.toThrow();
+  await adapter.controlNavigation("pause", "test-task");
+  await adapter.controlNavigation("resume", "test-task");
+  await adapter.controlNavigation("stop", "test-task");
+  await adapter.selectMode("point");
+});
+
 
 describe("explicit independent product composition with synthetic services", () => {
   let app: FastifyInstance, root: string, token: string;

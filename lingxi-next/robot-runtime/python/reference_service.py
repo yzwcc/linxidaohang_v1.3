@@ -1,5 +1,7 @@
 import argparse
 from contextlib import asynccontextmanager
+import hashlib
+import json
 import logging
 import math
 import os
@@ -77,10 +79,14 @@ def wait_for(read, complete, deadline):
     raise TimeoutError("reference_operation_unconfirmed")
 
 
-def make_app(upstream, root, nav2_process=None):
+def make_app(upstream, root, nav2_process=None, motion_maps=None):
     from fastapi import FastAPI, HTTPException
     from fastapi.responses import JSONResponse
     from pydantic import BaseModel, ConfigDict, Field, FiniteFloat
+    from typing import Literal
+    from reference_motion import MotionTask
+
+    Mode = Literal["point", "nav2"]
 
     class Session(BaseModel):
         model_config = ConfigDict(extra="forbid")
@@ -99,12 +105,49 @@ def make_app(upstream, root, nav2_process=None):
         model_config = ConfigDict(extra="forbid")
         pose: Pose | None = None
 
+    class Destination(BaseModel):
+        model_config = ConfigDict(extra="forbid")
+        session: str = Field(pattern=f"^{SESSION}$")
+        mapId: str = Field(pattern=f"^{MAP}$")
+        taskId: str = Field(min_length=1, max_length=100)
+        pointId: str = Field(min_length=1, max_length=100)
+        mode: Mode
+        pose: Pose
+
+    class Control(BaseModel):
+        model_config = ConfigDict(extra="forbid")
+        session: str = Field(pattern=f"^{SESSION}$")
+        taskId: str = Field(min_length=1, max_length=100)
+        action: Literal["pause", "resume", "stop"]
+
     @asynccontextmanager
     async def lifespan(_app):
         async with upstream.lifespan(upstream.app):
-            if upstream.app.state.ros.motion_enabled:
-                raise RuntimeError("reference_motion_must_be_disabled")
-            yield
+            if upstream.app.state.ros.motion_enabled != (motion_maps is not None):
+                raise RuntimeError("reference_motion_configuration_mismatch")
+            if motion_maps is None:
+                yield
+                return
+            done = threading.Event()
+
+            def watch_nav2():
+                while not done.wait(.10):
+                    if nav_process_alive():
+                        continue
+                    ros = state.ros
+                    with ros.lock:
+                        task = ros.motion_task
+                        if task and task.phase in {"requested", "running"}:
+                            ros.revoke(task, "Nav2 进程已退出")
+                    return
+
+            watch = threading.Thread(target=watch_nav2, name="reference-nav2-watchdog", daemon=True)
+            watch.start()
+            try:
+                yield
+            finally:
+                done.set()
+                watch.join(timeout=1)
 
     app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
     state = upstream.app.state
@@ -113,6 +156,51 @@ def make_app(upstream, root, nav2_process=None):
     last_failed = None
     last_started = None
     export_request = None
+    active_review = None
+
+    def digest(file):
+        with file.open("rb") as stream:
+            return hashlib.file_digest(stream, "sha256").hexdigest() if hasattr(hashlib, "file_digest") else digest_stream(stream)
+
+    def digest_stream(stream):
+        sha = hashlib.sha256()
+        for block in iter(lambda: stream.read(1024 * 1024), b""):
+            sha.update(block)
+        return sha.hexdigest()
+
+    def reviewed(bundle):
+        if motion_maps is None or bundle["id"] not in motion_maps:
+            return None
+        yaml_file = resource(root, bundle["yaml_path"])
+        files = {name: resource(root, yaml_file.parent / name) for name in ("metadata.json", "map.yaml", "map.pgm", "localization.ply", "localization.json")}
+        if resource(root, bundle["localization_map"]) != files["localization.ply"]:
+            raise RuntimeError("reference_localization_resource_mismatch")
+        calculated = {name: digest(file) for name, file in files.items()}
+        if calculated != motion_maps[bundle["id"]]:
+            return None
+        return (bundle["id"], bundle["revision"])
+
+    def nav_process_alive():
+        return nav2_process is None or nav2_process.poll() is None
+
+    def motion_ready():
+        return bool(active_review and active_review[0] == state.active_map_id and nav_process_alive()
+                    and not state.mapping.is_active() and state.ros.output_idle() and state.ros.ready())
+
+    def navigation_idle():
+        if motion_maps is not None and not state.ros.output_idle():
+            raise RuntimeError("reference_motion_not_confirmed_idle")
+
+    def navigation_payload():
+        ros = state.ros
+        with ros.lock:
+            task = ros.motion_task
+            current = task.phase if task else "idle"
+            still_stopping = current == "stopping" and task.retirement_running
+            return {"session": ros.motion_session, "ready": motion_ready(), "physicalMotionSent": ros.physical_motion_sent,
+                    "status": "running" if still_stopping else "failed" if current == "stopping" else current,
+                    "requiresStop": current == "stopping" and not still_stopping, "taskId": task.task_id if task else None,
+                    "pointId": task.point_id if task else None, "detail": task.detail if task else "等待运动准入"}
 
     @app.exception_handler(RuntimeError)
     @app.exception_handler(ValueError)
@@ -173,11 +261,13 @@ def make_app(upstream, root, nav2_process=None):
                   "sensorsReady": sensors_ready, "aimdkReady": aimdk,
                   "mappingReady": bool(snapshot["enabled"] and current is None and sensors_ready
                                        and aimdk and not saving and not transition.locked()),
-                  "planningReady": bool((nav2_process is None or nav2_process.poll() is None)
+                  "planningReady": bool(nav_process_alive()
                                         and ros["localization_fresh"] and ros["actions"]["compute_path"]
                                         and ros["nav2"]["loaded_map"] and state.active_map_id)}
         if state.active_map_id and ros["localization_fresh"] and ros.get("pose") and ros.get("stamp"):
             result.update(pose=ros["pose"], poseAtMs=ros["stamp"] * 1000)
+        if motion_maps is not None:
+            result["navigation"] = navigation_payload()
         return result
 
     @app.get("/lingxi/lidar")
@@ -219,6 +309,7 @@ def make_app(upstream, root, nav2_process=None):
     def start():
         def operation():
             nonlocal last_failed, last_started
+            navigation_idle()
             if not aimdk_ready() or export_pending():
                 raise RuntimeError("reference_mapping_start_unavailable")
             if state.navigation_lio.is_active():
@@ -307,6 +398,9 @@ def make_app(upstream, root, nav2_process=None):
     @app.post("/lingxi/maps/{identity}/activate")
     def activate(identity: str, body: Place):
         def operation():
+            nonlocal active_review
+            navigation_idle()
+            active_review = None
             if export_pending():
                 raise RuntimeError("reference_export_already_running")
             bundle = managed_map(identity)
@@ -327,6 +421,7 @@ def make_app(upstream, root, nav2_process=None):
                     raise RuntimeError("reference_localization_unconfirmed")
                 state.localizer.wait_for_confirmation(identity, timeout_s=2)
                 state.ros.activate_map(bundle["yaml_path"])
+                active_review = reviewed(bundle)
             except Exception:
                 upstream.cancel_localization()
                 state.active_map_id = None
@@ -337,6 +432,7 @@ def make_app(upstream, root, nav2_process=None):
     @app.post("/lingxi/maps/{identity}/plan")
     def plan(identity: str, body: Place):
         def operation():
+            navigation_idle()
             bundle = managed_map(identity)
             upstream.require_mapping_idle()
             if body.pose is None or state.active_map_id != identity:
@@ -345,6 +441,50 @@ def make_app(upstream, root, nav2_process=None):
             state.ros.activate_map(bundle["yaml_path"])
             return state.ros.compute_path(body.pose.model_dump(), timeout_s=15)
         return guarded(operation)
+
+    if motion_maps is not None:
+        @app.post("/lingxi/navigation/start")
+        def navigate(body: Destination):
+            def operation():
+                ros = state.ros
+                if body.session != ros.motion_session or body.mapId != state.active_map_id or not motion_ready():
+                    raise RuntimeError("reference_motion_not_ready")
+                prior = ros.motion_task
+                if prior and prior.task_id == body.taskId:
+                    raise RuntimeError("reference_task_id_reused")
+                if reviewed(managed_map(body.mapId)) != active_review:
+                    raise RuntimeError("reference_map_changed_after_activation")
+                state.tasks.require_localization(body.mapId)
+                ros.submit(MotionTask(body.taskId, body.pointId, body.mapId, body.pose.model_dump(), body.mode))
+                return navigation_payload()
+            return guarded(operation)
+
+        @app.post("/lingxi/navigation/control")
+        def control(body: Control):
+            def operation():
+                ros = state.ros
+                task = ros.motion_task
+                if body.session != ros.motion_session or not task or task.task_id != body.taskId:
+                    raise RuntimeError("reference_task_changed")
+                if body.action == "resume":
+                    if task.phase != "paused" or task.map_id != state.active_map_id or not nav_process_alive():
+                        raise RuntimeError("reference_task_not_resumable")
+                    if reviewed(managed_map(task.map_id)) != active_review or active_review is None:
+                        raise RuntimeError("reference_map_changed_after_activation")
+                    state.tasks.require_localization(task.map_id)
+                    ros.submit(MotionTask(task.task_id, task.point_id, task.map_id, dict(task.goal), task.mode))
+                    return navigation_payload()
+                with ros.lock:
+                    if task.phase == "paused" and body.action == "stop":
+                        task.phase, task.detail = "idle", "任务已停止"
+                    elif task.phase in {"requested", "running", "stopping"}:
+                        if body.action == "stop" and task.phase == "stopping":
+                            task.result = "idle"
+                        ros.revoke(task, "正在确认停稳", "paused" if body.action == "pause" else "idle")
+                wait_for(lambda: task, lambda item: item.phase != "stopping" and not item.retirement_running,
+                         time.monotonic() + 18)
+                return navigation_payload()
+            return guarded(operation)
 
     return app
 
@@ -373,8 +513,6 @@ def main():
     from robot_nav_tasks.settings import load_settings
 
     settings = load_settings()
-    if settings["motion_enabled"] is not False:
-        raise RuntimeError("reference_motion_must_be_disabled")
     root = private_directory(Path(settings["data_dir"]))
     if settings.get("nav2_enabled") is not True or settings.get("visualization", {}).get("enabled", False):
         raise RuntimeError("reference_profile_requires_nav2_and_disables_visualization_bridge")
@@ -383,6 +521,27 @@ def main():
     if settings.get("mapping", {}).get("loop_closure_enabled", False):
         raise RuntimeError("reference_profile_does_not_support_loop_closure")
     from robot_nav_tasks import server as upstream
+    motion_maps = None
+    if settings["motion_enabled"]:
+        from reference_motion import gateway_type
+        review_path = Path(settings["lingxi_motion_review"])
+        if not review_path.is_absolute() or review_path.resolve(strict=True) != review_path:
+            raise ValueError("canonical_motion_review_required")
+        details = review_path.stat()
+        if not stat.S_ISREG(details.st_mode) or details.st_uid != 0 or details.st_mode & 0o022:
+            raise ValueError("root_owned_motion_review_required")
+        review = json.loads(review_path.read_text(encoding="utf-8"))
+        if (review["firmware"] != "release-lx2501_3_t2d5-soc1-v1.1.5" or review["aimdk"] != "v1.1.0-rc10"
+                or review["configSha256"] != hashlib.sha256(args.config.read_bytes()).hexdigest()
+                or not isinstance(review["maps"], dict) or not review["maps"]):
+            raise ValueError("motion_review_target_or_configuration_mismatch")
+        idle_sources = settings["lingxi_motion_idle_sources"]
+        if not isinstance(idle_sources, list) or not idle_sources or not all(isinstance(name, str) for name in idle_sources):
+            raise ValueError("motion_idle_sources_required")
+        if not 0 < settings["max_forward_velocity"] <= .25 or not 0 < settings["max_angular_velocity"] <= .8 or settings["max_lateral_velocity"] != 0:
+            raise ValueError("reference_motion_limits_out_of_range")
+        motion_maps = review["maps"]
+        upstream.RosGateway = gateway_type(upstream.RosGateway)
 
     # Uvicorn changes UDS mode itself when binding. Supply an already bound private socket.
     import socket
@@ -396,7 +555,7 @@ def main():
             nav2 = subprocess.Popen([sys.executable, str(args.ros2.resolve(strict=True)), "launch",
                                      str(source / "deploy/nav2_services.launch.py")], cwd=source,
                                     stdin=subprocess.DEVNULL, start_new_session=True)
-            config = uvicorn.Config(make_app(upstream, root, nav2), access_log=False, lifespan="on")
+            config = uvicorn.Config(make_app(upstream, root, nav2, motion_maps), access_log=False, lifespan="on")
             runner = uvicorn.Server(config)
             runner.run(sockets=[endpoint])
             if not runner.started:

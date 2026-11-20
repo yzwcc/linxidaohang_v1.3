@@ -71,7 +71,7 @@ except ImportError:
 
 
 PORT = int(os.getenv("LINGXI_AIMDK_BRIDGE_PORT", "18082"))
-BRIDGE_MODES = ("full", "actions-only")
+BRIDGE_MODES = ("full", "actions-only", "reference-actions")
 TOKEN = os.getenv("LINGXI_AIMDK_BRIDGE_TOKEN", "")
 MAP_DIR = Path(os.getenv("AIMDK_MAP_DIR", "/agibot/data/var/MapManagerModule"))
 MAP_TOPIC = os.getenv("AIMDK_MAP_TOPIC", "").strip()
@@ -359,7 +359,7 @@ class X2Node(Node):
         else:
             self.get_logger().warning("Optional AIMDK action services are unavailable")
         self.navigation_ready = False
-        if mode == "actions-only":
+        if mode != "full":
             return
         self.publisher = self.create_publisher(String, INTEGRATED_COMMAND_TOPIC, reliable_transient)
         self.relocalization_publisher = self.create_publisher(Pose, "/relocalization_pose", best_effort_volatile)
@@ -410,7 +410,7 @@ class X2Node(Node):
             raise AdapterError("仅动作模式不提供厂商建图、定位或导航接口", 409)
 
     def require_physical_actions(self) -> None:
-        if self.mode != "full":
+        if self.mode == "actions-only":
             raise AdapterError("独立模式实体动作尚未接入运行态互锁，未发送动作请求", 409)
 
     def _load_action_interlock(self) -> None:
@@ -691,7 +691,7 @@ class X2Node(Node):
         preset_available = all(self._client_ready(client) for client in (
             self.motion_input_source_client, self.preset_motion_client, self.preset_motion_state_client
         ))
-        physical_actions_enabled = self.mode == "full"
+        physical_actions_enabled = self.mode != "actions-only"
         preset_ready = not action_uncertain and preset_available and physical_actions_enabled
         expression_ready = not action_uncertain and self._client_ready(self.expression_client)
         resource_ready = not action_uncertain and self._client_ready(self.linkcraft_resource_client) and resources_fresh
@@ -1115,7 +1115,7 @@ class X2Node(Node):
             self.motion_action_lock.release()
 
     def _expression_operation_lease(self):
-        if self.mode == "full":
+        if self.mode in ("full", "reference-actions"):
             return None
         try:
             from lingxi_slam.activity_lease import ActivityBusy, OperationGate
@@ -1439,7 +1439,7 @@ class BridgeHandler(BaseHTTPRequestHandler):
         if path == "/health":
             return self.send_json(200, {
                 "ok": rclpy.ok(), "bridgeMode": self.node.mode,
-                "physicalActionsEnabled": self.node.mode == "full",
+                "physicalActionsEnabled": self.node.mode != "actions-only",
             })
         try:
             self.authorize()
@@ -1540,13 +1540,20 @@ class BridgeHandler(BaseHTTPRequestHandler):
                 monitor = body.get("monitorCompletion", True)
                 if not isinstance(monitor, bool):
                     raise AdapterError("动作状态监控参数无效", 400)
+                if self.node.mode == "reference-actions":
+                    self.require_action_request(body, {"name", "monitorCompletion"})
+                    return self.send_action_json(202, self.node.start_preset_motion(name, monitor_completion=monitor), body)
                 return self.send_json(202, self.node.start_preset_motion(name, monitor_completion=monitor))
             if path == "/v1/expression":
                 self.require_action_request(body, {"name"})
                 result = self.node.play_expression(body.get("name"))
                 return self.send_action_json(202, result, body)
             if path == "/v1/linkcraft/resource":
+                if self.node.mode == "reference-actions":
+                    self.require_action_request(body, {"id"})
                 result = self.node.execute_linkcraft_resource(body.get("id"))
+                if self.node.mode == "reference-actions":
+                    return self.send_action_json(202, result, body)
                 return self.send_json(202, result)
             if path == "/v1/actions/confirm-idle":
                 self.require_action_request(body, {"confirmed"})

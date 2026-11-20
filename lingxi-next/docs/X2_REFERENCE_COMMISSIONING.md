@@ -2,7 +2,7 @@
 
 目标机 SoC1 为 `release-lx2501_3_t2d5-soc1-v1.1.5`。AIMDK 安装清单为 `v1.1.0-rc10`。ROS 接入以目标机安装的接口定义、服务类型和传感器数据为准。
 
-参考仓库为 [Mikeaaaa14/Lingxi-navigation](https://github.com/Mikeaaaa14/Lingxi-navigation)，固定提交 `90bbc8096c23a5660fc6c5e26dd99ec1ed79da11`。联调服务在同一个私有 Unix Socket 上提供 FAST-LIO 点迹、保存与放弃、栅格读取、GICP 重定位和 Nav2 路径预览。网页和横屏 APK 通过配对后的 HTTPS/WSS 使用这些接口。机器人行走和动作输出关闭，建图移动由现场人员使用外置遥控器。
+参考仓库固定在 `90bbc8096c23a5660fc6c5e26dd99ec1ed79da11`。联调服务在私有 Unix Socket 上提供 FAST-LIO 点迹、保存与放弃、栅格读取、GICP 重定位和 Nav2 路径预览。网页和横屏 APK 通过配对后的 HTTPS/WSS 使用这些接口。联调初始配置关闭运动，建图移动由现场人员使用外置遥控器。[参考仓库](https://github.com/Mikeaaaa14/Lingxi-navigation)
 
 ## 依赖和部署
 
@@ -18,6 +18,16 @@ ARM64 核心联调包提供产品 Web、API、参考服务适配、AgentSDK 进�
 ## 点位与讲解迁移
 
 先在新地图上重新确认每个点位的米制坐标和朝向。运行迁移脚本的预检查得到每张旧地图的点位 ID。然后提供以旧地图 ID 为键的 JSON，每项填写已保存的 `fastlio-…` 地图 ID，以及按旧点位 ID 索引的 `points`。每个点位填写 `x`、`y`、`yaw`，角度单位是弧度。提供 `--point-assignments FILE` 再执行一次预检查，确认点位和讲解数后在产品 API 停止期间加 `--apply`。脚本为这次迁移保留输入备份，讲解迁移后需复核才可运行。机器人上的旧地图文件原位保留。
+
+## 运动联调
+
+在现场记录 `McCommonState` 的消息类型、时间戳、稳定站立状态及遥控输入源行为。当前适配器读取 `/aima/mc/common/state`，按参考接口在 `SetMcInputSource` 请求中填写时间戳，并按 `response.header.code` 取服务返回码。`McCommonState` 的字段已与随附 SDK 对照，实际发布话题、超时和状态切换以目标机测量为准。完成实测外形、地图尺度和目标机标定后，才使用运动配置开展试验。
+
+将该配置的 `motion_enabled` 设为 `true`，`navigation_mode` 设为 `point`，`lingxi_motion_idle_sources` 填现场测得的空闲输入源名称。`lingxi_motion_review` 指向 root 所有、服务可读且组和其他用户不可写的 JSON 文件。文件字段为 `firmware`、`aimdk`、`configSha256` 和 `maps`。`maps` 以活动地图的 `fastlio-…` ID 为键，对应值包含其 `metadata.json`、`map.yaml`、`map.pgm`、`localization.ply`、`localization.json` 的 SHA-256。更新 `LINGXI_REFERENCE_CONFIG_SHA256` 后重启参考服务。建图模式和导出的地图可以在运动关闭时先行验证。
+
+导航页默认选定点，可在任务之间切换 Nav2。两种模式都要求同一运行代次内新鲜的 GICP 位姿、现场障碍点云、代价地图及 AIMDK 状态。暂停和停止会撤销输出，并等待 Nav2 的终态结果和停稳观测。异常退出后若数据目录仍有 `motion-in-progress`，先在现场确认停稳、旧控制源及控制进程均已退出，再归档该标记以恢复运动配置。运动试验必须配备现场操作人员和独立遥控急停。
+
+可通过 `LINGXI_REFERENCE_ACTIONS=1` 和 `lingxi-next-actions.service` 接入 AIMDK 白名单动作、表情、灵创资源。该单元与 `lingxi-next-aimdk.service` 共用本机端口，启用前检查并停用同端口的旧桥接单元。AgentSDK 的部署继续使用 `lingxi-next-agent.service`，真实语音会话、打断和播放结束仍需在机器人上检查。讲解只有在本次导航的到达与停稳均确认后才推进。
 
 ## 验收范围
 

@@ -747,7 +747,7 @@ function NavigationPage({
   const reference = state.mappingBackend === "fastlio";
   const [preview, setPreview] = useState<{ mapId: string; poses: RobotPose[]; grid: OccupancyGrid }>();
   const [previewPending, setPreviewPending] = useState(false);
-  useEffect(() => { setPreview(undefined); }, [state.activeMapId, state.mapping, ready]);
+  useEffect(() => { setPreview(undefined); }, [state.activeMapId, state.mapping, state.referenceNavigation?.planningReady]);
 
   async function previewPath(point: MapPoint) {
     setPreviewPending(true);
@@ -764,7 +764,7 @@ function NavigationPage({
 
   return (
     <div className="page">
-      <PageHeading title="导航管理" description={reference ? "FAST-LIO 与 GICP · 路径预览" : state.independentProduct ? "独立导航 · 待标定与实机验收" : state.navigationExecution ? "离线 Nav2 · 合成场景" : "基于 X2 原生点到点导航与安全链路"} />
+      <PageHeading title="导航管理" description={reference ? "FAST-LIO 与 GICP" : state.independentProduct ? "独立导航 · 待标定与实机验收" : state.navigationExecution ? "离线 Nav2 · 合成场景" : "基于 X2 原生点到点导航与安全链路"} />
       {state.actionBusy && (
         <div className={state.actionStatus === "uncertain" ? "notice error" : "notice warn"} style={{ marginBottom: 14 }}>
           <AlertTriangle size={14} />
@@ -796,24 +796,34 @@ function NavigationPage({
                     <td><strong>{point.name}</strong>{point.isStart && <span className="tag" style={{ marginLeft: 6 }}>起点</span>}</td>
                     <td>{state.maps.find((map) => map.id === point.mapId)?.name}</td>
                     <td className="mono">{point.x.toFixed(2)}, {point.y.toFixed(2)}</td>
-                    <td>{reference
-                      ? <button className="btn small" disabled={!ready || state.mapping || previewPending} onClick={() => { void previewPath(point).catch(() => undefined); }}><Navigation size={12} />预览路径</button>
-                      : <button className="btn small primary" disabled={!ready || !state.activeMapId || state.mapping || state.actionBusy || navigationBusy(state)} onClick={() => run("/api/v1/navigation/point", { pointId: point.id })}><Navigation size={12} />前往</button>}</td>
+                    <td><div className="inline">
+                      {reference && <button className="btn small" disabled={!state.referenceNavigation?.planningReady || state.mapping || previewPending || navigationBusy(state)} onClick={() => { void previewPath(point).catch(() => undefined); }}><Navigation size={12} />预览路径</button>}
+                      {(!reference || state.referenceNavigation?.motionEnabled) && <button className="btn small primary" disabled={!ready || !state.activeMapId || state.mapping || state.actionBusy || navigationBusy(state)} onClick={() => run("/api/v1/navigation/point", { pointId: point.id })}><Navigation size={12} />前往</button>}
+                    </div></td>
                   </tr>
                 ))}
               </tbody>
             </table>
             {!ready && <div className="notice warn" style={{ marginTop: 12 }}><AlertTriangle size={14} />{state.navigationExecution
-              ? "离线导航状态未确认，请停止任务并检查后端。" : reference ? "请完成重定位并检查路径规划服务。" : "未检测到 X2 原生导航组件，导航命令已禁用。"}</div>}
+              ? "离线导航状态未确认，请停止任务并检查后端。" : reference ? state.referenceNavigation?.motionEnabled
+                ? "等待活动地图、定位和机器人控制状态确认。" : "联调配置仅提供路径预览。" : "未检测到 X2 原生导航组件，导航命令已禁用。"}</div>}
           </Section>
         </div>
         <div className="stack">
-        {reference && ready && !state.mapping && preview && preview.mapId === state.activeMapId && <Section title="路径预览" icon={Map}>
+        {reference && state.referenceNavigation?.planningReady && !state.mapping && preview && preview.mapId === state.activeMapId && <Section title="路径预览" icon={Map}>
           <MapCanvas grid={preview.grid} route={preview.poses} points={points} pose={state.pose} activeMapName={preview.mapId} />
         </Section>}
         {state.navigationExecution && <Section title="导航点云" icon={Radio}><LidarCanvas connection={connection} synthetic /></Section>}
         <Section title="运行条件" icon={ShieldCheck}>
           <CheckList checks={state.checks.filter((item) => ["navigation", "slam", "odom"].includes(item.id))} />
+          {state.referenceNavigation && <div className="field">
+            <label htmlFor="reference-controller">导航控制器</label>
+            <select id="reference-controller" value={state.referenceNavigation.mode}
+              disabled={state.mapping || navigationBusy(state)}
+              onChange={(event) => run("/api/v1/navigation/mode", { mode: event.target.value }, "PUT")}>
+              <option value="point">定点导航</option><option value="nav2">Nav2</option>
+            </select>
+          </div>}
           <hr className="divider" />
           <div className="field">
             <label htmlFor="idle-return">普通点位导航无交互返航</label>

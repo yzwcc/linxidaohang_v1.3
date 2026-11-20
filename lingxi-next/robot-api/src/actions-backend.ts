@@ -19,18 +19,23 @@ export interface ActionsBackend {
   state(): Promise<ActionsState>;
   playExpression(name: string, authorize?: () => boolean): Promise<void>;
   confirmIdle(): Promise<void>;
+  referenceResources?(): Promise<Pick<RobotSnapshot, "motionPresets" | "linkcraftResources">>;
+  startPresetMotion?(name: string, monitorCompletion: boolean): Promise<string>;
+  waitPresetMotion?(taskId: string): Promise<void>;
+  executeLinkcraftResource?(id: string): Promise<void>;
 }
 
 const denied = (message: string, statusCode = 409) => Object.assign(new Error(message), { statusCode });
 const uncertainty = (error: unknown) => (error as { uncertain?: boolean })?.uncertain !== false;
 
-/** No motion, navigation or map endpoint exists on this transport. */
+/** Local AIMDK actions only. This transport never selects a map or moves the base. */
 export class HttpActionsBackend implements ActionsBackend {
   private previous?: ActionsState;
   private uncertain = false;
   private tail: Promise<void> = Promise.resolve();
 
-  constructor(private readonly endpoint: string, private readonly token: string) {
+  constructor(private readonly endpoint: string, private readonly token: string,
+    private readonly mode: "actions-only" | "reference-actions" = "actions-only") {
     if (!/^http:\/\/127\.0\.0\.1:([1-9][0-9]{0,4})\/v1$/.test(endpoint) ||
         Number(new URL(endpoint).port) > 65535 || !/^[\x21-\x7e]{32,4096}$/.test(token)) {
       throw new Error("explicit_local_actions_endpoint_and_private_token_required");
@@ -74,14 +79,22 @@ export class HttpActionsBackend implements ActionsBackend {
   }
 
   private async read(): Promise<ActionsState> {
-    const state = stateSchema.parse(await this.request("/state"));
+    const state = (this.mode === "reference-actions" ? stateSchema.extend({
+      bridgeMode: z.literal("reference-actions"), physicalActionsEnabled: z.literal(true),
+      motionPresets: z.array(z.enum(["举手", "挥手", "握手", "飞吻", "点头", "摇头"])).max(6),
+      linkcraftResources: z.array(z.object({ id: z.string().min(1).max(160), name: z.string().min(1).max(160) })).max(200),
+    }) : stateSchema).parse(await this.request("/state"));
     const age = Date.now() - state.observedAtMs;
     if (age < -50 || age > 1200 || (this.previous?.bridgeEpoch === state.bridgeEpoch &&
         state.sequence <= this.previous.sequence)) throw denied("动作服务状态已过期或乱序", 503);
     if (this.previous && state.bridgeEpoch !== this.previous.bridgeEpoch && this.previous.actionBusy) this.uncertain = true;
-    this.previous = state;
-    return state;
+    this.previous = { ...state, bridgeMode: "actions-only", physicalActionsEnabled: false, motionPresets: [], linkcraftResources: [] };
+    this.resources = { motionPresets: state.motionPresets, linkcraftResources: state.linkcraftResources };
+    return this.previous;
   }
+
+  private resources: Pick<RobotSnapshot, "motionPresets" | "linkcraftResources"> = { motionPresets: [], linkcraftResources: [] };
+  referenceResources() { return Promise.resolve(this.resources); }
 
   state(): Promise<ActionsState> {
     return this.serialized(async () => {
@@ -123,6 +136,42 @@ export class HttpActionsBackend implements ActionsBackend {
         this.uncertain = false;
       } catch (error) { this.uncertain = true; throw error; }
     });
+  }
+
+  private physical<T>(route: string, body: object, schema: z.ZodType<T>): Promise<T> {
+    return this.serialized(async () => {
+      const state = await this.read();
+      if (this.mode !== "reference-actions" || this.uncertain || state.actionBusy) throw denied("实体动作未准入");
+      const requestId = randomBytes(16).toString("hex");
+      try {
+        const response = await this.request(route, { ...body, bridgeEpoch: state.bridgeEpoch, requestId });
+        z.object({ bridgeEpoch: z.literal(state.bridgeEpoch), requestId: z.literal(requestId) }).parse(response);
+        return schema.parse(response);
+      } catch (error) { if (uncertainty(error)) this.uncertain = true; throw error; }
+    });
+  }
+
+  async startPresetMotion(name: string, monitorCompletion: boolean) {
+    const result = await this.physical("/motions/preset", { name, monitorCompletion },
+      z.object({ accepted: z.literal(true), taskId: z.string().regex(/^[1-9][0-9]{0,19}$/) }));
+    return result.taskId;
+  }
+
+  async waitPresetMotion(taskId: string) {
+    if (this.mode !== "reference-actions" || !/^[1-9][0-9]{0,19}$/.test(taskId)) throw denied("预设动作任务标识无效");
+    const deadline = Date.now() + 65_000;
+    while (Date.now() < deadline) {
+      const status = z.object({ taskId: z.literal(taskId), status: z.enum(["pending", "running", "finished", "failed"]) })
+        .parse(await this.request(`/motions/preset/${taskId}`));
+      if (status.status === "finished") return;
+      if (status.status === "failed") throw denied("预设动作执行失败");
+      await new Promise((resolve) => setTimeout(resolve, 250));
+    }
+    throw denied("预设动作结束状态未确认");
+  }
+
+  async executeLinkcraftResource(id: string) {
+    await this.physical("/linkcraft/resource", { id }, z.object({ accepted: z.literal(true) }));
   }
 }
 
@@ -166,13 +215,15 @@ export class ProductActionsAdapter implements RobotAdapter {
       const navigationBusy = !!original.mapping || original.navigation.requiresStop ||
         ["requested", "running", "paused"].includes(original.navigation.status);
       const locked = !!original.actionBusy || state.actionBusy || this.operations.busy || localizationBlocked || navigationBusy;
+      const resources = original.referenceNavigation?.motionEnabled ? await this.actions.referenceResources?.() : undefined;
       return { ...original, actionBusy: !!original.actionBusy || state.actionBusy || this.operations.busy,
         actionStatus: state.actionStatus ?? (this.operations.busy ? "dispatching" : undefined),
-        motionPresets: [], linkcraftResources: [], expressions: locked ? [] : state.expressions,
+        motionPresets: locked ? [] : resources?.motionPresets ?? [],
+        linkcraftResources: locked ? [] : resources?.linkcraftResources ?? [], expressions: locked ? [] : state.expressions,
         checks: [...original.checks.filter((check) => check.id !== "actions"), { id: "actions", label: "动作服务",
           ready: state.actionServices.expression && !locked,
           detail: state.actionBusy ? "动作状态待确认" : localizationBlocked ? "定位未稳定跟踪，表情暂不可用"
-            : navigationBusy ? "建图或导航期间动作暂不可用" : "独立表情已接入，实体动作未准入" }],
+            : navigationBusy ? "建图或导航期间动作暂不可用" : resources ? "AIMDK 动作服务已连接" : "表情服务已连接" }],
       };
     } catch {
       return { ...original, actionBusy: true, actionStatus: "uncertain", motionPresets: [], expressions: [],
@@ -233,9 +284,28 @@ export class ProductActionsAdapter implements RobotAdapter {
   startNavigation: RobotAdapter["startNavigation"] = (point, map, id) => this.mutate(() => this.delegate.startNavigation(point, map, id));
   controlNavigation: RobotAdapter["controlNavigation"] = (action, id) => action === "stop"
     ? this.delegate.controlNavigation(action, id) : this.mutate(() => this.delegate.controlNavigation(action, id));
-  async startPresetMotion(): Promise<never> { throw denied("独立模式实体动作未准入"); }
-  async waitPresetMotion(): Promise<never> { throw denied("独立模式实体动作未准入"); }
-  async executeLinkcraftResource(): Promise<never> { throw denied("独立模式实体动作未准入"); }
+  private runPhysicalAction<T>(operate: () => Promise<T>) {
+    return this.mutate(async () => {
+      const state = await this.delegate.getSnapshot();
+      if (!state.referenceNavigation?.motionEnabled || !state.checks.some((check) => check.id === "navigation" && check.ready)
+          || state.mapping || state.navigation.requiresStop || ["requested", "running", "paused"].includes(state.navigation.status)) {
+        throw denied("控制器尚未确认空闲，实体动作未准入");
+      }
+      return operate();
+    });
+  }
+  async startPresetMotion(name: string, monitorCompletion = true) {
+    if (!this.actions.startPresetMotion) throw denied("实体动作未准入");
+    return this.runPhysicalAction(() => this.actions.startPresetMotion!(name, monitorCompletion));
+  }
+  async waitPresetMotion(taskId: string) {
+    if (!this.actions.waitPresetMotion) throw denied("实体动作未准入");
+    return this.actions.waitPresetMotion(taskId);
+  }
+  async executeLinkcraftResource(id: string) {
+    if (!this.actions.executeLinkcraftResource) throw denied("实体动作未准入");
+    return this.runPhysicalAction(() => this.actions.executeLinkcraftResource!(id));
+  }
   async playExpression(name: string, authorize?: () => boolean) {
     assertActionAuthorized(authorize);
     const internal = authorize !== undefined;

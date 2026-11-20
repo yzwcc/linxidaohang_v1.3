@@ -112,4 +112,5 @@ echo "Pairing code: /etc/lingxi-next/pairing-code.txt (root only). Import tls/ca
 echo "Configure the existing ROS/AIMDK setup and actual topics in robot.env, then enable lingxi-next-aimdk."
 echo "Configure LinkSoul credentials in the console and LINKSOUL_AGENT_ID in robot.env, then enable lingxi-next-agent."
 echo "For independent mapping/SLAM, read docs/INDEPENDENT_INSTALL_20261103.md; owners remain disabled until configured."
+echo "For X2 V1.1.5 FAST-LIO, read docs/X2_REFERENCE_COMMISSIONING.md."
 echo "No legacy service, vendor AIMDK installation, or map asset has been changed."

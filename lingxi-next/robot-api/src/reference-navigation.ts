@@ -2,13 +2,19 @@ import { lstatSync, realpathSync } from "node:fs";
 import { request } from "node:http";
 import path from "node:path";
 import { z } from "zod";
-import type { RobotMap } from "../../shared/contracts";
+import type { MapPoint, RobotMap } from "../../shared/contracts";
 import type { RobotAdapter, RobotSnapshot } from "./domain";
 import { validatedLidarFrame } from "./lidar";
 
 const pose = z.object({ x: z.number().finite(), y: z.number().finite(), yaw: z.number().finite() }).strict();
 const mapId = z.string().regex(/^fastlio-[0-9a-f]{32}$/);
 const sessionId = z.string().regex(/^[0-9a-f]{32}$/);
+const motionState = z.object({
+  session: sessionId, ready: z.boolean(), physicalMotionSent: z.boolean(),
+  status: z.enum(["idle", "requested", "running", "paused", "finished", "failed"]),
+  requiresStop: z.boolean(), taskId: z.string().min(1).max(100).nullable(),
+  pointId: z.string().min(1).max(100).nullable(), detail: z.string().max(250),
+}).strict();
 const mapSchema = z.object({
   id: mapId, name: z.string().min(1).max(64), active: z.boolean(),
   resolution: z.number().min(0.02).max(0.2),
@@ -20,6 +26,7 @@ const statusSchema = z.object({
   sensorsReady: z.boolean(), mappingReady: z.boolean(), aimdkReady: z.boolean(),
   planningReady: z.boolean(),
   pose: pose.optional(), poseAtMs: z.number().finite().positive().optional(),
+  navigation: motionState.optional(),
 }).strict();
 const gridSchema = z.object({
   width: z.number().int().positive(), height: z.number().int().positive(),
@@ -34,6 +41,10 @@ function denied(message: string, statusCode = 409) {
 
 export class ReferenceNavigationAdapter implements RobotAdapter {
   readonly demoMode = false;
+  private mode: "point" | "nav2" = "point";
+  private pendingCommands = 0;
+  private last?: z.infer<typeof motionState>;
+  private failedDispatch?: string;
 
   constructor(private readonly endpoint: string) {
     if (process.platform !== "linux" || !path.isAbsolute(endpoint) || path.normalize(endpoint) !== endpoint ||
@@ -83,6 +94,12 @@ export class ReferenceNavigationAdapter implements RobotAdapter {
 
   async getSnapshot(): Promise<RobotSnapshot> {
     const state = statusSchema.parse(await this.call("status"));
+    const motion = state.navigation;
+    if (motion) {
+      if (this.last && this.last.session !== motion.session && (this.last.requiresStop ||
+          ["requested", "running", "paused"].includes(this.last.status))) this.failedDispatch ??= this.last.taskId ?? "restart";
+      this.last = motion;
+    }
     const now = Date.now();
     const livePose = state.poseAtMs !== undefined && now - state.poseAtMs >= -100 && now - state.poseAtMs <= 1500;
     return {
@@ -90,7 +107,12 @@ export class ReferenceNavigationAdapter implements RobotAdapter {
       mappingStatus: state.phase, mappingSession: state.session ?? undefined,
       mappingBackend: "fastlio", mappingInputMode: "live", mappingControlReady: state.mappingReady && state.aimdkReady,
       mappingCleanupComplete: !["requested", "running", "saving"].includes(state.phase),
-      actionBusy: false, navigation: { status: "idle", detail: state.planningReady ? "路径规划就绪 · 运动关闭" : "等待重定位 · 运动关闭" },
+      actionBusy: false,
+      referenceNavigation: { motionEnabled: !!motion, planningReady: state.planningReady, mode: this.mode ?? "point" },
+      navigation: this.failedDispatch ? { status: "failed", taskId: motion?.taskId ?? undefined, requiresStop: true, detail: "导航结果未确认，请停止任务" }
+        : motion ? { status: motion.status, taskId: motion.taskId ?? undefined, pointId: motion.pointId ?? undefined,
+          requiresStop: motion.requiresStop, detail: motion.detail }
+        : { status: "idle", detail: state.planningReady ? "路径规划就绪 · 运动关闭" : "等待重定位 · 运动关闭" },
       ...(livePose && state.pose ? { pose: state.pose, poseEvidence: {
         source: "independent-localization", coordinateUnits: "metres", observedAtMs: state.poseAtMs!,
       } } : {}),
@@ -99,7 +121,8 @@ export class ReferenceNavigationAdapter implements RobotAdapter {
         { id: "slam", label: "FAST-LIO", ready: state.phase !== "failed" || state.mappingReady },
         { id: "lidar", label: "雷达与 IMU", ready: state.sensorsReady },
         { id: "odom", label: "GICP 定位", ready: !!(livePose && state.pose) },
-        { id: "navigation", label: "路径规划", ready: state.planningReady && livePose && !!state.pose, detail: "运动关闭" },
+        { id: "navigation", label: "导航", ready: !!motion?.ready && !this.failedDispatch && livePose && !!state.pose,
+          detail: !motion ? "运动关闭" : motion.ready ? "运动准入已确认" : "等待地图、定位、障碍与控制状态" },
         { id: "linksoul", label: "灵心", ready: false },
       ],
       motionPresets: [], expressions: [], linkcraftResources: [], updatedAt: new Date(now).toISOString(),
@@ -133,9 +156,51 @@ export class ReferenceNavigationAdapter implements RobotAdapter {
       { pose: pose.parse(goal) }, 30_000));
   }
 
-  async startNavigation(): Promise<never> { throw denied("FAST-LIO 联调配置的运动输出已关闭"); }
-  async controlNavigation(action: "pause" | "resume" | "stop"): Promise<void> {
-    if (action !== "stop") throw denied("FAST-LIO 联调配置的运动输出已关闭");
+  async selectMode(mode: "point" | "nav2") {
+    const state = await this.getSnapshot();
+    if (this.pendingCommands || state.mapping || state.navigation.requiresStop ||
+        ["requested", "running", "paused"].includes(state.navigation.status)) throw denied("请先完成或停止当前任务");
+    this.mode = mode;
+  }
+  async startNavigation(point: MapPoint, map: RobotMap, taskId: string) {
+    if (point.mapId !== map.id || this.pendingCommands) throw denied("导航地图或任务冲突");
+    this.pendingCommands++;
+    try {
+      const state = await this.getSnapshot();
+      const current = this.last;
+      if (!state.checks.some((check) => check.id === "navigation" && check.ready) || !current?.ready) {
+        throw denied("FAST-LIO 运动尚未准入");
+      }
+      await this.motionCommand("start", taskId, current.session, {
+        mapId: mapId.parse(map.id), pointId: point.id, mode: this.mode,
+        pose: pose.parse({ x: point.x, y: point.y, yaw: point.yaw }),
+      }, ["requested", "running", "finished"]);
+    } finally { this.pendingCommands--; }
+  }
+  private async motionCommand(route: string, taskId: string, session: string, extra: object, expected: string[]) {
+    try {
+      const result = motionState.parse(await this.call(`navigation/${route}`, { taskId, session, ...extra }, 21_000));
+      if (result.session !== session || result.taskId !== taskId || result.requiresStop || !expected.includes(result.status)) {
+        throw denied("导航回执与任务不匹配");
+      }
+      this.last = result;
+      this.failedDispatch = undefined;
+    } catch (error) {
+      this.failedDispatch = taskId;
+      throw error;
+    }
+  }
+  async controlNavigation(action: "pause" | "resume" | "stop", taskId?: string): Promise<void> {
+    if (!taskId || this.pendingCommands) throw denied("等待当前导航请求完成");
+    this.pendingCommands++;
+    try {
+      const { navigation: current } = statusSchema.parse(await this.call("status"));
+      if (!current || current.taskId !== taskId || (this.failedDispatch && action !== "stop")) {
+        throw denied("控制器没有匹配的任务回执");
+      }
+      await this.motionCommand("control", taskId, current.session, { action }, action === "stop"
+        ? ["idle", "finished", "failed"] : action === "pause" ? ["paused"] : ["requested", "running", "finished"]);
+    } finally { this.pendingCommands--; }
   }
   async startPresetMotion(): Promise<never> { throw denied("动作服务尚未接入 FAST-LIO 联调配置"); }
   async waitPresetMotion(): Promise<never> { throw denied("没有已确认的动作任务"); }

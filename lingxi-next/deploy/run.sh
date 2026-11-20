@@ -183,6 +183,10 @@ case "${1:-}" in
     exec /usr/bin/python3 "$CURRENT/bridge/aimdk_ros_bridge.py" --mode full
     ;;
   actions)
+    if [[ "${LINGXI_REFERENCE_ACTIONS:-0}" == 1 && -n "${LINGXI_REFERENCE_SOCKET:-}" ]]; then
+      source_ros_runtime
+      exec /usr/bin/python3 "$CURRENT/bridge/aimdk_ros_bridge.py" --mode reference-actions
+    fi
     require_independent_product
     source_ros_runtime
     required_directory "${LINGXI_MAP_ROOT:-}" LINGXI_MAP_ROOT

@@ -113,6 +113,7 @@ export type RobotSnapshot = Pick<
   | "pose"
   | "poseEvidence"
   | "navigation"
+  | "referenceNavigation"
   | "navigationExecution"
   | "mapGrid"
   | "motionPresets"

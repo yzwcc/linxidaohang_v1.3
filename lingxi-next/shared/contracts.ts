@@ -166,6 +166,7 @@ export type RobotState = {
   pose?: RobotPose;
   poseEvidence?: RobotPoseEvidence;
   navigation: NavigationState;
+  referenceNavigation?: { motionEnabled: boolean; planningReady: boolean; mode: "point" | "nav2" };
   navigationExecution?:
     | { backend: "nav2-offline"; syntheticInputs: true; physicalMotionSent: false; navigationReady: false }
     | { backend: "nav2-ros2"; syntheticInputs: false; physicalMotionSent: boolean; navigationReady: boolean };
