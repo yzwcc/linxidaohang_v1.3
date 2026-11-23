@@ -79,9 +79,14 @@ if test -f /test-state/health-fail-release; then
     exit 1
   fi
 fi
+if test -f /test-state/reference-api-fail; then
+  printf '%s\\n' '{"ok":true,"referenceStaticReady":false}'
+else
+  printf '%s\\n' '{"ok":true,"referenceStaticReady":true}'
+fi
 """)
     script(root / "test-bin/sleep", "true")
-    for version in (f"test-{index}" for index in range(15)):
+    for version in (f"test-{index}" for index in range(16)):
         package = root / f"package-{version}"
         shutil.copytree(deploy, package / "deploy")
         for runtime in ("node/bin", "java/bin"):
@@ -91,7 +96,7 @@ test "${1:-}" = --version || exit 64
 printf 'v22-fixture\\n'
 """)
         script(package / "runtime/java/bin/java", "printf 'java fixture\\n'")
-        if version in {"test-10", "test-11", "test-12", "test-13"}:
+        if version in {"test-10", "test-11", "test-12", "test-13", "test-15"}:
             (package / "bridge").mkdir()
             (package / "bridge/reference_service.py").write_text("# synthetic target\n")
         (package / "VERSION").write_text(version + "\n")
@@ -315,6 +320,13 @@ class DeploymentLifecycle(unittest.TestCase):
 
         health.write_text(json.dumps(good))
         previous = (root / "current").readlink()
+        api_fail = Path("/test-state/reference-api-fail")
+        api_fail.touch()
+        result = self.command("test-15", success=False, reference=True)
+        self.assertIn("did not confirm a decoded", result.stderr)
+        self.assertIn("Prior deployment restored", result.stderr)
+        self.assertEqual(previous, (root / "current").readlink())
+        api_fail.unlink()
         (Path("/test-state") / "active-lingxi-next-independent-slam.service").touch()
         offset = len(log.read_text())
         installed = self.command("test-12", reference=True)

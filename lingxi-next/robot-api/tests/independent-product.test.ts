@@ -88,6 +88,32 @@ it("correlates reference map saves on the paired HTTPS API and rejects actuation
   }
 });
 
+it("gates commissioning health on decoding the actual static reference status shape", async () => {
+  const root = await mkdtemp(path.join(tmpdir(), "lingxi-reference-health-"));
+  const status = { phase: "idle", session: null, sensorsReady: true, aimdkReady: true,
+    calibration: "matched", nav2Available: true, mappingReady: true, planningReady: false };
+  const call = vi.fn(async () => ({ ...status }));
+  const reference = Object.assign(Object.create(ReferenceNavigationAdapter.prototype), {
+    call, demoMode: false,
+  }) as ReferenceNavigationAdapter;
+  let server: FastifyInstance | undefined;
+  try {
+    server = await buildServer({ referenceNavigation: reference, stateDirectory: root,
+      pairingCodeHash: pairingCodeHash("synthetic-reference-health") });
+    expect((await server.inject("/health")).json()).toMatchObject({ ok: true, referenceStaticReady: true });
+    status.mappingReady = false;
+    expect((await server.inject("/health")).json()).toMatchObject({ ok: true, referenceStaticReady: false });
+    status.mappingReady = true;
+    call.mockResolvedValueOnce({ ...status, nav2Available: "wrong" } as unknown as typeof status);
+    expect((await server.inject("/health")).json()).toMatchObject({ ok: true, referenceStaticReady: false });
+    expect((await server.inject({ url: "/health", remoteAddress: "192.0.2.42" })).json())
+      .not.toHaveProperty("referenceStaticReady");
+  } finally {
+    await server?.close();
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 it("keeps controller changes idle-only and correlates navigation commands to the reference task", async () => {
   const session = "a".repeat(32);
   const map = { id: `fastlio-${session}`, name: "展厅" };

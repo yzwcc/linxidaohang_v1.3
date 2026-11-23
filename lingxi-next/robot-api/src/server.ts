@@ -454,7 +454,15 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
     }
   }
 
-  app.get("/health", async () => ({ ok: true, service: "lingxi-next", demoMode: adapter.demoMode }));
+  app.get("/health", async (request) => {
+    const health = { ok: true, service: "lingxi-next", demoMode: adapter.demoMode };
+    if (!referenceNavigation || !["127.0.0.1", "::1", "::ffff:127.0.0.1"].includes(request.ip)) return health;
+    // Check the same status decoder used by the Web/API. A healthy UDS alone is not enough.
+    const snapshot = await referenceNavigation.getSnapshot().catch(() => undefined);
+    return { ...health, referenceStaticReady: snapshot?.connected === true && snapshot.mappingBackend === "fastlio"
+      && snapshot.mappingStatus === "idle" && snapshot.mappingControlReady === true
+      && snapshot.referenceNavigation?.motionEnabled === false };
+  });
   app.post<{ Body: { pairingCode: string } }>("/api/v1/session/pair", async (request, reply) => {
     if (!secureRequest(request)) throw deny(426, "配对必须通过 HTTPS");
     const now = Date.now();

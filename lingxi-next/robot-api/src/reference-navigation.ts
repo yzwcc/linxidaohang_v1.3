@@ -35,6 +35,7 @@ const statusSchema = z.object({
   session: sessionId.nullable(),
   sensorsReady: z.boolean(), mappingReady: z.boolean(), aimdkReady: z.boolean(),
   planningReady: z.boolean(), calibration: calibrationState.optional(),
+  nav2Available: z.boolean().optional(),
   pose: pose.optional(), poseAtMs: z.number().finite().positive().optional(),
   navigation: motionState.optional(),
 }).strict();

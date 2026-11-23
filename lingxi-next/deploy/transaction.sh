@@ -42,7 +42,7 @@ deployment_link() {
 }
 
 deployment_health() {
-  local port
+  local port response
   port="$(python3 - "$CONFIG/robot.env" <<'PY'
 import pathlib, re, sys
 values = [line.partition('=')[2].strip() for line in pathlib.Path(sys.argv[1]).read_text().splitlines()
@@ -57,8 +57,20 @@ print(port)
 PY
   )" || return 1
   DEPLOYMENT_PORT="$port"
-  curl --fail --noproxy '*' --silent --max-time 3 --retry 10 --retry-connrefused --retry-delay 1 \
-    --cacert "$CONFIG/tls/ca.crt" "https://127.0.0.1:$port/health" >/dev/null
+  response="$(curl --fail --noproxy '*' --silent --max-time 3 --retry 10 --retry-connrefused --retry-delay 1 \
+    --cacert "$CONFIG/tls/ca.crt" "https://127.0.0.1:$port/health")" || return 1
+  if [[ "${1:-0}" == 1 ]]; then
+    python3 -c 'import json,sys
+try:
+    health = json.load(sys.stdin)
+except ValueError:
+    sys.exit(1)
+sys.exit(0 if isinstance(health, dict) and health.get("ok") is True
+         and health.get("referenceStaticReady") is True else 1)' <<< "$response" || {
+      echo "HTTPS API did not confirm a decoded, motion-disabled reference snapshot" >&2
+      return 1
+    }
+  fi
 }
 
 deployment_start_reference() {

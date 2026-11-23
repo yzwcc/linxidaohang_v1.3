@@ -115,7 +115,7 @@ elif [[ -n "$PREVIOUS" && -f "$PREVIOUS/.reference-commissioning" && "$OLD_REFER
   systemctl disable lingxi-next-reference-navigation.service
 fi
 systemctl enable --now lingxi-next-api.service
-if ! deployment_health; then
+if ! deployment_health "$REFERENCE"; then
   echo "New API health check failed." >&2
   exit 1
 fi
