@@ -9,7 +9,7 @@
 ARM64 核心联调包提供产品 Web、API、参考服务适配、AgentSDK 进程和商品化之前的安装、回滚脚本。参考仓库、适配目标机的原生 ROS overlay、Python 3.10 环境、标定和机器人数据单独准备。
 
 1. 在 `/opt` 下准备只读的参考 Git checkout，校验完整提交 ID，保留原仓库许可证和第三方声明。独立构建 `fast_lio`、`robot_nav_recorder`、`robot_nav_costmap`、`pointcloud_to_laserscan`，以及 `integrations/grid_export` 的 `grid_export_native`、`nav_ground_native`。以目标 ROS 2 Humble 和已安装的 AIMDK overlay 为依赖。Python 环境使用参考提交的 `requirements.txt`，并能加载这两个原生模块。FAST-LIVO2 和彩色相机处理不在此联调范围内。
-2. 以参考 `config/app.yaml` 为基础生成 `/etc/lingxi-next/reference.yaml`。使用 `motion_enabled: false`、`nav2_enabled: true`、`navigation_mode: point`，并关闭 `visualization.enabled`、`color_mapping.enabled` 和 `mapping.loop_closure_enabled`。把 `data_dir` 指向 `/var/lib/lingxi-next/reference`，建图目录和导入/录制白名单设为该目录内的专用路径。建立 `lingxi-next` 所有、权限 `0700` 的数据目录。将 `mapping.fastlio_executable`、`mapping.fastlio_config`、`mapping.recorder_executable`、`mapping.calibration_files` 和 `localizer_config` 改为当前 ARM64 环境的绝对路径。按目标机校验 FAST-LIO 雷达—IMU 外参、入站话题 QoS、DDS 配置及初始站姿。
+2. 以参考 `config/app.yaml` 为基础生成 `/etc/lingxi-next/reference.yaml`。使用 `motion_enabled: false`、`nav2_enabled: true`、`navigation_mode: point`，并关闭 `visualization.enabled`、`color_mapping.enabled`、`mapping.loop_closure_enabled` 和 `mapping.grid_cache_enabled`。把 `data_dir` 指向 `/var/lib/lingxi-next/reference`，建图目录和导入/录制白名单设为该目录内的专用路径。建立 `lingxi-next` 所有、权限 `0700` 的数据目录。将 `mapping.fastlio_executable`、`mapping.fastlio_config`、`mapping.recorder_executable`、`mapping.calibration_files` 和 `localizer_config` 改为当前 ARM64 环境的绝对路径。按目标机校验 FAST-LIO 雷达—IMU 外参、入站话题 QoS、DDS 配置及初始站姿。
 3. 在目标机按 `deploy/install.sh --commissioning --robot-ip IP` 安装产品。设置 `/etc/lingxi-next/robot.env` 中的 `LINGXI_AIMDK_SETUP`、`LINGXI_REFERENCE_SOURCE`、`LINGXI_REFERENCE_CONFIG`、`LINGXI_REFERENCE_CONFIG_SHA256`、`LINGXI_REFERENCE_OVERLAY`、`LINGXI_REFERENCE_PYTHON`、`LINGXI_REFERENCE_ROS2`，并设置 `LINGXI_REFERENCE_SOCKET=/run/lingxi-next-reference/control.sock`。保持 GLIM 和独立物理导航后端未选中。原生二进制和配置放在 systemd 服务账号可读且不依赖 `/home` 的路径。
 4. 启动 `lingxi-next-reference-navigation.service`，检查日志后重启 `lingxi-next-api.service`。参考服务启动同提交的 Nav2 进程，使用当前产品的私有工作目录和内网 ROS 图。`deploy/diagnose.sh` 可检查服务状态。跨版本回滚前先结束建图并等待保存回执。若回到未包含参考服务的版本，先停止参考单元，再将 `LINGXI_REFERENCE_SOCKET` 留空。
 
@@ -53,6 +53,8 @@ python3 -B tools/probe_reference_target.py --seconds 8 \
 `0.1.50-core-commissioning-20261123-g70ab4eda93a2` 已在该 V1.1.5 SoC1 上按事务安装。只有产品 HTTPS API 和参考服务运行。校验了 LAN 网页的 TLS、未配对拒绝、配对后的 REST 状态和 WSS 状态；页面状态为 `FAST-LIO`、建图空闲且可启动、运动关闭。私有接口报告本机标定匹配，雷达、IMU、AIMDK 和 Nav2 服务可用。装机后的 12 秒只读复测通过，实际收到 97 帧雷达、1,918 条 IMU、116 条运控状态，最大 IMU 头间隔约 19.606 ms，有 7 帧同时匹配机身、IMU 和足踝 TF。
 
 已保留安装前版本、产品配置与数据快照，并单独备份校验厂商地图；原厂标定和地图仍在原位。没有创建或激活现场导航地图。Nav2 节点可发现不等于已经能够规划实际路线；遥控建图保存/重载、GICP 现场定位和尺度、两种运动模式、急停、Android 真机以及动作/语音均未验收。
+
+后续采集尝试在初始化时失败：参考实时栅格子进程等待上游预览组件生成地面参考，而产品关闭该组件，待处理队列满后退出。失败录制保留，不注册为地图。产品适配层现关闭该缓存（包括使用旧配置升级的情况），保留实时点云，停止时先核对扫描、里程计、重力和末帧是否配对，再由参考导出器从同一录制验证初始静止、地面参考和外参并生成栅格。启动后保持站稳，直到显示「采集中」并出现点云；这个提示表示采集就绪，不代表地面参考已通过。保存需要额外时间，须等保存回执，不能把失败录制标成地图。
 
 参考仓库的版权人代码使用 PolyForm Noncommercial 1.0.0 及另行商业授权。用户已确认该仓库的商业复用和分发授权。实际分发引用仓库或其构建产物时，保留原 LICENSE、`Required Notice: Copyright (c) 2026 Mikeaaaa14 (https://github.com/Mikeaaaa14)`，并履行各组件的对应义务，包括 FAST-LIO 的 GPLv2、Patchwork++ 的 BSD 声明和 OctoMap 随附许可证。
 

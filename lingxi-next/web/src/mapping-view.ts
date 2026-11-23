@@ -56,9 +56,12 @@ export function mappingFeedback(state: Pick<RobotState,
       state.mappingCleanupComplete === true ? "进程已清理" : "进程清理尚未确认";
     return { tone: "error", text: `${failures[failure]}；${cleanup}` };
   }
-  if (state.mappingStatus === "requested") return { tone: "", text: "建图进程正在启动" };
-  if (state.mappingStatus === "saving") return { tone: "", text: "正在结束采集并处理地图" };
+  if (state.mappingStatus === "requested") return { tone: "", text: state.mappingBackend === "fastlio"
+    ? "正在初始化，请保持机器人静止，等显示「采集中」并出现点云后再移动" : "建图进程正在启动" };
+  if (state.mappingStatus === "saving") return { tone: "", text: state.mappingBackend === "fastlio"
+    ? "正在结束采集、核验地面参考和生成二维栅格，请等待保存回执" : "正在结束采集并处理地图" };
   if (state.mappingStatus !== "running") return undefined;
+  if (state.mappingBackend === "fastlio") return { tone: "", text: "FAST-LIO 正在采集；看到点云后再使用外置遥控器移动" };
   const progress = state.mappingProgress;
   if (!progress) return { tone: "warn", text: "等待采集进度确认" };
   if (progress.completedMessages === 0) return { tone: "warn", text:

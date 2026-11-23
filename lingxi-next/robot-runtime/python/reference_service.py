@@ -21,6 +21,22 @@ SESSION = r"[0-9a-f]{32}"
 MAP = rf"fastlio-{SESSION}"
 LOGGER = logging.getLogger("lingxi.reference")
 EXPORT_WAIT_S = 600
+STATIONARY_CAPTURE_S = 3
+
+
+def reference_capture_settings(settings):
+    # Live grid precomputation waits for the upstream visualization worker, which
+    # is disabled in this product. Export directly from the validated recording instead.
+    return {**settings, "mapping": {**settings["mapping"], "grid_cache_enabled": False}}
+
+
+def reference_capture_phase(current, now):
+    if current["state"] == "recording":
+        began = current.get("recording_started_at")
+        if type(began) in (float, int) and math.isfinite(began) and began > 0 and now - began >= STATIONARY_CAPTURE_S:
+            return "running"
+        return "requested"
+    return {"starting": "requested", "stopping": "saving"}.get(current["state"], "failed")
 
 
 def private_directory(path):
@@ -386,7 +402,6 @@ def make_app(upstream, root, nav2_process=None, motion_review=None):
         sensors_ready = bool(sensors["lidar"] and sensors["imu"] and not ros.get("fatal_error"))
         calibration = calibration_status()
         recovery = recovery_required()
-        phase = {"starting": "requested", "recording": "running", "stopping": "saving"}
         saving = finalizing or (export_request[0] if export_pending() else None)
         failed = last_failed or next((item["id"] for item in snapshot["items"] if item["id"] == last_started
                                       and item["state"] in {"failed", "interrupted"}), None)
@@ -394,7 +409,7 @@ def make_app(upstream, root, nav2_process=None, motion_review=None):
         nav2_available = nav_process_alive() and all(lifecycle.get(name, {}).get("service_ready") is True
                                                      for name in ("map_server", "planner_server", "controller_server",
                                                                   "velocity_smoother", "bt_navigator"))
-        result = {"phase": "saving" if saving else phase.get(current["state"], "failed") if current
+        result = {"phase": "saving" if saving else reference_capture_phase(current, time.time()) if current
                             else "failed" if failed else "idle",
                   "session": saving or (current["id"] if current else failed),
                   "sensorsReady": sensors_ready, "aimdkReady": aimdk, "calibration": calibration,
@@ -504,6 +519,9 @@ def make_app(upstream, root, nav2_process=None, motion_review=None):
         def operation():
             nonlocal finalizing, last_failed, export_request
             identity = f"fastlio-{body.session}"
+            current = state.mapping.snapshot()["active"]
+            if current and current["id"] == body.session and reference_capture_phase(current, time.time()) == "requested":
+                raise HTTPException(409, detail="reference_capture_initializing")
             finalizing = body.session
             try:
                 selected = stop_capture(body.session)
@@ -671,7 +689,8 @@ def main():
     import uvicorn
     from robot_nav_tasks.settings import load_settings
 
-    settings = load_settings()
+    original_settings = load_settings()
+    settings = reference_capture_settings(original_settings)
     if args.require_motion_disabled and settings["motion_enabled"] is not False:
         raise RuntimeError("reference_commissioning_requires_motion_disabled")
     root = private_directory(Path(settings["data_dir"]))
@@ -682,6 +701,9 @@ def main():
     if settings.get("mapping", {}).get("loop_closure_enabled", False):
         raise RuntimeError("reference_profile_does_not_support_loop_closure")
     from robot_nav_tasks import server as upstream
+    if original_settings["mapping"].get("grid_cache_enabled"):
+        LOGGER.warning("Skipping live grid cache; the saved recording will be used for grid export")
+    upstream.load_settings = lambda: settings
     motion_review = None
     if settings["motion_enabled"]:
         from reference_motion import gateway_type

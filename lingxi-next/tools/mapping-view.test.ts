@@ -77,6 +77,13 @@ describe("mapping startup and failure feedback", () => {
     expect(mappingFeedback({ ...running, mappingStatus })).toEqual({ tone: "", text });
   });
 
+  it("keeps the FAST-LIO operator still during startup and explains deferred export", () => {
+    const fastlio = { ...running, mappingBackend: "fastlio" } as const;
+    expect(mappingFeedback({ ...fastlio, mappingStatus: "requested" })?.text).toContain("保持机器人静止");
+    expect(mappingFeedback(fastlio)?.text).toContain("看到点云后再使用外置遥控器移动");
+    expect(mappingFeedback({ ...fastlio, mappingStatus: "saving" })?.text).toContain("生成二维栅格");
+  });
+
   it("does not interpret missing counters as zero input", () => {
     expect(mappingFeedback(running)).toEqual({ tone: "warn", text: "等待采集进度确认" });
   });

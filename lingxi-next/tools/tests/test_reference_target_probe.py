@@ -140,7 +140,7 @@ class ReferenceTargetProbeTests(unittest.TestCase):
             root = Path(directory)
             (root / "config").mkdir()
             (root / "config/app.yaml").write_text("motion_enabled: true\nvisualization: {enabled: true}\n"
-                "color_mapping: {enabled: true}\nmapping: {enabled: false, loop_closure_enabled: true}\n"
+                "color_mapping: {enabled: true}\nmapping: {enabled: false, loop_closure_enabled: true, grid_cache_enabled: true}\n"
                 "allowed_recording_roots: [/home/other/recordings]\n")
             for file in ("config/localizer.yaml", "fastlio.yaml", "lib/fast_lio/fastlio_mapping",
                          "lib/robot_nav_recorder/mapping_recorder"):
@@ -152,6 +152,7 @@ class ReferenceTargetProbeTests(unittest.TestCase):
             self.assertIs(result["visualization"]["enabled"], False)
             self.assertIs(result["color_mapping"]["enabled"], False)
             self.assertIs(result["mapping"]["loop_closure_enabled"], False)
+            self.assertIs(result["mapping"]["grid_cache_enabled"], False)
             self.assertEqual([str(root / "data/recordings")], result["allowed_recording_roots"])
             self.assertEqual([str(root / "fastlio.yaml")], result["mapping"]["calibration_files"])
 

@@ -25,7 +25,8 @@ def build_profile(source, overlay, fastlio, data):
                allowed_recording_roots=[str(data / "recordings")])
     app["visualization"]["enabled"] = False
     app["color_mapping"]["enabled"] = False
-    app["mapping"].update(enabled=True, loop_closure_enabled=False, root_dir=str(data / "recordings"),
+    app["mapping"].update(enabled=True, loop_closure_enabled=False, grid_cache_enabled=False,
+                          root_dir=str(data / "recordings"),
                           fastlio_executable=str(mapper), fastlio_config=str(fastlio),
                           recorder_executable=str(recorder), calibration_files=[str(fastlio)])
     return app

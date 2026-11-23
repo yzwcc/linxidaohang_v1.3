@@ -3,13 +3,13 @@ import json
 from pathlib import Path
 import struct
 from types import SimpleNamespace
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 import sys
 import tempfile
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "robot-runtime" / "python"))
-from reference_service import checked_grid, checked_map, make_app
+from reference_service import checked_grid, checked_map, make_app, reference_capture_phase, reference_capture_settings
 from reference_calibration import check_target_mounting
 
 
@@ -93,6 +93,46 @@ class TargetCalibrationTests(unittest.TestCase):
                 self.assertEqual(result.status_code, 409)
                 self.assertEqual(result.json(), {"detail": "reference_stop_recovery_required"})
             self.assertEqual(marker.read_text(encoding="ascii"), "prior-session\n")
+
+
+class ReferenceCaptureTests(unittest.TestCase):
+    def test_old_profile_disables_only_live_grid_cache_at_runtime(self):
+        mapping = {"grid_cache_enabled": True, "fastlio_config": "/etc/lingxi-next/fastlio-x2.yaml"}
+        original = {"mapping": mapping, "motion_enabled": False, "visualization": {"enabled": False}}
+        effective = reference_capture_settings(original)
+        self.assertEqual(effective, {**original, "mapping": {**mapping, "grid_cache_enabled": False}})
+        self.assertIs(original["mapping"]["grid_cache_enabled"], True)
+
+    def test_stationary_hold_follows_confirmed_capture_not_start_request(self):
+        self.assertEqual(reference_capture_phase({"state": "starting", "started_at": 1}, 30), "requested")
+        for stamp in (None, False, float("nan"), 0, "27", 27.01, 32):
+            self.assertEqual(reference_capture_phase({"state": "recording", "recording_started_at": stamp}, 30),
+                             "requested")
+        self.assertEqual(reference_capture_phase({"state": "recording", "recording_started_at": 27}, 30), "running")
+        self.assertEqual(reference_capture_phase({"state": "stopping"}, 30), "saving")
+
+    def test_premature_save_does_not_stop_or_fail_capture(self):
+        from fastapi.testclient import TestClient
+
+        identity = "b" * 32
+        active = {"id": identity, "state": "recording", "recording_started_at": 98}
+        with tempfile.TemporaryDirectory() as directory:
+            profile, live = target_calibration(directory)
+            aimdk = SimpleNamespace(service_is_ready=lambda: True)
+            ros = SimpleNamespace(source_get=aimdk, source_set=aimdk, _navigation_transform=Mock(return_value=live),
+                                  snapshot=lambda: {"sensor_fresh": {"lidar": True, "imu": True},
+                                                    "localization_fresh": False})
+            mapping = SimpleNamespace(snapshot=lambda: {"active": active, "items": [active], "enabled": True})
+            state = SimpleNamespace(mapping=mapping, ros=ros, active_map_id=None,
+                                    settings={"mapping": {"fastlio_config": str(profile)}})
+            source = SimpleNamespace(app=SimpleNamespace(state=state), lifespan=None, stop_mapping=Mock())
+            client = TestClient(make_app(source, Path(directory)))
+            with patch("reference_service.time.time", return_value=100):
+                result = client.post("/lingxi/mapping/save", json={"session": identity, "name": "展厅"})
+                self.assertEqual(result.status_code, 409)
+                self.assertEqual(result.json(), {"detail": "reference_capture_initializing"})
+                self.assertEqual(client.get("/lingxi/status").json()["phase"], "requested")
+            source.stop_mapping.assert_not_called()
 
 
 class ReferenceGridTests(unittest.TestCase):
