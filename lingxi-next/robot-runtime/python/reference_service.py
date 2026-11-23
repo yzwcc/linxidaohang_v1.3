@@ -715,9 +715,11 @@ def main():
     if settings.get("mapping", {}).get("loop_closure_enabled", False):
         raise RuntimeError("reference_profile_does_not_support_loop_closure")
     from robot_nav_tasks import server as upstream
+    from reference_ground import read_saved_export_reference
     if original_settings["mapping"].get("grid_cache_enabled"):
         LOGGER.warning("Skipping live grid cache; the saved recording will be used for grid export")
     upstream.load_settings = lambda: settings
+    upstream.saved_export_reference = lambda session: read_saved_export_reference(source, session)
     motion_review = None
     if settings["motion_enabled"]:
         from reference_motion import gateway_type
