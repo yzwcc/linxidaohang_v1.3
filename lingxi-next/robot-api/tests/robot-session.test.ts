@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { api, ApiError, openEvents, type Connection, type RobotState } from "../../web/src/api";
 import { RobotSession } from "../../web/src/robot-session";
+import { tourStartBlock } from "../../web/src/operation-readiness";
 
 vi.mock("../../web/src/api", async (original) => ({
   ...await original<typeof import("../../web/src/api")>(),
@@ -37,6 +38,7 @@ beforeEach(() => {
   page = Object.assign(new EventTarget(), { visibilityState: "visible" });
   vi.stubGlobal("window", browser);
   vi.stubGlobal("document", page);
+  vi.stubGlobal("navigator", { onLine: true });
   streams = [];
   request.mockReset();
   request.mockImplementation(async (_connection, path) => path === "/api/v1/state" ? snapshot() : {});
@@ -125,12 +127,12 @@ describe("paired Web and Android session ownership", () => {
     const control = deferred<unknown>();
     request.mockImplementation(async () => control.promise);
     const { session, listeners } = createSession();
-    const pending = session.run("/api/v1/navigation/start", { pointId: "synthetic-point" });
+    const pending = session.run("/api/v1/navigation/control", { action: "stop" });
     session.close();
     expect(request.mock.calls[0][2]!.signal!.aborted).toBe(true);
     control.resolve({ accepted: true });
     expect(await pending).toBeUndefined();
-    expect(await session.run("/api/v1/navigation/start")).toBeUndefined();
+    expect(await session.run("/api/v1/navigation/control", { action: "stop" })).toBeUndefined();
     expect(request).toHaveBeenCalledOnce();
     expect(listeners.notice).not.toHaveBeenCalled();
   });
@@ -159,6 +161,10 @@ describe("paired Web and Android session ownership", () => {
     page.visibilityState = "hidden";
     page.dispatchEvent(new Event("visibilitychange"));
     expect(openEvents).toHaveBeenCalledOnce();
+    expect(oldSignal.aborted).toBe(true);
+    await expect(session.run("/api/v1/mapping/start")).rejects.toThrow("收到机器人状态后");
+    expect(listeners.notice).toHaveBeenCalledOnce();
+    listeners.notice.mockClear();
     page.visibilityState = "visible";
     page.dispatchEvent(new Event("visibilitychange"));
     expect(oldSignal.aborted).toBe(true);
@@ -191,17 +197,65 @@ describe("paired Web and Android session ownership", () => {
 
   it("does not retry an uncertain command after network return or periodic refresh", async () => {
     request.mockImplementation(async (_connection, path) => {
-      if (path === "/api/v1/navigation/start") throw new Error("connection lost after send");
+      if (path === "/api/v1/mapping/start") throw new Error("connection lost after send");
       return path === "/api/v1/state" ? snapshot() : {};
     });
     const { session, listeners } = createSession();
     session.start();
     await session.refresh();
-    await expect(session.run("/api/v1/navigation/start")).rejects.toThrow("connection lost after send");
+    await expect(session.run("/api/v1/mapping/start")).rejects.toThrow("connection lost after send");
     browser.dispatchEvent(new Event("online"));
     await vi.advanceTimersByTimeAsync(15_000);
-    expect(request.mock.calls.filter((call) => call[1] === "/api/v1/navigation/start")).toHaveLength(1);
+    expect(request.mock.calls.filter((call) => call[1] === "/api/v1/mapping/start")).toHaveLength(1);
     expect(listeners.notice).toHaveBeenCalledExactlyOnceWith("connection lost after send");
+  });
+
+  it("blocks start and resume on stale snapshots, without blocking pause or stop", async () => {
+    const { session, listeners } = createSession();
+    session.start();
+    await session.refresh();
+    const oldPoll = deferred<RobotState>();
+    request.mockImplementation(async (_connection, path) => path === "/api/v1/state" ? oldPoll.promise : {});
+    const beforeLoss = session.refresh();
+    vi.stubGlobal("navigator", { onLine: false });
+    browser.dispatchEvent(new Event("offline"));
+    oldPoll.resolve(snapshot(2));
+    await beforeLoss;
+    expect(listeners.disconnected).toHaveBeenCalledOnce();
+    expect(listeners.state).toHaveBeenCalledExactlyOnceWith(snapshot());
+    request.mockClear();
+    for (const [path, body] of [
+      ["/api/v1/tours/demo/start", undefined],
+      ["/api/v1/mapping/start", undefined],
+      ["/api/v1/maps/demo/activate", undefined],
+      ["/api/v1/navigation/point", { pointId: "demo" }],
+      ["/api/v1/navigation/preview", { pointId: "demo" }],
+      ["/api/v1/navigation/mode", { mode: "point" }],
+      ["/api/v1/navigation/control", { action: "resume" }],
+    ] as const) await expect(session.run(path, body)).rejects.toThrow("收到机器人状态后");
+    expect(request).not.toHaveBeenCalled();
+
+    streams[0].push(snapshot(3));
+    expect(listeners.state).toHaveBeenCalledExactlyOnceWith(snapshot());
+    expect(streams[0].close).toHaveBeenCalledOnce();
+    await expect(session.run("/api/v1/navigation/control", { action: "pause" })).resolves.toEqual({});
+    await expect(session.run("/api/v1/navigation/control", { action: "stop" })).resolves.toEqual({});
+    expect(request.mock.calls.filter((call) => call[2]?.method === "POST").map((call) => call[1]))
+      .toEqual(["/api/v1/navigation/control", "/api/v1/navigation/control"]);
+
+    vi.stubGlobal("navigator", { onLine: true });
+    request.mockImplementation(async (_connection, path) => path === "/api/v1/state" ? snapshot(0.5) : {});
+    browser.dispatchEvent(new Event("online"));
+    streams[0].push(snapshot(99));
+    await expect(session.run("/api/v1/tours/demo/start")).rejects.toThrow("收到机器人状态后");
+    await session.refresh(); // Older server timestamp does not reopen controls.
+    await expect(session.run("/api/v1/tours/demo/start")).rejects.toThrow("收到机器人状态后");
+    streams[1].push({ ...snapshot(4), updatedAt: "invalid" });
+    await expect(session.run("/api/v1/tours/demo/start")).rejects.toThrow("收到机器人状态后");
+    streams[1].push(snapshot(4));
+    expect(request.mock.calls.filter((call) => call[1] === "/api/v1/tours/demo/start")).toHaveLength(0);
+    await expect(session.run("/api/v1/tours/demo/start")).resolves.toEqual({});
+    expect(request.mock.calls.filter((call) => call[1] === "/api/v1/tours/demo/start")).toHaveLength(1);
   });
 
   it("refreshes after a successful mutation and expires an unauthorized control session", async () => {
@@ -213,7 +267,28 @@ describe("paired Web and Android session ownership", () => {
     await expect(session.run("/api/v1/navigation/control")).rejects.toThrow("expired");
     expect(listeners.expired).toHaveBeenCalledOnce();
     const count = request.mock.calls.length;
-    await session.run("/api/v1/navigation/start");
+    await session.run("/api/v1/mapping/start");
     expect(request).toHaveBeenCalledTimes(count);
   });
+});
+
+it("allows reviewed FAST-LIO tours only with a connected, motion-ready backend and the correct map", () => {
+  const state = {
+    connected: true,
+    mappingBackend: "fastlio",
+    referenceNavigation: { motionEnabled: true, planningReady: true, mode: "point" },
+    activeMapId: "current-map",
+    mapping: false,
+    navigation: { status: "idle" },
+    checks: [{ id: "navigation", label: "导航", ready: true }],
+  } as const;
+  const ready = { ...state, checks: [...state.checks] };
+  const tour = { mapId: "current-map", requiresReview: false };
+  expect(tourStartBlock(ready, tour)).toBeUndefined();
+  expect(tourStartBlock({ ...ready, connected: false }, tour)).toContain("连接中断");
+  expect(tourStartBlock({ ...ready, referenceNavigation: undefined }, tour)).toContain("运动输出已关闭");
+  expect(tourStartBlock({ ...ready, checks: [] }, tour)).toContain("导航接口尚未就绪");
+  expect(tourStartBlock(ready, { ...tour, requiresReview: true })).toContain("核对");
+  expect(tourStartBlock(ready, { ...tour, mapId: "other-map" })).toContain("加载任务地图");
+  expect(tourStartBlock({ ...ready, navigation: { status: "failed", requiresStop: true } }, tour)).toContain("停稳");
 });

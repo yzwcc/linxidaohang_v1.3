@@ -44,6 +44,7 @@ import type {
 } from "../../shared/contracts";
 import { api, jsonBody, pairRobot, type Connection } from "./api";
 import { RobotSession } from "./robot-session";
+import { navigationBusy, tourStartBlock } from "./operation-readiness";
 import MapCanvas from "./MapCanvas";
 import LidarCanvas from "./LidarCanvas";
 import LocalizationPanel from "./LocalizationPanel";
@@ -378,7 +379,7 @@ function Mapping({
   const [busy, setBusy] = useState(false);
   const [savedMap, setSavedMap] = useState<{ id: string; name: string }>();
   const activeMap = state.maps.find((map) => map.id === state.activeMapId);
-  const canStart = !navigationBusy(state) &&
+  const canStart = state.connected && !navigationBusy(state) &&
     !state.actionBusy &&
     (state.mappingControlReady ?? ["aimdk", "slam", "lidar"]
       .every((id) => state.checks.some((item) => item.id === id && item.ready)));
@@ -486,7 +487,7 @@ function Mapping({
                 <AlertTriangle size={14} /><span>本轮采集上限 {captureLimit} 秒，请提前停止并保存。</span>
               </div>}
               {!state.mapping ? (
-                <button className="btn accent" disabled={!canStart || busy} onClick={start}><Play size={13} />开始采集</button>
+                <button className="btn accent" disabled={!canStart || busy} onClick={() => { void start().catch(() => undefined); }}><Play size={13} />开始采集</button>
               ) : (
                 <form className="stack" onSubmit={stopAndSave}>
                   <div className="field">
@@ -504,7 +505,7 @@ function Mapping({
                   }}><Square size={13} />停止并放弃</button>}
                 </form>
               )}
-              {!canStart && !state.mapping && <span className="helper danger-text">接口检查未通过，开始采集已禁用。</span>}
+              {!canStart && !state.mapping && <span className="helper danger-text">{state.connected ? "接口检查未通过，开始采集已禁用。" : "连接中断或正在同步，暂不能开始采集。"}</span>}
             </div>
           </Section>
           <div className="notice"><CircleHelp size={14} />{state.mappingBackend === "fastlio" ? "FAST-LIO · 实时激光惯性建图" : state.mappingBackend
@@ -626,7 +627,7 @@ function Maps({
                     <td><strong>{map.name}</strong></td>
                     <td className="mono">{state.mappingBackend === "fastlio" ? "FAST-LIO" : state.navigationExecution ? "合成场景" : map.mapId ?? "未查询"}</td>
                     <td>{map.active ? <span className="tag">当前使用</span> : <span className="muted">可用</span>}</td>
-                    <td>{!state.navigationExecution && <button className="btn small" disabled={state.mapping || navigationBusy(state)} onClick={() => run(`/api/v1/maps/${encodeURIComponent(map.id)}/activate`, {})}>{state.mappingBackend === "fastlio" ? "加载地图" : "从建图起点定位"}</button>}</td>
+                    <td>{!state.navigationExecution && <button className="btn small" disabled={!state.connected || state.mapping || navigationBusy(state)} onClick={() => { void run(`/api/v1/maps/${encodeURIComponent(map.id)}/activate`, {}).catch(() => undefined); }}>{state.mappingBackend === "fastlio" ? "加载地图" : "从建图起点定位"}</button>}</td>
                   </tr>
                 ))}
                 {!state.maps.length && <tr><td colSpan={4} className="empty">未发现已保存地图</td></tr>}
@@ -659,10 +660,10 @@ function Maps({
               <div className="field full"><button className="btn primary" type="submit" disabled={!activeMap}><Plus size={13} />添加点位</button></div>
             </form>
             {!state.navigationExecution && <><div className="inline" style={{ marginTop: 12 }}>
-              <button className="btn" disabled={!activeMap || state.mapping || navigationBusy(state)} onClick={() => {
+              <button className="btn" disabled={!state.connected || !activeMap || state.mapping || navigationBusy(state)} onClick={() => {
                 if (activeMap) void run(`/api/v1/maps/${encodeURIComponent(activeMap.id)}/activate`, {
                   initialPose: { x: Number(coordinates.x), y: Number(coordinates.y), yaw: Number(coordinates.yaw) },
-                });
+                }).catch(() => undefined);
               }}><Compass size={13} />按所填位姿重定位</button>
             </div>
             <div className="helper" style={{ marginTop: 8 }}>定位前确认机器人实际位置与所填坐标、朝向一致。</div></>}
@@ -801,8 +802,8 @@ function NavigationPage({
                     <td>{state.maps.find((map) => map.id === point.mapId)?.name}</td>
                     <td className="mono">{point.x.toFixed(2)}, {point.y.toFixed(2)}</td>
                     <td><div className="inline">
-                      {reference && <button className="btn small" disabled={!state.referenceNavigation?.planningReady || state.mapping || previewPending || navigationBusy(state)} onClick={() => { void previewPath(point).catch(() => undefined); }}><Navigation size={12} />预览路径</button>}
-                      {(!reference || state.referenceNavigation?.motionEnabled) && <button className="btn small primary" disabled={!ready || !state.activeMapId || state.mapping || state.actionBusy || navigationBusy(state)} onClick={() => run("/api/v1/navigation/point", { pointId: point.id })}><Navigation size={12} />前往</button>}
+                      {reference && <button className="btn small" disabled={!state.connected || !state.referenceNavigation?.planningReady || state.mapping || previewPending || navigationBusy(state)} onClick={() => { void previewPath(point).catch(() => undefined); }}><Navigation size={12} />预览路径</button>}
+                      {(!reference || state.referenceNavigation?.motionEnabled) && <button className="btn small primary" disabled={!state.connected || !ready || !state.activeMapId || state.mapping || state.actionBusy || navigationBusy(state)} onClick={() => { void run("/api/v1/navigation/point", { pointId: point.id }).catch(() => undefined); }}><Navigation size={12} />前往</button>}
                     </div></td>
                   </tr>
                 ))}
@@ -823,8 +824,8 @@ function NavigationPage({
           {state.referenceNavigation && <div className="field">
             <label htmlFor="reference-controller">导航控制器</label>
             <select id="reference-controller" value={state.referenceNavigation.mode}
-              disabled={state.mapping || navigationBusy(state)}
-              onChange={(event) => run("/api/v1/navigation/mode", { mode: event.target.value }, "PUT")}>
+              disabled={!state.connected || state.mapping || navigationBusy(state)}
+              onChange={(event) => { void run("/api/v1/navigation/mode", { mode: event.target.value }, "PUT").catch(() => undefined); }}>
               <option value="point">定点导航</option><option value="nav2">Nav2</option>
             </select>
           </div>}
@@ -915,7 +916,7 @@ function Tours({
                       <td>{tour.steps.length}</td><td>{tour.repeatCount}</td>
                       <td className="muted">{tour.updatedAt.slice(0, 16).replace("T", " ")}</td>
                       <td className="row-actions">
-                        <button className="btn small primary" disabled={state.independentProduct || state.mappingBackend === "fastlio" || tour.requiresReview || state.mapping || navigationBusy(state) || tour.mapId !== state.activeMapId} title={state.independentProduct || state.mappingBackend === "fastlio" ? "独立导航尚未就绪" : "开始讲解"} onClick={() => run(`/api/v1/tours/${encodeURIComponent(tour.id)}/start`)}><Play size={12} />开始</button>
+                        <button className="btn small primary" disabled={Boolean(tourStartBlock(state, tour))} title={tourStartBlock(state, tour) ?? "开始讲解"} onClick={() => { void run(`/api/v1/tours/${encodeURIComponent(tour.id)}/start`).catch(() => undefined); }}><Play size={12} />开始</button>
                         <button className="btn icon small danger" title="删除任务" onClick={() => run(`/api/v1/tours/${encodeURIComponent(tour.id)}`, undefined, "DELETE")}><Trash2 size={13} /></button>
                       </td>
                     </tr>
@@ -925,9 +926,7 @@ function Tours({
             ) : <div className="empty">尚未创建任务</div>}
             {["requested", "running", "paused", "failed"].includes(state.navigation.status) && (
               <div className="task-controls" style={{ marginTop: 13 }}>
-                <button className="btn small" onClick={() => run("/api/v1/navigation/control", { action: "pause" })}><Pause size={12} />暂停</button>
-                <button className="btn small" onClick={() => run("/api/v1/navigation/control", { action: "resume" })}><Play size={12} />继续</button>
-                <button className="btn small danger" onClick={() => run("/api/v1/navigation/control", { action: "stop" })}><Square size={12} />停止</button>
+                <JobControls state={state} run={run} />
               </div>
             )}
           </Section>
@@ -1285,10 +1284,6 @@ function navigationLabel(status: RobotState["navigation"]["status"]): string {
   return { idle: "待命", requested: "等待确认", running: "执行中", paused: "已暂停", finished: "已完成", failed: "需检查" }[status];
 }
 
-function navigationBusy(state: RobotState): boolean {
-  return state.navigation.requiresStop === true || ["requested", "running", "paused"].includes(state.navigation.status);
-}
-
 function JobControls({ state, run }: {
   state: RobotState;
   run: (path: string, body?: unknown, method?: string) => Promise<unknown>;
@@ -1303,7 +1298,7 @@ function JobControls({ state, run }: {
   if (!navigationBusy(state)) return null;
   return <div className="task-controls">
     {["requested", "running"].includes(state.navigation.status) && <button className="btn small" disabled={busy || state.actionBusy} onClick={() => void control("pause")}><Pause size={12} />暂停</button>}
-    {state.navigation.status === "paused" && <button className="btn small primary" disabled={busy || state.actionBusy} onClick={() => void control("resume")}><Play size={12} />继续</button>}
+    {state.navigation.status === "paused" && <button className="btn small primary" disabled={!state.connected || busy || state.actionBusy} onClick={() => void control("resume")}><Play size={12} />继续</button>}
     <button className="btn small danger" disabled={busy} onClick={() => void control("stop")}><Square size={12} />停止</button>
   </div>;
 }
