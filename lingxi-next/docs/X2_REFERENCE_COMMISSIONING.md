@@ -82,6 +82,12 @@ python3 -B tools/probe_reference_target.py --seconds 8 \
 
 UDP 配置生成器已用目标配置只读核对接口白名单、发送和接收缓冲。独立 x86_64 Humble 环境（Fast DDS 2.6.12、仅环回、私有 `/dev/shm`）中的两进程试验收到全部 30 帧 1.28 MB 合成点云与 600 条合成 IMU 消息，未观察到共享内存文件。该试验未接触机器人，不能替代 V1.1.5 的 Fast DDS 2.14.6、实际总线负载和长时间稳定性验证。
 
+### 2026-11-23 UDP-only 实机安装
+
+在同一台 V1.1.5 SoC1（AIMDK `v0.0.0-g14fe2e8`）卸载旧服务并保留可恢复备份后，核对了参考源码的完整提交及 `0.1.50-core-commissioning-20261123-g58049f2b82da` 的包内校验和。暂存包的网页入口和静态资源与归档旧版逐文件一致。已读验本机出厂 `chest_lidar`，并用新 UDPv4 配置和产品服务账号复核本机 FAST-LIO 文件：关闭外参在线估计、与当前雷达—IMU TF 匹配。安装前 12 秒探测收到 120 帧雷达、2,399 条 IMU，最大 IMU 头间隔 17.494 ms，7 组同时间戳机身/IMU/足踝 TF。未调用运控接口。
+
+备份 `robot.env` 后只替换参考服务的 DDS 配置路径。事务安装成功提交，保留了配置和业务数据快照；厂商标定和 FAST-LIO 配置的文件摘要前后一致。仅 HTTPS 与参考服务运行。本机 HTTPS `referenceStaticReady: true`，私有状态 `idle`、`calibration: matched`、`sensorsReady: true`、`mappingReady: true`，未暴露自主运动能力。已连接日志供现场采集观察。这仍是静态验收：不能据此确认连续建图无断流、地图已保存或可重定位。
+
 参考仓库的版权人代码使用 PolyForm Noncommercial 1.0.0 及另行商业授权。用户已确认该仓库的商业复用和分发授权。实际分发引用仓库或其构建产物时，保留原 LICENSE、`Required Notice: Copyright (c) 2026 Mikeaaaa14 (https://github.com/Mikeaaaa14)`，并履行各组件的对应义务，包括 FAST-LIO 的 GPLv2、Patchwork++ 的 BSD 声明和 OctoMap 随附许可证。
 
 ## 点位与讲解迁移
