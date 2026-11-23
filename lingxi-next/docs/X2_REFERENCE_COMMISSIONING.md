@@ -13,7 +13,18 @@ ARM64 核心联调包提供产品 Web、API、参考服务适配、AgentSDK 进�
 3. 在目标机按 `deploy/install.sh --commissioning --robot-ip IP` 安装产品。设置 `/etc/lingxi-next/robot.env` 中的 `LINGXI_AIMDK_SETUP`、`LINGXI_REFERENCE_SOURCE`、`LINGXI_REFERENCE_CONFIG`、`LINGXI_REFERENCE_CONFIG_SHA256`、`LINGXI_REFERENCE_OVERLAY`、`LINGXI_REFERENCE_PYTHON`、`LINGXI_REFERENCE_ROS2`，并设置 `LINGXI_REFERENCE_SOCKET=/run/lingxi-next-reference/control.sock`。保持 GLIM 和独立物理导航后端未选中。原生二进制和配置放在 systemd 服务账号可读且不依赖 `/home` 的路径。
 4. 启动 `lingxi-next-reference-navigation.service`，检查日志后重启 `lingxi-next-api.service`。参考服务启动同提交的 Nav2 进程，使用当前产品的私有工作目录和内网 ROS 图。`deploy/diagnose.sh` 可检查服务状态。跨版本回滚前先结束建图并等待保存回执。若回到未包含参考服务的版本，先停止参考单元，再将 `LINGXI_REFERENCE_SOCKET` 留空。
 
-如果按参考仓库的方式解包 Nav2 `.deb`，并把构建结果整理为同一版本目录下的 `ros/`、`overlay/`、`grid/`、`venv/`，可以把这个版本目录设为 `LINGXI_REFERENCE_RUNTIME_ROOT`，使用产品的 `deploy/reference-overlay.sh` 作为 `LINGXI_REFERENCE_OVERLAY`。可用 `LINGXI_REFERENCE_AIMDK_SETUP` 和 `LINGXI_REFERENCE_DDS_PROFILE` 指定仅参考服务使用的 AIMDK 消息环境和本机 DDS XML，避免改动旧后端。`tools/prepare_reference_profile.py --source DIR --overlay DIR --fastlio-config FILE --data-dir DIR --output FILE` 用绝对路径生成新的运动禁用配置，不改模板、原配置或厂商文件。保持参考 checkout 与运行时由 root 管理、服务组只读。
+如果按参考仓库的方式解包 Nav2 `.deb`，并把构建结果整理为同一版本目录下的 `ros/`、`overlay/`、`grid/`、`venv/`，可以把这个版本目录设为 `LINGXI_REFERENCE_RUNTIME_ROOT`，使用产品的 `deploy/reference-overlay.sh` 作为 `LINGXI_REFERENCE_OVERLAY`。可用 `LINGXI_REFERENCE_AIMDK_SETUP` 指定参考服务使用的 AIMDK 消息环境。`tools/prepare_reference_profile.py --source DIR --overlay DIR --fastlio-config FILE --data-dir DIR --output FILE` 用绝对路径生成新的运动禁用配置，不改模板、原配置或厂商文件。保持参考 checkout 与运行时由 root 管理、服务组只读。
+
+参考服务要求 `LINGXI_REFERENCE_DDS_PROFILE` 显式指向这台机器人专用、root 所有的 UDPv4-only XML。用本机当前受信的 DDS 文件作为只读模板；替换下例中的 `/path/to/target-dds.xml`。输出必须是新的文件，目标目录为 root 所有、服务组只读。生成器保留 UDP 接口白名单和缓冲参数，移除共享内存传输及厂商日志配置。其他服务的 DDS 配置不变。
+
+```bash
+sudo install -d -o root -g lingxi-next -m 0750 /etc/lingxi-next/dds
+sudo /usr/bin/python3 -I -B deploy/reference_dds_profile.py \
+  --source /path/to/target-dds.xml \
+  --output /etc/lingxi-next/dds/reference-udp4.xml
+```
+
+配置 `LINGXI_REFERENCE_DDS_PROFILE=/etc/lingxi-next/dds/reference-udp4.xml` 后，参考服务及其 FAST-LIO、录制器、Nav2 子进程统一使用此配置。静态切换和参考服务启动都拒绝缺失、不安全或仍启用 SHM 的配置。运行只读传感器探测时也使用相同的 ROS 环境、UDP 配置及 `rmw_fastrtps_cpp`，不要再用带 SHM 的模板探测。切换或回滚前先确认停稳并备份 `robot.env`。从带 SHM 的旧版恢复传感器前，先在维护窗口停用旧参考单元的自启动；新版自动恢复可还原旧版文件，但不自动启动或启用不含 UDP 校验的旧静态参考单元。显式回滚也拒绝将这类旧版本作为可启动的静态目标。
 
 从旧 GLIM／独立导航版本切换时，先在现场确认机器人已停稳、没有运行中的导航、讲解或建图会话，并备份厂商原始地图。预先通过只读预检，填写 `robot.env` 中的 ROS/AIMDK、参考源码、overlay、Python、ROS2、配置文件和配置 SHA256；不必先改 `LINGXI_REFERENCE_SOCKET` 或旧后端选择。从核心联调包执行 `sudo bash deploy/install.sh --commissioning --reference-commissioning --robot-ip IP`。该模式先停止本产品的旧进程并备份 `/etc/lingxi-next` 和 `/var/lib/lingxi-next`，只启动参考服务和 HTTPS。私有接口必须确认空闲、目标标定匹配、雷达与 IMU 可用、AIMDK 和 Nav2 生命周期服务可发现，且没有运动接口，才能提交切换；未通过则还原原版本和快照。发现 Nav2 生命周期服务不等于已加载地图或可规划路径。旧业务数据、选项和厂商资产保留。回滚不会自动恢复旧运动、动作或语音进程，需现场确认后再启动。
 
@@ -66,6 +77,10 @@ python3 -B tools/probe_reference_target.py --seconds 8 \
 后续采集尝试在初始化时失败：参考实时栅格子进程等待上游预览组件生成地面参考，而产品关闭该组件，待处理队列满后退出。失败录制保留，不注册为地图。产品适配层现关闭该缓存（包括使用旧配置升级的情况），保留实时点云，停止时先核对扫描、里程计、重力和末帧是否配对，再由参考导出器从同一录制验证初始静止、地面参考和外参并生成栅格。启动后保持站稳，直到显示「采集中」并出现点云；这个提示表示采集就绪，不代表地面参考已通过。网页和 APK 显示本次会话已观察到的配对扫描帧数和录制目录大小；这两个值不是已保存帧数或完成百分比。保存需要额外时间，须等保存回执，不能把失败录制标成地图。
 
 修正后的 `0.1.50-core-commissioning-20261123-g92c99f66e706` 已在同一台机器人上完成静态升级。本机 HTTPS 返回 `referenceStaticReady: true`，私有接口空闲、标定匹配且无运动能力。采用参考服务相同的 ROS 环境做了 12 秒只读复测：117 帧雷达、2,329 条 IMU、119 条运控状态，最大 IMU 头间隔 18.139 ms；有 6 帧匹配同时间戳的机身、IMU 和足踝 TF，AIMDK 服务类型匹配。旧版本、部署快照及失败采集的原始录制仍保留。通过的是静态升级和建图准入复核，截至本次复核没有验证新版建图保存或地图尺度。
+
+随后的现场重试中，记录器只收到约 3 秒的雷达和 IMU（24 帧、427 条），而机身 TF 持续更新。没有生成任何同会话里程计、建图点云或重力输出；独立 15 秒订阅也未收到雷达和 IMU。同期厂商 `hal_sensor_orin` 崩溃栈位于发布 IMU 时的 Fast DDS 2.14.6 共享内存发送路径；当时应用 DDS 配置也包含 SHM，但记录不能证明哪个进程触发厂商缺陷。两份失败录制均保留。应用改为仅用 UDPv4 不会修复或重启已退出的厂商进程。须先隔离产品 SHM，现场按厂商流程恢复传感器，再从静态只读检查开始；未实机验证前不能宣称故障已修复。
+
+UDP 配置生成器已用目标配置只读核对接口白名单、发送和接收缓冲。独立 x86_64 Humble 环境（Fast DDS 2.6.12、仅环回、私有 `/dev/shm`）中的两进程试验收到全部 30 帧 1.28 MB 合成点云与 600 条合成 IMU 消息，未观察到共享内存文件。该试验未接触机器人，不能替代 V1.1.5 的 Fast DDS 2.14.6、实际总线负载和长时间稳定性验证。
 
 参考仓库的版权人代码使用 PolyForm Noncommercial 1.0.0 及另行商业授权。用户已确认该仓库的商业复用和分发授权。实际分发引用仓库或其构建产物时，保留原 LICENSE、`Required Notice: Copyright (c) 2026 Mikeaaaa14 (https://github.com/Mikeaaaa14)`，并履行各组件的对应义务，包括 FAST-LIO 的 GPLv2、Patchwork++ 的 BSD 声明和 OctoMap 随附许可证。
 

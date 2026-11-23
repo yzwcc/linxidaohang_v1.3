@@ -41,6 +41,19 @@ class DeploymentServiceRestore(unittest.TestCase):
         self.assertIn(order, transaction)
         self.assertIn('systemctl is-active --quiet "$service" || return 1', transaction)
 
+    def test_static_reference_unsafe_profile_is_rejected_before_switch_or_restart(self):
+        deploy = ROOT / "deploy"
+        for filename, check in (("install.sh", 'deployment_require_reference_profile "$PACKAGE"'),
+                                ("rollback.sh", 'deployment_require_reference_profile "$TARGET"')):
+            script = (deploy / filename).read_text(encoding="utf-8")
+            self.assertLess(script.index(check), script.index("deployment_stop\n"))
+        transaction = (deploy / "transaction.sh").read_text(encoding="utf-8")
+        start = transaction.split("deployment_start_reference()", 1)[1].split("deployment_begin()", 1)[0]
+        self.assertLess(start.index("deployment_require_reference_profile"), start.index("systemctl start"))
+        restore = transaction.split("deployment_recover()", 1)[1]
+        self.assertIn('! deployment_require_reference_profile "$OLD_CURRENT"', restore)
+        self.assertIn('"$OLD_API_ACTIVE" == 1 && "$reference_restore_blocked" == 0', restore)
+
 
 if __name__ == "__main__":
     unittest.main()

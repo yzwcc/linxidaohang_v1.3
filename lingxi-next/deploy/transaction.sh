@@ -73,8 +73,19 @@ sys.exit(0 if isinstance(health, dict) and health.get("ok") is True
   fi
 }
 
+deployment_require_reference_profile() {
+  local release="$1" checker
+  checker="$release/deploy/reference_dds_profile.py"
+  if [[ -z "$release" || ! -f "$checker" || -L "$checker" ]] ||
+      ! /usr/bin/python3 -I -B "$checker" --check-env "$CONFIG/robot.env"; then
+    echo "Reference release requires a dedicated UDPv4-only DDS profile. No reference service was started." >&2
+    return 1
+  fi
+}
+
 deployment_start_reference() {
   local attempt state
+  deployment_require_reference_profile "$(deployment_pointer current)" || return 1
   systemctl start lingxi-next-reference-navigation.service || return 1
   for ((attempt=0; attempt<45; attempt++)); do
     state="$(curl --silent --fail --noproxy '*' --max-time 1 \
@@ -154,7 +165,7 @@ deployment_snapshot() {
 }
 
 deployment_recover() {
-  local status="$1" failed=0 service
+  local status="$1" failed=0 service reference_restore_blocked=0
   trap - EXIT HUP INT TERM
   [[ "$status" != 0 ]] || return 0
   set +e
@@ -180,10 +191,14 @@ deployment_recover() {
     tar -xzf "$BACKUP/data-and-config.tar.gz" -C / || failed=1
   fi
   systemctl daemon-reload || failed=1
-  if [[ "$OLD_REFERENCE_ENABLED" == 1 ]] && ! systemctl is-enabled --quiet lingxi-next-reference-navigation.service; then
+  if [[ -n "$OLD_CURRENT" && -f "$OLD_CURRENT/.reference-commissioning" ]] &&
+      ! deployment_require_reference_profile "$OLD_CURRENT"; then
+    reference_restore_blocked=1
+    systemctl disable lingxi-next-reference-navigation.service || failed=1
+  elif [[ "$OLD_REFERENCE_ENABLED" == 1 ]] && ! systemctl is-enabled --quiet lingxi-next-reference-navigation.service; then
     systemctl enable lingxi-next-reference-navigation.service || failed=1
   fi
-  if [[ "$failed" == 0 && "$OLD_API_ACTIVE" == 1 ]]; then
+  if [[ "$failed" == 0 && "$OLD_API_ACTIVE" == 1 && "$reference_restore_blocked" == 0 ]]; then
     if [[ -n "$OLD_CURRENT" && -f "$OLD_CURRENT/.reference-commissioning" ]] && ! deployment_start_reference; then
       failed=1
       systemctl stop lingxi-next-reference-navigation.service || true
@@ -193,7 +208,11 @@ deployment_recover() {
     fi
   fi
   if [[ "$failed" == 0 ]]; then
-    echo "Prior deployment restored. Navigation and voice remain stopped pending operator inspection." >&2
+    if [[ "$reference_restore_blocked" == 1 ]]; then
+      echo "Prior deployment files restored; the old reference service remains stopped and disabled." >&2
+    else
+      echo "Prior deployment restored. Navigation and voice remain stopped pending operator inspection." >&2
+    fi
     printf 'recovered\n' > "$BACKUP/recovery-status"
   else
     echo "Automatic recovery incomplete; services were not automatically resumed. Inspect retained backup and services." >&2

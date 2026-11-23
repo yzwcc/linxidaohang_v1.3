@@ -11,6 +11,7 @@ CURRENT="$(deployment_pointer current)"
 [[ "$TARGET" == "$ROOT/releases/"* && -f "$TARGET/VERSION" && -f "$TARGET/SHA256SUMS" ]] || { echo "Invalid rollback target" >&2; exit 1; }
 [[ "$CURRENT" == "$ROOT/releases/"* && -f "$CURRENT/VERSION" ]] || { echo "Invalid current release" >&2; exit 1; }
 (cd "$TARGET" && sha256sum -c SHA256SUMS >/dev/null)
+if [[ -f "$TARGET/.reference-commissioning" ]]; then deployment_require_reference_profile "$TARGET"; fi
 umask 077
 deployment_begin pre-rollback
 deployment_stop

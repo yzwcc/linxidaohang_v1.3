@@ -38,6 +38,7 @@ VERSION="$(<VERSION)"
 runtime/node/bin/node --version
 runtime/java/bin/java -version
 source "$PACKAGE/deploy/transaction.sh"
+if [[ "$REFERENCE" == 1 ]]; then deployment_require_reference_profile "$PACKAGE"; fi
 deployment_lock
 [[ ! -e "$ROOT/releases/$VERSION" ]] || { echo "Release already installed; choose a new build or use rollback.sh" >&2; exit 1; }
 PREVIOUS="$(deployment_pointer current)" || { echo "Invalid current release" >&2; exit 1; }

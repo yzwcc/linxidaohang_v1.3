@@ -228,6 +228,12 @@ case "${1:-}" in
     set +u
     source "$LINGXI_REFERENCE_OVERLAY"
     set -u
+    required_file "${LINGXI_REFERENCE_DDS_PROFILE:-}" LINGXI_REFERENCE_DDS_PROFILE
+    /usr/bin/python3 -I -B "$CURRENT/deploy/reference_dds_profile.py" --check "$LINGXI_REFERENCE_DDS_PROFILE" || exit 78
+    # Apply after both overlays. Children inherit the verified profile, not a vendor/default XML.
+    unset FASTDDS_DEFAULT_PROFILES_FILE RMW_FASTRTPS_USE_QOS_FROM_XML
+    export FASTRTPS_DEFAULT_PROFILES_FILE="$LINGXI_REFERENCE_DDS_PROFILE"
+    export FASTDDS_BUILTIN_TRANSPORTS=UDPv4 RMW_IMPLEMENTATION=rmw_fastrtps_cpp
     export PYTHONNOUSERSITE=1 PYTHONDONTWRITEBYTECODE=1
     exec "$LINGXI_REFERENCE_PYTHON" -s -B "$CURRENT/bridge/reference_service.py" \
       --source "$LINGXI_REFERENCE_SOURCE" --config "$LINGXI_REFERENCE_CONFIG" --socket "$LINGXI_REFERENCE_SOCKET" \
