@@ -1,5 +1,9 @@
 # 验收与当前状态
 
+X2 Ultra V1.1.5 的 FAST-LIO／GICP／Nav2 安装、逐机标定和现场验收以
+[X2 参考栈联调手册](X2_REFERENCE_COMMISSIONING.md#x2-现场验收顺序与记录)为准。
+以下旧厂商后端的 AIMDK 查图／原生 SLAM 项不适用于这个部署档。
+
 最新独立路线与完整项目离线工作范围见 [OFFLINE_PRODUCT_ACCEPTANCE.md](OFFLINE_PRODUCT_ACCEPTANCE.md)。
 本文件下方的早期厂商后端状态保留为历史记录，不表示当前必须购买厂商 SLAM，
 也不表示开源导航已经完成。最新建图观测档案产品联调见
