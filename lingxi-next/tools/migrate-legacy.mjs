@@ -1,7 +1,8 @@
 import { createHash, randomUUID } from "node:crypto";
-import { mkdir, open, readFile, readdir, rename, stat, unlink } from "node:fs/promises";
+import { lstat, mkdir, open, readFile, readdir, realpath, rename, stat, unlink } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { parseArgs } from "node:util";
 
 const object = (value) => value && typeof value === "object" && !Array.isArray(value) ? value : {};
 const text = (value, fallback = "") => typeof value === "string" && value.trim() ? value.trim() : fallback;
@@ -151,6 +152,47 @@ async function restrictedWrite(filePath, value) {
   try { await handle.writeFile(value); await handle.sync(); } finally { await handle.close(); }
 }
 
+async function optionalState(statePath) {
+  try {
+    if (!(await lstat(statePath)).isFile()) throw new Error("Expected a regular state.json file");
+    return await readFile(statePath);
+  } catch (error) {
+    if (error.code !== "ENOENT") throw error;
+    return undefined;
+  }
+}
+
+const stateHash = (bytes) => bytes === undefined ? null : digest(bytes);
+
+async function requireState(statePath, expected, error) {
+  if (stateHash(await optionalState(statePath)) !== expected) throw new Error(error);
+}
+
+async function editState(target, operation) {
+  const lockPath = path.join(target, ".legacy-migration.lock");
+  const lock = await open(lockPath, "wx", 0o600).catch((error) => {
+    if (error.code === "EEXIST") throw new Error("A migration or rollback is already locked; check the maintenance window");
+    throw error;
+  });
+  try { return await operation(); }
+  finally {
+    await lock.close();
+    await unlink(lockPath);
+  }
+}
+
+async function replaceState(target, statePath, next, beforePublish) {
+  const temporary = path.join(target, `state.${randomUUID()}.tmp`);
+  try {
+    await restrictedWrite(temporary, next);
+    await beforePublish();
+    await rename(temporary, statePath);
+  } catch (error) {
+    await unlink(temporary).catch(() => undefined);
+    throw error;
+  }
+}
+
 export function assignRebuiltMaps(entries, assignments, maps) {
   if (!assignments || Object.getPrototypeOf(assignments) !== Object.prototype) {
     throw new Error("Point assignments must be an object keyed by legacy map name");
@@ -177,7 +219,7 @@ export function assignRebuiltMaps(entries, assignments, maps) {
   if (new Set(targets).size !== targets.length) throw new Error("Rebuilt maps must be assigned one-to-one");
 }
 
-export async function migrateLegacy({ source, destination, apply = false, beforeCommit, pointAssignments }) {
+export async function migrateLegacy({ source, destination, apply = false, beforeCommit, pointAssignments, expectedReview }) {
   const sourcePath = path.resolve(source);
   const target = path.resolve(destination);
   const metadata = await stat(sourcePath);
@@ -199,32 +241,34 @@ export async function migrateLegacy({ source, destination, apply = false, before
   if (new Set(entries.map((entry) => entry.map.id)).size !== entries.length) {
     throw new Error("Duplicate map names in legacy sources");
   }
-  let current;
+  for (const field of ["points", "tours"]) {
+    const ids = entries.flatMap((entry) => entry[field].map((item) => item.id));
+    if (new Set(ids).size !== ids.length) throw new Error(`Legacy map names and IDs collide in ${field}`);
+  }
   const statePath = path.join(target, "state.json");
-  let initialStateBytes;
-  try {
-    initialStateBytes = await readFile(statePath);
-    current = JSON.parse(initialStateBytes.toString("utf8"));
-  }
-  catch (error) {
-    if (error.code !== "ENOENT") throw error;
-    current = {
-      schemaVersion: 1, robotName: "Lingxi X2", maps: [], points: [], tours: [],
-      idleReturnSeconds: 30, jobRecords: [], ai: { provider: "ark", model: "configure-model-id" },
-    };
-    initialStateBytes = undefined;
-  }
-  if (pointAssignments) assignRebuiltMaps(entries, pointAssignments, current.maps);
+  const initialStateBytes = await optionalState(statePath);
+  const current = initialStateBytes === undefined ? {
+    schemaVersion: 1, robotName: "Lingxi X2", maps: [], points: [], tours: [],
+    idleReturnSeconds: 30, jobRecords: [], ai: { provider: "ark", model: "configure-model-id" },
+  } : JSON.parse(initialStateBytes.toString("utf8"));
+  const beforeSha256 = stateHash(initialStateBytes);
+  if (pointAssignments !== undefined) assignRebuiltMaps(entries, pointAssignments, current.maps);
+  const reviewSha256 = digest(JSON.stringify({ beforeSha256, maps: entries.map((entry) => ({
+    input: entry.sha256, map: entry.map.id, targetMap: entry.targetMap, points: entry.points,
+  })) }));
   const report = {
-    schemaVersion: 1, applied: apply, mapFilesMoved: 0, knowledgeBaseMigrated: false,
+    schemaVersion: 2, applied: false, reviewSha256, mapFilesMoved: 0, knowledgeBaseMigrated: false,
     files: entries.map((entry) => ({
       source: entry.filename, sha256: entry.sha256, map: entry.map.id,
       points: entry.points.length, tours: entry.tours.length, warnings: entry.warnings,
-      ...(entry.targetMap ? { targetMap: entry.targetMap } : { pointIds: entry.points.map(({ id, name }) => ({ id, name })) }),
+      ...(entry.targetMap ? {
+        targetMap: entry.targetMap,
+        placements: entry.points.map(({ id, name, x, y, yaw, isStart }) => ({ id, name, x, y, yaw, isStart })),
+        tourReviews: entry.tours.map(({ id, name, repeatCount, steps }) => ({ id, name, repeatCount,
+          pointOrder: steps.map((step) => step.pointId) })),
+      } : { pointIds: entry.points.map(({ id, name }) => ({ id, name })) }),
     })),
   };
-  if (!apply) return report;
-  await mkdir(target, { recursive: true, mode: 0o700 });
   for (const entry of entries) {
     if ((!entry.targetMap && current.maps.some((map) => map.id === entry.map.id)) ||
         current.points.some((point) => entry.points.some((candidate) => candidate.id === point.id) ||
@@ -233,54 +277,97 @@ export async function migrateLegacy({ source, destination, apply = false, before
       throw new Error(`Destination already contains ${entry.map.id}; no data overwritten`);
     }
   }
-  const backup = path.join(target, "backups", `migration-${new Date().toISOString().replace(/[:.]/g, "-")}-${randomUUID()}`);
-  await mkdir(backup, { recursive: true, mode: 0o700 });
-  for (const [index, entry] of entries.entries()) {
-    await restrictedWrite(path.join(backup, `${index + 1}-${path.basename(entry.filename)}`), entry.bytes);
-    // Detect a source change during preparation, before committing new state.
-    if (digest(await readFile(entry.filename)) !== entry.sha256) throw new Error("Legacy source changed during migration");
-    if (!entry.targetMap) current.maps.push(entry.map);
-    current.points.push(...entry.points);
-    current.tours.push(...entry.tours);
-    if (entry.selectedTourId) current.selectedTourId = entry.selectedTourId;
+  if (!apply) return report;
+  if ((pointAssignments !== undefined || expectedReview !== undefined) && expectedReview !== reviewSha256) {
+    throw new Error("Migration review does not match current inputs; preview again before applying");
   }
-  if (initialStateBytes) await restrictedWrite(path.join(backup, "previous-state.json"), initialStateBytes);
-  report.backupDirectory = backup;
-  await restrictedWrite(path.join(backup, "receipt.json"), JSON.stringify(report, null, 2));
-  const temporary = path.join(target, `state.${randomUUID()}.tmp`);
-  try {
-    await restrictedWrite(temporary, JSON.stringify(current, null, 2));
-    if (beforeCommit) await beforeCommit();
-    const stateBeforeCommit = await readFile(statePath).catch((error) => {
-      if (error.code !== "ENOENT") throw error;
-      return undefined;
-    });
-    if ((initialStateBytes === undefined) !== (stateBeforeCommit === undefined) ||
-        (initialStateBytes && digest(initialStateBytes) !== digest(stateBeforeCommit))) {
-      throw new Error("Destination state changed during migration; no concurrent data was overwritten");
+  await mkdir(target, { recursive: true, mode: 0o700 });
+  const stateChanged = "Destination state changed during migration; no concurrent data was overwritten";
+  return editState(target, async () => {
+    await requireState(statePath, beforeSha256, stateChanged);
+    const backup = path.join(target, "backups", `migration-${new Date().toISOString().replace(/[:.]/g, "-")}-${randomUUID()}`);
+    await mkdir(backup, { recursive: true, mode: 0o700 });
+    for (const [index, entry] of entries.entries()) {
+      await restrictedWrite(path.join(backup, `${index + 1}-${path.basename(entry.filename)}`), entry.bytes);
+      if (!entry.targetMap) current.maps.push(entry.map);
+      current.points.push(...entry.points);
+      current.tours.push(...entry.tours);
+      if (entry.selectedTourId) current.selectedTourId = entry.selectedTourId;
     }
-    await rename(temporary, statePath);
-  } catch (error) {
-    await unlink(temporary).catch(() => undefined);
-    throw error;
+    if (initialStateBytes !== undefined) await restrictedWrite(path.join(backup, "previous-state.json"), initialStateBytes);
+    const next = JSON.stringify(current, null, 2);
+    const transaction = { kind: "legacy-migration", beforeSha256, afterSha256: digest(next) };
+    // The receipt describes the intended transition; the live hash proves it happened, even if the process died after rename.
+    await restrictedWrite(path.join(backup, "receipt.json"), JSON.stringify({ ...report, applied: undefined,
+      backupDirectory: backup, transaction }, null, 2));
+    await replaceState(target, statePath, next, async () => {
+      if (beforeCommit) await beforeCommit();
+      for (const entry of entries) {
+        if (digest(await readFile(entry.filename)) !== entry.sha256) throw new Error("Legacy source changed during migration");
+      }
+      await requireState(statePath, beforeSha256, stateChanged);
+    });
+    return { ...report, applied: true, backupDirectory: backup, transaction };
+  });
+}
+
+export async function rollbackLegacyMigration({ destination, backupDirectory, apply = false }) {
+  const target = path.resolve(destination);
+  const backup = path.resolve(backupDirectory);
+  if (path.dirname(backup) !== path.join(target, "backups") || !/^migration-[\w-]+$/.test(path.basename(backup)) ||
+      (await realpath(backup)) !== path.join(await realpath(target), "backups", path.basename(backup))) {
+    throw new Error("Migration backup must be a direct directory in the selected destination's backups");
   }
-  return report;
+  const receiptFile = path.join(backup, "receipt.json");
+  if (!(await lstat(receiptFile)).isFile()) throw new Error("Invalid migration receipt file");
+  const receipt = JSON.parse(await readFile(receiptFile, "utf8"));
+  const { kind, beforeSha256, afterSha256 } = receipt.transaction ?? {};
+  const valid = (value) => typeof value === "string" && /^[a-f0-9]{64}$/.test(value);
+  if (receipt.schemaVersion !== 2 || kind !== "legacy-migration" || receipt.backupDirectory !== backup ||
+      !valid(afterSha256) || (beforeSha256 !== null && !valid(beforeSha256))) throw new Error("Invalid or incompatible migration receipt");
+  const previous = await optionalState(path.join(backup, "previous-state.json"));
+  if (stateHash(previous) !== beforeSha256) throw new Error("Original state backup does not match migration receipt");
+  const statePath = path.join(target, "state.json");
+  const changed = "Current state differs from the applied migration; refusing to overwrite later edits or undo an unapplied receipt";
+  await requireState(statePath, afterSha256, changed);
+  const report = { schemaVersion: 2, backupDirectory: backup, applied: false, restoresPreviousState: previous !== undefined };
+  if (!apply) return report;
+  return editState(target, async () => {
+    const migrated = await optionalState(statePath);
+    if (stateHash(migrated) !== afterSha256) throw new Error(changed);
+    const saved = path.join(backup, `rollback-${randomUUID()}-migrated-state.json`);
+    if (previous === undefined) {
+      // No state existed originally. Move the migrated file into the backup rather than deleting it.
+      await requireState(statePath, afterSha256, changed);
+      await rename(statePath, saved);
+    } else {
+      await restrictedWrite(saved, migrated);
+      await replaceState(target, statePath, previous, () => requireState(statePath, afterSha256, changed));
+    }
+    return { ...report, applied: true, migratedStateBackup: saved };
+  });
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  const args = process.argv.slice(2);
-  const option = (name) => args[args.indexOf(name) + 1];
-  const source = args.includes("--source-dir") ? option("--source-dir") :
-    args.includes("--source-file") ? option("--source-file") : undefined;
-  const destination = args.includes("--destination") ? option("--destination") : undefined;
-  if (!source || !destination) {
-    console.error("Usage: node tools/migrate-legacy.mjs --source-dir DIR --destination DIR [--point-assignments FILE] [--apply]");
-    process.exitCode = 2;
-  } else {
-    const assignments = args.includes("--point-assignments") ? option("--point-assignments") : undefined;
-    (assignments ? readFile(assignments, "utf8").then(JSON.parse) : Promise.resolve(undefined))
-      .then((pointAssignments) => migrateLegacy({ source, destination, apply: args.includes("--apply"), pointAssignments }))
-      .then((report) => console.log(JSON.stringify(report, null, 2)))
+  try {
+    const { values } = parseArgs({ options: {
+      "source-dir": { type: "string" }, "source-file": { type: "string" }, destination: { type: "string" },
+      rollback: { type: "string" }, "point-assignments": { type: "string" }, "expect-review": { type: "string" },
+      apply: { type: "boolean", default: false },
+    } });
+    const { "source-dir": sourceDir, "source-file": sourceFile, destination, rollback: backupDirectory,
+      "point-assignments": assignments, "expect-review": expectedReview, apply } = values;
+    if (Object.values(values).includes("") || !destination || [sourceDir, sourceFile, backupDirectory].filter(Boolean).length !== 1 ||
+        (backupDirectory && (assignments !== undefined || expectedReview !== undefined))) throw new Error("Invalid migration arguments");
+    const operation = backupDirectory ? rollbackLegacyMigration({ backupDirectory, destination, apply }) :
+      (assignments !== undefined ? readFile(assignments, "utf8").then(JSON.parse) : Promise.resolve(undefined))
+        .then((pointAssignments) => migrateLegacy({ source: sourceDir ?? sourceFile, destination, apply, pointAssignments, expectedReview }));
+    operation.then((report) => console.log(JSON.stringify(report, null, 2)))
       .catch((error) => { console.error(error.message); process.exitCode = 1; });
+  } catch (error) {
+    console.error(error.message);
+    console.error("Usage: node tools/migrate-legacy.mjs --source-dir DIR --destination DIR [--point-assignments FILE] [--expect-review SHA256] [--apply]\n" +
+      "       node tools/migrate-legacy.mjs --rollback BACKUP_DIR --destination DIR [--apply]");
+    process.exitCode = 2;
   }
 }
