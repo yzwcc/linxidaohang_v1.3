@@ -15,11 +15,25 @@ class DeploymentServiceRestore(unittest.TestCase):
 
     def test_installer_restores_active_services_after_core_health(self):
         installer = (ROOT / "deploy" / "install.sh").read_text(encoding="utf-8")
-        health = installer.index("if ! deployment_health; then")
+        health = installer.index('if ! deployment_health "$REFERENCE"; then')
         restore = installer.index("if ! deployment_restore_active_services; then")
         commit = installer.index("deployment_commit", restore)
         self.assertLess(health, restore)
         self.assertLess(restore, commit)
+
+    def test_static_reference_does_not_restore_prior_motion_or_voice(self):
+        installer = (ROOT / "deploy" / "install.sh").read_text(encoding="utf-8")
+        start = installer.index("  deployment_start_reference\n")
+        health = installer.index('if ! deployment_health "$REFERENCE"; then', start)
+        commit = installer.index("\ndeployment_commit\n", health)
+        section = installer[health:commit]
+        self.assertIn(
+            'if [[ "$REFERENCE" == 1 ]]; then\n'
+            '  systemctl enable lingxi-next-reference-navigation.service\n'
+            'elif [[ -z "$PREVIOUS" || ! -f "$PREVIOUS/.reference-commissioning" ]]; then\n'
+            '  if ! deployment_restore_active_services; then', section)
+        transaction = (ROOT / "deploy" / "transaction.sh").read_text(encoding="utf-8")
+        self.assertIn('health.get("referenceStaticReady") is True', transaction)
 
     def test_restore_order_starts_apis_before_robot_owners_and_voice(self):
         transaction = (ROOT / "deploy" / "transaction.sh").read_text(encoding="utf-8")
