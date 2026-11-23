@@ -15,6 +15,19 @@ ARM64 核心联调包提供产品 Web、API、参考服务适配、AgentSDK 进�
 
 如果按参考仓库的方式解包 Nav2 `.deb`，并把构建结果整理为同一版本目录下的 `ros/`、`overlay/`、`grid/`、`venv/`，可以把这个版本目录设为 `LINGXI_REFERENCE_RUNTIME_ROOT`，使用产品的 `deploy/reference-overlay.sh` 作为 `LINGXI_REFERENCE_OVERLAY`。可用 `LINGXI_REFERENCE_AIMDK_SETUP` 指定参考服务使用的 AIMDK 消息环境。`tools/prepare_reference_profile.py --source DIR --overlay DIR --fastlio-config FILE --data-dir DIR --output FILE` 用绝对路径生成新的运动禁用配置，不改模板、原配置或厂商文件。保持参考 checkout 与运行时由 root 管理、服务组只读。
 
+#### 构建独立的原生组件
+
+在 Linux ARM64（发布构建）或 x86_64（录包回放）中加载已准备的 Humble、Nav2 和匹配的 AIMDK 构建依赖，再用该环境的 CPython 3.10 运行：
+
+```bash
+python3 -B tools/build_reference_native.py \
+  --source /path/to/clean/Lingxi-navigation --output /path/to/new-version-stage --jobs 2
+```
+
+输出目录必须是新目录，不能位于参考 checkout 内。工具只构建 `fast_lio`、`robot_nav_recorder`、`robot_nav_costmap`、`pointcloud_to_laserscan` 与两个栅格原生模块，不安装系统包、不启动 ROS 节点。成功后 `overlay/` 和 `grid/` 可作为管理员审核、归档的输入；`notices/` 保留固定提交中的许可证和包声明。`native-build.json` 记录源提交、关键二进制/插件资源的 SHA-256、ELF 架构和 Python ABI 后缀。可在输出目录执行 `sha256sum -c SHA256SUMS.native` 核对清单内文件。失败的构建目录留作排查，不会生成成功清单；重试请选新目录。
+
+构建清单不证明共享库依赖闭合、Python 包可导入或实机可运行。发布前还要在匹配 V1.1.5 的环境核对所用 Nav2、Python 和 AIMDK；只有在最终目录由服务账户实际加载并通过目标机预检后，才能使用。不要打包本机标定、录包、地图、凭据、编译缓存或厂商文件；也不要把隔离回放用的诊断 mapper 当作发布二进制。
+
 参考服务要求 `LINGXI_REFERENCE_DDS_PROFILE` 显式指向这台机器人专用、root 所有的 UDPv4-only XML。用本机当前受信的 DDS 文件作为只读模板；替换下例中的 `/path/to/target-dds.xml`。输出必须是新的文件，目标目录为 root 所有、服务组只读。生成器保留 UDP 接口白名单和缓冲参数，移除共享内存传输及厂商日志配置。其他服务的 DDS 配置不变。
 
 ```bash

@@ -71,6 +71,7 @@ await Promise.all([
   cp("robot-agent/src/main/resources/logback.xml", path.join(stage, "agent/logback.xml")),
   cp("tools/migrate-legacy.mjs", path.join(stage, "tools/migrate-legacy.mjs")),
   cp("tools/check_reference_bag.py", path.join(stage, "tools/check_reference_bag.py")),
+  cp("tools/build_reference_native.py", path.join(stage, "tools/build_reference_native.py")),
   cp("tools/inspect_reference_capture_timing.py", path.join(stage, "tools/inspect_reference_capture_timing.py")),
   cp("tools/fastlio-backlog", path.join(stage, "tools/fastlio-backlog"), { recursive: true }),
   cp("tools/probe_reference_target.py", path.join(stage, "tools/probe_reference_target.py")),
