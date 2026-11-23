@@ -154,6 +154,19 @@ def candidate_profile(template, lidar_from_imu):
     return template
 
 
+def sensor_qos_settings(profile):
+    """Use FAST-LIO's subscriber depths, not rclpy's five-sample default."""
+    common = profile["/**"]["ros__parameters"]["common"]
+    if common["lid_topic"] != CLOUD or common["imu_topic"] != IMU:
+        raise ValueError("incorrect_fastlio_sensor_topics")
+    reliable = common.get("sensor_reliable", False)
+    lidar_depth, imu_depth = common.get("lidar_queue_depth", 20), common.get("imu_queue_depth", 2000)
+    if (type(reliable) is not bool or type(lidar_depth) is not int or not 1 <= lidar_depth <= 100
+            or type(imu_depth) is not int or not 1 <= imu_depth <= 4000):
+        raise ValueError("invalid_fastlio_sensor_qos")
+    return reliable, lidar_depth, imu_depth
+
+
 def observe(profile, seconds, *, factory_path=None, output=None):
     import numpy as np
     import yaml
@@ -167,6 +180,13 @@ def observe(profile, seconds, *, factory_path=None, output=None):
     from aimdk_msgs.msg import McCommonState
 
     factory = read_factory_lidar(factory_path) if factory_path else None
+    template = bounded_yaml(profile)
+    reliable, lidar_depth, imu_depth = sensor_qos_settings(template)
+    reliability = ReliabilityPolicy.RELIABLE if reliable else ReliabilityPolicy.BEST_EFFORT
+
+    def sensors_qos(depth):
+        return QoSProfile(depth=depth, reliability=reliability, durability=DurabilityPolicy.VOLATILE)
+
     streams = {topic: Stream() for topic in TOPIC_TYPES}
     cloud_samples = []
     static_edge = None
@@ -183,9 +203,9 @@ def observe(profile, seconds, *, factory_path=None, output=None):
         node = rclpy.create_node(f"lingxi_target_probe_{os.getpid()}", enable_rosout=False, start_parameter_services=False)
         buffer = Buffer()
         listener = TransformListener(buffer, node, spin_thread=False)
-        node.create_subscription(PointCloud2, CLOUD, cloud, qos_profile_sensor_data)
+        node.create_subscription(PointCloud2, CLOUD, cloud, sensors_qos(lidar_depth))
         node.create_subscription(Imu, IMU, lambda msg: streams[IMU].observe(msg, time.time_ns(), imu_valid(msg)),
-                                 qos_profile_sensor_data)
+                                 sensors_qos(imu_depth))
         node.create_subscription(McCommonState, MC_STATE,
                                  lambda msg: streams[MC_STATE].observe(msg, time.time_ns(), mc_state_valid(msg)),
                                  qos_profile_sensor_data)
@@ -242,12 +262,13 @@ def observe(profile, seconds, *, factory_path=None, output=None):
         elif invalid_static_edge or static_edge is None:
             status = "invalid_static_tf" if invalid_static_edge else "missing_static_tf"
         else:
-            candidate = candidate_profile(bounded_yaml(profile), static_edge)
+            candidate = candidate_profile(template, static_edge)
             status = check_target_mounting_document(candidate, lookup)
         result = build_report(architecture=platform.machine(), distro=os.environ.get("ROS_DISTRO"), streams=streams,
                               clouds=cloud_samples, topics=dict(node.get_topic_names_and_types()),
                               services=dict(node.get_service_names_and_types()), calibration=status,
                               lookup=usable_lookup, now_ns=now_ns)
+        result["fastLioSensorQos"] = {"reliable": reliable, "lidarDepth": lidar_depth, "imuDepth": imu_depth}
         if factory is not None:
             result["factoryChassisLidarReadable"] = True
             result["factoryBaseLidarProvidesLidarImuExtrinsic"] = False

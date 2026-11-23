@@ -8,7 +8,7 @@ import unittest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from probe_reference_target import (BASE_FRAMES, CLOUD, IMU, IMU_FRAME, MC_STATE, NS_PER_S,
                                     SERVICE_TYPES, TOPIC_TYPES, Stream, build_report, candidate_profile,
-                                    imu_valid, mc_state_valid, read_factory_lidar)
+                                    imu_valid, mc_state_valid, read_factory_lidar, sensor_qos_settings)
 from check_reference_bag import FIELDS
 from prepare_reference_profile import build_profile
 from reference_calibration import check_target_mounting_document
@@ -154,3 +154,14 @@ class ReferenceTargetProbeTests(unittest.TestCase):
             self.assertIs(result["mapping"]["loop_closure_enabled"], False)
             self.assertEqual([str(root / "data/recordings")], result["allowed_recording_roots"])
             self.assertEqual([str(root / "fastlio.yaml")], result["mapping"]["calibration_files"])
+
+    def test_probe_uses_profile_qos_and_requires_expected_topics(self):
+        common = {"lid_topic": CLOUD, "imu_topic": IMU, "sensor_reliable": True, "imu_queue_depth": 500}
+        profile = {"/**": {"ros__parameters": {"common": common}}}
+        self.assertEqual((True, 20, 500), sensor_qos_settings(profile))
+        common["imu_queue_depth"] = 4001
+        with self.assertRaises(ValueError):
+            sensor_qos_settings(profile)
+        common.update(imu_queue_depth=500, imu_topic="/some_other_imu")
+        with self.assertRaises(ValueError):
+            sensor_qos_settings(profile)
