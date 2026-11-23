@@ -30,6 +30,7 @@ await run(process.execPath, ["node_modules/typescript/bin/tsc", "-p", "tsconfig.
 await run(process.execPath, ["node_modules/typescript/bin/tsc", "-p", "tsconfig.runtime.json", "--noEmit"]);
 await run(process.execPath, ["node_modules/vitest/vitest.mjs", "run"]);
 await run("python", ["-m", "unittest", "discover", "-s", "robot-api/tests", "-p", "test_*.py", "-q"]);
+await run("python", ["-B", "-m", "unittest", "discover", "-s", "tools/tests", "-p", "test_score_x2_voice_field.py", "-q"]);
 await run(process.execPath, ["node_modules/vite/bin/vite.js", "build"]);
 const { build } = await import("esbuild");
 await build({ entryPoints: ["robot-api/src/index.ts"], bundle: true, platform: "node", target: "node22",
@@ -68,6 +69,7 @@ await Promise.all([
   cp("tools/probe_reference_target.py", path.join(stage, "tools/probe_reference_target.py")),
   cp("tools/prepare_reference_profile.py", path.join(stage, "tools/prepare_reference_profile.py")),
   cp("tools/replay_reference_mapping.py", path.join(stage, "tools/replay_reference_mapping.py")),
+  cp("tools/score_x2_voice_field.py", path.join(stage, "tools/score_x2_voice_field.py")),
   cp("deploy", path.join(stage, "deploy"), { recursive: true }),
   cp("docs", path.join(stage, "docs"), { recursive: true }),
   cp("README.md", path.join(stage, "README.md")),
