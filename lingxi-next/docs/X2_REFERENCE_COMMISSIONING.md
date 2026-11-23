@@ -17,6 +17,15 @@ ARM64 核心联调包提供产品 Web、API、参考服务适配、AgentSDK 进�
 
 从旧 GLIM／独立导航版本切换时，先在现场确认机器人已停稳、没有运行中的导航、讲解或建图会话，并备份厂商原始地图。预先通过只读预检，填写 `robot.env` 中的 ROS/AIMDK、参考源码、overlay、Python、ROS2、配置文件和配置 SHA256；不必先改 `LINGXI_REFERENCE_SOCKET` 或旧后端选择。从核心联调包执行 `sudo bash deploy/install.sh --commissioning --reference-commissioning --robot-ip IP`。该模式先停止本产品的旧进程并备份 `/etc/lingxi-next` 和 `/var/lib/lingxi-next`，只启动参考服务和 HTTPS。私有接口必须确认空闲、目标标定匹配、雷达与 IMU 可用、AIMDK 和 Nav2 生命周期服务可发现，且没有运动接口，才能提交切换；未通过则还原原版本和快照。发现 Nav2 生命周期服务不等于已加载地图或可规划路径。旧业务数据、选项和厂商资产保留。回滚不会自动恢复旧运动、动作或语音进程，需现场确认后再启动。
 
+在机器人上核对发行方提供的 SHA-256 后，以普通用户在私有暂存目录解包，并保留归档权限。替换下例中的归档文件名：
+
+```bash
+staging=$(mktemp -d)
+tar --no-same-owner --same-permissions -xzf ./lingxi-next-VERSION-linux-arm64.tar.gz -C "$staging"
+```
+
+暂存目录保持 `0700`，包内 `deploy/run.sh` 和 `bridge/reference_service.py` 分别保留 `0755`、`0644`。不要仅依赖文件哈希检查权限：普通用户在 `umask 077` 下直接解包会屏蔽系统服务所需的读取权限，即使文件内容的校验全部通过。
+
 `--reference-commissioning` 是静态联调档，选择绑定当前安装版本，不能通过改 YAML 在此档直接启用运动、动作或语音；它也不与旧数据自动迁移选项合用。首次用此档安装前必须准备 `robot.env`；后续静态升级继续显式传相同参数。转到普通版本不会自动继承参考服务自启动。静态联调通过后，机构足迹、停车和现场条件需按下文核定，再通过新版本的手动配置路径验收动作和语音。静态档的 HTTPS 端口沿用 `robot.env`（默认 `3445`），不占用旧 GLIM 控制台的 `3444`。
 
 切换还要求机器人本机的 HTTPS `/health` 报告 `referenceStaticReady: true`。这检查网页 API 能否按严格的接口契约解析建图状态，并确认空闲、标定通过且无运动能力。只有私有 Socket 响应、HTTPS 进程启动或远程 `/health` 成功，都不算联调完成。
