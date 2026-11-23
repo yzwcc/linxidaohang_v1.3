@@ -178,13 +178,17 @@ def wait_for(read, complete, deadline):
     raise TimeoutError("reference_operation_unconfirmed")
 
 
-def make_app(upstream, root, nav2_process=None, motion_maps=None):
+def make_app(upstream, root, nav2_process=None, motion_review=None):
     from fastapi import FastAPI, HTTPException
     from fastapi.responses import JSONResponse
     from pydantic import BaseModel, ConfigDict, Field, FiniteFloat
     from typing import Literal
     from reference_calibration import check_target_mounting
     from reference_motion import MotionTask
+    from reference_target import MAP_FILES
+
+    motion_maps = None if motion_review is None else motion_review.maps
+    invalidated = threading.Event()
 
     Mode = Literal["point", "nav2"]
 
@@ -230,18 +234,30 @@ def make_app(upstream, root, nav2_process=None, motion_maps=None):
                 return
             done = threading.Event()
 
-            def watch_nav2():
+            def watch_interlocks():
+                next_target_check = 0.0
                 while not done.wait(.10):
-                    if nav_process_alive():
+                    reason = None
+                    changed = False
+                    if not nav_process_alive():
+                        reason = "Nav2 进程已退出"
+                    now = time.monotonic()
+                    if not invalidated.is_set() and now >= next_target_check:
+                        next_target_check = now + 1.0
+                        changed = not motion_review.matches_current_target()
+                    if reason is None and not changed and not invalidated.is_set():
                         continue
                     ros = state.ros
                     with ros.lock:
+                        if changed:
+                            invalidated.set()
+                        if invalidated.is_set():
+                            reason = "本机版本、标定或运动审查已变化，需要重新核对"
                         task = ros.motion_task
                         if task and task.phase in {"requested", "running"}:
-                            ros.revoke(task, "Nav2 进程已退出")
-                    return
+                            ros.revoke(task, reason)
 
-            watch = threading.Thread(target=watch_nav2, name="reference-nav2-watchdog", daemon=True)
+            watch = threading.Thread(target=watch_interlocks, name="reference-motion-watchdog", daemon=True)
             watch.start()
             try:
                 yield
@@ -262,7 +278,7 @@ def make_app(upstream, root, nav2_process=None, motion_maps=None):
         if motion_maps is None or bundle["id"] not in motion_maps:
             return None
         yaml_file = resource(root, bundle["yaml_path"])
-        files = {name: resource(root, yaml_file.parent / name) for name in ("metadata.json", "map.yaml", "map.pgm", "localization.ply", "localization.json")}
+        files = {name: resource(root, yaml_file.parent / name) for name in MAP_FILES}
         if resource(root, bundle["localization_map"]) != files["localization.ply"]:
             raise RuntimeError("reference_localization_resource_mismatch")
         calculated = {name: file_sha256(file) for name, file in files.items()}
@@ -282,8 +298,18 @@ def make_app(upstream, root, nav2_process=None, motion_maps=None):
             raise HTTPException(status_code=409, detail=f"reference_calibration_{status}")
 
     def motion_ready():
-        return bool(active_review and active_review[0] == state.active_map_id and nav_process_alive()
+        return bool(active_review and not invalidated.is_set() and active_review[0] == state.active_map_id and nav_process_alive()
                     and not state.mapping.is_active() and state.ros.output_idle() and state.ros.ready())
+
+    def submit_reviewed(task):
+        ros = state.ros
+        current = motion_review.matches_current_target()
+        with ros.lock:
+            if not current:
+                invalidated.set()
+            if invalidated.is_set() or not nav_process_alive():
+                raise RuntimeError("reference_motion_review_changed")
+            ros.submit(task)
 
     def navigation_idle():
         if motion_maps is not None and not state.ros.output_idle():
@@ -301,7 +327,8 @@ def make_app(upstream, root, nav2_process=None, motion_maps=None):
                     "physicalMotionSent": ros.physical_motion_sent,
                     "status": "running" if still_stopping else "failed" if current == "stopping" else current,
                     "requiresStop": current == "stopping" and not still_stopping, "taskId": task.task_id if task else None,
-                    "pointId": task.point_id if task else None, "detail": task.detail if task else "等待运动准入"}
+                    "pointId": task.point_id if task else None, "detail": task.detail if task else
+                    "本机运动审查已变化，需要重新核对" if invalidated.is_set() else "等待运动准入"}
 
     @app.exception_handler(RuntimeError)
     @app.exception_handler(ValueError)
@@ -569,7 +596,7 @@ def make_app(upstream, root, nav2_process=None, motion_maps=None):
                 if reviewed(managed_map(body.mapId)) != active_review:
                     raise RuntimeError("reference_map_changed_after_activation")
                 state.tasks.require_localization(body.mapId)
-                ros.submit(MotionTask(body.taskId, body.pointId, body.mapId, body.pose.model_dump(), body.mode))
+                submit_reviewed(MotionTask(body.taskId, body.pointId, body.mapId, body.pose.model_dump(), body.mode))
                 return navigation_payload()
             return guarded(operation)
 
@@ -583,11 +610,13 @@ def make_app(upstream, root, nav2_process=None, motion_maps=None):
                 if body.action == "resume":
                     if task.phase != "paused" or task.map_id != state.active_map_id or not nav_process_alive():
                         raise RuntimeError("reference_task_not_resumable")
+                    if invalidated.is_set():
+                        raise RuntimeError("reference_motion_review_changed")
                     if reviewed(managed_map(task.map_id)) != active_review or active_review is None:
                         raise RuntimeError("reference_map_changed_after_activation")
                     require_calibration()
                     state.tasks.require_localization(task.map_id)
-                    ros.submit(MotionTask(task.task_id, task.point_id, task.map_id, dict(task.goal), task.mode))
+                    submit_reviewed(MotionTask(task.task_id, task.point_id, task.map_id, dict(task.goal), task.mode))
                     return navigation_payload()
                 with ros.lock:
                     if task.phase == "paused" and body.action == "stop":
@@ -645,26 +674,16 @@ def main():
     if settings.get("mapping", {}).get("loop_closure_enabled", False):
         raise RuntimeError("reference_profile_does_not_support_loop_closure")
     from robot_nav_tasks import server as upstream
-    motion_maps = None
+    motion_review = None
     if settings["motion_enabled"]:
         from reference_motion import gateway_type
-        review_path = Path(settings["lingxi_motion_review"])
-        if not review_path.is_absolute() or review_path.resolve(strict=True) != review_path:
-            raise ValueError("canonical_motion_review_required")
-        details = review_path.stat()
-        if not stat.S_ISREG(details.st_mode) or details.st_uid != 0 or details.st_mode & 0o022:
-            raise ValueError("root_owned_motion_review_required")
-        review = json.loads(review_path.read_text(encoding="utf-8"))
-        if (review["firmware"] != "release-lx2501_3_t2d5-soc1-v1.1.5" or review["aimdk"] != "v1.1.0-rc10"
-                or review["configSha256"] != hashlib.sha256(args.config.read_bytes()).hexdigest()
-                or not isinstance(review["maps"], dict) or not review["maps"]):
-            raise ValueError("motion_review_target_or_configuration_mismatch")
+        from reference_target import load_motion_review
+        motion_review = load_motion_review(settings["lingxi_motion_review"], args.config, settings["mapping"]["fastlio_config"])
         idle_sources = settings["lingxi_motion_idle_sources"]
         if not isinstance(idle_sources, list) or not idle_sources or not all(isinstance(name, str) for name in idle_sources):
             raise ValueError("motion_idle_sources_required")
         if not 0 < settings["max_forward_velocity"] <= .25 or not 0 < settings["max_angular_velocity"] <= .8 or settings["max_lateral_velocity"] != 0:
             raise ValueError("reference_motion_limits_out_of_range")
-        motion_maps = review["maps"]
         upstream.RosGateway = gateway_type(upstream.RosGateway)
 
     # Uvicorn changes UDS mode itself when binding. Supply an already bound private socket.
@@ -679,7 +698,7 @@ def main():
             nav2 = subprocess.Popen([sys.executable, str(args.ros2.resolve(strict=True)), "launch",
                                      str(source / "deploy/nav2_services.launch.py")], cwd=source,
                                     stdin=subprocess.DEVNULL, start_new_session=True)
-            config = uvicorn.Config(make_app(upstream, root, nav2, motion_maps), access_log=False, lifespan="on")
+            config = uvicorn.Config(make_app(upstream, root, nav2, motion_review), access_log=False, lifespan="on")
             runner = uvicorn.Server(config)
             runner.run(sockets=[endpoint])
             if not runner.started:

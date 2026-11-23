@@ -89,6 +89,10 @@ with tarfile.open(filename, "r|gz") as archive:
     if reference_probe is not None:
         assert reference_probe == "tools/probe_reference_target.py"
         assert {reference_probe, "tools/check_reference_bag.py", "bridge/reference_calibration.py"} <= files.keys()
+    motion_review_tool = status.get("referenceNavigation", {}).get("motionReviewTool")
+    if motion_review_tool is not None:
+        assert motion_review_tool == "bridge/reference_target.py"
+        assert {motion_review_tool, "bridge/reference_service.py", "bridge/reference_motion.py"} <= files.keys()
     scope = verify_scope(status, captured["deploy/release-scope.json"], files)
     independent_scope = None
     source_references = 0

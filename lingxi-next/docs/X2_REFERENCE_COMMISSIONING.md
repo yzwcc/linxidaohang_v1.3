@@ -72,7 +72,16 @@ node tools/migrate-legacy.mjs --destination /var/lib/lingxi-next --rollback BACK
 
 在现场记录 `McCommonState` 的消息类型、时间戳、稳定站立状态及遥控输入源行为。当前适配器读取 `/aima/mc/common/state`，按参考接口在 `SetMcInputSource` 请求中填写时间戳，并按 `response.header.code` 取服务返回码。`McCommonState` 的字段已与随附 SDK 对照，实际发布话题、超时和状态切换以目标机测量为准。完成实测外形、地图尺度和目标机标定后，才使用运动配置开展试验。
 
-将该配置的 `motion_enabled` 设为 `true`，`navigation_mode` 设为 `point`，`lingxi_motion_idle_sources` 填现场测得的空闲输入源名称。`lingxi_motion_review` 指向 root 所有、服务可读且组和其他用户不可写的 JSON 文件。文件字段为 `firmware`、`aimdk`、`configSha256` 和 `maps`。`maps` 以活动地图的 `fastlio-…` ID 为键，对应值包含其 `metadata.json`、`map.yaml`、`map.pgm`、`localization.ply`、`localization.json` 的 SHA-256。更新 `LINGXI_REFERENCE_CONFIG_SHA256` 后重启参考服务。建图模式和导出的地图可以在运动关闭时先行验证。
+完成现场审查后，为非静态试验档准备 `motion_enabled: true`、`navigation_mode: point` 和现场测得的 `lingxi_motion_idle_sources`。设置 `lingxi_motion_review` 指向 root 所有、服务可读、组和其他用户不可写的 JSON 文件；应用 YAML 和 FAST-LIO YAML 也需由 root 管理。建图和不发运动的路径预览不需要启用试验档。**静态联调版仍拒绝启动运动配置。**
+
+从新版解包目录以 `lingxi-next` 服务账户对最终拟用配置做只读检查：
+
+```bash
+sudo -u lingxi-next python3 -B bridge/reference_target.py \
+  --config /etc/lingxi-next/reference.yaml --fastlio-config /etc/lingxi-next/fastlio-x2.yaml
+```
+
+输出 `schemaVersion`、`firmware`、`aimdk`、`targetIdentitySha256`、`configSha256` 和 `fastlioConfigSha256`，不输出机器 ID 或外参数值，也不自动批准任何地图。`aimdk` 读取目标机 `/agibot/software/aimdk/version`，不填随附清单的 RC 版本。`targetIdentitySha256` 从本机 OS 机器标识派生，不能把一台机器的审查记录复制到另一台；仍需通过传感器预检及实测足迹确认。管理员只在现场检查完成后，把已经通过审查的 `maps` 加入记录；键为 `fastlio-…` 地图 ID，值为该地图 `metadata.json`、`map.yaml`、`map.pgm`、`localization.ply`、`localization.json` 的 SHA-256。启用前更新 `LINGXI_REFERENCE_CONFIG_SHA256` 并按维护流程重启。运行中如版本、配置、标定或审查改变，撤销当前输出；即使文件改回，旧进程也不恢复运动。重新核对并确认停稳后再启动新进程。
 
 导航页默认选定点，可在任务之间切换 Nav2。两种模式都要求同一运行代次内新鲜的 GICP 位姿、现场障碍点云、代价地图及 AIMDK 状态。暂停和停止会撤销输出，并等待 Nav2 的终态结果和停稳观测。异常退出后若数据目录仍有 `motion-in-progress`，先在现场确认停稳、旧控制源及控制进程均已退出，再归档该标记以恢复运动配置。运动试验必须配备现场操作人员和独立遥控急停。
 
