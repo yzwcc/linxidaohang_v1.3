@@ -48,6 +48,12 @@ python3 -B tools/probe_reference_target.py --seconds 8 \
 
 重复探测中，默认浅队列曾见 59.835 ms 和 99.966 ms 的 IMU 间隔。改为与 FAST-LIO 设置一致的可靠传输、雷达深度 20、IMU 深度 2000 后，三个 12 秒窗口的最大 IMU 头间隔分别为 11.758、11.078、14.622 ms。第一个窗口仍因一帧雷达时钟偏差失败，后两个窗口通过。保留 50 ms IMU 门槛，不能用短窗口否定现场长时间断流的可能性。
 
+### 2026-11-23 实机静态联调记录
+
+`0.1.50-core-commissioning-20261123-g70ab4eda93a2` 已在该 V1.1.5 SoC1 上按事务安装。只有产品 HTTPS API 和参考服务运行。校验了 LAN 网页的 TLS、未配对拒绝、配对后的 REST 状态和 WSS 状态；页面状态为 `FAST-LIO`、建图空闲且可启动、运动关闭。私有接口报告本机标定匹配，雷达、IMU、AIMDK 和 Nav2 服务可用。装机后的 12 秒只读复测通过，实际收到 97 帧雷达、1,918 条 IMU、116 条运控状态，最大 IMU 头间隔约 19.606 ms，有 7 帧同时匹配机身、IMU 和足踝 TF。
+
+已保留安装前版本、产品配置与数据快照，并单独备份校验厂商地图；原厂标定和地图仍在原位。没有创建或激活现场导航地图。Nav2 节点可发现不等于已经能够规划实际路线；遥控建图保存/重载、GICP 现场定位和尺度、两种运动模式、急停、Android 真机以及动作/语音均未验收。
+
 参考仓库的版权人代码使用 PolyForm Noncommercial 1.0.0 及另行商业授权。用户已确认该仓库的商业复用和分发授权。实际分发引用仓库或其构建产物时，保留原 LICENSE、`Required Notice: Copyright (c) 2026 Mikeaaaa14 (https://github.com/Mikeaaaa14)`，并履行各组件的对应义务，包括 FAST-LIO 的 GPLv2、Patchwork++ 的 BSD 声明和 OctoMap 随附许可证。
 
 ## 点位与讲解迁移
