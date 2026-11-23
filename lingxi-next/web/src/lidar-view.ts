@@ -128,3 +128,30 @@ export function lidarBounds(frames: Pick<LidarFrame, "points">[], mode: "all" | 
   const padding = Math.max(0.4, Math.max(maxX - minX, maxY - minY) * 0.08);
   return { minX: minX - padding, maxX: maxX + padding, minY: minY - padding, maxY: maxY + padding };
 }
+
+// Trail triples are x, y, elapsed seconds, not XYZ points. Include a fixed
+// margin for nearby landmarks, even for a scan taken entirely from one spot.
+export function surveyTrailBounds(trail: readonly number[]): ReturnType<typeof lidarBounds> | undefined {
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  for (let i = 0; i + 2 < trail.length; i += 3) {
+    const x = trail[i], y = trail[i + 1];
+    if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(trail[i + 2])) continue;
+    minX = Math.min(minX, x); maxX = Math.max(maxX, x);
+    minY = Math.min(minY, y); maxY = Math.max(maxY, y);
+  }
+  if (!Number.isFinite(minX)) return;
+  const margin = 4;
+  return { minX: minX - margin, maxX: maxX + margin, minY: minY - margin, maxY: maxY + margin };
+}
+
+export function lidarScaleBar(pixelsPerMeter: number, maxPixels: number) {
+  const limit = maxPixels / pixelsPerMeter;
+  if (!(limit > 0) || !Number.isFinite(limit)) return;
+  const magnitude = 10 ** Math.floor(Math.log10(limit));
+  if (!magnitude) return;
+  const units = limit / magnitude;
+  const meters = (units >= 5 ? 5 : units >= 2 ? 2 : 1) * magnitude;
+  const pixels = meters * pixelsPerMeter;
+  const label = meters >= 1 ? `${Number(meters.toPrecision(2))} 米` : `${Number((meters * 100).toPrecision(2))} 厘米`;
+  return { pixels, label };
+}
