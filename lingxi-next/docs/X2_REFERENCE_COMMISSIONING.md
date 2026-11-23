@@ -13,6 +13,12 @@ ARM64 核心联调包提供产品 Web、API、参考服务适配、AgentSDK 进�
 3. 在目标机按 `deploy/install.sh --commissioning --robot-ip IP` 安装产品。设置 `/etc/lingxi-next/robot.env` 中的 `LINGXI_AIMDK_SETUP`、`LINGXI_REFERENCE_SOURCE`、`LINGXI_REFERENCE_CONFIG`、`LINGXI_REFERENCE_CONFIG_SHA256`、`LINGXI_REFERENCE_OVERLAY`、`LINGXI_REFERENCE_PYTHON`、`LINGXI_REFERENCE_ROS2`，并设置 `LINGXI_REFERENCE_SOCKET=/run/lingxi-next-reference/control.sock`。保持 GLIM 和独立物理导航后端未选中。原生二进制和配置放在 systemd 服务账号可读且不依赖 `/home` 的路径。
 4. 启动 `lingxi-next-reference-navigation.service`，检查日志后重启 `lingxi-next-api.service`。参考服务启动同提交的 Nav2 进程，使用当前产品的私有工作目录和内网 ROS 图。`deploy/diagnose.sh` 可检查服务状态。跨版本回滚前先结束建图并等待保存回执。若回到未包含参考服务的版本，先停止参考单元，再将 `LINGXI_REFERENCE_SOCKET` 留空。
 
+### 每台机器单独核对标定
+
+1. 首次登录目标机先按参考 README 执行只读预检，核实 SoC1 固件、AIMDK 安装清单、磁盘、ROS 话题及 TF、当前服务和端口。安装前备份旧配置与业务数据，保留现有 AIMDK 地图和厂商标定原件；未核对这些信息时不要切换服务。
+2. 用这台机器的厂商标定及同机 ROS TF 核对雷达和 IMU 的安装外参，另存为产品 FAST-LIO 配置。`mapping.fastlio_config` 指向此文件，`mapping.calibration_files` 仅列入经核对的本机资料；关闭 `mapping.extrinsic_est_en`。不要使用参考仓库的外参数值、其他机器的标定或回放工具生成的配置。配置由管理员维护，参考服务账号只读。不要将本机标定提交到 Git 或写入通用安装包。
+3. 保持 `motion_enabled: false`，启动后确认私有 Socket `/lingxi/status` 的 `calibration` 为 `matched`，以及配对界面的「本机标定」检查通过。其中 `matched` 表示配置的 `imu_from_lidar` 与当前 ROS 图的 `lidar_chest_front ← lidar_imu_chest_front` 相乘后，距单位矩阵的最大元素差不超过 `0.0001`。配置无效、TF 缺失/无效或二者不符时，建图、地图激活、路径预览和导航准入被禁用；停止和放弃仍可执行。与 TF 一致不等于标定精度合格，现场仍须验证地图尺度、方向、重定位和停车精度。如果外参确有更新，停下任务和建图后更新配置并重启；旧地图先独立验证，不直接作为运动地图使用。
+
 参考仓库的版权人代码使用 PolyForm Noncommercial 1.0.0 及另行商业授权。用户已确认该仓库的商业复用和分发授权。实际分发引用仓库或其构建产物时，保留原 LICENSE、`Required Notice: Copyright (c) 2026 Mikeaaaa14 (https://github.com/Mikeaaaa14)`，并履行各组件的对应义务，包括 FAST-LIO 的 GPLv2、Patchwork++ 的 BSD 声明和 OctoMap 随附许可证。
 
 ## 点位与讲解迁移
@@ -41,6 +47,6 @@ ARM64 核心联调包提供产品 Web、API、参考服务适配、AgentSDK 进�
 
 旧 X2 动态录包也使用同次静态 TF 提取的外参完成离线回放。该环境以 `--rate 0.5 --use-recorded-calibration` 重放时保留了全部 24,446 条 IMU 样本的头时间戳，最大相邻间隔为 39.796 ms。1 倍速试验中，FAST-LIO 收到 90.754 ms 的 IMU 间隔后退出。半速试验保留原有 50 ms 输入阈值，输出 1,219 帧配对的里程计、机身点云及重力。点云、重力和足踝 TF 的地面几何核验通过，导出了 824 × 688、分辨率 0.05 m 的栅格和 279,167 个带法向的定位点。新进程重载后，对同一录包中分散采样的 5 帧施加相同初值偏移，GICP 配准 RMSE 为 0.025–0.033 m，内点比例为 98.27%–98.59%，平面位姿距录包推导值 0.003–0.015 m。实时吞吐和独立场景地图精度仍须在目标机上验证。
 
-在隔离环境的直线路线仿真中，定点控制器在障碍进入、位姿缺失时停止输出非零速度，恢复后完成 2 m 目标，仿真到点误差 0.188 m。Nav2 使用参考的 SmacPlanner2D、RPP 和代价地图插件，在合成地图上生成 41 个路径位姿，收到障碍点云时发布零速度，清障后恢复并返回成功。实际仿真停位距原始请求点 0.251 m，超过该试验的 0.24 m 检查线。`FollowPath` 回执反映路径终点的判定，产品网关仍需按原始请求点与朝向核验到达和停稳。两项仿真均使用合成位姿与障碍数据。
+在隔离环境的直线路线仿真中，定点控制器在障碍进入、位姿缺失时停止输出非零速度，恢复后完成 2 m 目标，仿真到点误差 0.188 m。Nav2 使用参考的 SmacPlanner2D、RPP 和代价地图插件，在合成地图上生成 41 个路径位姿，收到障碍点云时发布零速度，清障后恢复并返回成功。实际仿真停位距原始请求点 0.251 m，超过该试验的 0.24 m 检查线。产品网关在确认停稳后检查同一定位运行的新鲜地图位姿与原始目标的距离和朝向。回归测试确认上述超差停位不报到达；这不表示 Nav2 已改善了实际停车精度。两项仿真均使用合成位姿与障碍数据。
 
 待验收项目包括目标 ARM64 启动、实测移动建图、独立进程重载、按实测点校验地图朝向和比例、两种控制器的安全输出、障碍处置、遥控接管、急停与停稳、讲解与语音真实回调、Android 证书导入和横屏实机操作。定点控制和 Nav2 需要分别通过有现场人员和遥控急停的测试。参考网关的直接速度输出、Nav2 取消接受、定点模式的纯里程计续行均无法提供产品要求的停稳与定位证据。

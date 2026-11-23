@@ -54,12 +54,14 @@ class MotionTask:
     stop_stamp: float = 0.
     retirement_running: bool = False
     deadline: float = 0.
+    run_id: str | None = None
 
 
 def gateway_type(base):
     from aimdk_msgs.msg import McCommonState
     from nav2_msgs.msg import Costmap
     from rclpy.qos import qos_profile_sensor_data
+    from robot_nav_tasks.geometry import pose_payload
     from robot_nav_tasks.localization_timing import localization_timing_fresh
     from robot_nav_tasks.navigation_motion import measured_motion
 
@@ -144,7 +146,7 @@ def gateway_type(base):
             now = time.monotonic()
             within_limits = (all(map(math.isfinite, velocity)) and 0 <= velocity[0] <= self.settings["max_forward_velocity"]
                              and abs(velocity[1]) < 1e-8 and abs(velocity[2]) <= self.settings["max_angular_velocity"])
-            if not within_limits or not self._motion_evidence() or not mc:
+            if not within_limits or not self._motion_evidence() or not self._same_localization_run(task) or not mc:
                 self.revoke(task, "定位、障碍、速度或 AIMDK 状态未确认")
                 return False
             if task.mode == "nav2" and (not self.local_costmap_stamp or time.time() - self.local_costmap_stamp > 1.0):
@@ -199,7 +201,8 @@ def gateway_type(base):
                     self.revoke(task, "导航执行超时")
                 if task and task.phase == "running":
                     mc = self._fresh_mc()
-                    if not self._motion_evidence() or not mc or mc[2] not in {self.input_name, *self.idle_sources}:
+                    if (not self._motion_evidence() or not self._same_localization_run(task) or not mc
+                            or mc[2] not in {self.input_name, *self.idle_sources}):
                         self.revoke(task, "实时定位、障碍或 AIMDK 控制状态丢失")
                 super()._watchdog()
 
@@ -222,6 +225,7 @@ def gateway_type(base):
                     os.fsync(record.fileno())
                 self.motion_task = task
                 task.deadline = time.monotonic() + 150
+                task.run_id = self.navigation_frame["run_id"]
                 self.navigation_mode = task.mode
 
             def notify(event, feedback):
@@ -284,6 +288,40 @@ def gateway_type(base):
                     return False
             return True
 
+        def _same_localization_run(self, task):
+            frame = self.navigation_frame
+            return bool(task.run_id and frame is not None and frame["run_id"] == task.run_id)
+
+        def _arrived_after_stop(self, task, mc):
+            if mc[2] not in {self.input_name, *self.idle_sources}:
+                return "停稳时 AIMDK 控制权不属于本次任务"
+            frame = self.navigation_frame
+            if (not self._same_localization_run(task) or frame["stamp"] <= task.stop_stamp or not self._location_ready()):
+                return "停稳后缺少本次任务的有效地图位姿"
+            pose = pose_payload(self.map_from_odom @ self.nav_base_pose)
+            dx, dy, dyaw = (pose[axis] - task.goal[axis] for axis in ("x", "y", "yaw"))
+            if not all(map(math.isfinite, (dx, dy, dyaw))):
+                return "停稳后的地图位姿无效"
+            distance = math.hypot(dx, dy)
+            yaw_error = abs(math.remainder(dyaw, 2 * math.pi))
+            position_limit = float(self.settings["goal_position_tolerance_m"])
+            yaw_limit = float(self.settings["goal_yaw_tolerance_rad"])
+            if not all(math.isfinite(value) and value > 0 for value in (position_limit, yaw_limit)):
+                return "到达容差配置无效"
+            if not (distance <= position_limit and yaw_error <= yaw_limit):
+                return f"停稳后未到达原始目标：位置误差 {distance:.3f} m，朝向误差 {yaw_error:.3f} rad"
+            return None
+
+        def _complete_retirement(self, task, mc):
+            # Navigation success is provisional until the final map pose agrees with the original goal.
+            arrival_failure = self._arrived_after_stop(task, mc) if task.result == "finished" else None
+            self.motion_record.unlink()
+            task.phase = "failed" if arrival_failure else task.result
+            if arrival_failure:
+                task.detail = arrival_failure
+            elif task.phase == "finished":
+                task.detail = "已到达并确认停稳"
+
         def _retire(self, task):
             stable_since = None
             deadline = time.monotonic() + 16
@@ -301,10 +339,7 @@ def gateway_type(base):
                                 and motion and motion["linear_mps"] <= .02 and motion["angular_rps"] <= .02):
                             stable_since = stable_since if stable_since is not None else time.monotonic()
                             if time.monotonic() - stable_since >= .8:
-                                self.motion_record.unlink()
-                                task.phase = task.result
-                                if task.phase == "finished":
-                                    task.detail = "已到达并确认停稳"
+                                self._complete_retirement(task, mc)
                                 return
                         else:
                             stable_since = None

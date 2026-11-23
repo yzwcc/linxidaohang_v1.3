@@ -20,11 +20,21 @@ const mapSchema = z.object({
   resolution: z.number().min(0.02).max(0.2),
   origin: z.tuple([z.number().finite(), z.number().finite(), z.number().finite()]),
 }).strict();
+const calibrationState = z.enum(["matched", "invalid_profile", "missing_live_tf", "invalid_live_tf", "mismatch"]);
+const calibrationDetail: Record<z.infer<typeof calibrationState>, string> = {
+  matched: "FAST-LIO 外参与本机雷达—IMU TF 一致",
+  invalid_profile: "本机 FAST-LIO 标定配置缺失或无效",
+  missing_live_tf: "本机尚未发布雷达—IMU TF",
+  invalid_live_tf: "本机雷达—IMU TF 无效",
+  mismatch: "FAST-LIO 外参与本机雷达—IMU TF 不一致，请核对本机标定",
+};
+const calibrationErrors = new Map(Object.entries(calibrationDetail)
+  .filter(([state]) => state !== "matched").map(([state, detail]) => [`reference_calibration_${state}`, detail]));
 const statusSchema = z.object({
   phase: z.enum(["idle", "requested", "running", "saving", "failed"]),
   session: sessionId.nullable(),
   sensorsReady: z.boolean(), mappingReady: z.boolean(), aimdkReady: z.boolean(),
-  planningReady: z.boolean(),
+  planningReady: z.boolean(), calibration: calibrationState.optional(),
   pose: pose.optional(), poseAtMs: z.number().finite().positive().optional(),
   navigation: motionState.optional(),
 }).strict();
@@ -80,7 +90,12 @@ export class ReferenceNavigationAdapter implements RobotAdapter {
         response.on("end", () => {
           if (response.statusCode !== 200) {
             const status = response.statusCode;
-            reject(denied("FAST-LIO 操作未确认，请查看运行状态", status === 404 ? 404 : status === 409 ? 409 : 503));
+            let detail: string | undefined;
+            if (status === 409 && size <= maximumBytes) {
+              try { detail = calibrationErrors.get(JSON.parse(Buffer.concat(parts).toString("utf8"))?.detail); }
+              catch { /* Other internal failures are not public diagnostics. */ }
+            }
+            reject(denied(detail ?? "FAST-LIO 操作未确认，请查看运行状态", status === 404 ? 404 : status === 409 ? 409 : 503));
             return;
           }
           try { resolve(JSON.parse(Buffer.concat(parts).toString("utf8"))); }
@@ -102,27 +117,31 @@ export class ReferenceNavigationAdapter implements RobotAdapter {
     }
     const now = Date.now();
     const livePose = state.poseAtMs !== undefined && now - state.poseAtMs >= -100 && now - state.poseAtMs <= 1500;
+    const calibrated = state.calibration === "matched";
+    const calibrationMessage = state.calibration ? calibrationDetail[state.calibration] : "参考服务未报告本机标定，请同步升级";
+    const planningReady = calibrated && state.planningReady;
     return {
       connected: true, mapping: ["requested", "running", "saving"].includes(state.phase),
       mappingStatus: state.phase, mappingSession: state.session ?? undefined,
-      mappingBackend: "fastlio", mappingInputMode: "live", mappingControlReady: state.mappingReady && state.aimdkReady,
+      mappingBackend: "fastlio", mappingInputMode: "live", mappingControlReady: calibrated && state.mappingReady && state.aimdkReady,
       mappingCleanupComplete: !["requested", "running", "saving"].includes(state.phase),
       actionBusy: false,
-      referenceNavigation: { motionEnabled: !!motion, planningReady: state.planningReady, mode: this.mode ?? "point" },
+      referenceNavigation: { motionEnabled: !!motion, planningReady, mode: this.mode ?? "point" },
       navigation: this.failedDispatch ? { status: "failed", taskId: motion?.taskId ?? undefined, requiresStop: true, detail: "导航结果未确认，请停止任务" }
         : motion ? { status: motion.status, taskId: motion.taskId ?? undefined, pointId: motion.pointId ?? undefined,
           requiresStop: motion.requiresStop, detail: motion.detail }
-        : { status: "idle", detail: state.planningReady ? "路径规划就绪 · 运动关闭" : "等待重定位 · 运动关闭" },
-      ...(livePose && state.pose ? { pose: state.pose, poseEvidence: {
+        : { status: "idle", detail: !calibrated ? calibrationMessage : planningReady ? "路径规划就绪 · 运动关闭" : "等待重定位 · 运动关闭" },
+      ...(calibrated && livePose && state.pose ? { pose: state.pose, poseEvidence: {
         source: "independent-localization", coordinateUnits: "metres", observedAtMs: state.poseAtMs!,
       } } : {}),
       checks: [
         { id: "aimdk", label: "AIMDK", ready: state.aimdkReady },
         { id: "slam", label: "FAST-LIO", ready: state.phase !== "failed" || state.mappingReady },
         { id: "lidar", label: "雷达与 IMU", ready: state.sensorsReady },
-        { id: "odom", label: "GICP 定位", ready: !!(livePose && state.pose) },
-        { id: "navigation", label: "导航", ready: !!motion?.ready && !this.failedDispatch && livePose && !!state.pose,
-          detail: !motion ? "运动关闭" : motion.ready ? "运动准入已确认" : "等待地图、定位、障碍与控制状态" },
+        { id: "calibration", label: "本机标定", ready: calibrated, detail: calibrationMessage },
+        { id: "odom", label: "GICP 定位", ready: calibrated && !!(livePose && state.pose) },
+        { id: "navigation", label: "导航", ready: calibrated && !!motion?.ready && !this.failedDispatch && livePose && !!state.pose,
+          detail: !calibrated ? calibrationMessage : !motion ? "运动关闭" : motion.ready ? "运动准入已确认" : "等待地图、定位、障碍与控制状态" },
         { id: "linksoul", label: "灵心", ready: false },
       ],
       motionPresets: [], expressions: [], linkcraftResources: [], updatedAt: new Date(now).toISOString(),
@@ -168,6 +187,8 @@ export class ReferenceNavigationAdapter implements RobotAdapter {
     try {
       const state = await this.getSnapshot();
       const current = this.last;
+      const calibration = state.checks.find((check) => check.id === "calibration");
+      if (calibration && !calibration.ready) throw denied(calibration.detail ?? "本机标定未确认");
       if (!state.checks.some((check) => check.id === "navigation" && check.ready) || !current?.ready) {
         throw denied("FAST-LIO 运动尚未准入");
       }
@@ -194,9 +215,12 @@ export class ReferenceNavigationAdapter implements RobotAdapter {
     if (!taskId || this.pendingCommands) throw denied("等待当前导航请求完成");
     this.pendingCommands++;
     try {
-      const { navigation: current } = statusSchema.parse(await this.call("status"));
+      const { navigation: current, calibration } = statusSchema.parse(await this.call("status"));
       if (!current || current.taskId !== taskId || (this.failedDispatch && action !== "stop")) {
         throw denied("控制器没有匹配的任务回执");
+      }
+      if (action === "resume" && calibration !== "matched") {
+        throw denied(calibration ? calibrationDetail[calibration] : "参考服务未报告本机标定，请同步升级");
       }
       await this.motionCommand("control", taskId, current.session, { action }, action === "stop"
         ? ["idle", "finished", "failed"] : action === "pause" ? ["paused"] : ["requested", "running", "finished"]);

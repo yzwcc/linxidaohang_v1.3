@@ -650,6 +650,8 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
     if (jobs.hasActiveJob() || ["requested", "running", "paused"].includes(state.navigation.status)) {
       throw deny(409, "请先停止导航或讲解任务，再开始建图");
     }
+    const calibration = referenceNavigation && state.checks.find((item) => item.id === "calibration");
+    if (calibration && !calibration.ready) throw deny(409, calibration.detail ?? "本机标定未确认");
     if ((mappingConsole || referenceNavigation) && !state.mappingControlReady) throw deny(409, "建图服务未就绪或上一会话尚未结束");
     const required = new Set(mappingConsole ? [] : ["aimdk", "slam", "lidar"]);
     const failures = state.checks.filter((item) => required.has(item.id) && !item.ready);

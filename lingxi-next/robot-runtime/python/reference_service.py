@@ -84,6 +84,7 @@ def make_app(upstream, root, nav2_process=None, motion_maps=None):
     from fastapi.responses import JSONResponse
     from pydantic import BaseModel, ConfigDict, Field, FiniteFloat
     from typing import Literal
+    from reference_calibration import check_target_mounting
     from reference_motion import MotionTask
 
     Mode = Literal["point", "nav2"]
@@ -183,6 +184,14 @@ def make_app(upstream, root, nav2_process=None, motion_maps=None):
     def nav_process_alive():
         return nav2_process is None or nav2_process.poll() is None
 
+    def calibration_status():
+        return check_target_mounting(state.settings["mapping"]["fastlio_config"], state.ros._navigation_transform)
+
+    def require_calibration():
+        status = calibration_status()
+        if status != "matched":
+            raise HTTPException(status_code=409, detail=f"reference_calibration_{status}")
+
     def motion_ready():
         return bool(active_review and active_review[0] == state.active_map_id and nav_process_alive()
                     and not state.mapping.is_active() and state.ros.output_idle() and state.ros.ready())
@@ -191,13 +200,16 @@ def make_app(upstream, root, nav2_process=None, motion_maps=None):
         if motion_maps is not None and not state.ros.output_idle():
             raise RuntimeError("reference_motion_not_confirmed_idle")
 
-    def navigation_payload():
+    def navigation_payload(calibration=None):
+        if calibration is None:
+            calibration = calibration_status()
         ros = state.ros
         with ros.lock:
             task = ros.motion_task
             current = task.phase if task else "idle"
             still_stopping = current == "stopping" and task.retirement_running
-            return {"session": ros.motion_session, "ready": motion_ready(), "physicalMotionSent": ros.physical_motion_sent,
+            return {"session": ros.motion_session, "ready": calibration == "matched" and motion_ready(),
+                    "physicalMotionSent": ros.physical_motion_sent,
                     "status": "running" if still_stopping else "failed" if current == "stopping" else current,
                     "requiresStop": current == "stopping" and not still_stopping, "taskId": task.task_id if task else None,
                     "pointId": task.point_id if task else None, "detail": task.detail if task else "等待运动准入"}
@@ -251,6 +263,7 @@ def make_app(upstream, root, nav2_process=None, motion_maps=None):
         sensors = ros["sensor_fresh"]
         aimdk = aimdk_ready()
         sensors_ready = bool(sensors["lidar"] and sensors["imu"] and not ros.get("fatal_error"))
+        calibration = calibration_status()
         phase = {"starting": "requested", "recording": "running", "stopping": "saving"}
         saving = finalizing or (export_request[0] if export_pending() else None)
         failed = last_failed or next((item["id"] for item in snapshot["items"] if item["id"] == last_started
@@ -258,16 +271,16 @@ def make_app(upstream, root, nav2_process=None, motion_maps=None):
         result = {"phase": "saving" if saving else phase.get(current["state"], "failed") if current
                             else "failed" if failed else "idle",
                   "session": saving or (current["id"] if current else failed),
-                  "sensorsReady": sensors_ready, "aimdkReady": aimdk,
+                  "sensorsReady": sensors_ready, "aimdkReady": aimdk, "calibration": calibration,
                   "mappingReady": bool(snapshot["enabled"] and current is None and sensors_ready
-                                       and aimdk and not saving and not transition.locked()),
-                  "planningReady": bool(nav_process_alive()
+                                       and aimdk and calibration == "matched" and not saving and not transition.locked()),
+                  "planningReady": bool(calibration == "matched" and nav_process_alive()
                                         and ros["localization_fresh"] and ros["actions"]["compute_path"]
                                         and ros["nav2"]["loaded_map"] and state.active_map_id)}
-        if state.active_map_id and ros["localization_fresh"] and ros.get("pose") and ros.get("stamp"):
+        if calibration == "matched" and state.active_map_id and ros["localization_fresh"] and ros.get("pose") and ros.get("stamp"):
             result.update(pose=ros["pose"], poseAtMs=ros["stamp"] * 1000)
         if motion_maps is not None:
-            result["navigation"] = navigation_payload()
+            result["navigation"] = navigation_payload(calibration)
         return result
 
     @app.get("/lingxi/lidar")
@@ -312,6 +325,7 @@ def make_app(upstream, root, nav2_process=None, motion_maps=None):
             navigation_idle()
             if not aimdk_ready() or export_pending():
                 raise RuntimeError("reference_mapping_start_unavailable")
+            require_calibration()
             if state.navigation_lio.is_active():
                 upstream.stop_navigation_runtime()
                 wait_for(state.navigation_lio.is_active, lambda active: not active, time.monotonic() + 55)
@@ -400,6 +414,7 @@ def make_app(upstream, root, nav2_process=None, motion_maps=None):
         def operation():
             nonlocal active_review
             navigation_idle()
+            require_calibration()
             active_review = None
             if export_pending():
                 raise RuntimeError("reference_export_already_running")
@@ -433,6 +448,7 @@ def make_app(upstream, root, nav2_process=None, motion_maps=None):
     def plan(identity: str, body: Place):
         def operation():
             navigation_idle()
+            require_calibration()
             bundle = managed_map(identity)
             upstream.require_mapping_idle()
             if body.pose is None or state.active_map_id != identity:
@@ -447,7 +463,10 @@ def make_app(upstream, root, nav2_process=None, motion_maps=None):
         def navigate(body: Destination):
             def operation():
                 ros = state.ros
-                if body.session != ros.motion_session or body.mapId != state.active_map_id or not motion_ready():
+                if body.session != ros.motion_session or body.mapId != state.active_map_id:
+                    raise RuntimeError("reference_motion_not_ready")
+                require_calibration()
+                if not motion_ready():
                     raise RuntimeError("reference_motion_not_ready")
                 prior = ros.motion_task
                 if prior and prior.task_id == body.taskId:
@@ -471,6 +490,7 @@ def make_app(upstream, root, nav2_process=None, motion_maps=None):
                         raise RuntimeError("reference_task_not_resumable")
                     if reviewed(managed_map(task.map_id)) != active_review or active_review is None:
                         raise RuntimeError("reference_map_changed_after_activation")
+                    require_calibration()
                     state.tasks.require_localization(task.map_id)
                     ros.submit(MotionTask(task.task_id, task.point_id, task.map_id, dict(task.goal), task.mode))
                     return navigation_payload()

@@ -94,9 +94,10 @@ it("keeps controller changes idle-only and correlates navigation commands to the
   const point = { id: "p1", mapId: map.id, name: "展台", x: 1, y: 2, yaw: 0, isStart: false };
   let navigation = { session, ready: true, physicalMotionSent: false, status: "idle",
     requiresStop: false, taskId: null as string | null, pointId: null as string | null, detail: "" };
+  let calibration: "matched" | "mismatch" | undefined = "matched";
   const call = vi.fn(async (route: string, payload?: { taskId: string; action?: string }) => {
     if (route === "status") return { phase: "idle", session: null, sensorsReady: true, mappingReady: true,
-      aimdkReady: true, planningReady: true, pose: { x: 0, y: 0, yaw: 0 }, poseAtMs: Date.now(), navigation };
+      aimdkReady: true, planningReady: true, calibration, pose: { x: 0, y: 0, yaw: 0 }, poseAtMs: Date.now(), navigation };
     navigation = { ...navigation, taskId: payload!.taskId, pointId: point.id,
       status: payload?.action === "pause" ? "paused" : payload?.action === "stop" ? "idle" : "running" };
     return navigation;
@@ -105,6 +106,17 @@ it("keeps controller changes idle-only and correlates navigation commands to the
     call, mode: "point", pendingCommands: 0,
   }) as ReferenceNavigationAdapter;
   expect((await adapter.getSnapshot()).referenceNavigation?.mode).toBe("point");
+  for (const unusable of ["mismatch", undefined] as const) {
+    calibration = unusable;
+    const snapshot = await adapter.getSnapshot();
+    expect(snapshot.checks).toContainEqual(expect.objectContaining({ id: "calibration", ready: false }));
+    expect(snapshot.mappingControlReady).toBe(false);
+    expect(snapshot.referenceNavigation?.planningReady).toBe(false);
+    expect(snapshot.poseEvidence).toBeUndefined();
+    await expect(adapter.startNavigation(point, map, "not-dispatched")).rejects.toThrow(/标定/);
+    expect(call.mock.calls.every(([route]) => route === "status")).toBe(true);
+  }
+  calibration = "matched";
   await adapter.selectMode("nav2");
   await adapter.startNavigation(point, map, "test-task");
   expect(call).toHaveBeenLastCalledWith("navigation/start", expect.objectContaining({
@@ -113,7 +125,11 @@ it("keeps controller changes idle-only and correlates navigation commands to the
   await expect(adapter.selectMode("point")).rejects.toThrow();
   await expect(adapter.controlNavigation("pause", "old-task")).rejects.toThrow();
   await adapter.controlNavigation("pause", "test-task");
+  calibration = "mismatch";
+  await expect(adapter.controlNavigation("resume", "test-task")).rejects.toThrow(/标定/);
+  calibration = "matched";
   await adapter.controlNavigation("resume", "test-task");
+  calibration = "mismatch";
   await adapter.controlNavigation("stop", "test-task");
   await adapter.selectMode("point");
 });

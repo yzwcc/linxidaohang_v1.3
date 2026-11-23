@@ -57,6 +57,7 @@ await Promise.all([
   cp("robot-api/dist/index.mjs", path.join(stage, "api/index.mjs")),
   cp("robot-api/src/aimdk_ros_bridge.py", path.join(stage, "bridge/aimdk_ros_bridge.py")),
   cp("robot-runtime/python/reference_service.py", path.join(stage, "bridge/reference_service.py")),
+  cp("robot-runtime/python/reference_calibration.py", path.join(stage, "bridge/reference_calibration.py")),
   cp("robot-runtime/python/reference_motion.py", path.join(stage, "bridge/reference_motion.py")),
   cp("robot-agent/build/lingxi-agent-0.1.0.jar", path.join(stage, "agent/lingxi-agent.jar")),
   cp("robot-agent/build/lib", path.join(stage, "agent/lib"), { recursive: true }),

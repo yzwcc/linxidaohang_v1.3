@@ -7,6 +7,75 @@ import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "robot-runtime" / "python"))
 from reference_service import checked_grid, make_app
+from reference_calibration import check_target_mounting
+
+
+def target_calibration(directory, *, online=False):
+    import numpy as np
+    import yaml
+
+    # Non-identity rotation with a translation catches reversed TF query/composition.
+    configured = np.array([[0, -1, 0, .024], [1, 0, 0, -.012], [0, 0, 1, .047], [0, 0, 0, 1]])
+    profile = Path(directory).resolve() / "fastlio.yaml"
+    profile.write_text(yaml.safe_dump({"/**": {"ros__parameters": {"mapping": {
+        "extrinsic_est_en": online, "extrinsic_R": configured[:3, :3].reshape(-1).tolist(),
+        "extrinsic_T": configured[:3, 3].tolist(),
+    }}}}), encoding="utf-8")
+    return profile, np.linalg.inv(configured)
+
+
+class TargetCalibrationTests(unittest.TestCase):
+    def test_validates_direction_mismatch_and_unusable_tf(self):
+        with tempfile.TemporaryDirectory() as directory:
+            profile, live = target_calibration(directory)
+            lookup = Mock(return_value=live)
+            self.assertEqual(check_target_mounting(profile, lookup), "matched")
+            lookup.assert_called_once_with("lidar_chest_front", "lidar_imu_chest_front", 0)
+            live[0, 3] += .012
+            self.assertEqual(check_target_mounting(profile, lookup), "mismatch")
+            lookup.return_value = None
+            self.assertEqual(check_target_mounting(profile, lookup), "missing_live_tf")
+            live[2, 2] = -1
+            lookup.return_value = live
+            self.assertEqual(check_target_mounting(profile, lookup), "invalid_live_tf")
+
+    def test_online_estimation_and_missing_configs_do_not_query_tf(self):
+        with tempfile.TemporaryDirectory() as directory:
+            profile, _ = target_calibration(directory, online=True)
+            lookup = Mock()
+            for path in (profile, profile.with_name("missing.yaml"), Path("relative.yaml")):
+                self.assertEqual(check_target_mounting(path, lookup), "invalid_profile")
+            lookup.assert_not_called()
+
+    def test_status_exposes_mismatch_and_blocks_mapping_activation_and_planning(self):
+        from fastapi.testclient import TestClient
+
+        with tempfile.TemporaryDirectory() as directory:
+            profile, live = target_calibration(directory)
+            aimdk = SimpleNamespace(service_is_ready=lambda: True)
+            ros = SimpleNamespace(source_get=aimdk, source_set=aimdk, _navigation_transform=Mock(return_value=live),
+                                  snapshot=lambda: {"sensor_fresh": {"lidar": True, "imu": True},
+                                                    "localization_fresh": True, "actions": {"compute_path": True},
+                                                    "nav2": {"loaded_map": True}})
+            mapping = SimpleNamespace(snapshot=lambda: {"active": None, "items": [], "enabled": True})
+            state = SimpleNamespace(settings={"mapping": {"fastlio_config": str(profile)}},
+                                    ros=ros, mapping=mapping, active_map_id="fastlio-" + "a" * 32)
+            source = SimpleNamespace(app=SimpleNamespace(state=state), lifespan=None,
+                                     start_mapping=Mock(), activate_map=Mock())
+            client = TestClient(make_app(source, Path(directory)))
+            status = client.get("/lingxi/status").json()
+            self.assertEqual(status["calibration"], "matched")
+            self.assertTrue(status["mappingReady"] and status["planningReady"])
+            live[0, 3] += .012
+            status = client.get("/lingxi/status").json()
+            self.assertEqual(status["calibration"], "mismatch")
+            self.assertFalse(status["mappingReady"] or status["planningReady"])
+            for operation in ("mapping/start", f"maps/{state.active_map_id}/activate", f"maps/{state.active_map_id}/plan"):
+                response = client.post(f"/lingxi/{operation}", json={})
+                self.assertEqual(response.status_code, 409)
+                self.assertEqual(response.json(), {"detail": "reference_calibration_mismatch"})
+            source.start_mapping.assert_not_called()
+            source.activate_map.assert_not_called()
 
 
 class ReferenceGridTests(unittest.TestCase):
