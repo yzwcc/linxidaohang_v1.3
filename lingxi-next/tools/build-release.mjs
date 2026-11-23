@@ -72,6 +72,7 @@ await Promise.all([
   cp("tools/migrate-legacy.mjs", path.join(stage, "tools/migrate-legacy.mjs")),
   cp("tools/check_reference_bag.py", path.join(stage, "tools/check_reference_bag.py")),
   cp("tools/inspect_reference_capture_timing.py", path.join(stage, "tools/inspect_reference_capture_timing.py")),
+  cp("tools/fastlio-backlog", path.join(stage, "tools/fastlio-backlog"), { recursive: true }),
   cp("tools/probe_reference_target.py", path.join(stage, "tools/probe_reference_target.py")),
   cp("tools/prepare_reference_profile.py", path.join(stage, "tools/prepare_reference_profile.py")),
   cp("tools/replay_reference_mapping.py", path.join(stage, "tools/replay_reference_mapping.py")),

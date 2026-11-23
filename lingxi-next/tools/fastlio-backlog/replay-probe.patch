@@ -1,0 +1,67 @@
+diff --git a/integrations/fast_lio/src/laserMapping.cpp b/integrations/fast_lio/src/laserMapping.cpp
+--- a/integrations/fast_lio/src/laserMapping.cpp
++++ b/integrations/fast_lio/src/laserMapping.cpp
+@@ -43,3 +43,4 @@
+ #include <chrono>
+ #include <stdexcept>
++#include "replay-probe.hpp"
+ #include <unistd.h>
+@@ -105,3 +106,4 @@
+ double map_update_residual_max = -1.0;
+ double maximum_imu_gap_s = 0.05, maximum_lidar_backlog_s = 1.0;
++static lingxi_fastlio_replay::BacklogProbe replay_backlog_probe;
+ bool sensor_input_enabled = true;
+@@ -346,3 +348,4 @@
+     last_timestamp_lidar = cur_time;
+     s_plot11[scan_count] = omp_get_wtime() - preprocess_start_time;
++    replay_backlog_probe.record_preprocess(s_plot11[scan_count] * 1000);
+     mtx_buffer.unlock();
+@@ -393,3 +396,4 @@
+     s_plot11[scan_count] = omp_get_wtime() - preprocess_start_time;
++    replay_backlog_probe.record_preprocess(s_plot11[scan_count] * 1000);
+     mtx_buffer.unlock();
+     sig_buffer.notify_all();
+@@ -443,5 +447,17 @@
+     }
+     if (time_buffer.back() - time_buffer.front() > maximum_lidar_backlog_s)
++    {
++        try {
++            const bool head_end_known = lidar_pushed && meas.lidar_beg_time == time_buffer.front()
++                && time_buffer.size() == lidar_buffer.size();
++            std::cerr << "[x2-fastlio-backlog] " << replay_backlog_probe.snapshot(
++                lidar_buffer.size(), time_buffer.size(), imu_buffer.size(),
++                time_buffer.front(), time_buffer.back(), maximum_lidar_backlog_s,
++                last_timestamp_imu, head_end_known, lidar_end_time) << '\n';
++        } catch (...) {
++            // A diagnostic failure must not alter the original guard or its error.
++        }
+         throw std::runtime_error("FAST-LIO 扫描处理延迟超过允许范围");
++    }
+-
++
+     /*** push a lidar scan ***/
+@@ -488,4 +504,5 @@
+     if (last_timestamp_imu < lidar_end_time)
+     {
+         // IMU 还没有覆盖到当前激光帧末尾，不能开始处理。
++        replay_backlog_probe.wait_for_imu(time_buffer.front());
+         return false;
+@@ -510,4 +527,5 @@
+         lidar_buffer.pop_front();
+         time_buffer.pop_front();
+         lidar_pushed = false;
++        replay_backlog_probe.head_removed();
+         return false;
+@@ -533,4 +551,5 @@
+     lidar_buffer.pop_front();
+     time_buffer.pop_front();
+     lidar_pushed = false;
++    replay_backlog_probe.head_removed();
+     return true;
+@@ -1374,4 +1393,5 @@
+                 return;
+             }
++            const lingxi_fastlio_replay::FrameTimer replay_frame_timer(replay_backlog_probe);
+-
++
+             double t0,t1,t2,t3,t4,t5,match_start, solve_start, svd_time;

@@ -136,6 +136,24 @@ python3 -B tools/inspect_reference_capture_timing.py /path/to/closed/session/ros
 
 该工具只读所有分卷，按录制顺序分别报告原始雷达、原始 IMU、已配准点云和里程计的消息头间隔、录制间隔及两类时间戳之差，包含末段窗口。先判断输入时间是否连续，再对照输出是否逐步落后。录制器与 FAST-LIO 各有订阅，报告不是 FAST-LIO 实际收包或内部耗时；输入缺失或两个时钟基准不同，都不能据此宣称根因。保持保护门槛；下一次定位故障时若仍无法区分算力与时间对齐，应在隔离环境采集匹配前队列头尾、IMU 水位和单帧处理耗时。
 
+可用 `tools/fastlio-backlog/` 中的诊断补丁重放失败录包。它只用于 **独立、可丢弃的 Humble 构建目录**，不要修改目标机的参考 checkout、原生 overlay 或运行配置。在干净的参考源码副本里检查固定提交再应用（`probe` 指向本项目上述工具的绝对路径）：
+
+```bash
+test "$(git rev-parse HEAD)" = 90bbc8096c23a5660fc6c5e26dd99ec1ed79da11 &&
+  test -z "$(git status --porcelain)" &&
+  git apply --check "$probe/replay-probe.patch" &&
+  git apply "$probe/replay-probe.patch" &&
+  cp "$probe/replay-probe.hpp" integrations/fast_lio/src/replay-probe.hpp
+```
+
+单独编译 `fast_lio`，然后在只有环回接口的命名空间用 `tools/replay_reference_mapping.py` 将 `--mapper` 指向该诊断二进制，输入使用关闭的失败录包副本。保留原速与降速回放各自的配置、日志及结果；降速复现与否不能代替原速通过。只在原积压保护抛错前，`mapper.log` 才会出现一条 `[x2-fastlio-backlog]` JSON：
+
+- `clouds`、`stamps`、`imus` 是实际队列长度，`headS` / `tailS` 是雷达时间戳队列的头尾；两个雷达队列长度不相同应单独排查，不能拿旧的帧末时间推算 IMU 差值。
+- `imuWatermarkS` 是时间补偿后的最新 IMU 时间。队首末时已计算且仍有效时，`imuMinusHeadEndMs` 为负表示 IMU 尚未覆盖帧末。`headImuWaitChecks` 和 `sinceFirstHeadImuWaitMs` 分别是同一队首观测到等待的次数以及距首次等待检查的单调时钟间隔，不等于 CPU 阻塞时间。未观测到的值不填零来冒充测量。
+- `recentLidarPreprocess` 和 `recentFrameProcessing` 汇总最近最多 16 次预处理与同步后处理耗时，后者包含该帧发布。和录包中的雷达周期一起比较；诊断不测 DDS 回调到达延迟、录制器写盘或独立地图发布定时器。这些数值能缩小排查范围，但不单独证明故障根因。
+
+该补丁不改建图算法、超时和错误文本，正常路径不写日志；未加补丁的产品二进制不包含这些诊断。在能复现的 Humble 环境验证前，不据此调整目标机参数。
+
 ## 点位与讲解迁移
 
 先在新地图上重新确认每个点位的米制坐标和朝向。运行迁移脚本的预检查得到每张旧地图的点位 ID。然后提供以旧地图 ID 为键的 JSON，每项填写已保存的 `fastlio-…` 地图 ID，以及按旧点位 ID 索引的 `points`。每个点位填写 `x`、`y`、`yaw`，角度单位是弧度。提供 `--point-assignments FILE` 再执行一次预检查，确认目标地图、点位姿态、讲解顺序与轮数，并抄录输出的 `reviewSha256`。在产品 API 停止、没有其他写入 `state.json` 的进程时，以 `lingxi-next` 服务账户运行同一条命令并加 `--expect-review SHA256 --apply`；输入、坐标或目标状态改变后，必须重新预览。源和确认表须由管理员放在服务账户可读的路径，不改厂商目录权限。已迁移的讲解仍须复核才可运行。机器人原有地图和知识库不搬迁。
