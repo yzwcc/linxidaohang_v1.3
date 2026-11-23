@@ -20,7 +20,7 @@ while (($#)); do
 done
 [[ $EUID == 0 && $COMMISSIONING == 1 ]] || { echo "Run as root with --commissioning; read docs/ACCEPTANCE.md first" >&2; exit 1; }
 [[ "$(uname -m)" == aarch64 || "$(uname -m)" == arm64 ]] || { echo "This package requires Linux ARM64" >&2; exit 1; }
-for command in systemctl openssl python3 tar sha256sum curl getent groupadd useradd flock; do command -v "$command" >/dev/null || { echo "Missing dependency: $command" >&2; exit 1; }; done
+for command in systemctl openssl python3 tar sha256sum curl getent groupadd useradd flock runuser; do command -v "$command" >/dev/null || { echo "Missing dependency: $command" >&2; exit 1; }; done
 python3 -c 'import ipaddress,sys; ipaddress.ip_address(sys.argv[1])' "$ROBOT_IP"
 cd "$PACKAGE"
 sha256sum -c SHA256SUMS >/dev/null
@@ -91,6 +91,10 @@ install -d -m 0755 "$ROOT/releases/$VERSION"
 cp -a "$PACKAGE/." "$ROOT/releases/$VERSION/"
 chown -R root:root "$ROOT/releases/$VERSION"
 chmod 0755 "$ROOT/releases/$VERSION"
+if ! runuser -u lingxi-next -- "$ROOT/releases/$VERSION/runtime/node/bin/node" --version >/dev/null; then
+  echo "The staged Node runtime is not executable by the service account; no services were switched." >&2
+  exit 1
+fi
 if [[ -n "$LEGACY" ]]; then
   "$PACKAGE/runtime/node/bin/node" "$PACKAGE/tools/migrate-legacy.mjs" --source-dir "$LEGACY" --destination "$DATA"
 fi

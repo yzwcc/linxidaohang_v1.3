@@ -35,7 +35,7 @@ staging=$(mktemp -d)
 tar --no-same-owner --same-permissions -xzf ./lingxi-next-VERSION-linux-arm64.tar.gz -C "$staging"
 ```
 
-暂存目录保持 `0700`，包内 `deploy/run.sh` 和 `bridge/reference_service.py` 分别保留 `0755`、`0644`。不要仅依赖文件哈希检查权限：普通用户在 `umask 077` 下直接解包会屏蔽系统服务所需的读取权限，即使文件内容的校验全部通过。
+暂存目录保持 `0700`，包内 `deploy/run.sh` 和 `bridge/reference_service.py` 分别保留 `0755`、`0644`。归档必须包含显式的 `0755` 父目录条目，包括 `runtime/`；否则即使使用 `--same-permissions`，GNU tar 也会按暂存 `umask 077` 创建缺失的父目录，服务账号无法进入。不要仅依赖文件哈希检查权限；在停止旧服务前，安装器用 `lingxi-next` 账号测试新版本的 Node 可执行文件。
 
 `--reference-commissioning` 是静态联调档，选择绑定当前安装版本，不能通过改 YAML 在此档直接启用运动、动作或语音；它也不与旧数据自动迁移选项合用。首次用此档安装前必须准备 `robot.env`；后续静态升级继续显式传相同参数。转到普通版本不会自动继承参考服务自启动。静态联调通过后，机构足迹、停车和现场条件需按下文核定，再通过新版本的手动配置路径验收动作和语音。静态档的 HTTPS 端口沿用 `robot.env`（默认 `3445`），不占用旧 GLIM 控制台的 `3444`。
 

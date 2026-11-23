@@ -18,6 +18,8 @@ digest = hashlib.file_digest(filename.open("rb"), "sha256").hexdigest()
 assert digest == expected, "Archive checksum mismatch"
 with tarfile.open(filename, "r|gz") as archive:
     names = set()
+    directories = set()
+    required_parents = set()
     links = []
     files = {}
     hashes = {}
@@ -32,6 +34,10 @@ with tarfile.open(filename, "r|gz") as archive:
         relative = entry.name.removeprefix(root + "/")
         parts = PurePosixPath(entry.name).parts
         assert not entry.name.startswith("/") and ".." not in parts, "Unsafe path"
+        required_parents.update(str(parent) for parent in PurePosixPath(entry.name).parents if str(parent) != ".")
+        if entry.isdir():
+            assert entry.mode == 0o755, f"Directory is not traversable after deployment: {entry.name}"
+            directories.add(entry.name)
         assert not re.search(r"(^|/)(credentials|var|\.local|\.git)(/|$)|\.(jks|keystore|key|pem)$", relative), relative
         assert not relative.endswith(".env"), relative
         assert not re.search(r"(^|/)(__pycache__|\.pytest_cache)(/|$)|\.py[co]$", relative), relative
@@ -60,6 +66,7 @@ with tarfile.open(filename, "r|gz") as archive:
                 captured[relative] = bytes(content)
         else:
             assert entry.isdir() or entry.issym() or entry.islnk(), "Special file"
+    assert required_parents <= directories, f"Missing directory headers: {sorted(required_parents - directories)}"
     for name, resolved in links:
         assert resolved in names, f"Broken link: {name}"
     checksum_lines = captured["SHA256SUMS"].decode().splitlines()

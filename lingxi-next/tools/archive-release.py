@@ -72,6 +72,12 @@ def permissions(info):
 
 
 with tarfile.open(output, "w:gz", format=tarfile.PAX_FORMAT, compresslevel=1) as archive:
+    # GNU tar creates missing ancestor directories using the caller's umask.
+    # A private staging umask must not silently become part of a deployed release.
+    for name in (stage.name, f"{stage.name}/runtime"):
+        entry = tarfile.TarInfo(name)
+        entry.type = tarfile.DIRTYPE
+        archive.addfile(permissions(entry))
     # Windows cannot reliably extract Linux symlinks. Never extract these runtimes
     # on the build workstation; stream the original entries into the final tar.
     for item in sorted(stage.rglob("*")):
