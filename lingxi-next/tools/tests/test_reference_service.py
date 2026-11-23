@@ -1,4 +1,7 @@
+import hashlib
+import json
 from pathlib import Path
+import struct
 from types import SimpleNamespace
 from unittest.mock import Mock
 import sys
@@ -6,7 +9,7 @@ import tempfile
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "robot-runtime" / "python"))
-from reference_service import checked_grid, make_app
+from reference_service import checked_grid, checked_map, make_app
 from reference_calibration import check_target_mounting
 
 
@@ -137,6 +140,100 @@ class ReferenceGridTests(unittest.TestCase):
         self.assertEqual(client.post("/api/tasks", json={}).status_code, 404)
         self.assertEqual(client.get("/docs").status_code, 404)
         self.assertEqual(client.post("/lingxi/mapping/save", json={"name": "展厅", "session": "../other"}).status_code, 422)
+
+
+class ReferenceExportTests(unittest.TestCase):
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.root = Path(temporary.name).resolve()
+        self.session = "b" * 32
+        self.identity = f"fastlio-{self.session}"
+        self.directory = self.root / self.identity
+        self.directory.mkdir()
+        self.yaml = self.directory / "map.yaml"
+        self.yaml.write_text("image: map.pgm\nmode: trinary\nresolution: 0.05\norigin: [1, 2, 0.5]\n"
+                             "occupied_thresh: 0.65\nfree_thresh: 0.196\nnegate: 0\n", encoding="utf-8")
+        raster = b"P5\n2 2\n255\n" + bytes([0, 205, 254, 0])
+        (self.directory / "map.pgm").write_bytes(raster)
+        self.cloud = self.directory / "localization.ply"
+        self.header = (b"ply\nformat binary_little_endian 1.0\ncomment Created by Open3D\nelement vertex 200\n"
+                       + b"".join(f"property double {key}\n".encode() for key in ("x", "y", "z", "nx", "ny", "nz"))
+                       + b"end_header\n")
+        self.body = b"".join(struct.pack("<6d", i * .01, 2, 3, 0, 0, 1) for i in range(200))
+        transform = [[1, 0, 0, .025], [0, 1, 0, 0], [0, 0, 1, -.025], [0, 0, 0, 1]]
+        self.bundle = dict(id=self.identity, revision="c" * 32, name="展厅", schema_version=1, frame_id="map",
+                           origin=[1, 2, .5], resolution=.05, width=2, height=2, map_points=200,
+                           source_session_id=self.session, navigation_from_source=transform, base_from_imu=transform,
+                           imu_from_lidar=transform, free_space={"output_sha256": hashlib.sha256(raster).hexdigest()},
+                           localization_map=str(self.cloud), yaml_path=str(self.yaml))
+        self.metadata = self.directory / "metadata.json"
+        self.metadata.write_text(json.dumps(self.bundle), encoding="utf-8")
+        self.write_cloud(self.header + self.body)
+
+    def write_cloud(self, data):
+        self.cloud.write_bytes(data)
+        (self.directory / "localization.json").write_text(json.dumps({
+            "map_points": 200, "normal_orientation": "towards_sensor", "viewpoint_frame": "map",
+            "trajectory_frame": "map", "imu_from_lidar": self.bundle["imu_from_lidar"],
+            "cache_sha256": hashlib.sha256(data).hexdigest(),
+        }), encoding="utf-8")
+
+    def test_reopens_pinned_export_and_rejects_geometry_corruption(self):
+        self.assertEqual(checked_map(self.root, self.bundle)["originYaw"], .5)
+        for data, reason in (
+                (self.header + self.body[:-1], "invalid_reference_ply_layout"),
+                (self.header.replace(b"vertex 200", b"vertex 201") + self.body, "invalid_reference_ply_layout"),
+                (self.header + struct.pack("<d", float("nan")) + self.body[8:], "invalid_reference_ply_geometry"),
+                (self.header + self.body[:24] + bytes(24) + self.body[48:], "invalid_reference_ply_normals")):
+            with self.subTest(reason=reason):
+                self.write_cloud(data)
+                with self.assertRaisesRegex(ValueError, reason):
+                    checked_map(self.root, self.bundle)
+
+    def test_refuses_drift_in_sidecar_raster_origin_and_registry(self):
+        self.cloud.write_bytes(self.header + struct.pack("<d", 42.0) + self.body[8:])
+        with self.assertRaisesRegex(ValueError, "reference_ply_digest_mismatch"):
+            checked_map(self.root, self.bundle)
+        self.write_cloud(self.header + self.body)
+        (self.directory / "map.pgm").write_bytes(b"P5\n2 2\n255\n" + bytes([254, 205, 254, 0]))
+        with self.assertRaisesRegex(ValueError, "reference_grid_digest_or_format_mismatch"):
+            checked_map(self.root, self.bundle)
+        (self.directory / "map.pgm").write_bytes(b"P5\n2 2\n255\n" + bytes([0, 205, 254, 0]))
+        base = self.yaml.read_text(encoding="utf-8")
+        self.yaml.write_text(base.replace("0.65", "0.6"), encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "reference_grid_policy_mismatch"):
+            checked_map(self.root, self.bundle)
+        self.yaml.write_text(base.replace("0.5]", "0.0]"), encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "grid_metadata_mismatch"):
+            checked_map(self.root, self.bundle)
+        with self.assertRaisesRegex(ValueError, "reference_map_metadata_mismatch"):
+            checked_map(self.root, {**self.bundle, "revision": "a" * 32})
+
+    def test_save_load_and_plan_reject_corrupt_export_before_ros_loader(self):
+        from fastapi.testclient import TestClient
+
+        profile, live = target_calibration(self.root)
+        saved = {"id": self.session, "state": "saved"}
+        mapping = SimpleNamespace(snapshot=lambda: {"active": None, "items": [saved]}, is_active=lambda: False)
+        ros = SimpleNamespace(_navigation_transform=Mock(return_value=live), activate_map=Mock(), compute_path=Mock())
+        state = SimpleNamespace(mapping=mapping, ros=ros, store=SimpleNamespace(map=Mock(return_value=self.bundle)),
+                                settings={"mapping": {"fastlio_config": str(profile)}}, active_map_id=self.identity,
+                                tasks=SimpleNamespace(require_localization=Mock()))
+        source = SimpleNamespace(app=SimpleNamespace(state=state), lifespan=None, activate_map=Mock(),
+                                 stop_mapping=Mock(), require_mapping_idle=Mock())
+        client = TestClient(make_app(source, self.root))
+        payload = {"name": self.bundle["name"], "session": self.session}
+        self.assertEqual(client.post("/lingxi/mapping/save", json=payload).json()["id"], self.identity)
+        self.assertEqual(client.get(f"/lingxi/maps/{self.identity}/grid").json()["originYaw"], .5)
+        self.cloud.write_bytes(self.header + self.body[:-1])
+        self.assertEqual(client.post("/lingxi/mapping/save", json=payload).status_code, 409)
+        self.assertEqual(client.get(f"/lingxi/maps/{self.identity}/grid").status_code, 409)
+        self.assertEqual(client.post(f"/lingxi/maps/{self.identity}/activate", json={}).status_code, 409)
+        self.assertEqual(client.post(f"/lingxi/maps/{self.identity}/plan", json={"pose": {"x": 1, "y": 2, "yaw": .5}}).status_code, 409)
+        source.activate_map.assert_not_called()
+        ros.activate_map.assert_not_called()
+        ros.compute_path.assert_not_called()
 
 
 if __name__ == "__main__":

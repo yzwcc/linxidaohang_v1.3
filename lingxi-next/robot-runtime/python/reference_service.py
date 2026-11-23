@@ -40,22 +40,49 @@ def resource(root, path):
     return result
 
 
-def checked_grid(root, bundle):
+def file_sha256(path):
+    sha = hashlib.sha256()
+    with path.open("rb") as stream:
+        for block in iter(lambda: stream.read(1024 * 1024), b""):
+            sha.update(block)
+    return sha.hexdigest()
+
+
+def checked_grid(root, bundle, expected_sha256=None):
     import yaml
+    from io import BytesIO
     from PIL import Image
 
     metadata_path = resource(root, bundle["yaml_path"])
-    metadata = yaml.safe_load(metadata_path.read_text(encoding="utf-8"))
-    if metadata["image"] != "map.pgm" or metadata.get("mode", "trinary") != "trinary":
+    with metadata_path.open("rb") as stream:
+        raw = stream.read(8193)
+    if len(raw) > 8192:
+        raise ValueError("reference_grid_metadata_too_large")
+    try:
+        metadata = yaml.safe_load(raw)
+    except yaml.YAMLError as error:
+        raise ValueError("invalid_reference_grid_metadata") from error
+    if not isinstance(metadata, dict) or metadata.get("image") != "map.pgm" or metadata.get("mode", "trinary") != "trinary":
         raise ValueError("unsupported_grid_format")
-    resolution = float(metadata["resolution"])
-    origin = [float(value) for value in metadata["origin"]]
-    occupied, free = float(metadata["occupied_thresh"]), float(metadata["free_thresh"])
-    negate = metadata["negate"]
+    try:
+        resolution = float(metadata["resolution"])
+        origin = [float(value) for value in metadata["origin"]]
+        occupied, free = float(metadata["occupied_thresh"]), float(metadata["free_thresh"])
+        negate = metadata["negate"]
+    except (TypeError, OverflowError) as error:
+        raise ValueError("invalid_grid_geometry") from error
     if (len(origin) != 3 or not all(map(math.isfinite, origin)) or not 0.02 <= resolution <= 0.2
             or not 0 <= free < occupied <= 1 or negate not in (0, 1)):
         raise ValueError("invalid_grid_geometry")
-    with Image.open(resource(root, metadata_path.parent / "map.pgm")) as image:
+    pgm = resource(root, metadata_path.parent / "map.pgm")
+    with pgm.open("rb") as stream:
+        pixels = stream.read(4_001_025)
+    if (len(pixels) > 4_001_024 or not pixels.startswith(b"P5\n")
+            or (expected_sha256 is not None and hashlib.sha256(pixels).hexdigest() != expected_sha256)):
+        raise ValueError("reference_grid_digest_or_format_mismatch")
+    if expected_sha256 is not None and (occupied, free, negate) != (0.65, 0.196, 0):
+        raise ValueError("reference_grid_policy_mismatch")
+    with Image.open(BytesIO(pixels), formats=("PPM",)) as image:
         width, height = image.size
         if (image.mode != "L" or min(width, height) < 1 or width * height > 4_000_000
                 or [width, height] != [bundle["width"], bundle["height"]]
@@ -68,6 +95,78 @@ def checked_grid(root, bundle):
     return {"width": width, "height": height, "resolution": resolution, "originX": origin[0],
             "originY": origin[1], "originYaw": origin[2], "stamp": metadata_path.stat().st_mtime_ns / 1e6,
             "cells": cells}
+
+
+def checked_map(root, bundle):
+    """Reopen a pinned export and verify the assets before save or load acknowledgement."""
+    import numpy as np
+
+    def read_metadata(path):
+        with path.open("rb") as stream:
+            raw = stream.read(1024 * 1024 + 1)
+        if len(raw) > 1024 * 1024:
+            raise ValueError("reference_map_metadata_too_large")
+        value = json.loads(raw)
+        if not isinstance(value, dict):
+            raise ValueError("invalid_reference_map_metadata")
+        return value
+
+    yaml_file = resource(root, bundle["yaml_path"])
+    directory = yaml_file.parent
+    if (yaml_file.name != "map.yaml" or directory.name != bundle["id"]
+            or resource(root, bundle["localization_map"]) != directory / "localization.ply"):
+        raise ValueError("reference_map_asset_path_mismatch")
+    metadata = read_metadata(resource(root, directory / "metadata.json"))
+    sidecar = read_metadata(resource(root, directory / "localization.json"))
+    fields = ("schema_version", "id", "name", "revision", "frame_id", "resolution", "origin", "width", "height",
+              "map_points", "source_session_id", "navigation_from_source", "base_from_imu", "imu_from_lidar",
+              "free_space")
+    count = metadata.get("map_points")
+    free_space = metadata.get("free_space")
+    if (metadata.get("schema_version") != 1 or metadata.get("frame_id") != "map" or not isinstance(free_space, dict)
+            or metadata.get("source_session_id") != bundle["id"].removeprefix("fastlio-")
+            or not all(k in metadata and k in bundle and metadata[k] == bundle[k] for k in fields)
+            or type(count) is not int or not 200 <= count <= 2_000_000
+            or sidecar.get("map_points") != count or sidecar.get("normal_orientation") != "towards_sensor"
+            or sidecar.get("viewpoint_frame") != "map" or sidecar.get("trajectory_frame") != "map"
+            or sidecar.get("imu_from_lidar") != metadata["imu_from_lidar"]):
+        raise ValueError("reference_map_metadata_mismatch")
+
+    # The pinned exporter writes binary little-endian Open3D vertices with six
+    # doubles and no faces. Check the layout and byte count before interpreting data.
+    cloud = resource(root, directory / "localization.ply")
+    sha = hashlib.sha256()
+    with cloud.open("rb") as stream:
+        header = stream.peek(1024)[:1024]
+        end = header.find(b"end_header\n")
+        if end < 0:
+            raise ValueError("invalid_reference_ply_header")
+        raw_header = stream.read(end + len(b"end_header\n"))
+        layout = [line for line in raw_header.splitlines() if not line.startswith(b"comment ")]
+        if layout != [b"ply", b"format binary_little_endian 1.0", f"element vertex {count}".encode(),
+                      *(b"property double " + field for field in (b"x", b"y", b"z", b"nx", b"ny", b"nz")),
+                      b"end_header"] or os.fstat(stream.fileno()).st_size != len(raw_header) + 48 * count:
+            raise ValueError("invalid_reference_ply_layout")
+        sha.update(raw_header)
+        for offset in range(0, count, 16384):
+            size = 48 * min(count - offset, 16384)
+            chunk = stream.read(size)
+            if len(chunk) != size:
+                raise ValueError("truncated_reference_ply")
+            sha.update(chunk)
+            vertices = np.frombuffer(chunk, dtype="<f8").reshape(-1, 6)
+            if not np.isfinite(vertices).all():
+                raise ValueError("invalid_reference_ply_geometry")
+            squared_norms = np.einsum("ij,ij->i", vertices[:, 3:], vertices[:, 3:])
+            if np.any((squared_norms < .81) | (squared_norms > 1.21)):
+                raise ValueError("invalid_reference_ply_normals")
+        if stream.read(1) or sha.hexdigest() != sidecar.get("cache_sha256"):
+            raise ValueError("reference_ply_digest_mismatch")
+
+    raster_hash = free_space.get("output_sha256")
+    if not isinstance(raster_hash, str) or not re.fullmatch(r"[0-9a-f]{64}", raster_hash):
+        raise ValueError("reference_grid_digest_missing")
+    return checked_grid(root, bundle, raster_hash)
 
 
 def wait_for(read, complete, deadline):
@@ -159,16 +258,6 @@ def make_app(upstream, root, nav2_process=None, motion_maps=None):
     export_request = None
     active_review = None
 
-    def digest(file):
-        with file.open("rb") as stream:
-            return hashlib.file_digest(stream, "sha256").hexdigest() if hasattr(hashlib, "file_digest") else digest_stream(stream)
-
-    def digest_stream(stream):
-        sha = hashlib.sha256()
-        for block in iter(lambda: stream.read(1024 * 1024), b""):
-            sha.update(block)
-        return sha.hexdigest()
-
     def reviewed(bundle):
         if motion_maps is None or bundle["id"] not in motion_maps:
             return None
@@ -176,7 +265,7 @@ def make_app(upstream, root, nav2_process=None, motion_maps=None):
         files = {name: resource(root, yaml_file.parent / name) for name in ("metadata.json", "map.yaml", "map.pgm", "localization.ply", "localization.json")}
         if resource(root, bundle["localization_map"]) != files["localization.ply"]:
             raise RuntimeError("reference_localization_resource_mismatch")
-        calculated = {name: digest(file) for name, file in files.items()}
+        calculated = {name: file_sha256(file) for name, file in files.items()}
         if calculated != motion_maps[bundle["id"]]:
             return None
         return (bundle["id"], bundle["revision"])
@@ -321,7 +410,7 @@ def make_app(upstream, root, nav2_process=None, motion_maps=None):
 
     @app.get("/lingxi/maps/{identity}/grid")
     def grid(identity: str):
-        return checked_grid(root, managed_map(identity))
+        return checked_map(root, managed_map(identity))
 
     @app.post("/lingxi/mapping/start")
     def start():
@@ -404,7 +493,7 @@ def make_app(upstream, root, nav2_process=None, motion_maps=None):
                     bundle = managed_map(identity)
                 if bundle["name"] != body.name:
                     raise RuntimeError("reference_map_name_changed")
-                checked_grid(root, bundle)
+                checked_map(root, bundle)
                 last_failed = None
                 return map_payload(bundle)
             except Exception:
@@ -424,7 +513,7 @@ def make_app(upstream, root, nav2_process=None, motion_maps=None):
             if export_pending():
                 raise RuntimeError("reference_export_already_running")
             bundle = managed_map(identity)
-            checked_grid(root, bundle)
+            checked_map(root, bundle)
             upstream.activate_map(identity)
             if body.pose is None:
                 return True
@@ -459,6 +548,7 @@ def make_app(upstream, root, nav2_process=None, motion_maps=None):
             if body.pose is None or state.active_map_id != identity:
                 raise RuntimeError("reference_map_inactive_or_goal_missing")
             state.tasks.require_localization(identity)
+            checked_map(root, bundle)
             state.ros.activate_map(bundle["yaml_path"])
             return state.ros.compute_path(body.pose.model_dump(), timeout_s=15)
         return guarded(operation)

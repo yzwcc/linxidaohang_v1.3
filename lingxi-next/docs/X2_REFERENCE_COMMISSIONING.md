@@ -80,6 +80,8 @@ node tools/migrate-legacy.mjs --destination /var/lib/lingxi-next --rollback BACK
 
 ## 验收范围
 
+保存返回成功前，产品会从磁盘重新读取本次导出，核对建图会话、地图版本、坐标参考、栅格尺寸与朝向、PGM 摘要，以及定位点云的数量、原始字节摘要、有限坐标和有效法向。读取栅格、激活地图和预览路径时同样核对；发现不一致会拒绝操作，不删除原始录制或导出文件。目录记录存在并不代表地图可用。这些检查只验证产物一致性，不测量物理尺度，也不能替代新进程使用独立现场扫描验证 GICP 重定位。
+
 旧 X2 静态录包的前 10 帧原始 PointCloud2 和前 256 帧 IMU 已用隔离的 ROS Humble 反序列化。点云每点 32 字节，包含 `ring` UINT16 和 `timestamp` FLOAT64。相对纳秒转换后的最大点时间偏移为 95.181 ms。点云与 IMU 样本最大头时间戳间隔分别约 102.03 ms 与 10.54 ms。
 
 在隔离的 x86_64 Humble 环境中构建了同一参考提交的 FAST-LIO、录制器、代价地图插件、`grid_export_native` 和 `nav_ground_native`。静态实录回放生成 341 帧配对的 `/Odometry`、`/cloud_registered_body` 和 `/fast_lio/gravity`，并录下机身 `/tf` 与 `/tf_static`。离线工具 `tools/replay_reference_mapping.py` 需要独立的仅环回网络命名空间。输入录包可以只读挂载。
