@@ -377,6 +377,8 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
             physicalMotionSent: false as const, navigationReady: false as const },
           navigation: { status: "failed" as const, requiresStop: true, detail: "离线导航后端未确认，任务不得推进" },
         } : {}),
+        ...(referenceNavigation ? { navigation: { status: "failed" as const, requiresStop: true,
+          detail: "FAST-LIO 服务未确认停车状态，请现场核对" } } : {}),
         checks: emptySnapshot.checks.map((item) => ({
           ...item,
           detail: item.id === "aimdk" ? (error as Error).message : "等待 AIMDK 适配器",
@@ -461,7 +463,7 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
     const snapshot = await referenceNavigation.getSnapshot().catch(() => undefined);
     return { ...health, referenceStaticReady: snapshot?.connected === true && snapshot.mappingBackend === "fastlio"
       && snapshot.mappingStatus === "idle" && snapshot.mappingControlReady === true
-      && snapshot.referenceNavigation?.motionEnabled === false };
+      && snapshot.referenceNavigation?.motionEnabled === false && snapshot.navigation.requiresStop !== true };
   });
   app.post<{ Body: { pairingCode: string } }>("/api/v1/session/pair", async (request, reply) => {
     if (!secureRequest(request)) throw deny(426, "配对必须通过 HTTPS");

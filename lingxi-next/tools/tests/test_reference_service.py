@@ -80,6 +80,20 @@ class TargetCalibrationTests(unittest.TestCase):
             source.start_mapping.assert_not_called()
             source.activate_map.assert_not_called()
 
+            # A static restart cannot replace an unresolved motion task with idle.
+            live[0, 3] -= .012
+            marker = Path(directory) / "motion-in-progress"
+            marker.write_text("prior-session\n", encoding="ascii")
+            restarted = TestClient(make_app(source, Path(directory)))
+            recovered = restarted.get("/lingxi/status").json()
+            self.assertTrue(recovered["motionRecoveryRequired"])
+            self.assertFalse(recovered["mappingReady"] or recovered["planningReady"])
+            for operation in ("mapping/start", f"maps/{state.active_map_id}/activate", f"maps/{state.active_map_id}/plan"):
+                result = restarted.post(f"/lingxi/{operation}", json={})
+                self.assertEqual(result.status_code, 409)
+                self.assertEqual(result.json(), {"detail": "reference_stop_recovery_required"})
+            self.assertEqual(marker.read_text(encoding="ascii"), "prior-session\n")
+
 
 class ReferenceGridTests(unittest.TestCase):
     def test_discard_stops_then_deletes_only_the_matching_capture(self):

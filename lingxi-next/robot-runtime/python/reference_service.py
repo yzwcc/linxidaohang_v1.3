@@ -184,7 +184,7 @@ def make_app(upstream, root, nav2_process=None, motion_review=None):
     from pydantic import BaseModel, ConfigDict, Field, FiniteFloat
     from typing import Literal
     from reference_calibration import check_target_mounting
-    from reference_motion import MotionTask
+    from reference_motion import MOTION_RECORD, MotionTask, motion_record_present
     from reference_target import MAP_FILES
 
     motion_maps = None if motion_review is None else motion_review.maps
@@ -312,8 +312,13 @@ def make_app(upstream, root, nav2_process=None, motion_review=None):
             ros.submit(task)
 
     def navigation_idle():
+        if recovery_required():
+            raise HTTPException(409, detail="reference_stop_recovery_required")
         if motion_maps is not None and not state.ros.output_idle():
             raise RuntimeError("reference_motion_not_confirmed_idle")
+
+    def recovery_required():
+        return motion_maps is None and motion_record_present(root / MOTION_RECORD)
 
     def navigation_payload(calibration=None):
         if calibration is None:
@@ -380,6 +385,7 @@ def make_app(upstream, root, nav2_process=None, motion_review=None):
         aimdk = aimdk_ready()
         sensors_ready = bool(sensors["lidar"] and sensors["imu"] and not ros.get("fatal_error"))
         calibration = calibration_status()
+        recovery = recovery_required()
         phase = {"starting": "requested", "recording": "running", "stopping": "saving"}
         saving = finalizing or (export_request[0] if export_pending() else None)
         failed = last_failed or next((item["id"] for item in snapshot["items"] if item["id"] == last_started
@@ -394,11 +400,13 @@ def make_app(upstream, root, nav2_process=None, motion_review=None):
                   "sensorsReady": sensors_ready, "aimdkReady": aimdk, "calibration": calibration,
                   "nav2Available": nav2_available,
                   "mappingReady": bool(snapshot["enabled"] and current is None and sensors_ready
-                                       and aimdk and calibration == "matched" and not saving and not transition.locked()),
-                  "planningReady": bool(calibration == "matched" and nav_process_alive()
+                                       and aimdk and calibration == "matched" and not recovery and not saving and not transition.locked()),
+                  "planningReady": bool(calibration == "matched" and not recovery and nav_process_alive()
                                         and ros["localization_fresh"] and ros["actions"]["compute_path"]
                                         and ros["nav2"]["loaded_map"] and state.active_map_id)}
-        if calibration == "matched" and state.active_map_id and ros["localization_fresh"] and ros.get("pose") and ros.get("stamp"):
+        if recovery:
+            result["motionRecoveryRequired"] = True
+        if not recovery and calibration == "matched" and state.active_map_id and ros["localization_fresh"] and ros.get("pose") and ros.get("stamp"):
             result.update(pose=ros["pose"], poseAtMs=ros["stamp"] * 1000)
         if motion_maps is not None:
             result["navigation"] = navigation_payload(calibration)
@@ -684,6 +692,9 @@ def main():
             raise ValueError("motion_idle_sources_required")
         if not 0 < settings["max_forward_velocity"] <= .25 or not 0 < settings["max_angular_velocity"] <= .8 or settings["max_lateral_velocity"] != 0:
             raise ValueError("reference_motion_limits_out_of_range")
+        source_timeout = settings.get("source_timeout_ms")
+        if type(source_timeout) is not int or not 250 <= source_timeout <= 1000:
+            raise ValueError("reference_aimdk_source_timeout_out_of_range")
         upstream.RosGateway = gateway_type(upstream.RosGateway)
 
     # Uvicorn changes UDS mode itself when binding. Supply an already bound private socket.

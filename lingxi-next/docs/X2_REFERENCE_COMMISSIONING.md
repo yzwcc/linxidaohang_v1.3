@@ -83,7 +83,9 @@ sudo -u lingxi-next python3 -B bridge/reference_target.py \
 
 输出 `schemaVersion`、`firmware`、`aimdk`、`targetIdentitySha256`、`configSha256` 和 `fastlioConfigSha256`，不输出机器 ID 或外参数值，也不自动批准任何地图。`aimdk` 读取目标机 `/agibot/software/aimdk/version`，不填随附清单的 RC 版本。`targetIdentitySha256` 从本机 OS 机器标识派生，不能把一台机器的审查记录复制到另一台；仍需通过传感器预检及实测足迹确认。管理员只在现场检查完成后，把已经通过审查的 `maps` 加入记录；键为 `fastlio-…` 地图 ID，值为该地图 `metadata.json`、`map.yaml`、`map.pgm`、`localization.ply`、`localization.json` 的 SHA-256。启用前更新 `LINGXI_REFERENCE_CONFIG_SHA256` 并按维护流程重启。运行中如版本、配置、标定或审查改变，撤销当前输出；即使文件改回，旧进程也不恢复运动。重新核对并确认停稳后再启动新进程。
 
-导航页默认选定点，可在任务之间切换 Nav2。两种模式都要求同一运行代次内新鲜的 GICP 位姿、现场障碍点云、代价地图及 AIMDK 状态。暂停和停止会撤销输出，并等待 Nav2 的终态结果和停稳观测。异常退出后若数据目录仍有 `motion-in-progress`，先在现场确认停稳、旧控制源及控制进程均已退出，再归档该标记以恢复运动配置。运动试验必须配备现场操作人员和独立遥控急停。
+导航页默认选定点，可在任务之间切换 Nav2。两种模式都要求同一运行代次内新鲜的 GICP 位姿、现场障碍点云、代价地图及 AIMDK 状态。暂停和停止会撤销输出，并等待 Nav2 的终态结果、AIMDK 不再选中本进程的输入源，以及至少 3 组递增的停机后运控和里程计观测在稳定窗口内满足停稳条件。`source_timeout_ms` 必须为 250–1000 ms 的整数，首台按参考默认 1000 ms 做现场验证；配置时间不是实测硬件停车时间。
+
+发送运动前将 `motion-in-progress` 标记落盘。异常退出留下的标记不会因安装、API 重启或改回静态档而被系统当作停稳。静态接口保留故障状态，禁止新建图、切图和路径预览；运动档拒绝启动。不得以进程消失、配置超时或零命令替代独立急停和实测停车。若需恢复，先由现场人员确认实体停稳、旧控制源与进程退出，再由维护人员归档标记。断流及进程退出后的厂商输入源到期、实际停稳和最坏停车距离，仍需在两种模式的现场低速窗口分别取证。
 
 可通过 `LINGXI_REFERENCE_ACTIONS=1` 和 `lingxi-next-actions.service` 接入 AIMDK 白名单动作、表情、灵创资源。该单元与 `lingxi-next-aimdk.service` 共用本机端口，启用前检查并停用同端口的旧桥接单元。AgentSDK 的部署继续使用 `lingxi-next-agent.service`，真实语音会话、打断和播放结束仍需在机器人上检查。讲解只有在本次导航的到达与停稳均确认后才推进。
 

@@ -30,12 +30,15 @@ const calibrationDetail: Record<z.infer<typeof calibrationState>, string> = {
 };
 const calibrationErrors = new Map(Object.entries(calibrationDetail)
   .filter(([state]) => state !== "matched").map(([state, detail]) => [`reference_calibration_${state}`, detail]));
+const recoveryDetail = "上次导航未确认停稳，请现场核对机器人及旧控制源";
+const referenceErrors = new Map([...calibrationErrors, ["reference_stop_recovery_required", recoveryDetail]]);
 const statusSchema = z.object({
   phase: z.enum(["idle", "requested", "running", "saving", "failed"]),
   session: sessionId.nullable(),
   sensorsReady: z.boolean(), mappingReady: z.boolean(), aimdkReady: z.boolean(),
   planningReady: z.boolean(), calibration: calibrationState.optional(),
   nav2Available: z.boolean().optional(),
+  motionRecoveryRequired: z.boolean().optional(),
   pose: pose.optional(), poseAtMs: z.number().finite().positive().optional(),
   navigation: motionState.optional(),
 }).strict();
@@ -93,7 +96,7 @@ export class ReferenceNavigationAdapter implements RobotAdapter {
             const status = response.statusCode;
             let detail: string | undefined;
             if (status === 409 && size <= maximumBytes) {
-              try { detail = calibrationErrors.get(JSON.parse(Buffer.concat(parts).toString("utf8"))?.detail); }
+              try { detail = referenceErrors.get(JSON.parse(Buffer.concat(parts).toString("utf8"))?.detail); }
               catch { /* Other internal failures are not public diagnostics. */ }
             }
             reject(denied(detail ?? "FAST-LIO 操作未确认，请查看运行状态", status === 404 ? 404 : status === 409 ? 409 : 503));
@@ -119,20 +122,22 @@ export class ReferenceNavigationAdapter implements RobotAdapter {
     const now = Date.now();
     const livePose = state.poseAtMs !== undefined && now - state.poseAtMs >= -100 && now - state.poseAtMs <= 1500;
     const calibrated = state.calibration === "matched";
+    const recovering = state.motionRecoveryRequired === true;
     const calibrationMessage = state.calibration ? calibrationDetail[state.calibration] : "参考服务未报告本机标定，请同步升级";
-    const planningReady = calibrated && state.planningReady;
+    const planningReady = calibrated && !recovering && state.planningReady;
     return {
       connected: true, mapping: ["requested", "running", "saving"].includes(state.phase),
       mappingStatus: state.phase, mappingSession: state.session ?? undefined,
-      mappingBackend: "fastlio", mappingInputMode: "live", mappingControlReady: calibrated && state.mappingReady && state.aimdkReady,
+      mappingBackend: "fastlio", mappingInputMode: "live", mappingControlReady: calibrated && !recovering && state.mappingReady && state.aimdkReady,
       mappingCleanupComplete: !["requested", "running", "saving"].includes(state.phase),
       actionBusy: false,
-      referenceNavigation: { motionEnabled: !!motion, planningReady, mode: this.mode ?? "point" },
-      navigation: this.failedDispatch ? { status: "failed", taskId: motion?.taskId ?? undefined, requiresStop: true, detail: "导航结果未确认，请停止任务" }
+      referenceNavigation: { motionEnabled: !recovering && !!motion, planningReady, mode: this.mode ?? "point" },
+      navigation: recovering ? { status: "failed", requiresStop: true, detail: recoveryDetail }
+        : this.failedDispatch ? { status: "failed", taskId: motion?.taskId ?? undefined, requiresStop: true, detail: "导航结果未确认，请停止任务" }
         : motion ? { status: motion.status, taskId: motion.taskId ?? undefined, pointId: motion.pointId ?? undefined,
           requiresStop: motion.requiresStop, detail: motion.detail }
         : { status: "idle", detail: !calibrated ? calibrationMessage : planningReady ? "路径规划就绪 · 运动关闭" : "等待重定位 · 运动关闭" },
-      ...(calibrated && livePose && state.pose ? { pose: state.pose, poseEvidence: {
+      ...(calibrated && !recovering && livePose && state.pose ? { pose: state.pose, poseEvidence: {
         source: "independent-localization", coordinateUnits: "metres", observedAtMs: state.poseAtMs!,
       } } : {}),
       checks: [
@@ -140,9 +145,9 @@ export class ReferenceNavigationAdapter implements RobotAdapter {
         { id: "slam", label: "FAST-LIO", ready: state.phase !== "failed" || state.mappingReady },
         { id: "lidar", label: "雷达与 IMU", ready: state.sensorsReady },
         { id: "calibration", label: "本机标定", ready: calibrated, detail: calibrationMessage },
-        { id: "odom", label: "GICP 定位", ready: calibrated && !!(livePose && state.pose) },
-        { id: "navigation", label: "导航", ready: calibrated && !!motion?.ready && !this.failedDispatch && livePose && !!state.pose,
-          detail: !calibrated ? calibrationMessage : !motion ? "运动关闭" : motion.ready ? "运动准入已确认" : "等待地图、定位、障碍与控制状态" },
+        { id: "odom", label: "GICP 定位", ready: calibrated && !recovering && !!(livePose && state.pose) },
+        { id: "navigation", label: "导航", ready: calibrated && !recovering && !!motion?.ready && !this.failedDispatch && livePose && !!state.pose,
+          detail: recovering ? recoveryDetail : !calibrated ? calibrationMessage : !motion ? "运动关闭" : motion.ready ? "运动准入已确认" : "等待地图、定位、障碍与控制状态" },
         { id: "linksoul", label: "灵心", ready: false },
       ],
       motionPresets: [], expressions: [], linkcraftResources: [], updatedAt: new Date(now).toISOString(),

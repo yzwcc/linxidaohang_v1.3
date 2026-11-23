@@ -91,7 +91,8 @@ it("correlates reference map saves on the paired HTTPS API and rejects actuation
 it("gates commissioning health on decoding the actual static reference status shape", async () => {
   const root = await mkdtemp(path.join(tmpdir(), "lingxi-reference-health-"));
   const status = { phase: "idle", session: null, sensorsReady: true, aimdkReady: true,
-    calibration: "matched", nav2Available: true, mappingReady: true, planningReady: false };
+    calibration: "matched", nav2Available: true, mappingReady: true, planningReady: false,
+    motionRecoveryRequired: undefined as boolean | undefined };
   const call = vi.fn(async () => ({ ...status }));
   const reference = Object.assign(Object.create(ReferenceNavigationAdapter.prototype), {
     call, demoMode: false,
@@ -106,6 +107,11 @@ it("gates commissioning health on decoding the actual static reference status sh
     status.mappingReady = true;
     call.mockResolvedValueOnce({ ...status, nav2Available: "wrong" } as unknown as typeof status);
     expect((await server.inject("/health")).json()).toMatchObject({ ok: true, referenceStaticReady: false });
+    status.motionRecoveryRequired = true;
+    expect((await server.inject("/health")).json()).toMatchObject({ ok: true, referenceStaticReady: false });
+    expect(await reference.getSnapshot()).toMatchObject({ connected: true, mappingControlReady: false,
+      navigation: { status: "failed", requiresStop: true, detail: expect.stringContaining("未确认停稳") } });
+    await expect(reference.selectMode("nav2")).rejects.toThrow("停止当前任务");
     expect((await server.inject({ url: "/health", remoteAddress: "192.0.2.42" })).json())
       .not.toHaveProperty("referenceStaticReady");
   } finally {

@@ -14,6 +14,29 @@ LOG = logging.getLogger("lingxi.reference.motion")
 TERMINAL_ACTION = {4, 5, 6}  # ROS GoalStatus SUCCEEDED, CANCELED, ABORTED
 STOPPED_MC = {2, 4}          # AIMDK STABLE, SAFE
 ACTIVE = {"requested", "running", "stopping"}
+MOTION_RECORD = "motion-in-progress"
+
+
+def motion_record_present(path):
+    # Even a damaged or dangling marker is not evidence of a safe stop.
+    try:
+        path.lstat()
+    except FileNotFoundError:
+        return False
+    return True
+
+
+def create_motion_record(path, session):
+    with path.open("x", encoding="ascii") as record:
+        record.write(session + "\n")
+        record.flush()
+        os.fsync(record.fileno())
+    # Persist the directory entry too, before any nonzero command can be sent.
+    directory = os.open(path.parent, os.O_RDONLY | os.O_DIRECTORY)
+    try:
+        os.fsync(directory)
+    finally:
+        os.close(directory)
 
 
 class TrackedActionClient:
@@ -75,8 +98,8 @@ def gateway_type(base):
             # Each process owns a unique source. A restart cannot remove or reuse its predecessor's source.
             self.input_name = "lingxi-ref-" + self.motion_session[:12]
             self.idle_sources = set(settings["lingxi_motion_idle_sources"])
-            self.motion_record = Path(settings["data_dir"]) / "motion-in-progress"
-            if self.motion_record.exists():
+            self.motion_record = Path(settings["data_dir"]) / MOTION_RECORD
+            if motion_record_present(self.motion_record):
                 raise RuntimeError("previous_reference_task_requires_field_stop_verification")
             super().__init__({**settings, "source_name": self.input_name, "goal_max_corrections": 0})
 
@@ -219,10 +242,7 @@ def gateway_type(base):
             with self.lock:
                 if self._navigation_busy() or not self.ready():
                     raise RuntimeError("reference_motion_admission_failed")
-                with self.motion_record.open("x", encoding="ascii") as record:
-                    record.write(self.motion_session + "\n")
-                    record.flush()
-                    os.fsync(record.fileno())
+                create_motion_record(self.motion_record, self.motion_session)
                 self.motion_task = task
                 task.deadline = time.monotonic() + 150
                 task.run_id = self.navigation_frame["run_id"]
@@ -324,6 +344,8 @@ def gateway_type(base):
 
         def _retire(self, task):
             stable_since = None
+            last_pair = None
+            stable_pairs = 0
             deadline = time.monotonic() + 16
             try:
                 while time.monotonic() < deadline:
@@ -334,15 +356,21 @@ def gateway_type(base):
                         mc = self._fresh_mc()
                         motion = measured_motion(self.motion_history)
                         if (actions_terminal and not self._navigation_busy() and self._odometry_fresh() and mc
-                                and mc[0] > task.stop_stamp and mc[3] in STOPPED_MC
+                                and mc[0] > task.stop_stamp and mc[2] != self.input_name and mc[3] in STOPPED_MC
                                 and self.motion_history and self.motion_history[-1][0] > task.stop_stamp + .5
                                 and motion and motion["linear_mps"] <= .02 and motion["angular_rps"] <= .02):
                             stable_since = stable_since if stable_since is not None else time.monotonic()
-                            if time.monotonic() - stable_since >= .8:
+                            pair = (mc[0], self.motion_history[-1][0])
+                            if last_pair is None or all(current > prior for current, prior in zip(pair, last_pair)):
+                                last_pair = pair
+                                stable_pairs += 1
+                            if stable_pairs >= 3 and time.monotonic() - stable_since >= .8:
                                 self._complete_retirement(task, mc)
                                 return
                         else:
                             stable_since = None
+                            last_pair = None
+                            stable_pairs = 0
                     time.sleep(.05)
             except Exception:
                 LOG.exception("Unable to confirm reference controller retirement")
