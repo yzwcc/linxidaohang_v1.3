@@ -108,6 +108,14 @@ it("correlates reference map saves on the paired HTTPS API and rejects actuation
     await expect(reference.getSnapshot()).rejects.toThrow();
     status = { ...status, referenceCaptureProgress: undefined };
     expect(await reference.getSnapshot()).not.toHaveProperty("referenceCaptureProgress");
+    status = { ...status, phase: "failed", session, mappingFailure: "fastlio_scan_backlog" };
+    expect((await secureRequest(origin, "GET", stateUrl, undefined, token)).json()).toMatchObject({
+      mappingStatus: "failed", mappingSession: session, mappingFailure: "fastlio_scan_backlog", mapping: false,
+    });
+    status = { ...status, phase: "running" };
+    await expect(reference.getSnapshot()).rejects.toThrow();
+    status = { ...status, phase: "failed", session: null };
+    await expect(reference.getSnapshot()).rejects.toThrow();
   } finally {
     await server?.close();
     await rm(root, { recursive: true, force: true });

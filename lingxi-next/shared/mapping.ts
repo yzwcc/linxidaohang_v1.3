@@ -6,6 +6,6 @@ export const mappingFailureSchema = z.enum([
   "child_reported_failure", "child_exited_without_confirmed_stop",
   "child_health_pipe_closed", "invalid_child_health_protocol",
   "child_descendants_outlived_owner", "process_cleanup_failed",
-  "mapping_process_failed", "mapping_service_unavailable",
+  "mapping_process_failed", "mapping_service_unavailable", "fastlio_scan_backlog",
 ]);
 export type MappingFailure = z.infer<typeof mappingFailureSchema>;

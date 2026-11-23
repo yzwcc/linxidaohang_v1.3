@@ -9,7 +9,7 @@ import tempfile
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "robot-runtime" / "python"))
-from reference_service import (checked_grid, checked_map, make_app, reference_capture_phase,
+from reference_service import (checked_grid, checked_map, make_app, reference_capture_failure, reference_capture_phase,
                                reference_capture_progress, reference_capture_settings)
 from reference_calibration import check_target_mounting
 
@@ -120,6 +120,26 @@ class ReferenceCaptureTests(unittest.TestCase):
         for count in (True, None, -1, 1 << 53, 2.5):
             self.assertIsNone(reference_capture_progress({**live, "stats": {"paired_frames": count, "recording_bytes": 0}}))
 
+    def test_failed_fastlio_session_requires_its_own_guard_log(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp).resolve()
+            identity = "a" * 32
+            directory = root / f"scan__{identity}"
+            log = directory / "logs" / "fastlio.log"
+            log.parent.mkdir(parents=True)
+            record = {"state": "failed", "id": identity, "output_dir": str(directory),
+                      "processes": {"fastlio": {"returncode": -6}}}
+            self.assertIsNone(reference_capture_failure(root, record))
+            log.write_text("  what():  unrelated abort\n", encoding="utf-8")
+            self.assertIsNone(reference_capture_failure(root, record))
+            with log.open("a", encoding="utf-8") as stream:
+                stream.write("x" * 9000 + "\n  what():  FAST-LIO 扫描处理延迟超过允许范围\n")
+            self.assertEqual(reference_capture_failure(root, record), "fastlio_scan_backlog")
+            self.assertIsNone(reference_capture_failure(root, {**record, "id": "b" * 32}))
+            self.assertIsNone(reference_capture_failure(root, {**record, "state": "recording"}))
+            self.assertIsNone(reference_capture_failure(root, {**record, "processes": {}}))
+            self.assertIsNone(reference_capture_failure(directory / "elsewhere", record))
+
     def test_premature_save_does_not_stop_or_fail_capture(self):
         from fastapi.testclient import TestClient
 
@@ -145,6 +165,40 @@ class ReferenceCaptureTests(unittest.TestCase):
                 self.assertEqual((status["phase"], status["session"]), ("requested", identity))
                 self.assertEqual(status["referenceCaptureProgress"], {"pairedFrames": 7, "recordingBytes": 2048})
             source.stop_mapping.assert_not_called()
+
+    def test_status_reports_only_the_started_sessions_verified_failure(self):
+        from fastapi.testclient import TestClient
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp).resolve()
+            profile, live = target_calibration(root)
+            aimdk = SimpleNamespace(service_is_ready=lambda: True)
+            ros = SimpleNamespace(source_get=aimdk, source_set=aimdk, _navigation_transform=Mock(return_value=live),
+                                  snapshot=lambda: {"sensor_fresh": {"lidar": True, "imu": True},
+                                                    "localization_fresh": False})
+            items = []
+            mapping = SimpleNamespace(snapshot=lambda: {"active": None, "items": items, "enabled": True},
+                                      is_active=lambda: False)
+            state = SimpleNamespace(mapping=mapping, ros=ros, active_map_id=None,
+                                    navigation_lio=SimpleNamespace(is_active=lambda: False),
+                                    settings={"mapping": {"fastlio_config": str(profile)}})
+            starts = iter({"id": letter * 32, "started_at": 100} for letter in "ab")
+            source = SimpleNamespace(app=SimpleNamespace(state=state), lifespan=None,
+                                     MappingStartRequest=lambda **payload: payload, start_mapping=lambda _: next(starts))
+            client = TestClient(make_app(source, root))
+            identity = "a" * 32
+            log = root / f"scan__{identity}" / "logs" / "fastlio.log"
+            log.parent.mkdir(parents=True)
+            log.write_text("  what():  FAST-LIO 扫描处理延迟超过允许范围\n", encoding="utf-8")
+            items.append({"id": identity, "state": "failed", "output_dir": str(log.parent.parent),
+                          "processes": {"fastlio": {"returncode": -6}}})
+            self.assertNotIn("mappingFailure", client.get("/lingxi/status").json())
+            self.assertEqual(client.post("/lingxi/mapping/start").json(), identity)
+            status = client.get("/lingxi/status").json()
+            self.assertEqual((status["phase"], status["session"], status["mappingFailure"]),
+                             ("failed", identity, "fastlio_scan_backlog"))
+            self.assertEqual(client.post("/lingxi/mapping/start").json(), "b" * 32)
+            self.assertNotIn("mappingFailure", client.get("/lingxi/status").json())
 
 
 class ReferenceGridTests(unittest.TestCase):

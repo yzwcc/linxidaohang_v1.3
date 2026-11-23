@@ -42,6 +42,7 @@ const failures: Record<MappingFailure, string> = {
   process_cleanup_failed: "建图进程清理未完成",
   mapping_process_failed: "建图会话未完成",
   mapping_service_unavailable: "无法确认建图服务状态",
+  fastlio_scan_backlog: "FAST-LIO 待处理扫描积压，触发保护停止；本轮未生成地图",
 };
 
 export function mappingFeedback(state: Pick<RobotState,

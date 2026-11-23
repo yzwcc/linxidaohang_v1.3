@@ -78,6 +78,30 @@ def resource(root, path):
     return result
 
 
+def reference_capture_failure(root, record):
+    if not record or record.get("state") != "failed":
+        return None
+    process = record.get("processes", {}).get("fastlio", {})
+    # The manifest comes from the Linux reference process; use its SIGABRT
+    # exit code even when diagnostics/tests run on Windows.
+    if process.get("returncode") != -6 or not record.get("output_dir"):
+        return None
+    directory = Path(record["output_dir"])
+    if not directory.name.endswith("__" + record["id"]):
+        return None
+    try:
+        log = resource(root, directory / "logs" / "fastlio.log")
+        with log.open("rb") as stream:
+            size = stream.seek(0, os.SEEK_END)
+            stream.seek(max(0, size - 8192))
+            lines = stream.read(8192).decode("utf-8", errors="replace").splitlines()
+    except (ValueError, OSError):
+        return None
+    if any(line.strip() == "what():  FAST-LIO 扫描处理延迟超过允许范围" for line in lines):
+        return "fastlio_scan_backlog"
+    return None
+
+
 def file_sha256(path):
     sha = hashlib.sha256()
     with path.open("rb") as stream:
@@ -463,6 +487,11 @@ def make_app(upstream, root, nav2_process=None, motion_review=None):
             progress = reference_capture_progress(current)
             if progress is not None:
                 result["referenceCaptureProgress"] = progress
+        if result["phase"] == "failed" and failed:
+            record = next((item for item in snapshot["items"] if item["id"] == failed), None)
+            failure = reference_capture_failure(root, record)
+            if failure:
+                result["mappingFailure"] = failure
         if recovery:
             result["motionRecoveryRequired"] = True
         if not recovery and calibration == "matched" and state.active_map_id and ros["localization_fresh"] and ros.get("pose") and ros.get("stamp"):

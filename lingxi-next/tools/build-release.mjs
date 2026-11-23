@@ -32,6 +32,7 @@ await run(process.execPath, ["node_modules/vitest/vitest.mjs", "run"]);
 await run("python", ["-m", "unittest", "discover", "-s", "robot-api/tests", "-p", "test_*.py", "-q"]);
 await run("python", ["-B", "-m", "unittest", "discover", "-s", "tools/tests", "-p", "test_score_x2_voice_field.py", "-q"]);
 await run("python", ["-B", "-m", "unittest", "discover", "-s", "tools/tests", "-p", "test_replay_reference_localization.py", "-q"]);
+await run("python", ["-B", "-m", "unittest", "discover", "-s", "tools/tests", "-p", "test_inspect_reference_capture_timing.py", "-q"]);
 await run(process.execPath, ["node_modules/vite/bin/vite.js", "build"]);
 const { build } = await import("esbuild");
 await build({ entryPoints: ["robot-api/src/index.ts"], bundle: true, platform: "node", target: "node22",
@@ -70,6 +71,7 @@ await Promise.all([
   cp("robot-agent/src/main/resources/logback.xml", path.join(stage, "agent/logback.xml")),
   cp("tools/migrate-legacy.mjs", path.join(stage, "tools/migrate-legacy.mjs")),
   cp("tools/check_reference_bag.py", path.join(stage, "tools/check_reference_bag.py")),
+  cp("tools/inspect_reference_capture_timing.py", path.join(stage, "tools/inspect_reference_capture_timing.py")),
   cp("tools/probe_reference_target.py", path.join(stage, "tools/probe_reference_target.py")),
   cp("tools/prepare_reference_profile.py", path.join(stage, "tools/prepare_reference_profile.py")),
   cp("tools/replay_reference_mapping.py", path.join(stage, "tools/replay_reference_mapping.py")),

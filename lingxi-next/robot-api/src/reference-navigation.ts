@@ -42,10 +42,12 @@ const statusSchema = z.object({
   motionRecoveryRequired: z.boolean().optional(),
   referenceCaptureProgress: z.object({ pairedFrames: z.number().int().nonnegative().safe(),
     recordingBytes: z.number().int().nonnegative().safe() }).strict().optional(),
+  mappingFailure: z.literal("fastlio_scan_backlog").optional(),
   pose: pose.optional(), poseAtMs: z.number().finite().positive().optional(),
   navigation: motionState.optional(),
 }).strict().refine((state) => state.referenceCaptureProgress === undefined ||
-  (state.session !== null && ["requested", "running", "saving"].includes(state.phase)));
+  (state.session !== null && ["requested", "running", "saving"].includes(state.phase)))
+  .refine((state) => state.mappingFailure === undefined || (state.session !== null && state.phase === "failed"));
 const gridSchema = z.object({
   width: z.number().int().positive(), height: z.number().int().positive(),
   resolution: z.number().min(0.02).max(0.2),
@@ -134,6 +136,7 @@ export class ReferenceNavigationAdapter implements RobotAdapter {
       mappingStatus: state.phase, mappingSession: state.session ?? undefined,
       mappingBackend: "fastlio", mappingInputMode: "live", mappingControlReady: calibrated && !recovering && state.mappingReady && state.aimdkReady,
       ...(state.referenceCaptureProgress && { referenceCaptureProgress: state.referenceCaptureProgress }),
+      ...(state.mappingFailure && { mappingFailure: state.mappingFailure }),
       mappingCleanupComplete: !["requested", "running", "saving"].includes(state.phase),
       actionBusy: false,
       referenceNavigation: { motionEnabled: !recovering && !!motion, planningReady, mode: this.mode ?? "point" },

@@ -126,4 +126,10 @@ describe("mapping startup and failure feedback", () => {
     expect(mappingFeedback({ ...running, mappingStatus: "failed" }))
       .toEqual({ tone: "error", text: "建图会话未完成；进程清理尚未确认" });
   });
+
+  it("distinguishes a verified scan backlog abort from a preview disconnect", () => {
+    expect(mappingFeedback({ ...running, mappingBackend: "fastlio", mappingStatus: "failed",
+      mappingFailure: "fastlio_scan_backlog", mappingCleanupComplete: true })).toEqual({ tone: "error",
+      text: "FAST-LIO 待处理扫描积压，触发保护停止；本轮未生成地图；进程已清理" });
+  });
 });
