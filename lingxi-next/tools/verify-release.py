@@ -85,6 +85,10 @@ with tarfile.open(filename, "r|gz") as archive:
         "810c5e7a7d40191097dc5c4c37e3133407e63307fcb204d35caacb7768912c25"
     status = json.loads(captured["release-status.json"])
     assert status["classification"] == "commissioning" and status["productionAccepted"] is False
+    reference_probe = status.get("referenceNavigation", {}).get("targetProbe")
+    if reference_probe is not None:
+        assert reference_probe == "tools/probe_reference_target.py"
+        assert {reference_probe, "tools/check_reference_bag.py", "bridge/reference_calibration.py"} <= files.keys()
     scope = verify_scope(status, captured["deploy/release-scope.json"], files)
     independent_scope = None
     source_references = 0

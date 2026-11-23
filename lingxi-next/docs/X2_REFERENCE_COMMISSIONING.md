@@ -19,6 +19,14 @@ ARM64 核心联调包提供产品 Web、API、参考服务适配、AgentSDK 进�
 2. 用这台机器的厂商标定及同机 ROS TF 核对雷达和 IMU 的安装外参，另存为产品 FAST-LIO 配置。`mapping.fastlio_config` 指向此文件，`mapping.calibration_files` 仅列入经核对的本机资料；关闭 `mapping.extrinsic_est_en`。不要使用参考仓库的外参数值、其他机器的标定或回放工具生成的配置。配置由管理员维护，参考服务账号只读。不要将本机标定提交到 Git 或写入通用安装包。
 3. 保持 `motion_enabled: false`，启动后确认私有 Socket `/lingxi/status` 的 `calibration` 为 `matched`，以及配对界面的「本机标定」检查通过。其中 `matched` 表示配置的 `imu_from_lidar` 与当前 ROS 图的 `lidar_chest_front ← lidar_imu_chest_front` 相乘后，距单位矩阵的最大元素差不超过 `0.0001`。配置无效、TF 缺失/无效或二者不符时，建图、地图激活、路径预览和导航准入被禁用；停止和放弃仍可执行。与 TF 一致不等于标定精度合格，现场仍须验证地图尺度、方向、重定位和停车精度。如果外参确有更新，停下任务和建图后更新配置并重启；旧地图先独立验证，不直接作为运动地图使用。
 
+在启用新服务前，可从解包目录运行以下只读探测。先加载实际选用的 Humble 与 AIMDK overlay，在与计划部署相同的 DDS 域和配置下，使用参考服务的 Python 环境，将路径换成本机拟部署的 FAST-LIO YAML：
+
+```bash
+python3 -B tools/probe_reference_target.py --fastlio-config /etc/lingxi-next/fastlio-x2.yaml --seconds 6
+```
+
+探测仅订阅传感器、运控状态和 TF，查询 AIMDK 服务类型，不调用服务。JSON 记录实收样本与时钟、点云布局、三个同时间戳 TF 的配对次数和外参检查结果，不记录原始点云或标定值。`ok: false` 时先排查不可用项；`ok: true` 只代表该短采样窗口的接口检查通过，不能替代固件/SDK 清单核对、现场标定、足迹测量或运动验收。
+
 参考仓库的版权人代码使用 PolyForm Noncommercial 1.0.0 及另行商业授权。用户已确认该仓库的商业复用和分发授权。实际分发引用仓库或其构建产物时，保留原 LICENSE、`Required Notice: Copyright (c) 2026 Mikeaaaa14 (https://github.com/Mikeaaaa14)`，并履行各组件的对应义务，包括 FAST-LIO 的 GPLv2、Patchwork++ 的 BSD 声明和 OctoMap 随附许可证。
 
 ## 点位与讲解迁移
