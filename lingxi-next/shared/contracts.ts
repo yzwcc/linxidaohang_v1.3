@@ -151,6 +151,7 @@ export type RobotState = {
   mappingCaptureLimitSeconds?: number;
   mappingSession?: string;
   mappingProgress?: { completedMessages: number; processedScans: number; estimatedPoses: number };
+  referenceCaptureProgress?: { pairedFrames: number; recordingBytes: number };
   mappingOptimization?: {
     engine: "glim-full-async-v1";
     acceptedFrames: number; completedFrames: number; pendingFrames: number; frameCapacity: number;

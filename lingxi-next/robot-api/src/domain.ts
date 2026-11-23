@@ -104,6 +104,7 @@ export type RobotSnapshot = Pick<
   | "mappingCaptureLimitSeconds"
   | "mappingSession"
   | "mappingProgress"
+  | "referenceCaptureProgress"
   | "mappingOptimization"
   | "mappingFailure"
   | "mappingCleanupComplete"

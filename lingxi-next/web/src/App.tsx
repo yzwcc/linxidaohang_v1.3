@@ -456,6 +456,10 @@ function Mapping({
               <span className="tag mono">位姿 {state.mappingProgress.estimatedPoses}</span>
               <span className="tag mono">消息 {state.mappingProgress.completedMessages}</span>
             </>}
+            {state.mapping && state.mappingBackend === "fastlio" && state.referenceCaptureProgress && <>
+              <span className="tag mono">已配对扫描 {state.referenceCaptureProgress.pairedFrames} 帧</span>
+              <span className="tag mono">录制 {(state.referenceCaptureProgress.recordingBytes / 1024 ** 2).toFixed(1)} MiB</span>
+            </>}
             {state.mapping && state.mappingOptimization && <span className="inline" data-testid="mapping-optimization">
               <span className="tag mono">待优化 {state.mappingOptimization.pendingFrames} / {state.mappingOptimization.frameCapacity} 帧</span>
               <span className="tag mono">历史最大排队 {(state.mappingOptimization.maximumWaitMs / 1000).toFixed(1)} 秒</span>
@@ -465,7 +469,7 @@ function Mapping({
           </div>
         </Section>
         <div className="stack">
-          <Section title="建图准备检查" icon={ShieldCheck}><CheckList checks={state.checks.filter((item) => ["aimdk", "slam", "lidar", "odom"].includes(item.id))} /></Section>
+          <Section title="建图准备检查" icon={ShieldCheck}><CheckList checks={state.checks.filter((item) => ["aimdk", "slam", "lidar", "calibration", "odom"].includes(item.id))} /></Section>
           <Section title="采集控制" icon={Activity}>
             <div className="stack">
               {feedback && <div className={`notice ${feedback.tone}`} role={feedback.tone === "error" ? "alert" : "status"}

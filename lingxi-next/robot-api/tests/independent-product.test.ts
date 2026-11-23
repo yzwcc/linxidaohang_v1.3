@@ -59,10 +59,12 @@ it("correlates reference map saves on the paired HTTPS API and rejects actuation
   const map = { id: `fastlio-${session}`, name: "展厅", active: false, resolution: 0.05, origin: [0, 0, 0] };
   const save = vi.fn(async () => map);
   const actuate = vi.fn();
+  let status: Record<string, unknown> = { phase: "running", session, sensorsReady: true, aimdkReady: true,
+    calibration: "matched", mappingReady: false, planningReady: false,
+    referenceCaptureProgress: { pairedFrames: 18, recordingBytes: 2_097_152 } };
   const reference = Object.assign(Object.create(ReferenceNavigationAdapter.prototype), {
     demoMode: false,
-    getSnapshot: async () => ({ connected: true, mapping: true, mappingBackend: "fastlio", mappingSession: session,
-      actionBusy: false, navigation: { status: "idle" }, checks: [], motionPresets: [], expressions: [], linkcraftResources: [] }),
+    call: async () => status,
     listMaps: async () => [], stopAndSaveMap: save, startNavigation: actuate,
   }) as ReferenceNavigationAdapter;
   let server: FastifyInstance | undefined;
@@ -74,6 +76,26 @@ it("correlates reference map saves on the paired HTTPS API and rejects actuation
     const pairing = await secureRequest(origin, "POST", "/api/v1/session/pair", { pairingCode: "synthetic-reference" });
     expect(pairing.statusCode).toBe(201);
     const { token } = pairing.json() as { token: string };
+    const stateUrl = "/api/v1/state";
+    expect((await secureRequest(origin, "GET", stateUrl)).statusCode).toBe(401);
+    expect((await secureRequest(origin, "GET", stateUrl, undefined, token)).json()).toMatchObject({
+      mappingBackend: "fastlio", mappingSession: session, referenceCaptureProgress: status.referenceCaptureProgress,
+    });
+    const events = await server.injectWS("/api/v1/events", {
+      headers: { "sec-websocket-protocol": `lingxi, bearer.${token}` },
+    });
+    try {
+      const message = await new Promise<unknown>((resolve, reject) => {
+        events.once("error", reject);
+        events.once("message", (data) => {
+          try { resolve(JSON.parse(data.toString())); } catch (error) { reject(error); }
+        });
+      });
+      expect(message).toMatchObject({ type: "state", state: { mappingSession: session,
+        referenceCaptureProgress: status.referenceCaptureProgress } });
+    } finally {
+      events.terminate();
+    }
     expect((await secureRequest(origin, "POST", "/api/v1/mapping/stop-save", { name: map.name }, token)).statusCode).toBe(400);
     expect(save).not.toHaveBeenCalled();
     expect((await secureRequest(origin, "POST", "/api/v1/mapping/stop-save", { name: map.name, session }, token)).json())
@@ -82,6 +104,10 @@ it("correlates reference map saves on the paired HTTPS API and rejects actuation
     expect((await secureRequest(origin, "POST", "/api/v1/navigation/point", { pointId: "target" }, token)).statusCode).toBe(409);
     expect((await secureRequest(origin, "POST", "/api/v1/tours/tour/start", {}, token)).statusCode).toBe(409);
     expect(actuate).not.toHaveBeenCalled();
+    status = { ...status, phase: "idle", session: null };
+    await expect(reference.getSnapshot()).rejects.toThrow();
+    status = { ...status, referenceCaptureProgress: undefined };
+    expect(await reference.getSnapshot()).not.toHaveProperty("referenceCaptureProgress");
   } finally {
     await server?.close();
     await rm(root, { recursive: true, force: true });

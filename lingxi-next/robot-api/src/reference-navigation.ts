@@ -31,7 +31,8 @@ const calibrationDetail: Record<z.infer<typeof calibrationState>, string> = {
 const calibrationErrors = new Map(Object.entries(calibrationDetail)
   .filter(([state]) => state !== "matched").map(([state, detail]) => [`reference_calibration_${state}`, detail]));
 const recoveryDetail = "上次导航未确认停稳，请现场核对机器人及旧控制源";
-const referenceErrors = new Map([...calibrationErrors, ["reference_stop_recovery_required", recoveryDetail]]);
+const referenceErrors = new Map([...calibrationErrors, ["reference_stop_recovery_required", recoveryDetail],
+  ["reference_capture_initializing", "建图还在初始化，请保持机器人静止，等到采集中再保存"]]);
 const statusSchema = z.object({
   phase: z.enum(["idle", "requested", "running", "saving", "failed"]),
   session: sessionId.nullable(),
@@ -39,9 +40,12 @@ const statusSchema = z.object({
   planningReady: z.boolean(), calibration: calibrationState.optional(),
   nav2Available: z.boolean().optional(),
   motionRecoveryRequired: z.boolean().optional(),
+  referenceCaptureProgress: z.object({ pairedFrames: z.number().int().nonnegative().safe(),
+    recordingBytes: z.number().int().nonnegative().safe() }).strict().optional(),
   pose: pose.optional(), poseAtMs: z.number().finite().positive().optional(),
   navigation: motionState.optional(),
-}).strict();
+}).strict().refine((state) => state.referenceCaptureProgress === undefined ||
+  (state.session !== null && ["requested", "running", "saving"].includes(state.phase)));
 const gridSchema = z.object({
   width: z.number().int().positive(), height: z.number().int().positive(),
   resolution: z.number().min(0.02).max(0.2),
@@ -129,6 +133,7 @@ export class ReferenceNavigationAdapter implements RobotAdapter {
       connected: true, mapping: ["requested", "running", "saving"].includes(state.phase),
       mappingStatus: state.phase, mappingSession: state.session ?? undefined,
       mappingBackend: "fastlio", mappingInputMode: "live", mappingControlReady: calibrated && !recovering && state.mappingReady && state.aimdkReady,
+      ...(state.referenceCaptureProgress && { referenceCaptureProgress: state.referenceCaptureProgress }),
       mappingCleanupComplete: !["requested", "running", "saving"].includes(state.phase),
       actionBusy: false,
       referenceNavigation: { motionEnabled: !recovering && !!motion, planningReady, mode: this.mode ?? "point" },

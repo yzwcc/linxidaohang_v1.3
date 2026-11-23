@@ -39,6 +39,16 @@ def reference_capture_phase(current, now):
     return {"starting": "requested", "stopping": "saving"}.get(current["state"], "failed")
 
 
+def reference_capture_progress(current):
+    if current is None or current["state"] not in {"recording", "stopping"}:
+        return None
+    stats = current.get("stats", {})
+    paired, recorded = stats.get("paired_frames"), stats.get("recording_bytes")
+    if not all(type(value) is int and 0 <= value <= (1 << 53) - 1 for value in (paired, recorded)):
+        return None
+    return {"pairedFrames": paired, "recordingBytes": recorded}
+
+
 def private_directory(path):
     if not path.is_absolute() or path != path.resolve(strict=True) or not path.is_dir():
         raise ValueError("canonical_private_directory_required")
@@ -419,6 +429,10 @@ def make_app(upstream, root, nav2_process=None, motion_review=None):
                   "planningReady": bool(calibration == "matched" and not recovery and nav_process_alive()
                                         and ros["localization_fresh"] and ros["actions"]["compute_path"]
                                         and ros["nav2"]["loaded_map"] and state.active_map_id)}
+        if current and current["id"] == result["session"]:
+            progress = reference_capture_progress(current)
+            if progress is not None:
+                result["referenceCaptureProgress"] = progress
         if recovery:
             result["motionRecoveryRequired"] = True
         if not recovery and calibration == "matched" and state.active_map_id and ros["localization_fresh"] and ros.get("pose") and ros.get("stamp"):
