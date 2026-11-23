@@ -32,6 +32,9 @@ export type OccupancyGrid = {
   stamp: number;
 };
 
+export type SurveyOverview = { id: string; frame: "map" | "start-base"; stampMs: number;
+  xyz: number[]; trail: number[]; pose: [number, number, number] | null };
+
 export type LidarFrame = {
   sequence: number;
   epoch: string;

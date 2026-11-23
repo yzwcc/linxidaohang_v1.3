@@ -30,6 +30,18 @@ def reference_capture_settings(settings):
     return {**settings, "mapping": {**settings["mapping"], "grid_cache_enabled": False}}
 
 
+def capture_parameters(reader, target):
+    # Only the mapping manager's per-session copy; not the factory configuration
+    # or navigation LIO. Keep the registered scan, body scan, PCD and recorder.
+    def load(path):
+        params = reader(path)
+        if path != target:
+            return params
+        return {**params, 'publish': {**params.get('publish', {}), 'map_en': False,
+                                       'path_en': False, 'effect_map_en': False}}
+    return load
+
+
 def reference_capture_phase(current, now):
     if current["state"] == "recording":
         began = current.get("recording_started_at")
@@ -123,7 +135,7 @@ def checked_grid(root, bundle, expected_sha256=None):
             "cells": cells}
 
 
-def checked_map(root, bundle):
+def checked_map(root, bundle, *, overview=False):
     """Reopen a pinned export and verify the assets before save or load acknowledgement."""
     import numpy as np
 
@@ -162,6 +174,7 @@ def checked_map(root, bundle):
     # doubles and no faces. Check the layout and byte count before interpreting data.
     cloud = resource(root, directory / "localization.ply")
     sha = hashlib.sha256()
+    sampled = []
     with cloud.open("rb") as stream:
         header = stream.peek(1024)[:1024]
         end = header.find(b"end_header\n")
@@ -181,6 +194,9 @@ def checked_map(root, bundle):
                 raise ValueError("truncated_reference_ply")
             sha.update(chunk)
             vertices = np.frombuffer(chunk, dtype="<f8").reshape(-1, 6)
+            if overview:
+                stride = math.ceil(count / 50000)
+                sampled.extend(vertices[(-offset) % stride::stride, :3].round(3).reshape(-1).tolist())
             if not np.isfinite(vertices).all():
                 raise ValueError("invalid_reference_ply_geometry")
             squared_norms = np.einsum("ij,ij->i", vertices[:, 3:], vertices[:, 3:])
@@ -192,7 +208,14 @@ def checked_map(root, bundle):
     raster_hash = free_space.get("output_sha256")
     if not isinstance(raster_hash, str) or not re.fullmatch(r"[0-9a-f]{64}", raster_hash):
         raise ValueError("reference_grid_digest_missing")
-    return checked_grid(root, bundle, raster_hash)
+    grid = checked_grid(root, bundle, raster_hash)
+    if overview:
+        from reference_cloud import saved_trail
+        if sidecar.get('trajectory_child_frame') != 'lidar_imu_chest_front':
+            raise ValueError('unknown_trajectory_frame')
+        trail = saved_trail(resource(root, directory / 'trajectory.csv'), metadata.get('frame_count'))
+        return dict(id=bundle['id'], frame='map', stampMs=0, xyz=sampled, trail=trail, pose=None)
+    return grid
 
 
 def wait_for(read, complete, deadline):
@@ -212,9 +235,12 @@ def make_app(upstream, root, nav2_process=None, motion_review=None):
     from reference_calibration import check_target_mounting
     from reference_motion import MOTION_RECORD, MotionTask, motion_record_present
     from reference_target import MAP_FILES
+    from reference_cloud import SurveyCloud
 
     motion_maps = None if motion_review is None else motion_review.maps
     invalidated = threading.Event()
+    preview_stop = threading.Event()
+    preview_cloud = None
 
     Mode = Literal["point", "nav2"]
 
@@ -256,7 +282,10 @@ def make_app(upstream, root, nav2_process=None, motion_review=None):
             if upstream.app.state.ros.motion_enabled != (motion_maps is not None):
                 raise RuntimeError("reference_motion_configuration_mismatch")
             if motion_maps is None:
-                yield
+                try:
+                    yield
+                finally:
+                    preview_stop.set()
                 return
             done = threading.Event()
 
@@ -289,6 +318,7 @@ def make_app(upstream, root, nav2_process=None, motion_review=None):
                 yield
             finally:
                 done.set()
+                preview_stop.set()
                 watch.join(timeout=1)
 
     app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
@@ -474,12 +504,35 @@ def make_app(upstream, root, nav2_process=None, motion_review=None):
 
     @app.get("/lingxi/maps/{identity}/grid")
     def grid(identity: str):
-        return checked_map(root, managed_map(identity))
+        return JSONResponse(checked_map(root, managed_map(identity)))
+
+    @app.get('/lingxi/maps/{identity}/overview')
+    def saved_overview(identity: str):
+        return JSONResponse(checked_map(root, managed_map(identity), overview=True))
+
+    @app.get('/lingxi/surveys/{identity}/overview')
+    def live_overview(identity: str):
+        cloud = preview_cloud
+        if cloud is None or cloud.identity != identity:
+            raise HTTPException(404)
+        return JSONResponse(cloud.snapshot())
+
+    def collect_preview(cloud, began, stop):
+        while not stop.wait(.32) and state.mapping.is_active():
+            try:
+                with state.ros.lock:
+                    frame = state.ros.frame
+                if frame is None or frame['stamp'] < began or frame['stamp_ns'] <= cloud.last:
+                    continue
+                body = state.ros._navigation_transform('base_link', 'lidar_imu_chest_front', frame['stamp_ns'])
+                cloud.add(frame, body)
+            except (ValueError, ArithmeticError, RuntimeError) as error:
+                LOGGER.debug('Preview frame unavailable: %s', type(error).__name__)
 
     @app.post("/lingxi/mapping/start")
     def start():
         def operation():
-            nonlocal last_failed, last_started
+            nonlocal last_failed, last_started, preview_cloud, preview_stop
             navigation_idle()
             if not aimdk_ready() or export_pending():
                 raise RuntimeError("reference_mapping_start_unavailable")
@@ -493,6 +546,10 @@ def make_app(upstream, root, nav2_process=None, motion_review=None):
                 name=f"扫描-{request_id}", request_id=request_id))
             last_failed = None
             last_started = result["id"]
+            preview_stop.set()
+            preview_cloud, preview_stop = SurveyCloud(last_started), threading.Event()
+            threading.Thread(target=collect_preview, args=(preview_cloud, result['started_at'], preview_stop),
+                             daemon=True, name='survey-overview').start()
             return result["id"]
         return guarded(operation)
 
@@ -715,6 +772,9 @@ def main():
     if settings.get("mapping", {}).get("loop_closure_enabled", False):
         raise RuntimeError("reference_profile_does_not_support_loop_closure")
     from robot_nav_tasks import server as upstream
+    from robot_nav_tasks import mapping_manager
+    mapping_manager.yaml_parameters = capture_parameters(mapping_manager.yaml_parameters,
+                                                         Path(settings['mapping']['fastlio_config']))
     from reference_ground import read_saved_export_reference
     if original_settings["mapping"].get("grid_cache_enabled"):
         LOGGER.warning("Skipping live grid cache; the saved recording will be used for grid export")

@@ -639,6 +639,10 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
     if (!map) throw deny(404, "地图未通过当前建图服务确认");
     return method.call(adapter, map);
   });
+  if (referenceNavigation) for (const kind of ["maps", "surveys"] as const) {
+    app.get<{ Params: { id: string } }>(`/api/v1/${kind}/:id/overview`, async (request) =>
+      referenceNavigation.surveyOverview(request.params.id, kind === "maps"));
+  }
   if (referenceNavigation) app.post<{ Body: unknown }>("/api/v1/navigation/preview", async (request) => {
     if (!secureRequest(request)) throw deny(426, "路径预览必须通过 HTTPS");
     const target = z.object({ pointId: z.string().min(1).max(100) }).strict().safeParse(request.body);

@@ -47,6 +47,7 @@ import { RobotSession } from "./robot-session";
 import { navigationBusy, tourStartBlock } from "./operation-readiness";
 import MapCanvas from "./MapCanvas";
 import LidarCanvas from "./LidarCanvas";
+import SurveyView from "./SurveyView";
 import LocalizationPanel from "./LocalizationPanel";
 import CalibrationPanel from "./CalibrationPanel";
 import { confirmedMappingSave, inactiveMappingScanNotice, mappingCaptureLimit, mappingFeedback } from "./mapping-view";
@@ -442,13 +443,15 @@ function Mapping({
       )}
       <div className="content-grid two mapping-layout">
         <Section
-          title="激光雷达实时扫描"
+          title={state.mappingBackend === "fastlio" ? "全程累计点云与轨迹" : "激光雷达实时扫描"}
           icon={Radio}
           actions={state.mapping
             ? <span className="tag"><StatusDot ready={state.mappingStatus === "running"} />{mappingLabel}</span>
             : <span className="tag"><StatusDot ready={state.checks.some((check) => check.id === "lidar" && check.ready)} />雷达点迹</span>}
         >
-          <LidarCanvas connection={connection} synthetic={Boolean(state.navigationExecution)} inactiveNotice={inactiveMappingScanNotice(state)} />
+          {state.mappingBackend === "fastlio" ? state.mappingSession ? <SurveyView key={`${connection.baseUrl}:${connection.token}:${state.mappingSession}`}
+            id={state.mappingSession} connection={connection} /> : <div className="empty">开始采集后显示整轮点云；保存后在地图管理查看。</div>
+            : <LidarCanvas connection={connection} synthetic={Boolean(state.navigationExecution)} inactiveNotice={inactiveMappingScanNotice(state)} />}
           <div className="inline mapping-summary" style={{ marginTop: 12 }}>
             <span className="tag">{state.mappingBackend === "fastlio" ? "FAST-LIO 建图" : state.mappingBackend === "glim" ? "GLIM 独立建图" : `当前地图 ${activeMap?.name ?? "未选择"}`}</span>
             {state.mappingProgress && <>
@@ -476,7 +479,7 @@ function Mapping({
               {feedback && <div className={`notice ${feedback.tone}`} role={feedback.tone === "error" ? "alert" : "status"}
                 data-testid="mapping-feedback">{feedback.text}</div>}
               {savedMap && !state.mapping && state.mappingBackend === "fastlio" &&
-                <div className="notice ok">地图「{savedMap.name}」已保存。请到地图管理选择并设置重定位位姿。</div>}
+                <div className="notice ok">地图「{savedMap.name}」已保存。<button className="btn small" onClick={() => onShowMap(savedMap.id)}>查看累计点云与轨迹</button></div>}
               {savedMap && !state.mapping && savedMap.id === `slam-${state.mappingSession}` &&
                 <div className="mapping-save-result stack" data-testid="mapping-save-result">
                 <div role="status"><Check size={14} /><span>已保存：{savedMap.name}</span></div>
@@ -533,7 +536,10 @@ function Maps({
   const [selected, setSelected] = useState<MapPoint | null>(null);
   const [mapGrid, setMapGrid] = useState<OccupancyGrid>();
   const [savedPreview, setSavedPreview] = useState<SavedSlamPointPreview>();
-  const [previewId, setPreviewId] = useState(initialPreviewId ?? "");
+  const [previewId, setPreviewId] = useState(initialPreviewId?.startsWith("slam-") ? initialPreviewId : "");
+  const [surveyId, setSurveyId] = useState(initialPreviewId?.startsWith("fastlio-") ? initialPreviewId : "");
+  const refMode = state.mappingBackend === "fastlio";
+  const displayedSurvey = surveyId || state.activeMapId || state.maps.at(-1)?.id;
   const [previewBusy, setPreviewBusy] = useState(false);
   const previewRef = useRef<HTMLDivElement>(null);
   const [pointName, setPointName] = useState("");
@@ -558,7 +564,7 @@ function Maps({
   }, [previewId, run]);
 
   useEffect(() => {
-    if (!activeMap || state.navigationExecution) {
+    if (!activeMap || state.navigationExecution || refMode) {
       setMapGrid(undefined);
       return;
     }
@@ -571,7 +577,7 @@ function Maps({
         if (!cancelled) setMapGrid(undefined);
       });
     return () => { cancelled = true; };
-  }, [activeMap?.id, state.navigationExecution?.backend, run]);
+  }, [activeMap?.id, state.navigationExecution?.backend, refMode, run]);
 
   async function addPoint(event: React.FormEvent) {
     event.preventDefault();
@@ -627,7 +633,7 @@ function Maps({
                     <td><strong>{map.name}</strong></td>
                     <td className="mono">{state.mappingBackend === "fastlio" ? "FAST-LIO" : state.navigationExecution ? "合成场景" : map.mapId ?? "未查询"}</td>
                     <td>{map.active ? <span className="tag">当前使用</span> : <span className="muted">可用</span>}</td>
-                    <td>{!state.navigationExecution && <button className="btn small" disabled={!state.connected || state.mapping || navigationBusy(state)} onClick={() => { void run(`/api/v1/maps/${encodeURIComponent(map.id)}/activate`, {}).catch(() => undefined); }}>{state.mappingBackend === "fastlio" ? "加载地图" : "从建图起点定位"}</button>}</td>
+                    <td>{refMode ? <button className="btn small" aria-pressed={displayedSurvey === map.id} onClick={() => setSurveyId(map.id)}>查看累计地图</button> : !state.navigationExecution && <button className="btn small" disabled={!state.connected || state.mapping || navigationBusy(state)} onClick={() => { void run(`/api/v1/maps/${encodeURIComponent(map.id)}/activate`, {}).catch(() => undefined); }}>从建图起点定位</button>}</td>
                   </tr>
                 ))}
                 {!state.maps.length && <tr><td colSpan={4} className="empty">未发现已保存地图</td></tr>}
@@ -659,7 +665,7 @@ function Maps({
               <div className="field"><label htmlFor="new-point-yaw">朝向（弧度）</label><input id="new-point-yaw" type="number" step="0.01" value={coordinates.yaw} onChange={(event) => setCoordinates({ ...coordinates, yaw: event.target.value })} required /></div>
               <div className="field full"><button className="btn primary" type="submit" disabled={!activeMap}><Plus size={13} />添加点位</button></div>
             </form>
-            {!state.navigationExecution && <><div className="inline" style={{ marginTop: 12 }}>
+            {!state.navigationExecution && !refMode && <><div className="inline" style={{ marginTop: 12 }}>
               <button className="btn" disabled={!state.connected || !activeMap || state.mapping || navigationBusy(state)} onClick={() => {
                 if (activeMap) void run(`/api/v1/maps/${encodeURIComponent(activeMap.id)}/activate`, {
                   initialPose: { x: Number(coordinates.x), y: Number(coordinates.y), yaw: Number(coordinates.yaw) },
@@ -670,9 +676,13 @@ function Maps({
           </Section></>}
         </div>
         <div ref={previewRef} className="saved-map-preview">
-        <Section title={previewId ? `点云 · ${state.savedSlamMaps?.find((map) => map.id === previewId)?.name ?? "已保存地图"}` : "地图与点位"} icon={Compass}
+        <Section title={refMode ? `累计地图 · ${state.maps.find(m => m.id === displayedSurvey)?.name ?? "未选择"}` : previewId ? `点云 · ${state.savedSlamMaps?.find((map) => map.id === previewId)?.name ?? "已保存地图"}` : "地图与点位"} icon={Compass}
           actions={previewId ? <button className="btn icon small" title="返回导航地图" onClick={() => setPreviewId("")}><X size={14} /></button> : undefined}>
-          {previewId ? (
+          {refMode ? displayedSurvey ? <SurveyView key={`${connection.baseUrl}:${connection.token}:${displayedSurvey}`} connection={connection} id={displayedSurvey} saved
+            name={state.maps.find(m => m.id === displayedSurvey)?.name} located={state.connected && state.activeMapId === displayedSurvey ? state.pose : undefined}
+            allowSeed={state.connected && state.maps.some(m => m.id === displayedSurvey) && !state.actionBusy && !state.mapping && !navigationBusy(state) && state.checks.some(c => c.id === "calibration" && c.ready)}
+            submit={async initialPose => { const reply = await run(`/api/v1/maps/${encodeURIComponent(displayedSurvey)}/activate`, { initialPose }) as {accepted?: boolean; mapId?: string} | undefined;
+              if (!reply?.accepted || reply.mapId !== displayedSurvey) throw Error("重定位回执不匹配"); }} /> : <div className="empty">暂无已保存的累计地图</div> : previewId ? (
             savedPreview ? <><CalibrationPanel key={`${connection.baseUrl}:${connection.token}:${savedPreview.mapId}:${savedPreview.receiptSha256}:${savedPreview.pointsSha256}`}
               connection={connection} preview={savedPreview} /><div className="helper" style={{ marginTop: 10 }}>GLIM 原始坐标单位；标定、定位和导航尚未验证。</div></>
               : <div className="empty" role="status">{previewBusy ? "正在读取点云" : "点云不可用，请刷新后重试"}</div>

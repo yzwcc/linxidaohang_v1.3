@@ -100,7 +100,7 @@ with tarfile.open(filename, "r|gz") as archive:
     if motion_review_tool is not None:
         assert motion_review_tool == "bridge/reference_target.py"
         assert {motion_review_tool, "bridge/reference_service.py", "bridge/reference_motion.py",
-                "bridge/reference_ground.py"} <= files.keys()
+                "bridge/reference_ground.py", "bridge/reference_cloud.py"} <= files.keys()
     scope = verify_scope(status, captured["deploy/release-scope.json"], files)
     independent_scope = None
     source_references = 0

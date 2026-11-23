@@ -2,7 +2,7 @@ import { lstatSync, realpathSync } from "node:fs";
 import { request } from "node:http";
 import path from "node:path";
 import { z } from "zod";
-import type { MapPoint, RobotMap } from "../../shared/contracts";
+import type { MapPoint, RobotMap, SurveyOverview } from "../../shared/contracts";
 import type { RobotAdapter, RobotSnapshot } from "./domain";
 import { validatedLidarFrame } from "./lidar";
 
@@ -50,7 +50,7 @@ const gridSchema = z.object({
   width: z.number().int().positive(), height: z.number().int().positive(),
   resolution: z.number().min(0.02).max(0.2),
   originX: z.number().finite(), originY: z.number().finite(), originYaw: z.number().finite(),
-  stamp: z.number().finite().positive(), cells: z.array(z.union([z.literal(-1), z.literal(0), z.literal(100)])).max(4_000_000),
+  stamp: z.number().finite().positive(), cells: z.custom<number[]>((v) => Array.isArray(v) && v.length <= 4_000_000 && v.every(n => n === -1 || n === 0 || n === 100)),
 }).strict().refine((grid) => grid.cells.length === grid.width * grid.height);
 
 function denied(message: string, statusCode = 409) {
@@ -175,6 +175,17 @@ export class ReferenceNavigationAdapter implements RobotAdapter {
   }
   async getStoredMapGrid(map: RobotMap) {
     return gridSchema.parse(await this.call(`maps/${mapId.parse(map.id)}/grid`, undefined, 15_000, 16 * 1024 * 1024));
+  }
+  async surveyOverview(identity: string, saved: boolean): Promise<SurveyOverview> {
+    if (!(saved ? mapId : sessionId).safeParse(identity).success) throw denied("地图或会话不存在", 404);
+    const vectors = (max: number) => z.custom<number[]>(v => Array.isArray(v) && v.length <= max * 3 &&
+      v.length % 3 === 0 && v.every(Number.isFinite));
+    const data = z.object({ id: z.literal(identity), frame: saved ? z.literal("map") : z.literal("start-base"),
+      stampMs: z.number().int().nonnegative(), xyz: vectors(saved ? 50000 : 30000), trail: vectors(8192),
+      pose: z.tuple([z.number().finite(), z.number().finite(), z.number().finite()]).nullable() }).strict()
+      .parse(await this.call(`${saved ? "maps" : "surveys"}/${identity}/overview`, undefined, 15000, 4 * 1024 * 1024));
+    if (saved && data.pose) throw denied("已保存地图不提供当前位姿", 503);
+    return data;
   }
   async activateMap(map: RobotMap, initialPose?: z.infer<typeof pose>) {
     if (await this.call(`maps/${mapId.parse(map.id)}/activate`, { pose: initialPose }, 220_000) !== true) {

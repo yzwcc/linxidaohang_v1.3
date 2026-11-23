@@ -59,6 +59,7 @@ await Promise.all([
   cp("robot-api/src/aimdk_ros_bridge.py", path.join(stage, "bridge/aimdk_ros_bridge.py")),
   cp("robot-runtime/python/reference_service.py", path.join(stage, "bridge/reference_service.py")),
   cp("robot-runtime/python/reference_ground.py", path.join(stage, "bridge/reference_ground.py")),
+  cp("robot-runtime/python/reference_cloud.py", path.join(stage, "bridge/reference_cloud.py")),
   cp("robot-runtime/python/reference_calibration.py", path.join(stage, "bridge/reference_calibration.py")),
   cp("robot-runtime/python/reference_motion.py", path.join(stage, "bridge/reference_motion.py")),
   cp("robot-runtime/python/reference_target.py", path.join(stage, "bridge/reference_target.py")),

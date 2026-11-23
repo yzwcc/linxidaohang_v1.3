@@ -105,7 +105,7 @@ export function sliceLidarFrames(frames: LidarFrame[], slice: LidarZSlice): Lida
   });
 }
 
-export function lidarBounds(frames: LidarFrame[], mode: "all" | "main" = "all") {
+export function lidarBounds(frames: Pick<LidarFrame, "points">[], mode: "all" | "main" = "all") {
   let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
   const xs: number[] = [], ys: number[] = [];
   for (const frame of frames) {
