@@ -3,6 +3,16 @@ set -euo pipefail
 
 CURRENT=/opt/lingxi-next/current
 INDEPENDENT="$CURRENT/independent"
+REFERENCE_ARGS=()
+if [[ -f "$CURRENT/.reference-commissioning" ]]; then
+  export LINGXI_REFERENCE_SOCKET=/run/lingxi-next-reference/control.sock
+  export LINGXI_REFERENCE_ACTIONS=0 LINGXI_INDEPENDENT_PRODUCT=0 LINGXI_NAVIGATION_SOCKET= LINGXI_DEMO_MODE=0
+  REFERENCE_ARGS=(--require-motion-disabled)
+  case "${1:-}" in
+    api|reference-navigation) ;;
+    *) echo "Only the API and FAST-LIO adapter are selected by the read-only commissioning release" >&2; exit 78 ;;
+  esac
+fi
 
 require_independent_product() {
   [[ "${LINGXI_INDEPENDENT_PRODUCT:-0}" == "1" ]] || {
@@ -221,7 +231,7 @@ case "${1:-}" in
     export PYTHONNOUSERSITE=1 PYTHONDONTWRITEBYTECODE=1
     exec "$LINGXI_REFERENCE_PYTHON" -s -B "$CURRENT/bridge/reference_service.py" \
       --source "$LINGXI_REFERENCE_SOURCE" --config "$LINGXI_REFERENCE_CONFIG" --socket "$LINGXI_REFERENCE_SOCKET" \
-      --ros2 "$LINGXI_REFERENCE_ROS2"
+      --ros2 "$LINGXI_REFERENCE_ROS2" "${REFERENCE_ARGS[@]}"
     ;;
   agent)
     if [[ -n "${LINGXI_PRODUCT_CONFIG:-}${LINGXI_PRODUCT_CONFIG_SHA256:-}" ]]; then

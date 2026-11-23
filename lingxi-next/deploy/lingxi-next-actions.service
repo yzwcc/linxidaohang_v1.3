@@ -2,7 +2,7 @@
 Description=Lingxi Next Isolated AIMDK Action Compatibility Adapter
 After=network.target
 Conflicts=lingxi-next-aimdk.service
-ConditionPathExists=/opt/lingxi-next/current/independent/runtime/slam-main.mjs
+ConditionPathExists=/opt/lingxi-next/current/bridge/aimdk_ros_bridge.py
 
 [Service]
 User=lingxi-next

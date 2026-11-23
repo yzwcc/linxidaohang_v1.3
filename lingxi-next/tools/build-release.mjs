@@ -66,6 +66,7 @@ await Promise.all([
   cp("tools/migrate-legacy.mjs", path.join(stage, "tools/migrate-legacy.mjs")),
   cp("tools/check_reference_bag.py", path.join(stage, "tools/check_reference_bag.py")),
   cp("tools/probe_reference_target.py", path.join(stage, "tools/probe_reference_target.py")),
+  cp("tools/prepare_reference_profile.py", path.join(stage, "tools/prepare_reference_profile.py")),
   cp("tools/replay_reference_mapping.py", path.join(stage, "tools/replay_reference_mapping.py")),
   cp("deploy", path.join(stage, "deploy"), { recursive: true }),
   cp("docs", path.join(stage, "docs"), { recursive: true }),

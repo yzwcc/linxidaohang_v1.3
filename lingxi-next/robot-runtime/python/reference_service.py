@@ -268,10 +268,15 @@ def make_app(upstream, root, nav2_process=None, motion_maps=None):
         saving = finalizing or (export_request[0] if export_pending() else None)
         failed = last_failed or next((item["id"] for item in snapshot["items"] if item["id"] == last_started
                                       and item["state"] in {"failed", "interrupted"}), None)
+        lifecycle = ros.get("lifecycle", {})
+        nav2_available = nav_process_alive() and all(lifecycle.get(name, {}).get("service_ready") is True
+                                                     for name in ("map_server", "planner_server", "controller_server",
+                                                                  "velocity_smoother", "bt_navigator"))
         result = {"phase": "saving" if saving else phase.get(current["state"], "failed") if current
                             else "failed" if failed else "idle",
                   "session": saving or (current["id"] if current else failed),
                   "sensorsReady": sensors_ready, "aimdkReady": aimdk, "calibration": calibration,
+                  "nav2Available": nav2_available,
                   "mappingReady": bool(snapshot["enabled"] and current is None and sensors_ready
                                        and aimdk and calibration == "matched" and not saving and not transition.locked()),
                   "planningReady": bool(calibration == "matched" and nav_process_alive()
@@ -515,13 +520,20 @@ def main():
     parser.add_argument("--socket", type=Path, required=True)
     parser.add_argument("--config", type=Path, required=True)
     parser.add_argument("--ros2", type=Path, required=True)
+    parser.add_argument("--require-motion-disabled", action="store_true")
     args = parser.parse_args()
     os.umask(0o077)
     if not sys.platform.startswith("linux"):
         raise RuntimeError("reference_runtime_requires_linux")
     source = args.source.resolve(strict=True)
-    revision = subprocess.check_output(["git", "-C", str(source), "rev-parse", "HEAD"], text=True).strip()
-    dirty = subprocess.check_output(["git", "-C", str(source), "status", "--porcelain", "--untracked-files=all"], text=True)
+    # systemd runs as lingxi-next while the verified checkout is maintained by root.
+    for path in (source, source / ".git"):
+        if path.is_symlink() or not path.is_dir() or path.stat().st_uid != 0 or path.stat().st_mode & 0o022:
+            raise RuntimeError("reference_checkout_must_be_root_owned")
+    git = ["git", "--no-optional-locks", "-c", f"safe.directory={source}", "-c", "core.fsmonitor=false",
+           "-C", str(source)]
+    revision = subprocess.check_output([*git, "rev-parse", "HEAD"], text=True).strip()
+    dirty = subprocess.check_output([*git, "status", "--porcelain", "--untracked-files=all"], text=True)
     if revision != REFERENCE_REVISION or dirty:
         raise RuntimeError("reference_checkout_does_not_match_pinned_revision")
     private_directory(args.socket.parent)
@@ -533,6 +545,8 @@ def main():
     from robot_nav_tasks.settings import load_settings
 
     settings = load_settings()
+    if args.require_motion_disabled and settings["motion_enabled"] is not False:
+        raise RuntimeError("reference_commissioning_requires_motion_disabled")
     root = private_directory(Path(settings["data_dir"]))
     if settings.get("nav2_enabled") is not True or settings.get("visualization", {}).get("enabled", False):
         raise RuntimeError("reference_profile_requires_nav2_and_disables_visualization_bridge")

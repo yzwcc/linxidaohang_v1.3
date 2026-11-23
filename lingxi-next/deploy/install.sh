@@ -8,12 +8,14 @@ DATA=/var/lib/lingxi-next
 ROBOT_IP=""
 LEGACY=""
 COMMISSIONING=0
+REFERENCE=0
 while (($#)); do
   case "$1" in
     --robot-ip) ROBOT_IP="${2:?IP missing}"; shift 2 ;;
     --legacy-dir) LEGACY="${2:?Legacy directory missing}"; shift 2 ;;
     --commissioning) COMMISSIONING=1; shift ;;
-    *) echo "Usage: sudo bash deploy/install.sh --commissioning --robot-ip IP [--legacy-dir DIR]" >&2; exit 2 ;;
+    --reference-commissioning) REFERENCE=1; shift ;;
+    *) echo "Usage: sudo bash deploy/install.sh --commissioning --robot-ip IP [--legacy-dir DIR | --reference-commissioning]" >&2; exit 2 ;;
   esac
 done
 [[ $EUID == 0 && $COMMISSIONING == 1 ]] || { echo "Run as root with --commissioning; read docs/ACCEPTANCE.md first" >&2; exit 1; }
@@ -22,6 +24,14 @@ for command in systemctl openssl python3 tar sha256sum curl getent groupadd user
 python3 -c 'import ipaddress,sys; ipaddress.ip_address(sys.argv[1])' "$ROBOT_IP"
 cd "$PACKAGE"
 sha256sum -c SHA256SUMS >/dev/null
+if [[ "$REFERENCE" == 1 && (-n "$LEGACY" || -d independent || ! -f bridge/reference_service.py) ]]; then
+  echo "Reference commissioning requires the core archive and excludes automatic legacy migration" >&2
+  exit 2
+fi
+if [[ "$REFERENCE" == 1 && ! -s "$CONFIG/robot.env" ]]; then
+  echo "Prepare robot.env with the target ROS, runtime and calibration before installing reference commissioning" >&2
+  exit 2
+fi
 VERSION="$(<VERSION)"
 [[ "$VERSION" =~ ^[0-9A-Za-z._-]{1,80}$ ]] || { echo "Invalid version" >&2; exit 1; }
 [[ -x runtime/node/bin/node && -x runtime/java/bin/java ]] || { echo "Bundled runtimes are missing" >&2; exit 1; }
@@ -86,6 +96,10 @@ fi
 deployment_begin "pre-$VERSION"
 deployment_stop
 deployment_snapshot
+if [[ "$REFERENCE" == 1 ]]; then
+  install -d -m 0700 -o lingxi-next -g lingxi-next "$DATA/reference"
+  install -m 0644 /dev/null "$ROOT/releases/$VERSION/.reference-commissioning"
+fi
 if [[ -n "$LEGACY" ]]; then
   "$PACKAGE/runtime/node/bin/node" "$PACKAGE/tools/migrate-legacy.mjs" --source-dir "$LEGACY" --destination "$DATA" --apply
 fi
@@ -94,23 +108,37 @@ python3 "$PACKAGE/deploy/migrate_robot_env.py" "$CONFIG/robot.env"
 deployment_link current "$ROOT/releases/$VERSION"
 install -m 0644 deploy/lingxi-next-*.service /etc/systemd/system/
 systemctl daemon-reload
+if [[ "$REFERENCE" == 1 ]]; then
+  deployment_start_reference
+elif [[ -n "$PREVIOUS" && -f "$PREVIOUS/.reference-commissioning" && "$OLD_REFERENCE_ENABLED" == 1 ]]; then
+  # A new release without the static profile must not inherit the reference autostart.
+  systemctl disable lingxi-next-reference-navigation.service
+fi
 systemctl enable --now lingxi-next-api.service
 if ! deployment_health; then
   echo "New API health check failed." >&2
   exit 1
 fi
-if ! deployment_restore_active_services; then
-  echo "A previously active Lingxi Next service failed to restart." >&2
-  exit 1
+if [[ "$REFERENCE" == 1 ]]; then
+  systemctl enable lingxi-next-reference-navigation.service
+elif [[ -z "$PREVIOUS" || ! -f "$PREVIOUS/.reference-commissioning" ]]; then
+  if ! deployment_restore_active_services; then
+    echo "A previously active Lingxi Next service failed to restart." >&2
+    exit 1
+  fi
 fi
 if [[ -n "$PREVIOUS" ]]; then deployment_link previous "$PREVIOUS"; fi
 deployment_commit
 PORT="$DEPLOYMENT_PORT"
-printf 'Installed commissioning build %s. Navigation console: https://%s:3444\n' "$VERSION" "$ROBOT_IP"
+printf 'Installed commissioning build %s. Local console: https://%s:%s\n' "$VERSION" "$ROBOT_IP" "$PORT"
 printf 'Local management API health: https://127.0.0.1:%s/health\n' "$PORT"
 echo "Pairing code: /etc/lingxi-next/pairing-code.txt (root only). Import tls/ca.crt on each client."
-echo "Configure the existing ROS/AIMDK setup and actual topics in robot.env, then enable lingxi-next-aimdk."
-echo "Configure LinkSoul credentials in the console and LINKSOUL_AGENT_ID in robot.env, then enable lingxi-next-agent."
-echo "For independent mapping/SLAM, read docs/INDEPENDENT_INSTALL_20261103.md; owners remain disabled until configured."
+if [[ "$REFERENCE" == 1 ]]; then
+  echo "Reference commissioning: mapping and localization are available; movement, actions and voice remain disabled."
+else
+  echo "Configure the existing ROS/AIMDK setup and actual topics in robot.env before enabling any bridge."
+  echo "Configure LinkSoul credentials in the console and LINKSOUL_AGENT_ID in robot.env, then enable lingxi-next-agent."
+  echo "For independent mapping/SLAM, read docs/INDEPENDENT_INSTALL_20261103.md; owners remain disabled until configured."
+fi
 echo "For X2 V1.1.5 FAST-LIO, read docs/X2_REFERENCE_COMMISSIONING.md."
 echo "No legacy service, vendor AIMDK installation, or map asset has been changed."

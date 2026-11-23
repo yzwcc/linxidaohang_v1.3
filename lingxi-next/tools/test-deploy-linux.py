@@ -53,15 +53,24 @@ case "${1:-}" in
     test ! -f /test-state/stop-fail || exit 1
     rm -f "/test-state/active-${2:?}" ;;
   enable)
-    touch "/test-state/enabled-${3:?}" "/test-state/active-${3:?}"
-    if test -f /test-state/terminate-enable; then kill -TERM "$PPID"; fi
-    test ! -f /test-state/enable-fail ;;
+    if test "$2" = --now; then
+      touch "/test-state/enabled-${3:?}" "/test-state/active-${3:?}"
+      if test -f /test-state/terminate-enable; then kill -TERM "$PPID"; fi
+      test ! -f /test-state/enable-fail
+    else
+      touch "/test-state/enabled-${2:?}"
+    fi ;;
   disable) rm -f "/test-state/enabled-${2:?}" ;;
   start) touch "/test-state/active-${2:?}" ;;
 esac
 """)
     script(root / "test-bin/curl", """
 printf '%s\\n' "$*" >> /test-state/health.log
+case " $* " in
+  *' --unix-socket /run/lingxi-next-reference/control.sock '* )
+    cat /test-state/reference-health.json
+    exit 0 ;;
+esac
 test ! -e /test-state/health-fail
 if test -f /test-state/health-fail-release; then
   current=$(cat /opt/lingxi-next/current/VERSION)
@@ -71,7 +80,8 @@ if test -f /test-state/health-fail-release; then
   fi
 fi
 """)
-    for version in (f"test-{index}" for index in range(10)):
+    script(root / "test-bin/sleep", "true")
+    for version in (f"test-{index}" for index in range(15)):
         package = root / f"package-{version}"
         shutil.copytree(deploy, package / "deploy")
         for runtime in ("node/bin", "java/bin"):
@@ -81,6 +91,9 @@ test "${1:-}" = --version || exit 64
 printf 'v22-fixture\\n'
 """)
         script(package / "runtime/java/bin/java", "printf 'java fixture\\n'")
+        if version in {"test-10", "test-11", "test-12", "test-13"}:
+            (package / "bridge").mkdir()
+            (package / "bridge/reference_service.py").write_text("# synthetic target\n")
         (package / "VERSION").write_text(version + "\n")
         manifest = "".join(
             f"{hashlib.sha256(file.read_bytes()).hexdigest()}  {file.relative_to(package).as_posix()}\n"
@@ -109,9 +122,10 @@ def isolate(root: Path):
 
 
 class DeploymentLifecycle(unittest.TestCase):
-    def command(self, version="test-1", success=True, ip="192.0.2.10"):
+    def command(self, version="test-1", success=True, ip="192.0.2.10", reference=False):
         result = subprocess.run(["bash", f"/package-{version}/deploy/install.sh",
-                                 "--commissioning", "--robot-ip", ip],
+                                 "--commissioning", "--robot-ip", ip,
+                                 *(["--reference-commissioning"] if reference else [])],
                                 text=True, capture_output=True)
         if success and result.returncode:
             self.fail(result.stdout + result.stderr)
@@ -132,7 +146,7 @@ class DeploymentLifecycle(unittest.TestCase):
             Path("/test-state/health-fail").unlink()
         with self.subTest("initial install, permissions and certificate"):
             installed = self.command()
-            self.assertIn("Navigation console: https://192.0.2.10:3444", installed.stdout)
+            self.assertIn("Local console: https://192.0.2.10:3445", installed.stdout)
             self.assertIn("Local management API health: https://127.0.0.1:3445/health", installed.stdout)
             self.assertEqual("/opt/lingxi-next/releases/test-1", os.readlink("/opt/lingxi-next/current"))
             self.assertEqual(0o600, Path("/etc/lingxi-next/robot.env").stat().st_mode & 0o777)
@@ -276,6 +290,54 @@ class DeploymentLifecycle(unittest.TestCase):
             self.assertIn("https://127.0.0.1:3446/health", health_requests)
             self.assertNotIn("127.0.0.1:3000", health_requests)
             self.assertNotIn(Path("/etc/lingxi-next/pairing-code.txt").read_text().strip(), diagnostic)
+
+    def test_y_reference_static_cutover(self):
+        root = Path("/opt/lingxi-next")
+        env = Path("/etc/lingxi-next/robot.env")
+        config = env.read_bytes()
+        log = Path("/test-state/systemctl.log")
+        good = {"phase": "idle", "calibration": "matched", "mappingReady": True,
+                "sensorsReady": True, "aimdkReady": True, "nav2Available": True}
+        health = Path("/test-state/reference-health.json")
+        # A healthy HTTPS service is not evidence that the selected ROS owner is suitable.
+        for index, bad in [(10, {**good, "navigation": {}}), (11, {**good, "calibration": "mismatch"}),
+                           (13, {**good, "nav2Available": False})]:
+            with self.subTest(health=bad):
+                old = (root / "current").readlink()
+                offset = len(log.read_text())
+                health.write_text(json.dumps(bad))
+                result = self.command(f"test-{index}", success=False, reference=True)
+                self.assertIn("Prior deployment restored", result.stderr)
+                self.assertEqual(old, (root / "current").readlink())
+                self.assertEqual(config, env.read_bytes())
+                self.assertFalse(Path("/test-state/active-lingxi-next-reference-navigation.service").exists())
+                self.assertNotIn("enable --now lingxi-next-api.service", log.read_text()[offset:])
+
+        health.write_text(json.dumps(good))
+        previous = (root / "current").readlink()
+        (Path("/test-state") / "active-lingxi-next-independent-slam.service").touch()
+        offset = len(log.read_text())
+        installed = self.command("test-12", reference=True)
+        self.assertIn("remain disabled", installed.stdout)
+        self.assertTrue((root / "current/.reference-commissioning").is_file())
+        self.assertNotIn("start lingxi-next-independent-slam.service", log.read_text()[offset:])
+        self.assertIn("enable lingxi-next-reference-navigation.service", log.read_text()[offset:])
+        for mode in ("aimdk", "actions", "navigation", "agent", "independent-slam", "independent-mapping"):
+            result = subprocess.run(["bash", str(root / "current/deploy/run.sh"), mode], capture_output=True)
+            self.assertEqual(78, result.returncode, result.stderr)
+
+        run("bash", "/package-test-12/deploy/rollback.sh")
+        self.assertEqual(previous, (root / "current").readlink())
+        self.assertFalse(Path("/test-state/enabled-lingxi-next-reference-navigation.service").exists())
+        run("bash", "/package-test-12/deploy/rollback.sh")
+        self.assertTrue((root / "current/.reference-commissioning").is_file())
+        self.assertTrue(Path("/test-state/enabled-lingxi-next-reference-navigation.service").exists())
+        self.command("test-14")
+        self.assertFalse((root / "current/.reference-commissioning").exists())
+        self.assertFalse(Path("/test-state/enabled-lingxi-next-reference-navigation.service").exists())
+        # Leave the original fixture selected for the independent-entrypoint exercise.
+        (root / "current").unlink()
+        (root / "current").symlink_to(previous)
 
     def test_z_independent_installed_entrypoints(self):
         """Execute installed Bash/Python with synthetic owners, never ROS/hardware."""

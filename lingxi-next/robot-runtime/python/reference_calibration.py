@@ -19,7 +19,6 @@ def valid_rigid(matrix):
 
 
 def check_target_mounting(profile, lookup):
-    import numpy as np
     import yaml
 
     try:
@@ -30,7 +29,15 @@ def check_target_mounting(profile, lookup):
             raw = stream.read(128 * 1024 + 1)
         if len(raw) > 128 * 1024:
             return "invalid_profile"
-        document = yaml.safe_load(raw)
+        return check_target_mounting_document(yaml.safe_load(raw), lookup)
+    except (OSError, ValueError, yaml.YAMLError):
+        return "invalid_profile"
+
+
+def check_target_mounting_document(document, lookup):
+    import numpy as np
+
+    try:
         # Use the reference FAST-LIO wildcard stanza, with no per-node overrides.
         if not isinstance(document, dict) or set(document) != {"/**"}:
             return "invalid_profile"
@@ -46,7 +53,7 @@ def check_target_mounting(profile, lookup):
         configured[:3, 3] = translation
         if not valid_rigid(configured):
             return "invalid_profile"
-    except (OSError, AttributeError, KeyError, TypeError, ValueError, OverflowError, yaml.YAMLError):
+    except (AttributeError, KeyError, TypeError, ValueError, OverflowError):
         return "invalid_profile"
 
     try:

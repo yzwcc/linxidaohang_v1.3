@@ -61,12 +61,36 @@ PY
     --cacert "$CONFIG/tls/ca.crt" "https://127.0.0.1:$port/health" >/dev/null
 }
 
+deployment_start_reference() {
+  local attempt state
+  systemctl start lingxi-next-reference-navigation.service || return 1
+  for ((attempt=0; attempt<45; attempt++)); do
+    state="$(curl --silent --fail --noproxy '*' --max-time 1 \
+      --unix-socket /run/lingxi-next-reference/control.sock http://localhost/lingxi/status)" || state=''
+    if python3 -c 'import json, sys
+try:
+    status = json.load(sys.stdin)
+except ValueError:
+    sys.exit(1)
+sys.exit(0 if (isinstance(status, dict) and "navigation" not in status and status.get("phase") == "idle"
+               and status.get("calibration") == "matched" and status.get("mappingReady") is True
+               and status.get("sensorsReady") is True and status.get("aimdkReady") is True
+               and status.get("nav2Available") is True) else 1)' <<< "$state"; then
+      systemctl is-active --quiet lingxi-next-reference-navigation.service && return 0
+    fi
+    sleep 1
+  done
+  echo "Read-only FAST-LIO service did not confirm idle, target calibration, sensors, AIMDK and Nav2 discovery" >&2
+  return 1
+}
+
 deployment_begin() {
   OLD_CURRENT="$(deployment_pointer current)" || { echo "Invalid current release" >&2; exit 1; }
   OLD_PREVIOUS="$(deployment_pointer previous)" || { echo "Invalid previous release" >&2; exit 1; }
   if [[ -n "$OLD_CURRENT" ]]; then (cd "$OLD_CURRENT" && sha256sum -c SHA256SUMS >/dev/null); fi
   OLD_API_ACTIVE=0
   OLD_API_ENABLED=0
+  OLD_REFERENCE_ENABLED=0
   ACTIVE_SERVICES=()
   local service
   for service in "${SERVICES[@]}"; do
@@ -74,6 +98,7 @@ deployment_begin() {
   done
   if [[ -n "$OLD_CURRENT" ]] && systemctl is-active --quiet lingxi-next-api.service; then OLD_API_ACTIVE=1; fi
   if systemctl is-enabled --quiet lingxi-next-api.service; then OLD_API_ENABLED=1; fi
+  if systemctl is-enabled --quiet lingxi-next-reference-navigation.service; then OLD_REFERENCE_ENABLED=1; fi
   BACKUP="$(mktemp -d "$ROOT/backups/$1-$(date -u +%Y%m%dT%H%M%SZ)-XXXXXX")"
   install -d -m 0700 "$BACKUP/units"
   for service in "${SERVICES[@]}"; do
@@ -126,6 +151,9 @@ deployment_recover() {
     if systemctl cat "$service" >/dev/null 2>&1; then systemctl stop "$service" || failed=1; fi
   done
   if [[ "$OLD_API_ENABLED" == 0 ]]; then systemctl disable lingxi-next-api.service || failed=1; fi
+  if [[ "$OLD_REFERENCE_ENABLED" == 0 ]] && systemctl is-enabled --quiet lingxi-next-reference-navigation.service; then
+    systemctl disable lingxi-next-reference-navigation.service || failed=1
+  fi
   deployment_link current "$OLD_CURRENT" || failed=1
   deployment_link previous "$OLD_PREVIOUS" || failed=1
   for service in "${SERVICES[@]}"; do
@@ -140,8 +168,14 @@ deployment_recover() {
     tar -xzf "$BACKUP/data-and-config.tar.gz" -C / || failed=1
   fi
   systemctl daemon-reload || failed=1
+  if [[ "$OLD_REFERENCE_ENABLED" == 1 ]] && ! systemctl is-enabled --quiet lingxi-next-reference-navigation.service; then
+    systemctl enable lingxi-next-reference-navigation.service || failed=1
+  fi
   if [[ "$failed" == 0 && "$OLD_API_ACTIVE" == 1 ]]; then
-    if ! systemctl start lingxi-next-api.service || ! deployment_health; then
+    if [[ -n "$OLD_CURRENT" && -f "$OLD_CURRENT/.reference-commissioning" ]] && ! deployment_start_reference; then
+      failed=1
+      systemctl stop lingxi-next-reference-navigation.service || true
+    elif ! systemctl start lingxi-next-api.service || ! deployment_health; then
       failed=1
       systemctl stop lingxi-next-api.service || true
     fi

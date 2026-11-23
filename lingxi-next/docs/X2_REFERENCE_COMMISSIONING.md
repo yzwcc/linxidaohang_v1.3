@@ -1,6 +1,6 @@
 # 灵犀 X2 Ultra V1.1.5 联调
 
-目标机 SoC1 为 `release-lx2501_3_t2d5-soc1-v1.1.5`。AIMDK 安装清单为 `v1.1.0-rc10`。ROS 接入以目标机安装的接口定义、服务类型和传感器数据为准。
+目标机 SoC1 为 `release-lx2501_3_t2d5-soc1-v1.1.5`。随附 AIMDK 清单为 `v1.1.0-rc10`；2026-11-23 在目标机实际读取的 `/agibot/software/aimdk/version` 和 `~/aimdk/version` 均为 `aimdk v0.0.0-g14fe2e8`。两者不要当成同一个构建。ROS 接入以目标机实际安装的接口定义、服务类型和传感器数据为准。
 
 参考仓库固定在 `90bbc8096c23a5660fc6c5e26dd99ec1ed79da11`。联调服务在私有 Unix Socket 上提供 FAST-LIO 点迹、保存与放弃、栅格读取、GICP 重定位和 Nav2 路径预览。网页和横屏 APK 通过配对后的 HTTPS/WSS 使用这些接口。联调初始配置关闭运动，建图移动由现场人员使用外置遥控器。[参考仓库](https://github.com/Mikeaaaa14/Lingxi-navigation)
 
@@ -12,6 +12,12 @@ ARM64 核心联调包提供产品 Web、API、参考服务适配、AgentSDK 进�
 2. 以参考 `config/app.yaml` 为基础生成 `/etc/lingxi-next/reference.yaml`。使用 `motion_enabled: false`、`nav2_enabled: true`、`navigation_mode: point`，并关闭 `visualization.enabled`、`color_mapping.enabled` 和 `mapping.loop_closure_enabled`。把 `data_dir` 指向 `/var/lib/lingxi-next/reference`，建图目录和导入/录制白名单设为该目录内的专用路径。建立 `lingxi-next` 所有、权限 `0700` 的数据目录。将 `mapping.fastlio_executable`、`mapping.fastlio_config`、`mapping.recorder_executable`、`mapping.calibration_files` 和 `localizer_config` 改为当前 ARM64 环境的绝对路径。按目标机校验 FAST-LIO 雷达—IMU 外参、入站话题 QoS、DDS 配置及初始站姿。
 3. 在目标机按 `deploy/install.sh --commissioning --robot-ip IP` 安装产品。设置 `/etc/lingxi-next/robot.env` 中的 `LINGXI_AIMDK_SETUP`、`LINGXI_REFERENCE_SOURCE`、`LINGXI_REFERENCE_CONFIG`、`LINGXI_REFERENCE_CONFIG_SHA256`、`LINGXI_REFERENCE_OVERLAY`、`LINGXI_REFERENCE_PYTHON`、`LINGXI_REFERENCE_ROS2`，并设置 `LINGXI_REFERENCE_SOCKET=/run/lingxi-next-reference/control.sock`。保持 GLIM 和独立物理导航后端未选中。原生二进制和配置放在 systemd 服务账号可读且不依赖 `/home` 的路径。
 4. 启动 `lingxi-next-reference-navigation.service`，检查日志后重启 `lingxi-next-api.service`。参考服务启动同提交的 Nav2 进程，使用当前产品的私有工作目录和内网 ROS 图。`deploy/diagnose.sh` 可检查服务状态。跨版本回滚前先结束建图并等待保存回执。若回到未包含参考服务的版本，先停止参考单元，再将 `LINGXI_REFERENCE_SOCKET` 留空。
+
+如果按参考仓库的方式解包 Nav2 `.deb`，并把构建结果整理为同一版本目录下的 `ros/`、`overlay/`、`grid/`、`venv/`，可以把这个版本目录设为 `LINGXI_REFERENCE_RUNTIME_ROOT`，使用产品的 `deploy/reference-overlay.sh` 作为 `LINGXI_REFERENCE_OVERLAY`。`tools/prepare_reference_profile.py --source DIR --overlay DIR --fastlio-config FILE --data-dir DIR --output FILE` 用绝对路径生成新的运动禁用配置，不改模板、原配置或厂商文件。保持参考 checkout 与运行时由 root 管理、服务组只读。
+
+从旧 GLIM／独立导航版本切换时，先在现场确认机器人已停稳、没有运行中的导航、讲解或建图会话，并备份厂商原始地图。预先通过只读预检，填写 `robot.env` 中的 ROS/AIMDK、参考源码、overlay、Python、ROS2、配置文件和配置 SHA256；不必先改 `LINGXI_REFERENCE_SOCKET` 或旧后端选择。从核心联调包执行 `sudo bash deploy/install.sh --commissioning --reference-commissioning --robot-ip IP`。该模式先停止本产品的旧进程并备份 `/etc/lingxi-next` 和 `/var/lib/lingxi-next`，只启动参考服务和 HTTPS。私有接口必须确认空闲、目标标定匹配、雷达与 IMU 可用、AIMDK 和 Nav2 生命周期服务可发现，且没有运动接口，才能提交切换；未通过则还原原版本和快照。发现 Nav2 生命周期服务不等于已加载地图或可规划路径。旧业务数据、选项和厂商资产保留。回滚不会自动恢复旧运动、动作或语音进程，需现场确认后再启动。
+
+`--reference-commissioning` 是静态联调档，选择绑定当前安装版本，不能通过改 YAML 在此档直接启用运动、动作或语音；它也不与旧数据自动迁移选项合用。首次用此档安装前必须准备 `robot.env`；后续静态升级继续显式传相同参数。转到普通版本不会自动继承参考服务自启动。静态联调通过后，机构足迹、停车和现场条件需按下文核定，再通过新版本的手动配置路径验收动作和语音。静态档的 HTTPS 端口沿用 `robot.env`（默认 `3445`），不占用旧 GLIM 控制台的 `3444`。
 
 ### 每台机器单独核对标定
 
@@ -26,6 +32,17 @@ python3 -B tools/probe_reference_target.py --fastlio-config /etc/lingxi-next/fas
 ```
 
 探测仅订阅传感器、运控状态和 TF，查询 AIMDK 服务类型，不调用服务。JSON 记录实收样本与时钟、点云布局、三个同时间戳 TF 的配对次数和外参检查结果，不记录原始点云或标定值。`ok: false` 时先排查不可用项；`ok: true` 只代表该短采样窗口的接口检查通过，不能替代固件/SDK 清单核对、现场标定、足迹测量或运动验收。
+
+如果尚未准备本机 FAST-LIO 配置，可以让探测器从当前机器人直接发布的 LiDAR→IMU 静态边生成候选文件。此模式用参考 YAML 作非外参设置模板，要求显式检查本机出厂 `chest_lidar` 数据。若静态变换缺失、冲突、与 TF 查询不一致或其他预检不通过，不写候选文件。候选路径必须是新的隔离文件，不能指向正在使用的配置或厂商原件：
+
+```bash
+python3 -B tools/probe_reference_target.py --seconds 8 \
+  --fastlio-config /path/to/reference/integrations/fast_lio/config/agibot_x2.yaml \
+  --factory-calibration /agibot/protected/param/factory_calib/factory_calibration_params.yml \
+  --write-fastlio-config /path/to/private/staging/fastlio-candidate.yaml
+```
+
+2026-11-23 的 V1.1.5 目标机出厂文件实际位于上面的 `protected` 路径，仅含机身到雷达的标定，不能从它推出内置 IMU 外参。首次 8 秒观察收到 79 帧点云、1,580 条 IMU 和 778 条运控状态，三路均无非法、超时钟范围或乱序样本；最大 IMU 头间隔 10.644 ms，最近窗口内有 6 帧同时匹配机身/IMU/足踝 TF。三个预期的 AIMDK 服务类型均匹配，候选文件对当时 TF 的核对结果为 `matched`。未发送运动或更改厂商文件。这里只确认可读性、格式与软件外参一致性；并未测量实际安装误差。
 
 参考仓库的版权人代码使用 PolyForm Noncommercial 1.0.0 及另行商业授权。用户已确认该仓库的商业复用和分发授权。实际分发引用仓库或其构建产物时，保留原 LICENSE、`Required Notice: Copyright (c) 2026 Mikeaaaa14 (https://github.com/Mikeaaaa14)`，并履行各组件的对应义务，包括 FAST-LIO 的 GPLv2、Patchwork++ 的 BSD 声明和 OctoMap 随附许可证。
 

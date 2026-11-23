@@ -18,6 +18,12 @@ deployment_snapshot
 deployment_link current "$TARGET"
 install -m 0644 "$TARGET"/deploy/lingxi-next-*.service /etc/systemd/system/
 systemctl daemon-reload
+if [[ -f "$TARGET/.reference-commissioning" ]]; then
+  deployment_start_reference
+  systemctl enable lingxi-next-reference-navigation.service
+elif [[ -f "$CURRENT/.reference-commissioning" && "$OLD_REFERENCE_ENABLED" == 1 ]]; then
+  systemctl disable lingxi-next-reference-navigation.service
+fi
 systemctl start lingxi-next-api.service
 if ! deployment_health; then
   echo "Rollback API health check failed. Inspect services and retained backups before continuing." >&2

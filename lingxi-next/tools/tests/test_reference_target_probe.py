@@ -1,13 +1,17 @@
 from pathlib import Path
 import struct
 import sys
+import tempfile
 from types import SimpleNamespace as NS
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from probe_reference_target import (BASE_FRAMES, CLOUD, IMU, IMU_FRAME, MC_STATE, NS_PER_S,
-                                    SERVICE_TYPES, TOPIC_TYPES, Stream, build_report, imu_valid, mc_state_valid)
+                                    SERVICE_TYPES, TOPIC_TYPES, Stream, build_report, candidate_profile,
+                                    imu_valid, mc_state_valid, read_factory_lidar)
 from check_reference_bag import FIELDS
+from prepare_reference_profile import build_profile
+from reference_calibration import check_target_mounting_document
 
 
 def stamped(ns, frame_id=""):
@@ -101,3 +105,52 @@ class ReferenceTargetProbeTests(unittest.TestCase):
         self.assertTrue(mc_state_valid(message))
         del message.input_source
         self.assertFalse(mc_state_valid(message))
+
+    def test_candidate_inverts_live_transform_not_factory_matrix(self):
+        import numpy as np
+
+        template = {"/**": {"ros__parameters": {"mapping": {"extrinsic_est_en": True,
+                                                            "filter_size_surf": 0.3}}}}
+        edge = np.eye(4)
+        edge[:3, :3] = [[0, -1, 0], [1, 0, 0], [0, 0, 1]]
+        edge[:3, 3] = [0.10, 0.23, -0.14]
+        candidate = candidate_profile(template, edge)
+        self.assertEqual("matched", check_target_mounting_document(candidate, lambda *_: edge))
+        self.assertEqual("mismatch", check_target_mounting_document(candidate, lambda *_: np.eye(4)))
+        self.assertEqual(0.3, candidate["/**"]["ros__parameters"]["mapping"]["filter_size_surf"])
+        self.assertFalse(candidate["/**"]["ros__parameters"]["runtime_pos_log_enable"])
+        edge[0, 0] = float("nan")
+        with self.assertRaisesRegex(ValueError, "invalid_static"):
+            candidate_profile(template, edge)
+
+    def test_factory_requires_finite_explicit_lidar_pose(self):
+        with tempfile.TemporaryDirectory() as directory:
+            file = Path(directory) / "factory.yml"
+            file.write_text("chest_lidar:\n  R_baselink_sensor: [1, 0, 0, 0, 1, 0, 0, 0, 1]\n"
+                            "  t_baselink_sensor: [.1, .2, .3]\n")
+            self.assertEqual((4, 4), read_factory_lidar(file).shape)
+            for text in (file.read_text().replace(".3", ".nan"), file.read_text().replace(".3", "true"),
+                         "chest_lidar: ["):
+                file.write_text(text)
+                with self.assertRaises(ValueError):
+                    read_factory_lidar(file)
+
+    def test_prepared_app_profile_never_carries_template_motion_or_data_paths(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "config").mkdir()
+            (root / "config/app.yaml").write_text("motion_enabled: true\nvisualization: {enabled: true}\n"
+                "color_mapping: {enabled: true}\nmapping: {enabled: false, loop_closure_enabled: true}\n"
+                "allowed_recording_roots: [/home/other/recordings]\n")
+            for file in ("config/localizer.yaml", "fastlio.yaml", "lib/fast_lio/fastlio_mapping",
+                         "lib/robot_nav_recorder/mapping_recorder"):
+                path = root / file
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.touch(mode=0o755)
+            result = build_profile(root, root, root / "fastlio.yaml", root / "data")
+            self.assertIs(result["motion_enabled"], False)
+            self.assertIs(result["visualization"]["enabled"], False)
+            self.assertIs(result["color_mapping"]["enabled"], False)
+            self.assertIs(result["mapping"]["loop_closure_enabled"], False)
+            self.assertEqual([str(root / "data/recordings")], result["allowed_recording_roots"])
+            self.assertEqual([str(root / "fastlio.yaml")], result["mapping"]["calibration_files"])
